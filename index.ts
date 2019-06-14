@@ -60,7 +60,7 @@ class TFunctionContext implements StatementBlockContext {
     }
 
     buildRegisterReference(register: string): string {
-        const name = register.slice(0, 2);
+        const name = register.slice(1, 2);
         const index = Number.parseInt(register.slice(2), 10);
         // TODO: check index ranges
         return `${name}[${index}]`;

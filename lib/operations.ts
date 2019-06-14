@@ -16,13 +16,13 @@ export interface OperationHandler {
 // PUBLIC FUNCTIONS
 // ================================================================================================
 export function getOperationHandler(token: IToken): OperationHandler {
-    if (tokenMatcher(token, Plus)) return addition;
-    else if (tokenMatcher(token, Minus)) return subtraction;
-    else if (tokenMatcher(token, Star)) return multiplication;
-    else if (tokenMatcher(token, Slash)) return division;
-    else if (tokenMatcher(token, ExpOp)) return exponentiation;
-    else if (tokenMatcher(token, Pound)) return product;
-    else throw new Error(`Invalid operator`);
+    if (tokenMatcher(token, Plus))          return addition;
+    else if (tokenMatcher(token, Minus))    return subtraction;
+    else if (tokenMatcher(token, Star))     return multiplication;
+    else if (tokenMatcher(token, Slash))    return division;
+    else if (tokenMatcher(token, ExpOp))    return exponentiation;
+    else if (tokenMatcher(token, Pound))    return product;
+    else throw new Error(`Invalid operator '${token.image}'`);
 }
 
 // ADDITION
@@ -36,9 +36,9 @@ const addition = {
     },
     getCode(e1: Expression, e2: Expression): string {
         const d1 = e1.dimensions;
-        if (isScalar(d1))       return `$field.add(${e1.code}, ${e2.code})`;
-        else if (isVector(d1))  return `$field.addVectorElements(${e1.code}, ${e2.code})`;
-        else                    return `$field.addMatrixElements(${e1.code}, ${e2.code})`;
+        if (isScalar(d1))       return `this.add(${e1.code}, ${e2.code})`;
+        else if (isVector(d1))  return `this.addVectorElements(${e1.code}, ${e2.code})`;
+        else                    return `this.addMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 
@@ -53,9 +53,9 @@ const subtraction = {
     },
     getCode(e1: Expression, e2: Expression): string {
         const d1 = e1.dimensions;
-        if (isScalar(d1))       return `$field.sub(${e1.code}, ${e2.code})`;
-        else if (isVector(d1))  return `$field.subVectorElements(${e1.code}, ${e2.code})`;
-        else                    return `$field.subMatrixElements(${e1.code}, ${e2.code})`;
+        if (isScalar(d1))       return `this.sub(${e1.code}, ${e2.code})`;
+        else if (isVector(d1))  return `this.subVectorElements(${e1.code}, ${e2.code})`;
+        else                    return `this.subMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 
@@ -70,9 +70,9 @@ const multiplication = {
     },
     getCode(e1: Expression, e2: Expression): string {
         const d1 = e1.dimensions;
-        if (isScalar(d1))       return `$field.mul(${e1.code}, ${e2.code})`;
-        else if (isVector(d1))  return `$field.mulVectorElements(${e1.code}, ${e2.code})`;
-        else                    return `$field.mulMatrixElements(${e1.code}, ${e2.code})`;
+        if (isScalar(d1))       return `this.mul(${e1.code}, ${e2.code})`;
+        else if (isVector(d1))  return `this.mulVectorElements(${e1.code}, ${e2.code})`;
+        else                    return `this.mulMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 
@@ -87,9 +87,9 @@ const division = {
     },
     getCode(e1: Expression, e2: Expression): string {
         const d1 = e1.dimensions;
-        if (isScalar(d1))       return `$field.div(${e1.code}, ${e2.code})`;
-        else if (isVector(d1))  return `$field.divVectorElements(${e1.code}, ${e2.code})`;
-        else                    return `$field.divMatrixElements(${e1.code}, ${e2.code})`;
+        if (isScalar(d1))       return `this.div(${e1.code}, ${e2.code})`;
+        else if (isVector(d1))  return `this.divVectorElements(${e1.code}, ${e2.code})`;
+        else                    return `this.divMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 
@@ -103,9 +103,9 @@ const exponentiation = {
     },
     getCode(e1: Expression, e2: Expression): string {
         const d1 = e1.dimensions;
-        if (isScalar(d1))       return `$field.exp(${e1.code}, ${e2.code})`;
-        else if (isVector(d1))  return `$field.expVectorElements(${e1.code}, ${e2.code})`;
-        else                    return `$field.expMatrixElements(${e1.code}, ${e2.code})`;
+        if (isScalar(d1))       return `this.exp(${e1.code}, ${e2.code})`;
+        else if (isVector(d1))  return `this.expVectorElements(${e1.code}, ${e2.code})`;
+        else                    return `this.expMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 
@@ -121,8 +121,8 @@ const product = {
     getCode(e1: Expression, e2: Expression): string {
         const d1 = e1.dimensions;
         const d2 = e2.dimensions;
-        if (isVector(d1) && isVector(d2))       return `$field.combineVectors(${e1.code}, ${e2.code})`;
-        else if (isMatrix(d1) && isVector(d2))  return `$field.mulMatrixByVector(${e1.code}, ${e2.code})`;
-        else                                    return `$field.mulMatrixes(${e1.code}, ${e2.code})`;
+        if (isVector(d1) && isVector(d2))       return `this.combineVectors(${e1.code}, ${e2.code})`;
+        else if (isMatrix(d1) && isVector(d2))  return `this.mulMatrixByVector(${e1.code}, ${e2.code})`;
+        else                                    return `this.mulMatrixes(${e1.code}, ${e2.code})`;
     }
 };

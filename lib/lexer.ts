@@ -36,6 +36,9 @@ export const Out         = createToken({ name: "Out",         pattern: /out/,   
 export const Repeat      = createToken({ name: "Repeat",      pattern: /repeat/,        longer_alt: Identifier });
 export const Spread      = createToken({ name: "Spread",      pattern: /spread/,        longer_alt: Identifier });
 
+export const Import      = createToken({ name: "Import",      pattern: /import/,        longer_alt: Identifier });
+export const From        = createToken({ name: "From",        pattern: /from/,          longer_alt: Identifier });
+
 // OPERATORS
 // ================================================================================================
 export const AddOp  = createToken({ name: "AddOp",  pattern: Lexer.NA });
@@ -61,7 +64,7 @@ export const Comma      = createToken({ name: "Comma",      pattern: /,/    });
 export const Colon      = createToken({ name: "Colon",      pattern: /:/    });
 export const Semicolon  = createToken({ name: "Semicolon",  pattern: /;/    });
 
-// WHITESPACE
+// WHITESPACE AND COMMENTS
 // ================================================================================================
 export const WhiteSpace = createToken({
     name    : "WhiteSpace",
@@ -69,13 +72,19 @@ export const WhiteSpace = createToken({
     group   : Lexer.SKIPPED
 });
 
+export const Comment = createToken({
+    name    : "Comment",
+    pattern : /\/\/.+/,
+    group   : "comments"
+});
+
 // ALL TOKENS
 // ================================================================================================
 export const allTokens = [
-    WhiteSpace,
+    WhiteSpace, Comment,
     
     Define, Over, Prime, Binary, Field, Transition, Registers, In, Steps, Enforce, Constraints,
-    Of, Degree, For, Do, With, Nothing, Out, Repeat, Spread,
+    Of, Degree, For, Do, With, Nothing, Out, Repeat, Spread, Import, From,
 
     Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 

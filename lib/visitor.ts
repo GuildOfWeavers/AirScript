@@ -3,7 +3,7 @@
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
-import { Dimensions, StatementBlockContext, validateVariableName, isScalar } from './utils';
+import { Dimensions, StatementBlockContext, validateVariableName, isScalar, isVector } from './utils';
 import { getOperationHandler } from './operations';
 
 // INTERFACES
@@ -56,6 +56,8 @@ class AirVisitor extends BaseCstVisitor {
         return { test: 'tConstraints' };
     }
 
+    // STATEMENTS
+    // --------------------------------------------------------------------------------------------
     statementBlock(ctx: any, cbc: StatementBlockContext) {
 
         const variables = new Map<string,Dimensions>();
@@ -67,17 +69,16 @@ class AirVisitor extends BaseCstVisitor {
             let expression = statement.expression;
             validateVariableName(variable, expression.dimensions);
             cbc.setVariableDimensions(variable, expression.dimensions);
-            code += `_${variable} = ${expression.code};\n`;
+            code += `$${variable} = ${expression.code};\n`;
         }
 
+        // TODO: validate out statement dimensions
         const out: Expression = this.visit(ctx.outStatement, cbc);
-        code += `out = ${out.code};`; // TODO: don't hard-code 'out'
+        code += out.code;
         
         return { variables, code };
     }
 
-    // STATEMENTS
-    // --------------------------------------------------------------------------------------------
     statement(ctx: any, cbc: StatementBlockContext): Statement {
         const variable = ctx.variableName[0].image;
         const expression = this.visit(ctx.expression, cbc);
@@ -85,7 +86,36 @@ class AirVisitor extends BaseCstVisitor {
     }
 
     outStatement(ctx: any, cbc: StatementBlockContext): Expression {
-        return this.visit(ctx.expression, cbc);
+        let code = '', dimensions: Dimensions;
+        if (ctx.expression) {
+            const expression: Expression = this.visit(ctx.expression, cbc);
+            if (isScalar(expression.dimensions)) {
+                code = `out[0] = ${expression.code};\n`;
+                dimensions = [1, 0];
+            }
+            else if (isVector(expression.dimensions)) {
+                dimensions = expression.dimensions;
+                code = `_out = ${expression.code};\n`;
+                for (let i = 0; i < dimensions[0]; i++) {
+                    code += `out[${i}] = _out[${i}];\n`;
+                }
+            }
+            else {
+                throw new Error('Out statement must evaluate either to a scalar or to a vector');
+            }
+        }
+        else {
+            dimensions = [ctx.expressions.length, 0];
+            for (let i = 0; i < ctx.expressions.length; i++) {
+                let expression = this.visit(ctx.expressions[i], cbc);
+                if (!isScalar(expression.dimensions)) {
+                    throw new Error(`Out vector elements must be scalars`);
+                }
+                code += `out[${i}] = ${expression.code};\n`;
+            }
+        }
+
+        return { code, dimensions };
     }
 
     // VECTORS AND MATRIXES
@@ -197,16 +227,13 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.parenExpression) {
             return this.visit(ctx.parenExpression);
         }
-        else if (ctx.negExpression) {
-            return this.visit(ctx.negExpression);
-        }
         else if (ctx.Identifier) {
             const variable = ctx.Identifier[0].image;
             const dimensions = cbc.getVariableDimensions(variable);
             if (!dimensions) {
                 throw new Error(`Variable '${variable}' is not defined`);
             }
-            return { code: `_${variable}`, dimensions };
+            return { code: `$${variable}`, dimensions };
         }
         else if (ctx.MutableRegister) {
             const register = ctx.MutableRegister[0].image;
@@ -225,33 +252,29 @@ class AirVisitor extends BaseCstVisitor {
         }
     }
 
-    negExpression(ctx: any) {
-        return `-${this.visit(ctx.expression)}`;
-    }
-
     parenExpression(ctx: any) {
         return this.visit(ctx.expression);
     }
 
     // LITERAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------
-    literalExpression(ctx: any) {
+    literalExpression(ctx: any): bigint {
         return this.visit(ctx.literalAddExpression);
     }
 
-    literalAddExpression(ctx: any) {
-        let result = this.visit(ctx.lhs);
+    literalAddExpression(ctx: any): bigint {
+        let result: bigint = this.visit(ctx.lhs);
 
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
-                let rhsValue = this.visit(rhsOperand)
+                let rhsValue: bigint = this.visit(rhsOperand)
                 let operator = ctx.AddOp[i];
 
                 if (tokenMatcher(operator, Plus)) {
-                    result = `field.add(${result}, ${rhsValue})`;
+                    result = result + rhsValue;
                 }
                 else if (tokenMatcher(operator, Minus)) {
-                    result = `field.sub(${result}, ${rhsValue})`;
+                    result = result - rhsValue;
                 }
             });
         }
@@ -259,22 +282,22 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
 
-    literalMulExpression(ctx: any) {
-        let result = this.visit(ctx.lhs);
+    literalMulExpression(ctx: any): bigint {
+        let result: bigint = this.visit(ctx.lhs);
 
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
-                let rhsValue = this.visit(rhsOperand)
+                let rhsValue: bigint = this.visit(rhsOperand)
                 let operator = ctx.MulOp[i];
 
                 if (tokenMatcher(operator, Star)) {
-                    result = `field.mul(${result}, ${rhsValue})`;
+                    result = result * rhsValue;
                 }
                 else if (tokenMatcher(operator, Slash)) {
-                    result = `field.div(${result}, ${rhsValue})`;
+                    result = result / rhsValue;
                 }
                 else if (tokenMatcher(operator, Pound)) {
-                    result = `field.prod(${result}, ${rhsValue})`;
+                    throw new Error('Matrix multiplication is supported for literal expressions')
                 }
             });
         }
@@ -282,29 +305,32 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
 
-    literalExpExpression(ctx: any) {
-        let result = this.visit(ctx.lhs);
+    literalExpExpression(ctx: any): bigint {
+        let result: bigint = this.visit(ctx.lhs);
 
         if (ctx.rhs) {
-            ctx.rhs.forEach((rhsOperand: any, i: number) => {
-                let rhsValue = this.visit(rhsOperand);
-                result = `field.exp(${result}, ${rhsValue})`;
+            ctx.rhs.forEach((rhsOperand: any) => {
+                let rhsValue: bigint = this.visit(rhsOperand);
+                result = result ** rhsValue;
             });
         }
 
         return result;
     }
 
-    literalAtomicExpression(ctx: any) {
+    literalAtomicExpression(ctx: any): bigint {
         if (ctx.literalParenExpression) {
             return this.visit(ctx.literalParenExpression);
         }
         else if (ctx.IntegerLiteral) {
-            return ctx.IntegerLiteral[0].image;
+            return BigInt(ctx.IntegerLiteral[0].image);
+        }
+        else {
+            throw new Error('Invalid atomic expression'); // TODO: better error
         }
     }
 
-    literalParenExpression(ctx: any) {
+    literalParenExpression(ctx: any): bigint {
         return this.visit(ctx.literalExpression);
     }
 }

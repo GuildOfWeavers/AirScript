@@ -42,7 +42,7 @@ class AirParser extends CstParser {
         this.CONSUME2(IntegerLiteral, { LABEL: 'steps' });
         this.CONSUME(Steps);
         this.CONSUME(LCurly);
-        this.SUBRULE(this.statementBlock, { LABEL: 'blocks' });
+        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
         this.CONSUME(RCurly);
     });
 
@@ -54,7 +54,7 @@ class AirParser extends CstParser {
         this.CONSUME(Degree);
         this.CONSUME2(IntegerLiteral, { LABEL: 'constraintDegree' });
         this.CONSUME(LCurly);
-        //this.SUBRULE(this.statementBlock);
+        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
         this.CONSUME(RCurly);
     });
 
@@ -83,7 +83,14 @@ class AirParser extends CstParser {
         this.CONSUME(Colon);
         this.OR([
             { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
-            { ALT: () => this.SUBRULE(this.vector,      { LABEL: 'expression' }) }
+            { ALT: () => {
+                this.CONSUME(LSquare);
+                this.AT_LEAST_ONE_SEP({
+                    SEP : Comma,
+                    DEF : () => this.SUBRULE2(this.expression, { LABEL: 'expressions' })
+                })
+                this.CONSUME(RSquare);
+            }}
         ]);
         this.CONSUME(Semicolon);
     });
@@ -150,17 +157,11 @@ class AirParser extends CstParser {
     private atomicExpression = this.RULE('atomicExpression', () => {
         this.OR([
             { ALT: () => this.SUBRULE(this.parenExpression) },
-            { ALT: () => this.SUBRULE(this.negExpression) },
             { ALT: () => this.CONSUME(Identifier) },
             { ALT: () => this.CONSUME(MutableRegister) },
             { ALT: () => this.CONSUME(ReadonlyRegister) },
             { ALT: () => this.CONSUME(IntegerLiteral) }
         ]);
-    });
-
-    private negExpression = this.RULE('negExpression', () => {
-        this.CONSUME(Minus);
-        this.SUBRULE(this.expression);
     });
 
     private parenExpression = this.RULE('parenExpression', () => {

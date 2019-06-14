@@ -31,6 +31,8 @@ exports.Nothing = chevrotain_1.createToken({ name: "Nothing", pattern: /nothing/
 exports.Out = chevrotain_1.createToken({ name: "Out", pattern: /out/, longer_alt: exports.Identifier });
 exports.Repeat = chevrotain_1.createToken({ name: "Repeat", pattern: /repeat/, longer_alt: exports.Identifier });
 exports.Spread = chevrotain_1.createToken({ name: "Spread", pattern: /spread/, longer_alt: exports.Identifier });
+exports.Import = chevrotain_1.createToken({ name: "Import", pattern: /import/, longer_alt: exports.Identifier });
+exports.From = chevrotain_1.createToken({ name: "From", pattern: /from/, longer_alt: exports.Identifier });
 // OPERATORS
 // ================================================================================================
 exports.AddOp = chevrotain_1.createToken({ name: "AddOp", pattern: chevrotain_1.Lexer.NA });
@@ -52,19 +54,24 @@ exports.RParen = chevrotain_1.createToken({ name: "RParen", pattern: /\)/ });
 exports.Comma = chevrotain_1.createToken({ name: "Comma", pattern: /,/ });
 exports.Colon = chevrotain_1.createToken({ name: "Colon", pattern: /:/ });
 exports.Semicolon = chevrotain_1.createToken({ name: "Semicolon", pattern: /;/ });
-// WHITESPACE
+// WHITESPACE AND COMMENTS
 // ================================================================================================
 exports.WhiteSpace = chevrotain_1.createToken({
     name: "WhiteSpace",
     pattern: /[ \t\n\r]+/,
     group: chevrotain_1.Lexer.SKIPPED
 });
+exports.Comment = chevrotain_1.createToken({
+    name: "Comment",
+    pattern: /\/\/.+/,
+    group: "comments"
+});
 // ALL TOKENS
 // ================================================================================================
 exports.allTokens = [
-    exports.WhiteSpace,
+    exports.WhiteSpace, exports.Comment,
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.In, exports.Steps, exports.Enforce, exports.Constraints,
-    exports.Of, exports.Degree, exports.For, exports.Do, exports.With, exports.Nothing, exports.Out, exports.Repeat, exports.Spread,
+    exports.Of, exports.Degree, exports.For, exports.Do, exports.With, exports.Nothing, exports.Out, exports.Repeat, exports.Spread, exports.Import, exports.From,
     exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon,
     exports.Identifier,

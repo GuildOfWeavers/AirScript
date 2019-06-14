@@ -48,7 +48,7 @@ class TFunctionContext {
         return this.variables.get(variable);
     }
     buildRegisterReference(register) {
-        const name = register.slice(0, 2);
+        const name = register.slice(1, 2);
         const index = Number.parseInt(register.slice(2), 10);
         // TODO: check index ranges
         return `${name}[${index}]`;

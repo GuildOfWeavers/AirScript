@@ -19,7 +19,7 @@ function getOperationHandler(token) {
     else if (chevrotain_1.tokenMatcher(token, lexer_1.Pound))
         return product;
     else
-        throw new Error(`Invalid operator`);
+        throw new Error(`Invalid operator '${token.image}'`);
 }
 exports.getOperationHandler = getOperationHandler;
 // ADDITION
@@ -37,11 +37,11 @@ const addition = {
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
-            return `$field.add(${e1.code}, ${e2.code})`;
+            return `this.add(${e1.code}, ${e2.code})`;
         else if (utils_1.isVector(d1))
-            return `$field.addVectorElements(${e1.code}, ${e2.code})`;
+            return `this.addVectorElements(${e1.code}, ${e2.code})`;
         else
-            return `$field.addMatrixElements(${e1.code}, ${e2.code})`;
+            return `this.addMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 // SUBTRACTION
@@ -59,11 +59,11 @@ const subtraction = {
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
-            return `$field.sub(${e1.code}, ${e2.code})`;
+            return `this.sub(${e1.code}, ${e2.code})`;
         else if (utils_1.isVector(d1))
-            return `$field.subVectorElements(${e1.code}, ${e2.code})`;
+            return `this.subVectorElements(${e1.code}, ${e2.code})`;
         else
-            return `$field.subMatrixElements(${e1.code}, ${e2.code})`;
+            return `this.subMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 // MULTIPLICATION
@@ -81,11 +81,11 @@ const multiplication = {
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
-            return `$field.mul(${e1.code}, ${e2.code})`;
+            return `this.mul(${e1.code}, ${e2.code})`;
         else if (utils_1.isVector(d1))
-            return `$field.mulVectorElements(${e1.code}, ${e2.code})`;
+            return `this.mulVectorElements(${e1.code}, ${e2.code})`;
         else
-            return `$field.mulMatrixElements(${e1.code}, ${e2.code})`;
+            return `this.mulMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 // DIVISION
@@ -103,11 +103,11 @@ const division = {
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
-            return `$field.div(${e1.code}, ${e2.code})`;
+            return `this.div(${e1.code}, ${e2.code})`;
         else if (utils_1.isVector(d1))
-            return `$field.divVectorElements(${e1.code}, ${e2.code})`;
+            return `this.divVectorElements(${e1.code}, ${e2.code})`;
         else
-            return `$field.divMatrixElements(${e1.code}, ${e2.code})`;
+            return `this.divMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 // EXPONENTIATION
@@ -123,11 +123,11 @@ const exponentiation = {
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
-            return `$field.exp(${e1.code}, ${e2.code})`;
+            return `this.exp(${e1.code}, ${e2.code})`;
         else if (utils_1.isVector(d1))
-            return `$field.expVectorElements(${e1.code}, ${e2.code})`;
+            return `this.expVectorElements(${e1.code}, ${e2.code})`;
         else
-            return `$field.expMatrixElements(${e1.code}, ${e2.code})`;
+            return `this.expMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 // MATRIX AND VECTOR PRODUCT
@@ -146,11 +146,11 @@ const product = {
         const d1 = e1.dimensions;
         const d2 = e2.dimensions;
         if (utils_1.isVector(d1) && utils_1.isVector(d2))
-            return `$field.combineVectors(${e1.code}, ${e2.code})`;
+            return `this.combineVectors(${e1.code}, ${e2.code})`;
         else if (utils_1.isMatrix(d1) && utils_1.isVector(d2))
-            return `$field.mulMatrixByVector(${e1.code}, ${e2.code})`;
+            return `this.mulMatrixByVector(${e1.code}, ${e2.code})`;
         else
-            return `$field.mulMatrixes(${e1.code}, ${e2.code})`;
+            return `this.mulMatrixes(${e1.code}, ${e2.code})`;
     }
 };
 //# sourceMappingURL=operations.js.map

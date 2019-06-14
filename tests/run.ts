@@ -3,7 +3,7 @@ import { parseScript, parseStatementBlock } from '../index';
 const statements = `
     a: (24 + 3) * 4^5;
     
-    B1: [1, 2 + $n2];
+    B1: [1, 2 + $n2];   // comment
     B2: [2, 2];
     B3: B1 + B2;
 

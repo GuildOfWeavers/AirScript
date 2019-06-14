@@ -35,7 +35,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'steps' });
             this.CONSUME(lexer_1.Steps);
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.statementBlock, { LABEL: 'blocks' });
+            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
@@ -46,7 +46,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.Degree);
             this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'constraintDegree' });
             this.CONSUME(lexer_1.LCurly);
-            //this.SUBRULE(this.statementBlock);
+            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
             this.CONSUME(lexer_1.RCurly);
         });
         // STATEMENTS
@@ -72,7 +72,14 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.Colon);
             this.OR([
                 { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
-                { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) }
+                { ALT: () => {
+                        this.CONSUME(lexer_1.LSquare);
+                        this.AT_LEAST_ONE_SEP({
+                            SEP: lexer_1.Comma,
+                            DEF: () => this.SUBRULE2(this.expression, { LABEL: 'expressions' })
+                        });
+                        this.CONSUME(lexer_1.RSquare);
+                    } }
             ]);
             this.CONSUME(lexer_1.Semicolon);
         });
@@ -131,16 +138,11 @@ class AirParser extends chevrotain_1.CstParser {
         this.atomicExpression = this.RULE('atomicExpression', () => {
             this.OR([
                 { ALT: () => this.SUBRULE(this.parenExpression) },
-                { ALT: () => this.SUBRULE(this.negExpression) },
                 { ALT: () => this.CONSUME(lexer_1.Identifier) },
                 { ALT: () => this.CONSUME(lexer_1.MutableRegister) },
                 { ALT: () => this.CONSUME(lexer_1.ReadonlyRegister) },
                 { ALT: () => this.CONSUME(lexer_1.IntegerLiteral) }
             ]);
-        });
-        this.negExpression = this.RULE('negExpression', () => {
-            this.CONSUME(lexer_1.Minus);
-            this.SUBRULE(this.expression);
         });
         this.parenExpression = this.RULE('parenExpression', () => {
             this.CONSUME(lexer_1.LParen);
