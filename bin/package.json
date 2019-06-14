@@ -1,0 +1,33 @@
+{
+  "name": "@guildofweavers/air-script",
+  "version": "0.1.0",
+  "description": "A scripting language for defining zk-STARKs",
+  "main": "index.js",
+  "typings": "air-script.d.ts",
+  "license": "MIT",
+  "author": {
+    "name": "Bobbin Threadbare",
+    "email": "bobbinth@protonmail.com"
+  },
+  "keywords": [
+    "stark",
+    "script",
+    "zero-knowledge",
+    "cryptography"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GuildOfWeavers/AirScript.git"
+  },
+  "engines": {
+    "node": "12.3.x"
+  },
+  "devDependencies": {
+    "@types/node": "12.0.x",
+    "del": "4.1.x",
+    "gulp": "4.0.x"
+  },
+  "dependencies": {
+    "chevrotain": "4.7.x"
+  }
+}
