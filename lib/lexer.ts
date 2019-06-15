@@ -33,11 +33,14 @@ export const With        = createToken({ name: "With",        pattern: /with/,  
 export const Nothing     = createToken({ name: "Nothing",     pattern: /nothing/,       longer_alt: Identifier });
 export const Out         = createToken({ name: "Out",         pattern: /out/,           longer_alt: Identifier });
 
+export const Using       = createToken({ name: "Using",       pattern: /using/,         longer_alt: Identifier });
+export const Readonly    = createToken({ name: "Readonly",    pattern: /readonly/,      longer_alt: Identifier });
 export const Repeat      = createToken({ name: "Repeat",      pattern: /repeat/,        longer_alt: Identifier });
 export const Spread      = createToken({ name: "Spread",      pattern: /spread/,        longer_alt: Identifier });
 
 export const Import      = createToken({ name: "Import",      pattern: /import/,        longer_alt: Identifier });
 export const From        = createToken({ name: "From",        pattern: /from/,          longer_alt: Identifier });
+export const As          = createToken({ name: "As",          pattern: /as/,            longer_alt: Identifier });
 
 // OPERATORS
 // ================================================================================================
@@ -84,7 +87,7 @@ export const allTokens = [
     WhiteSpace, Comment,
     
     Define, Over, Prime, Binary, Field, Transition, Registers, In, Steps, Enforce, Constraints,
-    Of, Degree, For, Do, With, Nothing, Out, Repeat, Spread, Import, From,
+    Of, Degree, For, Do, With, Nothing, Out, Repeat, Spread, Using, Readonly, Import, From, As,
 
     Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 

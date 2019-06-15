@@ -29,10 +29,13 @@ exports.Do = chevrotain_1.createToken({ name: "Do", pattern: /do/, longer_alt: e
 exports.With = chevrotain_1.createToken({ name: "With", pattern: /with/, longer_alt: exports.Identifier });
 exports.Nothing = chevrotain_1.createToken({ name: "Nothing", pattern: /nothing/, longer_alt: exports.Identifier });
 exports.Out = chevrotain_1.createToken({ name: "Out", pattern: /out/, longer_alt: exports.Identifier });
+exports.Using = chevrotain_1.createToken({ name: "Using", pattern: /using/, longer_alt: exports.Identifier });
+exports.Readonly = chevrotain_1.createToken({ name: "Readonly", pattern: /readonly/, longer_alt: exports.Identifier });
 exports.Repeat = chevrotain_1.createToken({ name: "Repeat", pattern: /repeat/, longer_alt: exports.Identifier });
 exports.Spread = chevrotain_1.createToken({ name: "Spread", pattern: /spread/, longer_alt: exports.Identifier });
 exports.Import = chevrotain_1.createToken({ name: "Import", pattern: /import/, longer_alt: exports.Identifier });
 exports.From = chevrotain_1.createToken({ name: "From", pattern: /from/, longer_alt: exports.Identifier });
+exports.As = chevrotain_1.createToken({ name: "As", pattern: /as/, longer_alt: exports.Identifier });
 // OPERATORS
 // ================================================================================================
 exports.AddOp = chevrotain_1.createToken({ name: "AddOp", pattern: chevrotain_1.Lexer.NA });
@@ -71,7 +74,7 @@ exports.Comment = chevrotain_1.createToken({
 exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.In, exports.Steps, exports.Enforce, exports.Constraints,
-    exports.Of, exports.Degree, exports.For, exports.Do, exports.With, exports.Nothing, exports.Out, exports.Repeat, exports.Spread, exports.Import, exports.From,
+    exports.Of, exports.Degree, exports.For, exports.Do, exports.With, exports.Nothing, exports.Out, exports.Repeat, exports.Spread, exports.Using, exports.Readonly, exports.Import, exports.From, exports.As,
     exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon,
     exports.Identifier,

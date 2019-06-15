@@ -1,12 +1,13 @@
 declare module '@guildofweavers/air-script' {
 
-    // IMPORTS
+    // IMPORTS AND RE-EXPORTS
     // --------------------------------------------------------------------------------------------
     import { FiniteField } from '@guildofweavers/galois';
+    export { FiniteField } from '@guildofweavers/galois';
 
     // INTERFACES
     // --------------------------------------------------------------------------------------------
-    export interface ScriptLimits {
+    export interface StarkLimits {
         maxMutableRegisters     : number;
         maxReadonlyRegisters    : number;
         maxConstraintCount      : number;
@@ -38,19 +39,28 @@ declare module '@guildofweavers/air-script' {
     }
 
     export interface StarkConfig {
+        name                : string;
         field               : FiniteField;
         steps               : number;
         registerCount       : number;
+        readonlyRegisters   : ConstantDefinition[];
         constraintCount     : number;
         transitionFunction  : TransitionFunction;
         constraintEvaluator : ConstraintEvaluator;
         maxConstraintDegree : number;
-        constants           : any;
+        globalConstants     : object;
+    }
+
+    export type ConstantPattern = 'repeat' | 'spread';
+
+    export interface ConstantDefinition {
+        values  : bigint[];
+        pattern : ConstantPattern;
     }
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
-    export function parseScript(text: string, limits: ScriptLimits): StarkConfig;
+    export function parseScript(text: string, limits: StarkLimits): StarkConfig;
 
     export function parseStatementBlock(text: string): any; // TODO: define return type
 }

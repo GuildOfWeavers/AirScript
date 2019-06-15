@@ -15,15 +15,57 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.Over);
             this.CONSUME(lexer_1.Prime);
             this.CONSUME(lexer_1.Field);
-            this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'modulus' });
+            this.SUBRULE(this.literalExpression, { LABEL: 'modulus' });
             this.CONSUME(lexer_1.LCurly);
             this.MANY(() => {
                 this.OR([
                     { ALT: () => this.SUBRULE(this.transitionFunction, { LABEL: 'tFunction' }) },
-                    { ALT: () => this.SUBRULE(this.transitionConstraints, { LABEL: 'tConstraints' }) }
+                    { ALT: () => this.SUBRULE(this.transitionConstraints, { LABEL: 'tConstraints' }) },
+                    { ALT: () => this.SUBRULE(this.constantDeclaration, { LABEL: 'constants' }) },
+                    { ALT: () => this.SUBRULE(this.readonlyRegisters, { LABEL: 'registers' }) }
                 ]);
             });
             this.CONSUME(lexer_1.RCurly);
+        });
+        // GLOBAL CONSTANTS
+        // --------------------------------------------------------------------------------------------
+        this.constantDeclaration = this.RULE('constantDeclaration', () => {
+            this.CONSUME(lexer_1.Identifier, { LABEL: 'constantName' });
+            this.CONSUME(lexer_1.Colon);
+            this.OR([
+                { ALT: () => this.SUBRULE(this.literalAddExpression, { LABEL: 'value' }) },
+                { ALT: () => this.SUBRULE(this.literalVector, { LABEL: 'vector' }) },
+                { ALT: () => this.SUBRULE(this.literalMatrix, { LABEL: 'matrix' }) }
+            ]);
+            this.CONSUME(lexer_1.Semicolon);
+        });
+        this.literalVector = this.RULE('literalVector', () => {
+            this.CONSUME(lexer_1.LSquare);
+            this.AT_LEAST_ONE_SEP({
+                SEP: lexer_1.Comma,
+                DEF: () => this.SUBRULE(this.literalExpExpression, { LABEL: 'elements' })
+            });
+            this.CONSUME(lexer_1.RSquare);
+        });
+        this.literalMatrix = this.RULE('literalMatrix', () => {
+            this.CONSUME(lexer_1.LSquare);
+            this.AT_LEAST_ONE_SEP({
+                SEP: lexer_1.Comma,
+                DEF: () => this.SUBRULE(this.literalMatrixRow, { LABEL: 'rows' })
+            });
+            this.CONSUME(lexer_1.RSquare);
+        });
+        this.literalMatrixRow = this.RULE('literalMatrixRow', () => {
+            this.CONSUME(lexer_1.LSquare);
+            this.AT_LEAST_ONE_SEP({
+                SEP: lexer_1.Comma,
+                DEF: () => this.SUBRULE(this.literalExpression, { LABEL: 'elements' })
+            });
+            this.CONSUME(lexer_1.RSquare);
+        });
+        // READONLY REGISTERS
+        // --------------------------------------------------------------------------------------------
+        this.readonlyRegisters = this.RULE('readonlyRegisters', () => {
         });
         // TRANSITION FUNCTION AND CONSTRAINTS
         // --------------------------------------------------------------------------------------------

@@ -1,12 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-// IMPORTS
-// ================================================================================================
+const galois_1 = require("@guildofweavers/galois");
 const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
-const utils_1 = require("./utils");
 const operations_1 = require("./operations");
+const utils_1 = require("./utils");
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser_1.parser.getBaseCstVisitorConstructor();
@@ -15,45 +14,124 @@ class AirVisitor extends BaseCstVisitor {
         super();
         this.validateVisitor();
     }
-    script(ctx) {
+    script(ctx, limits) {
         const starkName = ctx.starkName[0].image;
-        const modulus = ctx.modulus[0].image;
-        const tFunction = this.visit(ctx.tFunction);
-        const tConstraints = this.visit(ctx.tConstraints);
+        const modulus = this.visit(ctx.modulus);
+        const field = new galois_1.PrimeField(modulus);
+        // parse constants
+        const globalConstants = {};
+        const globalConstantMap = new Map();
+        if (ctx.constants) {
+            for (let i = 0; i < ctx.constants.length; i++) {
+                let constant = this.visit(ctx.constants[i]);
+                globalConstants[constant.name] = constant.value;
+                // TODO: check for duplicates
+                globalConstantMap.set(constant.name, constant.dimensions);
+            }
+        }
+        // TODO: parse readonly registers
+        const readonlyRegisters = [];
+        const tFunction = this.visit(ctx.tFunction, limits);
+        const tConstraints = this.visit(ctx.tConstraints, limits);
         return {
-            starkName,
-            modulus,
-            tFunction,
-            tConstraints
+            name: starkName,
+            field: field,
+            steps: tFunction.steps,
+            registerCount: tFunction.registerCount,
+            constraintCount: tConstraints.constraintCount,
+            transitionFunction: tFunction.transitionFunction,
+            constraintEvaluator: tConstraints.constraintEvaluator,
+            maxConstraintDegree: tConstraints.maxConstraintDegree,
+            readonlyRegisters: readonlyRegisters,
+            globalConstants: globalConstants
         };
     }
-    transitionFunction(ctx) {
+    // GLOBAL CONSTANTS
+    // --------------------------------------------------------------------------------------------
+    constantDeclaration(ctx) {
+        const name = ctx.constantName[0].image;
+        let value;
+        let dimensions;
+        if (ctx.value) {
+            value = this.visit(ctx.value);
+            dimensions = [0, 0];
+        }
+        else if (ctx.vector) {
+            value = this.visit(ctx.vector);
+            dimensions = [value.length, 0];
+        }
+        else if (ctx.matrix) {
+            value = this.visit(ctx.matrix);
+            dimensions = [value.length, value[0].length];
+        }
+        else {
+            throw new Error('Invalid constant declaration'); // TODO: better error
+        }
+        // TODO: validate variable name
+        return { name, value, dimensions };
+    }
+    literalVector(ctx) {
+        const vector = new Array(ctx.elements.length);
+        for (let i = 0; i < ctx.elements.length; i++) {
+            let element = this.visit(ctx.elements[i]);
+            vector[i] = element;
+        }
+        return vector;
+    }
+    literalMatrix(ctx) {
+        let colCount = 0;
+        const rowCount = ctx.rows.length;
+        const matrix = new Array(rowCount);
+        for (let i = 0; i < rowCount; i++) {
+            let row = this.visit(ctx.rows[i]);
+            if (colCount === 0) {
+                colCount = row.length;
+            }
+            else if (colCount !== row.length) {
+                throw new Error('All matrix rows must have the same number of columns');
+            }
+            matrix[i] = row;
+        }
+        return matrix;
+    }
+    literalMatrixRow(ctx) {
+        const row = new Array(ctx.elements.length);
+        for (let i = 0; i < ctx.elements.length; i++) {
+            let element = this.visit(ctx.elements[i]);
+            row[i] = element;
+        }
+        return row;
+    }
+    // READONLY REGISTERS
+    // --------------------------------------------------------------------------------------------
+    readonlyRegisters(ctx) {
+    }
+    // TRANSITION FUNCTION AND CONSTRAINTS
+    // --------------------------------------------------------------------------------------------
+    transitionFunction(ctx, limits) {
         const steps = ctx.steps[0].image;
         const blocks = [this.visit(ctx.blocks)];
         return {
             steps, blocks
         };
     }
-    transitionConstraints(ctx) {
+    transitionConstraints(ctx, limits) {
         return { test: 'tConstraints' };
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx, cbc) {
-        const variables = new Map();
         let code = '';
         for (let i = 0; i < ctx.statements.length; i++) {
             let statement = this.visit(ctx.statements[i], cbc);
             let variable = statement.variable;
             let expression = statement.expression;
-            utils_1.validateVariableName(variable, expression.dimensions);
             cbc.setVariableDimensions(variable, expression.dimensions);
             code += `$${variable} = ${expression.code};\n`;
         }
-        // TODO: validate out statement dimensions
         const out = this.visit(ctx.outStatement, cbc);
         code += out.code;
-        return { variables, code };
+        return { code, dimensions: out.dimensions };
     }
     statement(ctx, cbc) {
         const variable = ctx.variableName[0].image;

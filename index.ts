@@ -1,13 +1,15 @@
 // IMPORTS
 // ================================================================================================
+import { StarkLimits } from '@guildofweavers/air-script';
 import { lexer } from './lib/lexer';
 import { parser } from './lib/parser';
 import { visitor } from './lib/visitor';
-import { StatementBlockContext, Dimensions } from './lib/utils';
+import { StatementBlockContext } from './lib/StatementBlockContext';
+import { Dimensions } from './lib/utils';
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function parseScript(text: string) {
+export function parseScript(text: string, limits: StarkLimits) {
     const lexResult = lexer.tokenize(text);
     // TODO: check lexer output for lexResult.errors
 
@@ -20,7 +22,7 @@ export function parseScript(text: string) {
         throw new Error(errors[0].toString());
     }
 
-    const result = visitor.visit(cst);
+    const result = visitor.visit(cst, limits);
     return result;
 }
 
@@ -37,32 +39,8 @@ export function parseStatementBlock(text: string) {
         throw new Error(errors[0].toString());
     }
 
-    const cbc = new TFunctionContext();
+    const globals = new Map<string, Dimensions>();
+    const cbc = new StatementBlockContext(globals, 4, 8, true);
     const result = visitor.visit(cst, cbc);
     return result;
-}
-
-class TFunctionContext implements StatementBlockContext {
-
-    readonly variables: Map<string,Dimensions>;
-
-    constructor() {
-        this.variables = new Map();
-    }
-
-    setVariableDimensions(variable: string, dimensions: Dimensions) {
-        // TODO: check dimensions
-        this.variables.set(variable, dimensions);
-    }
-
-    getVariableDimensions(variable: string): Dimensions | undefined {
-        return this.variables.get(variable);
-    }
-
-    buildRegisterReference(register: string): string {
-        const name = register.slice(1, 2);
-        const index = Number.parseInt(register.slice(2), 10);
-        // TODO: check index ranges
-        return `${name}[${index}]`;
-    }
 }

@@ -21,15 +21,63 @@ class AirParser extends CstParser {
         this.CONSUME(Over);
         this.CONSUME(Prime);
         this.CONSUME(Field);
-        this.CONSUME(IntegerLiteral, { LABEL: 'modulus' })
+        this.SUBRULE(this.literalExpression, { LABEL: 'modulus' });
         this.CONSUME(LCurly);
         this.MANY(() => {
             this.OR([
-                { ALT: () => this.SUBRULE(this.transitionFunction, { LABEL: 'tFunction' }) },
-                { ALT: () => this.SUBRULE(this.transitionConstraints, { LABEL: 'tConstraints' }) }
+                { ALT: () => this.SUBRULE(this.transitionFunction,    { LABEL: 'tFunction' })    },
+                { ALT: () => this.SUBRULE(this.transitionConstraints, { LABEL: 'tConstraints' }) },
+                { ALT: () => this.SUBRULE(this.constantDeclaration,   { LABEL: 'constants'})     },
+                { ALT: () => this.SUBRULE(this.readonlyRegisters,     { LABEL: 'registers' })    }
             ]);
         });
         this.CONSUME(RCurly);
+    });
+
+    // GLOBAL CONSTANTS
+    // --------------------------------------------------------------------------------------------
+    private constantDeclaration = this.RULE('constantDeclaration', () => {
+        this.CONSUME(Identifier,{ LABEL: 'constantName' });
+        this.CONSUME(Colon);
+        this.OR([
+            { ALT: () => this.SUBRULE(this.literalAddExpression, { LABEL: 'value'  }) },
+            { ALT: () => this.SUBRULE(this.literalVector,        { LABEL: 'vector' }) },
+            { ALT: () => this.SUBRULE(this.literalMatrix,        { LABEL: 'matrix' }) }
+        ]);
+        this.CONSUME(Semicolon);
+    });
+
+    private literalVector = this.RULE('literalVector', () => {
+        this.CONSUME(LSquare);
+        this.AT_LEAST_ONE_SEP({
+            SEP : Comma,
+            DEF : () => this.SUBRULE(this.literalExpExpression, { LABEL: 'elements' })
+        })
+        this.CONSUME(RSquare);
+    });
+
+    private literalMatrix = this.RULE('literalMatrix', () => {
+        this.CONSUME(LSquare);
+        this.AT_LEAST_ONE_SEP({
+            SEP : Comma,
+            DEF : () => this.SUBRULE(this.literalMatrixRow, { LABEL: 'rows' })
+        })
+        this.CONSUME(RSquare);
+    });
+
+    private literalMatrixRow = this.RULE('literalMatrixRow', () => {
+        this.CONSUME(LSquare);
+        this.AT_LEAST_ONE_SEP({
+            SEP : Comma,
+            DEF : () => this.SUBRULE(this.literalExpression, { LABEL: 'elements' })
+        })
+        this.CONSUME(RSquare);
+    })
+
+    // READONLY REGISTERS
+    // --------------------------------------------------------------------------------------------
+    private readonlyRegisters = this.RULE('readonlyRegisters', () => {
+
     });
 
     // TRANSITION FUNCTION AND CONSTRAINTS
