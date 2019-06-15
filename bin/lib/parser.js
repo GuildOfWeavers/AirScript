@@ -66,29 +66,48 @@ class AirParser extends chevrotain_1.CstParser {
         // READONLY REGISTERS
         // --------------------------------------------------------------------------------------------
         this.readonlyRegisters = this.RULE('readonlyRegisters', () => {
+            this.CONSUME(lexer_1.Using);
+            this.SUBRULE(this.literalExpression, { LABEL: 'registerCount' });
+            this.CONSUME(lexer_1.Readonly);
+            this.CONSUME(lexer_1.Registers);
+            this.CONSUME(lexer_1.LCurly);
+            this.MANY(() => {
+                this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registerDefinitions' });
+            });
+            this.CONSUME(lexer_1.RCurly);
+        });
+        this.readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
+            this.CONSUME1(lexer_1.ReadonlyRegister, { LABEL: 'reference' });
+            this.CONSUME(lexer_1.Colon);
+            this.OR([
+                { ALT: () => { this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }); } },
+                { ALT: () => { this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }); } }
+            ]);
+            this.SUBRULE(this.literalVector, { LABEL: 'values' });
+            this.CONSUME(lexer_1.Semicolon);
         });
         // TRANSITION FUNCTION AND CONSTRAINTS
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
             this.CONSUME(lexer_1.Transition);
-            this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'registerCount' });
+            this.SUBRULE1(this.literalExpression, { LABEL: 'registerCount' });
             this.CONSUME(lexer_1.Registers);
             this.CONSUME(lexer_1.In);
-            this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'steps' });
+            this.SUBRULE2(this.literalExpression, { LABEL: 'steps' });
             this.CONSUME(lexer_1.Steps);
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+            this.SUBRULE3(this.statementBlock, { LABEL: 'statements' });
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.Enforce);
-            this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'constraintCount' });
+            this.SUBRULE1(this.literalExpression, { LABEL: 'constraintCount' });
             this.CONSUME(lexer_1.Constraints);
             this.CONSUME(lexer_1.Of);
             this.CONSUME(lexer_1.Degree);
-            this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'constraintDegree' });
+            this.SUBRULE2(this.literalExpression, { LABEL: 'maxConstraintDegree' });
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+            this.SUBRULE1(this.statementBlock, { LABEL: 'statements' });
             this.CONSUME(lexer_1.RCurly);
         });
         // STATEMENTS

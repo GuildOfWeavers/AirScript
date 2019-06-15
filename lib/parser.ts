@@ -4,7 +4,7 @@ import { CstParser } from "chevrotain";
 import { allTokens, Identifier,
     Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly, ExpOp, MulOp, AddOp,
     Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Colon, Semicolon, Out, 
-    MutableRegister, ReadonlyRegister, Minus, LSquare, RSquare, Comma
+    MutableRegister, ReadonlyRegister, Minus, LSquare, RSquare, Comma, Using, Readonly, Repeat, Spread
 } from './lexer';
 
 // PARSER DEFINITION
@@ -77,32 +77,51 @@ class AirParser extends CstParser {
     // READONLY REGISTERS
     // --------------------------------------------------------------------------------------------
     private readonlyRegisters = this.RULE('readonlyRegisters', () => {
+        this.CONSUME(Using);
+        this.SUBRULE(this.literalExpression, { LABEL: 'registerCount' });
+        this.CONSUME(Readonly);
+        this.CONSUME(Registers);
+        this.CONSUME(LCurly);
+        this.MANY(() => {
+            this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registerDefinitions' });
+        });
+        this.CONSUME(RCurly);
+    });
 
+    private readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
+        this.CONSUME1(ReadonlyRegister, { LABEL: 'reference' });
+        this.CONSUME(Colon);
+        this.OR([
+            { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
+            { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
+        ]);
+        this.SUBRULE(this.literalVector, { LABEL: 'values' });
+        this.CONSUME(Semicolon);
     });
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
     private transitionFunction = this.RULE('transitionFunction', () => {
         this.CONSUME(Transition);
-        this.CONSUME(IntegerLiteral, { LABEL: 'registerCount' });
+        this.SUBRULE1(this.literalExpression, { LABEL: 'registerCount' });
         this.CONSUME(Registers);
         this.CONSUME(In);
-        this.CONSUME2(IntegerLiteral, { LABEL: 'steps' });
+        this.SUBRULE2(this.literalExpression, { LABEL: 'steps' });
         this.CONSUME(Steps);
         this.CONSUME(LCurly);
-        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+        this.SUBRULE3(this.statementBlock, { LABEL: 'statements' });
         this.CONSUME(RCurly);
     });
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
         this.CONSUME(Enforce);
-        this.CONSUME(IntegerLiteral, { LABEL: 'constraintCount' });
+        this.SUBRULE1(this.literalExpression, { LABEL: 'constraintCount' });
         this.CONSUME(Constraints);
         this.CONSUME(Of);
         this.CONSUME(Degree);
-        this.CONSUME2(IntegerLiteral, { LABEL: 'constraintDegree' });
+        this.SUBRULE2(this.literalExpression, { LABEL: 'maxConstraintDegree' });
         this.CONSUME(LCurly);
-        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+        this.SUBRULE1(this.statementBlock, { LABEL: 'statements' });
         this.CONSUME(RCurly);
     });
 

@@ -13,7 +13,7 @@ class StatementBlockContext {
         this.constantCount = constantCount;
         this.canAccessFuture = canAccessFuture;
     }
-    setVariableDimensions(variable, dimensions) {
+    buildVariableAssignment(variable, dimensions) {
         if (this.globals.has(variable)) {
             throw new Error(`Value of global constant '${variable}' cannot be changed`);
         }
@@ -22,14 +22,36 @@ class StatementBlockContext {
             if (dimensions[0] !== sDimensions[0] || dimensions[1] !== sDimensions[1]) {
                 throw new Error(`Dimensions of variable '${variable}' cannot be changed`);
             }
+            return {
+                code: `$${variable}`,
+                dimensions: dimensions
+            };
         }
         else {
             validateVariableName(variable, dimensions);
             this.variables.set(variable, dimensions);
+            return {
+                code: `let $${variable}`,
+                dimensions: dimensions
+            };
         }
     }
-    getVariableDimensions(variable) {
-        return this.variables.get(variable) || this.globals.get(variable);
+    buildVariableReference(variable) {
+        if (this.variables.has(variable)) {
+            return {
+                code: `$${variable}`,
+                dimensions: this.variables.get(variable)
+            };
+        }
+        else if (this.globals.has(variable)) {
+            return {
+                code: `g.${variable}`,
+                dimensions: this.globals.get(variable)
+            };
+        }
+        else {
+            throw new Error(`Variable '${variable}' is not defined`);
+        }
     }
     buildRegisterReference(register) {
         const name = register.slice(1, 2);

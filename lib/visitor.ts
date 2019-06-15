@@ -3,16 +3,21 @@
 import {
     StarkConfig, StarkLimits, TransitionFunction, ConstraintEvaluator, ConstantDefinition
 } from '@guildofweavers/air-script';
-import { PrimeField } from '@guildofweavers/galois';
+import { PrimeField, FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { StatementBlockContext } from './StatementBlockContext';
 import { getOperationHandler } from './operations';
-import { Dimensions, isScalar, isVector } from './utils';
+import { Dimensions, isScalar, isVector, isPowerOf2 } from './utils';
 
 // INTERFACES
 // ================================================================================================
+export interface StatementBlock {
+    code                : string;
+    outputSize          : number;
+}
+
 export interface Statement {
     variable            : string;
     expression          : Expression;
@@ -27,6 +32,21 @@ export interface ConstantDeclaration {
     name                : string;
     value               : any;
     dimensions          : Dimensions;
+}
+
+export interface TransitionFunctionConfig {
+    maxSteps                : number;
+    maxMutableRegisters     : number;
+    readonlyRegisterCount   : number;
+    globalConstants         : Map<string, Dimensions>;
+}
+
+export interface TransitionConstraintConfig {
+    maxConstraint           : number;
+    maxConstraintDegree     : number;
+    mutableRegisterCount    : number;
+    readonlyRegisterCount   : number;
+    globalConstants         : Map<string, Dimensions>;
 }
 
 export interface TransitionFunctionInfo {
@@ -74,8 +94,20 @@ class AirVisitor extends BaseCstVisitor {
         // TODO: parse readonly registers
         const readonlyRegisters: ConstantDefinition[] = [];
 
-        const tFunction: TransitionFunctionInfo = this.visit(ctx.tFunction, limits);
-        const tConstraints: TransitionConstraintInfo = this.visit(ctx.tConstraints, limits);
+        const tFunction: TransitionFunctionInfo = this.visit(ctx.tFunction, {
+            maxSteps                : limits.maxSteps,
+            maxMutableRegisters     : limits.maxMutableRegisters,
+            readonlyRegisterCount   : 8,
+            globalConstants         : globalConstantMap
+        });
+
+        const tConstraints: TransitionConstraintInfo = this.visit(ctx.tConstraints, {
+            maxConstraintCount      : limits.maxConstraintCount,
+            maxConstraintDegree     : limits.maxConstraintDegree,
+            mutableRegisterCount    : tFunction.registerCount,
+            readonlyRegisterCount   : 8,
+            globalConstants         : globalConstants
+        });
 
         return {
             name                : starkName,
@@ -83,8 +115,8 @@ class AirVisitor extends BaseCstVisitor {
             steps               : tFunction.steps,
             registerCount       : tFunction.registerCount,
             constraintCount     : tConstraints.constraintCount,
-            transitionFunction  : tFunction.transitionFunction,
-            constraintEvaluator : tConstraints.constraintEvaluator,
+            transitionFunction  : tFunction.transitionFunction.bind(field),
+            constraintEvaluator : tConstraints.constraintEvaluator, //.bind(field),
             maxConstraintDegree : tConstraints.maxConstraintDegree,
             readonlyRegisters   : readonlyRegisters,
             globalConstants     : globalConstants
@@ -161,38 +193,57 @@ class AirVisitor extends BaseCstVisitor {
 
     }
 
-    // TRANSITION FUNCTION AND CONSTRAINTS
-    // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, limits: StarkLimits) {
-        const steps = ctx.steps[0].image;
-        const blocks = [this.visit(ctx.blocks)];
+    readonlyRegisterDefinition(ctx: any) {
 
-        return {
-            steps, blocks
-        };
     }
 
-    transitionConstraints(ctx: any, limits: StarkLimits) {
-        return { test: 'tConstraints' };
+    // TRANSITION FUNCTION AND CONSTRAINTS
+    // --------------------------------------------------------------------------------------------
+    transitionFunction(ctx: any, config: TransitionFunctionConfig): TransitionFunctionInfo {
+        
+        const registerCount = Number.parseInt(this.visit(ctx.registerCount));
+        if (!Number.isSafeInteger(registerCount) || registerCount >= config.maxMutableRegisters) {
+            throw new Error(`Number of mutable registers cannot exceed ${config.maxMutableRegisters}`);
+        }
+
+        const steps = Number.parseInt(this.visit(ctx.steps));
+        if (!Number.isSafeInteger(steps) || steps >= config.maxSteps) {
+            throw new Error(`Number of steps cannot exceed ${config.maxSteps}`);
+        }
+        else if (!isPowerOf2(steps)) {
+            throw new Error('Number of steps must be a power of 2');
+        }
+
+        const cbc = new StatementBlockContext(config.globalConstants, registerCount, config.readonlyRegisterCount, false);
+        const fBody: StatementBlock = this.visit(ctx.statements, cbc);
+        const tFunction = new Function('r', 'k', 'g', 'out', fBody.code) as TransitionFunction;
+
+        return { registerCount, steps, transitionFunction: tFunction };
+    }
+
+    transitionConstraints(ctx: any, config: TransitionConstraintConfig) {
+        const constraintCount = this.visit(ctx.constraintCount);
+        const maxConstraintDegree = this.visit(ctx.maxConstraintDegree);
+
+        return { constraintCount, maxConstraintDegree };
     }
 
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
-    statementBlock(ctx: any, cbc: StatementBlockContext) {
+    statementBlock(ctx: any, cbc: StatementBlockContext): StatementBlock {
 
         let code = '';
         for (let i = 0; i < ctx.statements.length; i++) {
             let statement: Statement = this.visit(ctx.statements[i], cbc);
-            let variable = statement.variable;
             let expression = statement.expression;
-            cbc.setVariableDimensions(variable, expression.dimensions);
-            code += `$${variable} = ${expression.code};\n`;
+            let variable = cbc.buildVariableAssignment(statement.variable, expression.dimensions);
+            code += `${variable.code} = ${expression.code};\n`;
         }
 
         const out: Expression = this.visit(ctx.outStatement, cbc);
         code += out.code;
         
-        return { code, dimensions: out.dimensions };
+        return { code, outputSize: out.dimensions[0] };
     }
 
     statement(ctx: any, cbc: StatementBlockContext): Statement {
@@ -345,11 +396,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         else if (ctx.Identifier) {
             const variable = ctx.Identifier[0].image;
-            const dimensions = cbc.getVariableDimensions(variable);
-            if (!dimensions) {
-                throw new Error(`Variable '${variable}' is not defined`);
-            }
-            return { code: `$${variable}`, dimensions };
+            return cbc.buildVariableReference(variable);
         }
         else if (ctx.MutableRegister) {
             const register = ctx.MutableRegister[0].image;

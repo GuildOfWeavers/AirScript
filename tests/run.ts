@@ -8,16 +8,13 @@ define Rescue over prime field (2^256 - 351 * 2^32 + 1) {
     MDS: [[1, 2], [3, 4]];
 	
 	transition 4 registers in 32 steps {
-		
-
-        S: MDS # S^alpha + K1;
-        out: MDS # S^(invAlpha) + K2;
+        a: 1 + 2;
+        out: a;
 	}
 	
 	enforce 4 constraints of degree 3 {
-		
-
-        out: T1 - T2;
+        a: 1 + 2;
+        out: a;
 	}
 }`;
 

@@ -4,6 +4,7 @@ const galois_1 = require("@guildofweavers/galois");
 const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
+const StatementBlockContext_1 = require("./StatementBlockContext");
 const operations_1 = require("./operations");
 const utils_1 = require("./utils");
 // MODULE VARIABLES
@@ -31,15 +32,26 @@ class AirVisitor extends BaseCstVisitor {
         }
         // TODO: parse readonly registers
         const readonlyRegisters = [];
-        const tFunction = this.visit(ctx.tFunction, limits);
-        const tConstraints = this.visit(ctx.tConstraints, limits);
+        const tFunction = this.visit(ctx.tFunction, {
+            maxSteps: limits.maxSteps,
+            maxMutableRegisters: limits.maxMutableRegisters,
+            readonlyRegisterCount: 8,
+            globalConstants: globalConstantMap
+        });
+        const tConstraints = this.visit(ctx.tConstraints, {
+            maxConstraintCount: limits.maxConstraintCount,
+            maxConstraintDegree: limits.maxConstraintDegree,
+            mutableRegisterCount: tFunction.registerCount,
+            readonlyRegisterCount: 8,
+            globalConstants: globalConstants
+        });
         return {
             name: starkName,
             field: field,
             steps: tFunction.steps,
             registerCount: tFunction.registerCount,
             constraintCount: tConstraints.constraintCount,
-            transitionFunction: tFunction.transitionFunction,
+            transitionFunction: tFunction.transitionFunction.bind(field),
             constraintEvaluator: tConstraints.constraintEvaluator,
             maxConstraintDegree: tConstraints.maxConstraintDegree,
             readonlyRegisters: readonlyRegisters,
@@ -106,17 +118,31 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     readonlyRegisters(ctx) {
     }
+    readonlyRegisterDefinition(ctx) {
+    }
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx, limits) {
-        const steps = ctx.steps[0].image;
-        const blocks = [this.visit(ctx.blocks)];
-        return {
-            steps, blocks
-        };
+    transitionFunction(ctx, config) {
+        const registerCount = Number.parseInt(this.visit(ctx.registerCount));
+        if (!Number.isSafeInteger(registerCount) || registerCount >= config.maxMutableRegisters) {
+            throw new Error(`Number of mutable registers cannot exceed ${config.maxMutableRegisters}`);
+        }
+        const steps = Number.parseInt(this.visit(ctx.steps));
+        if (!Number.isSafeInteger(steps) || steps >= config.maxSteps) {
+            throw new Error(`Number of steps cannot exceed ${config.maxSteps}`);
+        }
+        else if (!utils_1.isPowerOf2(steps)) {
+            throw new Error('Number of steps must be a power of 2');
+        }
+        const cbc = new StatementBlockContext_1.StatementBlockContext(config.globalConstants, registerCount, config.readonlyRegisterCount, false);
+        const fBody = this.visit(ctx.statements, cbc);
+        const tFunction = new Function('r', 'k', 'g', 'out', fBody.code);
+        return { registerCount, steps, transitionFunction: tFunction };
     }
-    transitionConstraints(ctx, limits) {
-        return { test: 'tConstraints' };
+    transitionConstraints(ctx, config) {
+        const constraintCount = this.visit(ctx.constraintCount);
+        const maxConstraintDegree = this.visit(ctx.maxConstraintDegree);
+        return { constraintCount, maxConstraintDegree };
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
@@ -124,14 +150,13 @@ class AirVisitor extends BaseCstVisitor {
         let code = '';
         for (let i = 0; i < ctx.statements.length; i++) {
             let statement = this.visit(ctx.statements[i], cbc);
-            let variable = statement.variable;
             let expression = statement.expression;
-            cbc.setVariableDimensions(variable, expression.dimensions);
-            code += `$${variable} = ${expression.code};\n`;
+            let variable = cbc.buildVariableAssignment(statement.variable, expression.dimensions);
+            code += `${variable.code} = ${expression.code};\n`;
         }
         const out = this.visit(ctx.outStatement, cbc);
         code += out.code;
-        return { code, dimensions: out.dimensions };
+        return { code, outputSize: out.dimensions[0] };
     }
     statement(ctx, cbc) {
         const variable = ctx.variableName[0].image;
@@ -262,11 +287,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         else if (ctx.Identifier) {
             const variable = ctx.Identifier[0].image;
-            const dimensions = cbc.getVariableDimensions(variable);
-            if (!dimensions) {
-                throw new Error(`Variable '${variable}' is not defined`);
-            }
-            return { code: `$${variable}`, dimensions };
+            return cbc.buildVariableReference(variable);
         }
         else if (ctx.MutableRegister) {
             const register = ctx.MutableRegister[0].image;
