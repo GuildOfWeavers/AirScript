@@ -1,64 +1,44 @@
 // IMPORTS
 // ================================================================================================
 import {
-    StarkConfig, StarkLimits, TransitionFunction, ConstraintEvaluator, ConstantDefinition
+    StarkConfig, StarkLimits, TransitionFunction, ConstraintEvaluator, ReadonlyRegisterSpecs, ReadonlyValuePattern
 } from '@guildofweavers/air-script';
-import { PrimeField, FiniteField } from '@guildofweavers/galois';
+import { PrimeField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
-import { StatementBlockContext } from './StatementBlockContext';
+import { ScriptSpecs } from './ScriptSpecs';
+import { StatementContext } from './StatementContext';
 import { getOperationHandler } from './operations';
-import { Dimensions, isScalar, isVector, isPowerOf2 } from './utils';
+import { Dimensions, isScalar, isVector, validateVariableName } from './utils';
 
 // INTERFACES
 // ================================================================================================
 export interface StatementBlock {
-    code                : string;
-    outputSize          : number;
+    code            : string;
+    outputSize      : number;
 }
 
 export interface Statement {
-    variable            : string;
-    expression          : Expression;
+    variable        : string;
+    expression      : Expression;
 }
 
 export interface Expression {
-    code                : string;
-    dimensions          : Dimensions;
+    code            : string;
+    dimensions      : Dimensions;
 }
 
 export interface ConstantDeclaration {
-    name                : string;
-    value               : any;
-    dimensions          : Dimensions;
+    name            : string;
+    value           : bigint | bigint [] | bigint[][];
+    dimensions      : Dimensions;
 }
 
-export interface TransitionFunctionConfig {
-    maxSteps                : number;
-    maxMutableRegisters     : number;
-    readonlyRegisterCount   : number;
-    globalConstants         : Map<string, Dimensions>;
-}
-
-export interface TransitionConstraintConfig {
-    maxConstraint           : number;
-    maxConstraintDegree     : number;
-    mutableRegisterCount    : number;
-    readonlyRegisterCount   : number;
-    globalConstants         : Map<string, Dimensions>;
-}
-
-export interface TransitionFunctionInfo {
-    steps               : number;
-    registerCount       : number;
-    transitionFunction  : TransitionFunction
-}
-
-export interface TransitionConstraintInfo {
-    constraintCount     : number;
-    maxConstraintDegree : number;
-    constraintEvaluator : ConstraintEvaluator;
+export interface ReadonlyRegisterDeclaration {
+    name            : string;
+    pattern         : ReadonlyValuePattern;
+    values          : bigint[];
 }
 
 // MODULE VARIABLES
@@ -76,48 +56,59 @@ class AirVisitor extends BaseCstVisitor {
 
         const starkName = ctx.starkName[0].image;
 
+        // set up the field
         const modulus = this.visit(ctx.modulus);
         const field = new PrimeField(modulus);
 
-        // parse constants
+        // build global constants
         const globalConstants: any = {};
         const globalConstantMap = new Map<string, Dimensions>();
-        if (ctx.constants) {
-            for (let i = 0; i < ctx.constants.length; i++) {
-                let constant: ConstantDeclaration = this.visit(ctx.constants[i]);
+        if (ctx.globalConstants) {
+            for (let i = 0; i < ctx.globalConstants.length; i++) {
+                let constant: ConstantDeclaration = this.visit(ctx.globalConstants[i]);
+                if (globalConstantMap.has(constant.name)) {
+                    throw new Error(`Global constant '${constant.name}' is defined more than once`);
+                }
                 globalConstants[constant.name] = constant.value;
-                // TODO: check for duplicates
                 globalConstantMap.set(constant.name, constant.dimensions);
             }
         }
 
-        // TODO: parse readonly registers
-        const readonlyRegisters: ConstantDefinition[] = [];
+        // build script specs
+        const specs = new ScriptSpecs(limits);
+        specs.setField(field);
+        specs.setSteps(this.visit(ctx.steps));
+        specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
+        specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
+        specs.setConstraintCount(this.visit(ctx.constraintCount));
+        specs.setMaxConstraintDegree(this.visit(ctx.maxConstraintDegree));
+        specs.setGlobalConstants(globalConstantMap);
 
-        const tFunction: TransitionFunctionInfo = this.visit(ctx.tFunction, {
-            maxSteps                : limits.maxSteps,
-            maxMutableRegisters     : limits.maxMutableRegisters,
-            readonlyRegisterCount   : 8,
-            globalConstants         : globalConstantMap
-        });
+        // build transition function
+        validateTransitionFunction(ctx.transitionFunction);
+        const tFunction: TransitionFunction = this.visit(ctx.transitionFunction, specs);
 
-        const tConstraints: TransitionConstraintInfo = this.visit(ctx.tConstraints, {
-            maxConstraintCount      : limits.maxConstraintCount,
-            maxConstraintDegree     : limits.maxConstraintDegree,
-            mutableRegisterCount    : tFunction.registerCount,
-            readonlyRegisterCount   : 8,
-            globalConstants         : globalConstants
-        });
+        // build transition constraint evaluator
+        validateTransitionConstraints(ctx.transitionConstraints);
+        const tConstraintEvaluator: ConstraintEvaluator = this.visit(ctx.transitionConstraints, specs);
 
+        // build readonly registers
+        let readonlyRegisters: ReadonlyRegisterSpecs[] = [];
+        if (specs.readonlyRegisterCount > 0) {
+            validateReadonlyRegisterDefinitions(ctx.readonlyRegisters);
+            readonlyRegisters = this.visit(ctx.readonlyRegisters, specs);
+        }
+        
+        // build and return stark config
         return {
             name                : starkName,
             field               : field,
-            steps               : tFunction.steps,
-            registerCount       : tFunction.registerCount,
-            constraintCount     : tConstraints.constraintCount,
-            transitionFunction  : tFunction.transitionFunction.bind(field),
-            constraintEvaluator : tConstraints.constraintEvaluator, //.bind(field),
-            maxConstraintDegree : tConstraints.maxConstraintDegree,
+            steps               : specs.steps,
+            mutableRegisterCount: specs.mutableRegisterCount,
+            constraintCount     : specs.constraintCount,
+            transitionFunction  : tFunction.bind(field),
+            constraintEvaluator : tConstraintEvaluator.bind(field),
+            maxConstraintDegree : specs.maxConstraintDegree,
             readonlyRegisters   : readonlyRegisters,
             globalConstants     : globalConstants
         };
@@ -145,8 +136,7 @@ class AirVisitor extends BaseCstVisitor {
             throw new Error('Invalid constant declaration'); // TODO: better error
         }
 
-        // TODO: validate variable name
-
+        validateVariableName(name, dimensions);
         return { name, value, dimensions };
     }
 
@@ -189,73 +179,104 @@ class AirVisitor extends BaseCstVisitor {
 
     // READONLY REGISTERS
     // --------------------------------------------------------------------------------------------
-    readonlyRegisters(ctx: any) {
+    readonlyRegisters(ctx: any, specs: ScriptSpecs) {
+        if (ctx.registers.length > specs.readonlyRegisterCount) {
+            throw new Error(`Too many readonly register definitions: exactly ${specs.readonlyRegisterCount} registers must be defined`);
+        }
+        else if (ctx.registers.length < specs.readonlyRegisterCount) {
+            throw new Error(`Missing readonly register definitions: exactly ${specs.readonlyRegisterCount} registers must be defined`);
+        }
 
+        const registers: ReadonlyRegisterSpecs[] = [];
+        const registerNames = new Set<string>();
+        for (let i = 0; i < ctx.registers.length; i++) {
+            let register: ReadonlyRegisterDeclaration = this.visit(ctx.registers[i], specs);
+            if (registerNames.has(register.name)) {
+                throw new Error(`Readonly register ${register.name} is defined more than once`);
+            }
+            registerNames.add(register.name);
+            let registerIndex = Number.parseInt(register.name.slice(2), 10);
+            registers[registerIndex] = { pattern: register.pattern, values: register.values };
+        }
+
+        return registers;
     }
 
-    readonlyRegisterDefinition(ctx: any) {
+    readonlyRegisterDefinition(ctx: any, specs: ScriptSpecs): ReadonlyRegisterDeclaration {
+        const registerName = ctx.name[0].image;
+        const registerIndex = Number.parseInt(registerName.slice(2), 10);
+        if (registerIndex >= specs.readonlyRegisterCount) {
+            throw new Error(`Invalid readonly register definition ${registerName}: register index must be smaller than ${specs.readonlyRegisterCount}`);
+        }
 
+        const pattern = ctx.pattern[0].image;
+        const values: bigint[] = this.visit(ctx.values);
+
+        if (specs.steps % values.length !== 0) {
+            throw new Error(`Invalid definition for readonly register ${registerName}: number of values must evenly divide the number of steps (${specs.steps})`);
+        }
+
+        return { name: registerName, pattern, values };
     }
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, config: TransitionFunctionConfig): TransitionFunctionInfo {
-        
-        const registerCount = Number.parseInt(this.visit(ctx.registerCount));
-        if (!Number.isSafeInteger(registerCount) || registerCount >= config.maxMutableRegisters) {
-            throw new Error(`Number of mutable registers cannot exceed ${config.maxMutableRegisters}`);
+    transitionFunction(ctx: any, specs: ScriptSpecs): TransitionFunction {
+        const sc = new StatementContext(specs.globalConstants, specs.mutableRegisterCount, specs.readonlyRegisterCount, false);
+        const statements: StatementBlock = this.visit(ctx.statements, sc);
+        if (statements.outputSize !== sc.mutableRegisterCount) {
+            if (sc.mutableRegisterCount === 1) {
+                throw new Error(`Transition function must evaluate to exactly 1 value`);
+            }
+            else {
+                throw new Error(`Transition function must evaluate to a vector of exactly ${sc.mutableRegisterCount} values`);
+            }
         }
-
-        const steps = Number.parseInt(this.visit(ctx.steps));
-        if (!Number.isSafeInteger(steps) || steps >= config.maxSteps) {
-            throw new Error(`Number of steps cannot exceed ${config.maxSteps}`);
-        }
-        else if (!isPowerOf2(steps)) {
-            throw new Error('Number of steps must be a power of 2');
-        }
-
-        const cbc = new StatementBlockContext(config.globalConstants, registerCount, config.readonlyRegisterCount, false);
-        const fBody: StatementBlock = this.visit(ctx.statements, cbc);
-        const tFunction = new Function('r', 'k', 'g', 'out', fBody.code) as TransitionFunction;
-
-        return { registerCount, steps, transitionFunction: tFunction };
+        return new Function('r', 'k', 'g', 'out', statements.code) as TransitionFunction;
     }
 
-    transitionConstraints(ctx: any, config: TransitionConstraintConfig) {
-        const constraintCount = this.visit(ctx.constraintCount);
-        const maxConstraintDegree = this.visit(ctx.maxConstraintDegree);
-
-        return { constraintCount, maxConstraintDegree };
+    transitionConstraints(ctx: any, specs: ScriptSpecs): ConstraintEvaluator {
+        const sc = new StatementContext(specs.globalConstants, specs.mutableRegisterCount, specs.readonlyRegisterCount, true);
+        const statements: StatementBlock = this.visit(ctx.statements, sc);
+        if (statements.outputSize !== specs.constraintCount) {
+            if (specs.constraintCount === 1) {
+                throw new Error(`Transition constraints must evaluate to exactly 1 value`);
+            }
+            else {
+                throw new Error(`Transition constraints must evaluate to a vector of exactly ${specs.constraintCount} values`);
+            }
+        }
+        return new Function('r', 'n', 'k', 'g', 'out', statements.code) as ConstraintEvaluator;
     }
 
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
-    statementBlock(ctx: any, cbc: StatementBlockContext): StatementBlock {
+    statementBlock(ctx: any, sc: StatementContext): StatementBlock {
 
         let code = '';
         for (let i = 0; i < ctx.statements.length; i++) {
-            let statement: Statement = this.visit(ctx.statements[i], cbc);
+            let statement: Statement = this.visit(ctx.statements[i], sc);
             let expression = statement.expression;
-            let variable = cbc.buildVariableAssignment(statement.variable, expression.dimensions);
+            let variable = sc.buildVariableAssignment(statement.variable, expression.dimensions);
             code += `${variable.code} = ${expression.code};\n`;
         }
 
-        const out: Expression = this.visit(ctx.outStatement, cbc);
+        const out: Expression = this.visit(ctx.outStatement, sc);
         code += out.code;
         
         return { code, outputSize: out.dimensions[0] };
     }
 
-    statement(ctx: any, cbc: StatementBlockContext): Statement {
+    statement(ctx: any, sc: StatementContext): Statement {
         const variable = ctx.variableName[0].image;
-        const expression = this.visit(ctx.expression, cbc);
+        const expression = this.visit(ctx.expression, sc);
         return { variable, expression };
     }
 
-    outStatement(ctx: any, cbc: StatementBlockContext): Expression {
+    outStatement(ctx: any, sc: StatementContext): Expression {
         let code = '', dimensions: Dimensions;
         if (ctx.expression) {
-            const expression: Expression = this.visit(ctx.expression, cbc);
+            const expression: Expression = this.visit(ctx.expression, sc);
             if (isScalar(expression.dimensions)) {
                 code = `out[0] = ${expression.code};\n`;
                 dimensions = [1, 0];
@@ -274,7 +295,7 @@ class AirVisitor extends BaseCstVisitor {
         else {
             dimensions = [ctx.expressions.length, 0];
             for (let i = 0; i < ctx.expressions.length; i++) {
-                let expression = this.visit(ctx.expressions[i], cbc);
+                let expression = this.visit(ctx.expressions[i], sc);
                 if (!isScalar(expression.dimensions)) {
                     throw new Error(`Out vector elements must be scalars`);
                 }
@@ -287,12 +308,12 @@ class AirVisitor extends BaseCstVisitor {
 
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------
-    vector(ctx: any, cbc: StatementBlockContext): Expression {
+    vector(ctx: any, sc: StatementContext): Expression {
 
         const dimensions: Dimensions = [ctx.elements.length, 0];
         let code = `[`;
         for (let i = 0; i < ctx.elements.length; i++) {
-            let element: Expression = this.visit(ctx.elements[i], cbc);
+            let element: Expression = this.visit(ctx.elements[i], sc);
             if (!isScalar(element.dimensions)) throw new Error('Vector elements must be scalars');
             code += `${element.code}, `;
         }
@@ -301,14 +322,14 @@ class AirVisitor extends BaseCstVisitor {
         return { dimensions, code };
     }
 
-    matrix(ctx: any, cbc: StatementBlockContext): Expression {
+    matrix(ctx: any, sc: StatementContext): Expression {
 
         const rowCount = ctx.rows.length;
         let colCount = 0;
 
         let code = `[`;
         for (let i = 0; i < rowCount; i++) {
-            let row: Expression = this.visit(ctx.rows[i], cbc);
+            let row: Expression = this.visit(ctx.rows[i], sc);
             if (colCount === 0) {
                 colCount = row.dimensions[0];
             }
@@ -322,12 +343,12 @@ class AirVisitor extends BaseCstVisitor {
         return { dimensions: [rowCount, colCount], code };
     }
 
-    matrixRow(ctx: any, cbc: StatementBlockContext): Expression {
+    matrixRow(ctx: any, sc: StatementContext): Expression {
 
         const dimensions: Dimensions = [ctx.elements.length, 0];
         let code = `[`;
         for (let i = 0; i < ctx.elements.length; i++) {
-            let element = this.visit(ctx.elements[i], cbc);
+            let element = this.visit(ctx.elements[i], sc);
             if (!isScalar(element.dimensions)) throw new Error('Matrix elements must be scalars');
             code += `${element.code}, `;
         }
@@ -338,16 +359,16 @@ class AirVisitor extends BaseCstVisitor {
 
     // EXPRESSIONS
     // --------------------------------------------------------------------------------------------
-    expression(ctx: any, cbc: StatementBlockContext): Expression {
-        return this.visit(ctx.addExpression, cbc);
+    expression(ctx: any, sc: StatementContext): Expression {
+        return this.visit(ctx.addExpression, sc);
     }
 
-    addExpression(ctx: any, cbc: StatementBlockContext): Expression {
-        let result: Expression = this.visit(ctx.lhs, cbc);
+    addExpression(ctx: any, sc: StatementContext): Expression {
+        let result: Expression = this.visit(ctx.lhs, sc);
 
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
-                let rhs: Expression = this.visit(rhsOperand, cbc);
+                let rhs: Expression = this.visit(rhsOperand, sc);
                 let opHandler = getOperationHandler(ctx.AddOp[i]);
                 let dimensions = opHandler.getDimensions(result.dimensions, rhs.dimensions);
                 let code = opHandler.getCode(result, rhs);
@@ -358,12 +379,12 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
 
-    mulExpression(ctx: any, cbc: StatementBlockContext): Expression {
-        let result: Expression = this.visit(ctx.lhs, cbc);
+    mulExpression(ctx: any, sc: StatementContext): Expression {
+        let result: Expression = this.visit(ctx.lhs, sc);
 
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
-                let rhs: Expression = this.visit(rhsOperand, cbc);
+                let rhs: Expression = this.visit(rhsOperand, sc);
                 let opHandler = getOperationHandler(ctx.MulOp[i]);
                 let dimensions = opHandler.getDimensions(result.dimensions, rhs.dimensions);
                 let code = opHandler.getCode(result, rhs);
@@ -374,12 +395,12 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
 
-    expExpression(ctx: any, cbc: StatementBlockContext): Expression {
-        let result: Expression = this.visit(ctx.lhs, cbc);
+    expExpression(ctx: any, sc: StatementContext): Expression {
+        let result: Expression = this.visit(ctx.lhs, sc);
 
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
-                let rhs: Expression = this.visit(rhsOperand, cbc);
+                let rhs: Expression = this.visit(rhsOperand, sc);
                 let opHandler = getOperationHandler(ctx.ExpOp[i]);
                 let dimensions = opHandler.getDimensions(result.dimensions, rhs.dimensions);
                 let code = opHandler.getCode(result, rhs);
@@ -390,21 +411,21 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
 
-    atomicExpression(ctx: any, cbc: StatementBlockContext): Expression {
+    atomicExpression(ctx: any, sc: StatementContext): Expression {
         if (ctx.parenExpression) {
             return this.visit(ctx.parenExpression);
         }
         else if (ctx.Identifier) {
             const variable = ctx.Identifier[0].image;
-            return cbc.buildVariableReference(variable);
+            return sc.buildVariableReference(variable);
         }
         else if (ctx.MutableRegister) {
             const register = ctx.MutableRegister[0].image;
-            return { code: cbc.buildRegisterReference(register), dimensions: [0,0] };
+            return { code: sc.buildRegisterReference(register), dimensions: [0,0] };
         }
         else if (ctx.ReadonlyRegister) {
             const register = ctx.ReadonlyRegister[0].image;
-            return { code: cbc.buildRegisterReference(register), dimensions: [0,0] };
+            return { code: sc.buildRegisterReference(register), dimensions: [0,0] };
         }
         else if (ctx.IntegerLiteral) {
             const value = ctx.IntegerLiteral[0].image;
@@ -501,3 +522,30 @@ class AirVisitor extends BaseCstVisitor {
 // EXPORT VISITOR INSTANCE
 // ================================================================================================
 export const visitor = new AirVisitor();
+
+
+// HELPER FUNCTIONS
+// ================================================================================================
+function validateTransitionFunction(value: any[] | undefined) {
+    if (!value || value.length === 0) {
+        throw new Error('Transition function is not defined');
+    }
+    else if (value.length > 1) {
+        throw new Error('Transition function is defined more than once');
+    }
+}
+
+function validateTransitionConstraints(value: any[] | undefined) {
+    if (!value || value.length === 0) {
+        throw new Error('Transition constraints are not defined');
+    }
+    else if (value.length > 1) {
+        throw new Error('Transition constraints are defined more than once');
+    }
+}
+
+function validateReadonlyRegisterDefinitions(value: any[]) {
+    if (value.length > 1) {
+        throw new Error('Readonly registers are defined more than once');
+    }
+}

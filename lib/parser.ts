@@ -4,7 +4,7 @@ import { CstParser } from "chevrotain";
 import { allTokens, Identifier,
     Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly, ExpOp, MulOp, AddOp,
     Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Colon, Semicolon, Out, 
-    MutableRegister, ReadonlyRegister, Minus, LSquare, RSquare, Comma, Using, Readonly, Repeat, Spread
+    MutableRegister, ReadonlyRegister, LSquare, RSquare, Comma, Using, Readonly, Repeat, Spread
 } from './lexer';
 
 // PARSER DEFINITION
@@ -17,18 +17,42 @@ class AirParser extends CstParser {
 
     public script = this.RULE('script', () => {
         this.CONSUME(Define);
-        this.CONSUME(Identifier, { LABEL: 'starkName' });
+        this.CONSUME(Identifier,                             { LABEL: 'starkName' });
         this.CONSUME(Over);
         this.CONSUME(Prime);
         this.CONSUME(Field);
-        this.SUBRULE(this.literalExpression, { LABEL: 'modulus' });
+        this.SUBRULE1(this.literalExpression,                { LABEL: 'modulus' });
         this.CONSUME(LCurly);
         this.MANY(() => {
             this.OR([
-                { ALT: () => this.SUBRULE(this.transitionFunction,    { LABEL: 'tFunction' })    },
-                { ALT: () => this.SUBRULE(this.transitionConstraints, { LABEL: 'tConstraints' }) },
-                { ALT: () => this.SUBRULE(this.constantDeclaration,   { LABEL: 'constants'})     },
-                { ALT: () => this.SUBRULE(this.readonlyRegisters,     { LABEL: 'registers' })    }
+                { ALT: () => {
+                    this.SUBRULE(this.constantDeclaration,   { LABEL: 'globalConstants'       });
+                }},
+                { ALT: () => {
+                    this.CONSUME(Transition);
+                    this.SUBRULE2(this.literalExpression,    { LABEL: 'mutableRegisterCount'  });
+                    this.CONSUME1(Registers);
+                    this.CONSUME(In);
+                    this.SUBRULE3(this.literalExpression,    { LABEL: 'steps'                 });
+                    this.CONSUME(Steps);
+                    this.SUBRULE(this.transitionFunction,    { LABEL: 'transitionFunction'    });
+                }},
+                { ALT: () => {
+                    this.CONSUME(Enforce);
+                    this.SUBRULE4(this.literalExpression,    { LABEL: 'constraintCount'       });
+                    this.CONSUME(Constraints);
+                    this.CONSUME(Of);
+                    this.CONSUME(Degree);
+                    this.SUBRULE5(this.literalExpression,    { LABEL: 'maxConstraintDegree'   });
+                    this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
+                }},
+                { ALT: () => {
+                    this.CONSUME(Using);
+                    this.SUBRULE6(this.literalExpression,    { LABEL: 'readonlyRegisterCount' });
+                    this.CONSUME(Readonly);
+                    this.CONSUME2(Registers);
+                    this.SUBRULE(this.readonlyRegisters,     { LABEL: 'readonlyRegisters'     });
+                }}
             ]);
         });
         this.CONSUME(RCurly);
@@ -37,7 +61,7 @@ class AirParser extends CstParser {
     // GLOBAL CONSTANTS
     // --------------------------------------------------------------------------------------------
     private constantDeclaration = this.RULE('constantDeclaration', () => {
-        this.CONSUME(Identifier,{ LABEL: 'constantName' });
+        this.CONSUME(Identifier, { LABEL: 'constantName' });
         this.CONSUME(Colon);
         this.OR([
             { ALT: () => this.SUBRULE(this.literalAddExpression, { LABEL: 'value'  }) },
@@ -77,19 +101,15 @@ class AirParser extends CstParser {
     // READONLY REGISTERS
     // --------------------------------------------------------------------------------------------
     private readonlyRegisters = this.RULE('readonlyRegisters', () => {
-        this.CONSUME(Using);
-        this.SUBRULE(this.literalExpression, { LABEL: 'registerCount' });
-        this.CONSUME(Readonly);
-        this.CONSUME(Registers);
         this.CONSUME(LCurly);
-        this.MANY(() => {
-            this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registerDefinitions' });
+        this.AT_LEAST_ONE(() => {
+            this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registers' });
         });
         this.CONSUME(RCurly);
     });
 
     private readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
-        this.CONSUME1(ReadonlyRegister, { LABEL: 'reference' });
+        this.CONSUME1(ReadonlyRegister, { LABEL: 'name' });
         this.CONSUME(Colon);
         this.OR([
             { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
@@ -102,24 +122,12 @@ class AirParser extends CstParser {
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
     private transitionFunction = this.RULE('transitionFunction', () => {
-        this.CONSUME(Transition);
-        this.SUBRULE1(this.literalExpression, { LABEL: 'registerCount' });
-        this.CONSUME(Registers);
-        this.CONSUME(In);
-        this.SUBRULE2(this.literalExpression, { LABEL: 'steps' });
-        this.CONSUME(Steps);
         this.CONSUME(LCurly);
-        this.SUBRULE3(this.statementBlock, { LABEL: 'statements' });
+        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
         this.CONSUME(RCurly);
     });
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
-        this.CONSUME(Enforce);
-        this.SUBRULE1(this.literalExpression, { LABEL: 'constraintCount' });
-        this.CONSUME(Constraints);
-        this.CONSUME(Of);
-        this.CONSUME(Degree);
-        this.SUBRULE2(this.literalExpression, { LABEL: 'maxConstraintDegree' });
         this.CONSUME(LCurly);
         this.SUBRULE1(this.statementBlock, { LABEL: 'statements' });
         this.CONSUME(RCurly);

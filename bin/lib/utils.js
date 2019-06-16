@@ -23,4 +23,23 @@ function isPowerOf2(value) {
     }
 }
 exports.isPowerOf2 = isPowerOf2;
+function validateVariableName(variable, dimensions) {
+    const errorMessage = `Variable name '${variable}' is invalid:`;
+    if (isScalar(dimensions)) {
+        if (variable != variable.toLowerCase()) {
+            throw new Error(`${errorMessage} scalar variable names cannot contain uppercase characters`);
+        }
+    }
+    else if (isVector(dimensions)) {
+        if (variable != variable.toUpperCase()) {
+            throw new Error(`${errorMessage} vector variable names cannot contain lowercase characters`);
+        }
+    }
+    else {
+        if (variable != variable.toUpperCase()) {
+            throw new Error(`${errorMessage} matrix variable names cannot contain lowercase characters`);
+        }
+    }
+}
+exports.validateVariableName = validateVariableName;
 //# sourceMappingURL=utils.js.map

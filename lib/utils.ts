@@ -25,3 +25,24 @@ export function isPowerOf2(value: number | bigint): boolean {
         return (value !== 0) && (value & (value - 1)) === 0;
     }
 }
+
+export function validateVariableName(variable: string, dimensions: Dimensions) {
+
+    const errorMessage = `Variable name '${variable}' is invalid:`;
+
+    if (isScalar(dimensions)) {
+        if (variable != variable.toLowerCase()) {
+            throw new Error(`${errorMessage} scalar variable names cannot contain uppercase characters`);
+        }
+    }
+    else if (isVector(dimensions)) {
+        if (variable != variable.toUpperCase()) {
+            throw new Error(`${errorMessage} vector variable names cannot contain lowercase characters`);
+        }
+    }
+    else {
+        if (variable != variable.toUpperCase()) {
+            throw new Error(`${errorMessage} matrix variable names cannot contain lowercase characters`);
+        }
+    }
+}

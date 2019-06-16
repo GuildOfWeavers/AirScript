@@ -8,11 +8,11 @@ declare module '@guildofweavers/air-script' {
     // INTERFACES
     // --------------------------------------------------------------------------------------------
     export interface StarkLimits {
+        maxSteps                : number;
         maxMutableRegisters     : number;
         maxReadonlyRegisters    : number;
         maxConstraintCount      : number;
         maxConstraintDegree     : number;
-        maxSteps                : number;
     }
 
     /** Computes the next state of the execution trace */
@@ -42,8 +42,8 @@ declare module '@guildofweavers/air-script' {
         name                : string;
         field               : FiniteField;
         steps               : number;
-        registerCount       : number;
-        readonlyRegisters   : ConstantDefinition[];
+        mutableRegisterCount: number;
+        readonlyRegisters   : ReadonlyRegisterSpecs[];
         constraintCount     : number;
         transitionFunction  : TransitionFunction;
         constraintEvaluator : ConstraintEvaluator;
@@ -51,16 +51,14 @@ declare module '@guildofweavers/air-script' {
         globalConstants     : object;
     }
 
-    export type ConstantPattern = 'repeat' | 'spread';
+    export type ReadonlyValuePattern = 'repeat' | 'spread';
 
-    export interface ConstantDefinition {
+    export interface ReadonlyRegisterSpecs {
         values  : bigint[];
-        pattern : ConstantPattern;
+        pattern : ReadonlyValuePattern;
     }
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
     export function parseScript(text: string, limits: StarkLimits): StarkConfig;
-
-    export function parseStatementBlock(text: string): any; // TODO: define return type
 }
