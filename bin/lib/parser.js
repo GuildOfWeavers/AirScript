@@ -4,18 +4,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // ================================================================================================
 const chevrotain_1 = require("chevrotain");
 const lexer_1 = require("./lexer");
+const errors_1 = require("./errors");
 // PARSER DEFINITION
 // ================================================================================================
 class AirParser extends chevrotain_1.CstParser {
     constructor() {
-        super(lexer_1.allTokens);
+        super(lexer_1.allTokens, { errorMessageProvider: errors_1.parserErrorMessageProvider });
         this.script = this.RULE('script', () => {
             this.CONSUME(lexer_1.Define);
             this.CONSUME(lexer_1.Identifier, { LABEL: 'starkName' });
             this.CONSUME(lexer_1.Over);
-            this.CONSUME(lexer_1.Prime);
-            this.CONSUME(lexer_1.Field);
-            this.SUBRULE1(this.literalExpression, { LABEL: 'modulus' });
+            this.SUBRULE(this.fieldDeclaration, { LABEL: 'fieldDeclaration' });
             this.CONSUME(lexer_1.LCurly);
             this.MANY(() => {
                 this.OR([
@@ -50,6 +49,13 @@ class AirParser extends chevrotain_1.CstParser {
                 ]);
             });
             this.CONSUME(lexer_1.RCurly);
+        });
+        // FINITE FIELD
+        // --------------------------------------------------------------------------------------------
+        this.fieldDeclaration = this.RULE('fieldDeclaration', () => {
+            this.CONSUME(lexer_1.Prime);
+            this.CONSUME(lexer_1.Field);
+            this.SUBRULE(this.literalParenExpression, { LABEL: 'modulus' });
         });
         // GLOBAL CONSTANTS
         // --------------------------------------------------------------------------------------------

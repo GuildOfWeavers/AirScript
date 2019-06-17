@@ -25,13 +25,7 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
     }
 }`;
 
-const result = parseScript(script, {
-    maxSteps                : 2**20,
-    maxMutableRegisters     : 64,
-    maxReadonlyRegisters    : 64,
-    maxConstraintCount      : 1024,
-    maxConstraintDegree     : 16
-});
+const result = parseScript(script);
 
 const r = [3n];
 const k = [42n];

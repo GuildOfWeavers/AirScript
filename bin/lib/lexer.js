@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const chevrotain_1 = require("chevrotain");
+const errors_1 = require("./errors");
 // LITERALS, REGISTERS, and IDENTIFIERS
 // ================================================================================================
 exports.IntegerLiteral = chevrotain_1.createToken({ name: "IntegerLiteral", pattern: /0|[1-9]\d*/ });
@@ -83,5 +84,5 @@ exports.allTokens = [
 ];
 // EXPORT LEXER INSTANCE
 // ================================================================================================
-exports.lexer = new chevrotain_1.Lexer(exports.allTokens);
+exports.lexer = new chevrotain_1.Lexer(exports.allTokens, { errorMessageProvider: errors_1.lexerErrorMessageProvider });
 //# sourceMappingURL=lexer.js.map

@@ -6,22 +6,21 @@ import { allTokens, Identifier,
     Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Colon, Semicolon, Out, 
     MutableRegister, ReadonlyRegister, LSquare, RSquare, Comma, Using, Readonly, Repeat, Spread
 } from './lexer';
+import { parserErrorMessageProvider } from "./errors";
 
 // PARSER DEFINITION
 // ================================================================================================
 class AirParser extends CstParser {
     constructor() {
-        super(allTokens);
+        super(allTokens, { errorMessageProvider: parserErrorMessageProvider });
         this.performSelfAnalysis();
     }
 
     public script = this.RULE('script', () => {
         this.CONSUME(Define);
-        this.CONSUME(Identifier,                             { LABEL: 'starkName' });
+        this.CONSUME(Identifier,                             { LABEL: 'starkName'             });
         this.CONSUME(Over);
-        this.CONSUME(Prime);
-        this.CONSUME(Field);
-        this.SUBRULE1(this.literalExpression,                { LABEL: 'modulus' });
+        this.SUBRULE(this.fieldDeclaration,                  { LABEL: 'fieldDeclaration'      });
         this.CONSUME(LCurly);
         this.MANY(() => {
             this.OR([
@@ -56,6 +55,14 @@ class AirParser extends CstParser {
             ]);
         });
         this.CONSUME(RCurly);
+    });
+
+    // FINITE FIELD
+    // --------------------------------------------------------------------------------------------
+    private fieldDeclaration = this.RULE('fieldDeclaration', () => {
+        this.CONSUME(Prime);
+        this.CONSUME(Field);
+        this.SUBRULE(this.literalParenExpression, { LABEL: 'modulus' });
     });
 
     // GLOBAL CONSTANTS

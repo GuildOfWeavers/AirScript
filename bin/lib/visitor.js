@@ -19,8 +19,7 @@ class AirVisitor extends BaseCstVisitor {
     script(ctx, limits) {
         const starkName = ctx.starkName[0].image;
         // set up the field
-        const modulus = this.visit(ctx.modulus);
-        const field = new galois_1.PrimeField(modulus);
+        const field = this.visit(ctx.fieldDeclaration);
         // build global constants
         const globalConstants = {};
         const globalConstantMap = new Map();
@@ -69,6 +68,12 @@ class AirVisitor extends BaseCstVisitor {
             globalConstants: globalConstants
         };
     }
+    // FINITE FIELD
+    // --------------------------------------------------------------------------------------------
+    fieldDeclaration(ctx) {
+        const modulus = this.visit(ctx.modulus);
+        return new galois_1.PrimeField(modulus);
+    }
     // GLOBAL CONSTANTS
     // --------------------------------------------------------------------------------------------
     constantDeclaration(ctx) {
@@ -88,7 +93,7 @@ class AirVisitor extends BaseCstVisitor {
             dimensions = [value.length, value[0].length];
         }
         else {
-            throw new Error('Invalid constant declaration'); // TODO: better error
+            throw new Error(`Failed to parse the value of global constant '${name}'`);
         }
         utils_1.validateVariableName(name, dimensions);
         return { name, value, dimensions };
@@ -348,7 +353,7 @@ class AirVisitor extends BaseCstVisitor {
             return { code: `${value}n`, dimensions: [0, 0] };
         }
         else {
-            throw new Error('Invalid atomic expression'); // TODO: better error
+            throw new Error('Invalid expression syntax');
         }
     }
     parenExpression(ctx, sc) {
@@ -412,7 +417,7 @@ class AirVisitor extends BaseCstVisitor {
             return BigInt(ctx.IntegerLiteral[0].image);
         }
         else {
-            throw new Error('Invalid atomic expression'); // TODO: better error
+            throw new Error('Invalid expression syntax');
         }
     }
     literalParenExpression(ctx) {

@@ -39,16 +39,16 @@ declare module '@guildofweavers/air-script' {
     }
 
     export interface StarkConfig {
-        name                : string;
-        field               : FiniteField;
-        steps               : number;
-        mutableRegisterCount: number;
-        readonlyRegisters   : ReadonlyRegisterSpecs[];
-        constraintCount     : number;
-        transitionFunction  : TransitionFunction;
-        constraintEvaluator : ConstraintEvaluator;
-        maxConstraintDegree : number;
-        globalConstants     : object;
+        name                    : string;
+        field                   : FiniteField;
+        steps                   : number;
+        mutableRegisterCount    : number;
+        readonlyRegisters       : ReadonlyRegisterSpecs[];
+        constraintCount         : number;
+        transitionFunction      : TransitionFunction;
+        constraintEvaluator     : ConstraintEvaluator;
+        maxConstraintDegree     : number;
+        globalConstants         : object;
     }
 
     export type ReadonlyValuePattern = 'repeat' | 'spread';
@@ -58,7 +58,12 @@ declare module '@guildofweavers/air-script' {
         pattern : ReadonlyValuePattern;
     }
 
+    export class AirScriptError {
+        readonly errors: any[];
+        constructor(errors: any[]);
+    }
+
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
-    export function parseScript(text: string, limits: StarkLimits): StarkConfig;
+    export function parseScript(text: string, limits?: Partial<StarkLimits>): StarkConfig;
 }

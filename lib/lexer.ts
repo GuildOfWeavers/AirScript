@@ -1,6 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { createToken, Lexer } from "chevrotain";
+import { lexerErrorMessageProvider } from "./errors";
 
 // LITERALS, REGISTERS, and IDENTIFIERS
 // ================================================================================================
@@ -102,4 +103,4 @@ export const allTokens = [
 
 // EXPORT LEXER INSTANCE
 // ================================================================================================
-export const lexer = new Lexer(allTokens);
+export const lexer = new Lexer(allTokens, { errorMessageProvider: lexerErrorMessageProvider });

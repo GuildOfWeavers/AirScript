@@ -1,14 +1,14 @@
 // IMPORTS
 // ================================================================================================
 import { StarkLimits } from '@guildofweavers/air-script';
-import { PrimeField } from '@guildofweavers/galois';
+import { FiniteField } from '@guildofweavers/galois';
 import { Dimensions, isPowerOf2 } from './utils';
 
 // CLASS DEFINITION
 // ================================================================================================
 export class ScriptSpecs {
 
-    field!                  : PrimeField;
+    field!                  : FiniteField;
     steps!                  : number;
     mutableRegisterCount!   : number;
     readonlyRegisterCount!  : number;
@@ -25,7 +25,7 @@ export class ScriptSpecs {
 
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
-    setField(value: PrimeField) {
+    setField(value: FiniteField) {
         this.field = value;
     }
 

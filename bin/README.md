@@ -5,14 +5,14 @@ This library contains grammar rules and provides a simple parser for AirScript -
 Writing out transition functions and constraints, even for moderately complex STARKs, is extremely tedious and error-prone. AirScript aims to provide a higher-level language to simplify this task.
 
 ### Usage
-This library is not intended for standalone use, but is rather a core component of the [genSTARK](https://github.com/GuildOfWeavers/genSTARK) library. Nevertheless, you can install it separately like so:
+This module is not intended for standalone use, but is rather a core component of the [genSTARK](https://github.com/GuildOfWeavers/genSTARK) library. Nevertheless, you can install it separately like so:
 ```bash
 $ npm install @guildofweavers/air-script --save
 ```
 
 # AirScript syntax
 
-The example below defines a STARK for MiMC computations. This is similar to the computation described by Vitalik Buterin in his [blog post](https://vitalik.ca/general/2018/07/21/starks_part_3.html) about STARKs.
+The example below defines a STARK for MiMC computation. This is similar to the computation described by Vitalik Buterin in his [blog post](https://vitalik.ca/general/2018/07/21/starks_part_3.html) about STARKs.
 
 ```
 define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
@@ -47,8 +47,8 @@ define [name] over [field] { ... }
 ```
 where:
 
-* **name** specifies the name of the STARK. The name can contain letters and numbers, and must start with a letter.
-* **field** defines a finite field for all mathematical operations in the STARK computation. Currently, only prime fields are supported. Field can be defined like so:
+* **name** specifies the name of the STARK. The name can contain letters, numbers, and underscores, and must start with a letter.
+* **field** defines a finite field for all mathematical operations in the computation. Currently, only prime fields are supported. A field can be defined like so:
   * Prime field : `prime field (modulus)`
 
 The body of a STARK is placed between curly braces following the declaration. The elements of the body are described below.
@@ -69,7 +69,7 @@ Names of global constants must adhere to the following convention:
 * Letters in vector and matrix constant names must be all upper-case.
 
 ## Transition function
-A core component of a STARK's definition is the state transition function. A transition function can be defined like so:
+A core component of a STARK's definition is a state transition function. A transition function can be defined like so:
 ```
 transition [number of registers] registers in [number of steps] steps { ... }
 ```
@@ -78,11 +78,11 @@ where:
 * **number of registers** specifies the number of mutable registers which hold values of the computation's execution trace.
 * **number of steps** specifies the number of times the transition function should be applied to the initial inputs to complete the computation.
 
-The body of the transition function is a series of [arithmetic statements](#Arithmetic-statements) which evaluates to the next state of the computation. For example:
+The body of the transition function is a series of [arithmetic statements](#Arithmetic-statements) which evaluate to the next state of the computation. For example:
 ```
 out: $r0 + $k0 + 1;
 ```
-This statement says: the next value of mutable register `$r0` is equal to the current value of the register, plus the current value of readonly register `$k0`, plus 1.
+This statement says: the next value of *mutable* register `$r0` is equal to the current value of the register, plus the current value of readonly register `$k0`, plus 1.
 
 If your computation involves more than 1 mutable register, your transition function should return a vector with values for the next state of all registers. Here is an example:
 ```
@@ -97,7 +97,7 @@ The above example describes a state transition function that operates over 2 reg
 
 (this is actually a somewhat convoluted way to describe a transition function for a Fibonacci sequence).
 
-In general, the length of the vector in the `out` statement must equal to the number of mutable registers specified in the declaration of the transition function.
+In general, the length of the vector in the `out` statement must be equal to the number of mutable registers specified in the declaration of the transition function block.
 
 ## Transition constraints
 Another core component of a STARK's definition is a set of transition constraints. A computation is considered valid only if transition constraints are satisfied for all steps (except the last one). Transition constraints can be defined like so:
@@ -107,7 +107,7 @@ enforce [number of constraints] constraints of degree [max constraint degree] { 
 where:
 
 * **number of constraints** specifies the number of constraints needed to describe the computation.
-* **max constraint degree** specifies the highest algebraic degree used in constraint computations. For example, if you raise value of some register to power 3 (or perform equivalent computation), max constraint degree should be set to 3.
+* **max constraint degree** specifies the highest algebraic degree used in constraint computations. For example, if you raise value of some register to power 3 (or perform equivalent computations), max constraint degree should be set to 3.
 
 Similarly to transition functions, the body of transition constraints consists of a series of [arithmetic statements](#Arithmetic-statements). However, unlike transition functions, transition constraints can reference future states of mutable registers. For example:
 ```
@@ -115,14 +115,14 @@ out: $n0 - ($r0 + $k0 + 1);
 ```
 where `$n0` contains value of register `$r0` at the next step of computation.
 
-If you are working with more than one constraint, your transition constraint script should return a vector with evaluations for all of your constraints. For example:
+If you are working with more than one constraint, your transition constraint statements should return a vector with evaluations for all of your constraints. For example:
 ```
 a0: $r0 + $r1;
 out: [$n0 - a0, $n1 - ($r1 + a0)];
 ```
 (these are constraints matching the Fibonacci transition function described previously).
 
-In general, the length of the vector in the `out` statement must equal to the number of constraints specified in the declaration of the transition constraints bock.
+In general, the length of the vector in the `out` statement must be equal to the number of constraints specified in the declaration of the transition constraints bock.
 
 ## Arithmetic statements
 Bodies of transition functions and constraints are nothing more than a series of arithmetic statements (separated by semicolons) which evaluate to a number or to a vector of numbers. Here is an example:
@@ -146,7 +146,7 @@ Within the statements you can reference registers, constants, variables, and per
 A computation's execution trace consists of a series of state transitions. A state of a computation at a given step is held in an array of registers. There are two types of registers:
 
 * **mutable** registers - values in these registers are defined by the state [transition function](#Transition-function).
-* **readonly** registers - values in these registers are defined by the [readonly register definition](#Readonly-registers).
+* **readonly** registers - values in these registers are defined by the [readonly register definitions](#Readonly-registers).
 
 To reference a given register you need to specify the name of the register bank and the index of the register within that bank. Names of all register banks start with `$` - so, register references can look like this: `$r1`, `$k23`, `$n11` etc. Currently, there are 3 register banks:
 
@@ -219,7 +219,7 @@ In addition to mutable registers, you can define STARKs with readonly registers.
 
 Readonly registers can be defined like so:
 ```
-using [number of registers] readonly register { ... }
+using [number of registers] readonly registers { ... }
 ```
 where:
 
@@ -237,12 +237,43 @@ $k1: spread [...];
 
 Currently, `pattern` can be one of the following: 
 
-* **repeat** - the constants will be "cycled" during execution. For example, if `values = [1, 2, 3, 4]`, and the execution trace is 16 steps long, the constants will appear in the execution trace as: `[1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4]`.
-* **spread** - the constants will be "spread" during execution. For example, if `values = [1, 2, 3, 4]`, and the execution trace is 16 steps long, the constants will appear as: `[1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0]`.
+* **repeat** - the values will be "cycled" during execution. For example, if `values = [1, 2, 3, 4]`, and the execution trace is 16 steps long, the values will appear in the execution trace as: `[1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4]`.
+* **spread** - the values will be "spread" during execution. For example, if `values = [1, 2, 3, 4]`, and the execution trace is 16 steps long, the values will appear as: `[1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0]`.
+
+## Comments
+To annotate your scripts with comments, use `//`. Anything following `//` until the end of the line will not be processed by the parser. Currently, this is the only style of comments supported.
 
 # API
+This module exposes a single `parseScript()` method. The method has the following signature:
+```TypeScript
+parseScript(text: string, limits?: StarkLimits): StarkConfig;
+```
+where `text` is the text of the script, and `limits` is an optional object that specifies the following limits:
 
-TODO
+| Property             | Description |
+| -------------------- | ----------- |
+| maxSteps             | Maximum number of steps for transition functions; the default is 2^20. |
+| maxMutableRegisters  | Maximum number of mutable registers; the default is 64. |
+| maxReadonlyRegisters | Maximum number of readonly registers; the default is 64. |
+| maxConstraintCount   | Maximum number of transition constraints; the default is 1024. |
+| maxConstraintDegree  | Maximum degree of transition constraints; the default is 16. |
+
+If parsing of the script is successful, the `parseScript()` method returns a `StarkConfig` object with the following properties:
+
+| Property             | Description |
+| -------------------- | ----------- |
+| name                 | Name from the STARK declaration. |
+| field                | Finite field specified for the computation. |
+| steps                | Number of steps specified for the computation. |
+| mutableRegisterCount | Number of mutable registers defined for the computation. |
+| readonlyRegisters    | Definitions of readonly registers specified for the computation. |
+| constraintCount      | Number of transition constraints specified for the computation. |
+| transitionFunction   | A JavaScript function which given the current state, computes the next state of the computation's execution trace. |
+| constraintEvaluator  | A JavaScript function which given the current and the next state of the computation, evaluates transition constraints. |
+| maxConstraintDegree  | Maximum algebraic degree specified for the transition constraints. |
+| globalConstants      | An object containing values of the defined global constants. |
+
+If parsing of the script fails, the `parseScript()` method throws an `AirScriptError` which contains a list of errors (under `.errors` property) that caused the failure.
 
 # License
 [MIT](/LICENSE) © 2019 Guild of Weavers

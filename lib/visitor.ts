@@ -3,7 +3,7 @@
 import {
     StarkConfig, StarkLimits, TransitionFunction, ConstraintEvaluator, ReadonlyRegisterSpecs, ReadonlyValuePattern
 } from '@guildofweavers/air-script';
-import { PrimeField } from '@guildofweavers/galois';
+import { PrimeField, FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
@@ -57,8 +57,7 @@ class AirVisitor extends BaseCstVisitor {
         const starkName = ctx.starkName[0].image;
 
         // set up the field
-        const modulus = this.visit(ctx.modulus);
-        const field = new PrimeField(modulus);
+        const field: FiniteField = this.visit(ctx.fieldDeclaration);
 
         // build global constants
         const globalConstants: any = {};
@@ -114,6 +113,13 @@ class AirVisitor extends BaseCstVisitor {
         };
     }
 
+    // FINITE FIELD
+    // --------------------------------------------------------------------------------------------
+    fieldDeclaration(ctx: any) {
+        const modulus = this.visit(ctx.modulus);
+        return new PrimeField(modulus);
+    }
+
     // GLOBAL CONSTANTS
     // --------------------------------------------------------------------------------------------
     constantDeclaration(ctx: any): ConstantDeclaration {
@@ -133,7 +139,7 @@ class AirVisitor extends BaseCstVisitor {
             dimensions = [value.length, value[0].length];
         }
         else {
-            throw new Error('Invalid constant declaration'); // TODO: better error
+            throw new Error(`Failed to parse the value of global constant '${name}'`);
         }
 
         validateVariableName(name, dimensions);
@@ -434,7 +440,7 @@ class AirVisitor extends BaseCstVisitor {
             return { code: `${value}n`, dimensions: [0,0] };
         }
         else {
-            throw new Error('Invalid atomic expression'); // TODO: better error
+            throw new Error('Invalid expression syntax');
         }
     }
 
@@ -512,7 +518,7 @@ class AirVisitor extends BaseCstVisitor {
             return BigInt(ctx.IntegerLiteral[0].image);
         }
         else {
-            throw new Error('Invalid atomic expression'); // TODO: better error
+            throw new Error('Invalid expression syntax');
         }
     }
 
@@ -524,7 +530,6 @@ class AirVisitor extends BaseCstVisitor {
 // EXPORT VISITOR INSTANCE
 // ================================================================================================
 export const visitor = new AirVisitor();
-
 
 // HELPER FUNCTIONS
 // ================================================================================================
