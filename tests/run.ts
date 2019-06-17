@@ -1,25 +1,27 @@
 import { parseScript } from '../index';
 
 const script = `
-define Rescue over prime field (2^256 - 351 * 2^32 + 1) {
+define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
 
+    // global constants used in transition function and constraint computations
     alpha: 3;
-    V1: [1, 2];
-    MDS: [[1, 2], [3, 4]];
-	
-	transition 4 registers in 32 steps {
-        a: 1 + 2 + $r0;
-        out: [a, $r2, 1, $k0];
-	}
-	
-	enforce 1 constraint of degree 3 {
-        a: 1 + 2;
-        out: a;
+
+    // transition function definition
+    transition 1 register in 2^13 steps {
+        out: $r0^alpha + $k0;
     }
-    
-    using 2 readonly registers {
-        $k0: repeat [1, 2, 3, 4];
-        $k1: spread [1, 3];
+
+    // transition constraint definition
+    enforce 1 constraint of degree 3 {
+        out: $n0 - ($r0^alpha + $k0);
+    }
+
+    // readonly registers accessible in transition function and constraints
+    using 1 readonly register {
+        $k0: repeat [
+            42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931,
+            10000042, 19487209, 35831850, 62748495, 105413546, 170859333
+        ];
     }
 }`;
 
@@ -30,4 +32,13 @@ const result = parseScript(script, {
     maxConstraintCount      : 1024,
     maxConstraintDegree     : 16
 });
-console.log(result);
+
+const r = [3n];
+const k = [42n];
+const n = new Array<bigint>(1);
+result.transitionFunction(r, k, result.globalConstants, n);
+console.log(n);
+
+const c = new Array<bigint>(1);
+result.constraintEvaluator(r, n, k, result.globalConstants, c);
+console.log(c);

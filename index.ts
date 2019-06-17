@@ -1,13 +1,13 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits } from '@guildofweavers/air-script';
+import { StarkLimits, StarkConfig } from '@guildofweavers/air-script';
 import { lexer } from './lib/lexer';
 import { parser } from './lib/parser';
 import { visitor } from './lib/visitor';
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function parseScript(text: string, limits: StarkLimits) {
+export function parseScript(text: string, limits: StarkLimits): StarkConfig {
     const lexResult = lexer.tokenize(text);
     // TODO: check lexer output for lexResult.errors
 

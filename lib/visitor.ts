@@ -254,11 +254,13 @@ class AirVisitor extends BaseCstVisitor {
     statementBlock(ctx: any, sc: StatementContext): StatementBlock {
 
         let code = '';
-        for (let i = 0; i < ctx.statements.length; i++) {
-            let statement: Statement = this.visit(ctx.statements[i], sc);
-            let expression = statement.expression;
-            let variable = sc.buildVariableAssignment(statement.variable, expression.dimensions);
-            code += `${variable.code} = ${expression.code};\n`;
+        if (ctx.statements) {
+            for (let i = 0; i < ctx.statements.length; i++) {
+                let statement: Statement = this.visit(ctx.statements[i], sc);
+                let expression = statement.expression;
+                let variable = sc.buildVariableAssignment(statement.variable, expression.dimensions);
+                code += `${variable.code} = ${expression.code};\n`;
+            }
         }
 
         const out: Expression = this.visit(ctx.outStatement, sc);
@@ -413,7 +415,7 @@ class AirVisitor extends BaseCstVisitor {
 
     atomicExpression(ctx: any, sc: StatementContext): Expression {
         if (ctx.parenExpression) {
-            return this.visit(ctx.parenExpression);
+            return this.visit(ctx.parenExpression, sc);
         }
         else if (ctx.Identifier) {
             const variable = ctx.Identifier[0].image;
@@ -436,8 +438,8 @@ class AirVisitor extends BaseCstVisitor {
         }
     }
 
-    parenExpression(ctx: any) {
-        return this.visit(ctx.expression);
+    parenExpression(ctx: any, sc: StatementContext) {
+        return this.visit(ctx.expression, sc);
     }
 
     // LITERAL EXPRESSIONS
