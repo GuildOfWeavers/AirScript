@@ -252,12 +252,33 @@ class AirVisitor extends BaseCstVisitor {
         let code = `[`;
         for (let i = 0; i < ctx.elements.length; i++) {
             let element = this.visit(ctx.elements[i], sc);
-            if (!utils_1.isScalar(element.dimensions))
-                throw new Error('Vector elements must be scalars');
+            if (!utils_1.isScalar(element.dimensions)) {
+                if (utils_1.isVector(element.dimensions) && element.destructured) {
+                    dimensions[0] += (element.dimensions[0] - 1);
+                }
+                else {
+                    throw new Error('Vector elements must be scalars');
+                }
+            }
             code += `${element.code}, `;
         }
         code = code.slice(0, -2) + ']';
         return { dimensions, code };
+    }
+    vectorDestructuring(ctx, sc) {
+        const variableName = ctx.vectorName[0].image;
+        const element = sc.buildVariableReference(variableName);
+        if (utils_1.isScalar(element.dimensions)) {
+            throw new Error(`Cannot expand scalar variable '${variableName}'`);
+        }
+        else if (utils_1.isMatrix(element.dimensions)) {
+            throw new Error(`Cannot expand matrix variable '${variableName}'`);
+        }
+        return {
+            code: `...${element.code}`,
+            dimensions: element.dimensions,
+            destructured: true
+        };
     }
     matrix(ctx, sc) {
         const rowCount = ctx.rows.length;

@@ -58,6 +58,7 @@ exports.RParen = chevrotain_1.createToken({ name: "RParen", pattern: /\)/ });
 exports.Comma = chevrotain_1.createToken({ name: "Comma", pattern: /,/ });
 exports.Colon = chevrotain_1.createToken({ name: "Colon", pattern: /:/ });
 exports.Semicolon = chevrotain_1.createToken({ name: "Semicolon", pattern: /;/ });
+exports.Ellipsis = chevrotain_1.createToken({ name: 'Ellipsis', pattern: /\.\.\./ });
 // WHITESPACE AND COMMENTS
 // ================================================================================================
 exports.WhiteSpace = chevrotain_1.createToken({
@@ -77,7 +78,7 @@ exports.allTokens = [
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.In, exports.Steps, exports.Enforce, exports.Constraints,
     exports.Of, exports.Degree, exports.For, exports.Do, exports.With, exports.Nothing, exports.Out, exports.Repeat, exports.Spread, exports.Using, exports.Readonly, exports.Import, exports.From, exports.As,
     exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
-    exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon,
+    exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon, exports.Ellipsis,
     exports.Identifier,
     exports.MutableRegister, exports.ReadonlyRegister,
     exports.IntegerLiteral

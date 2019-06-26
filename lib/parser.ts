@@ -4,7 +4,7 @@ import { CstParser } from "chevrotain";
 import { allTokens, Identifier,
     Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly, ExpOp, MulOp, AddOp,
     Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Colon, Semicolon, Out, 
-    MutableRegister, ReadonlyRegister, LSquare, RSquare, Comma, Using, Readonly, Repeat, Spread
+    MutableRegister, ReadonlyRegister, LSquare, RSquare, Comma, Using, Readonly, Repeat, Spread, Ellipsis
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -183,9 +183,19 @@ class AirParser extends CstParser {
         this.CONSUME(LSquare);
         this.AT_LEAST_ONE_SEP({
             SEP : Comma,
-            DEF : () => this.SUBRULE(this.expression, { LABEL: 'elements' })
+            DEF : () => {
+                this.OR([
+                    { ALT: () => this.SUBRULE(this.expression,          { LABEL: 'elements' })},
+                    { ALT: () => this.SUBRULE(this.vectorDestructuring, { LABEL: 'elements' })}
+                ]);
+            }
         })
         this.CONSUME(RSquare);
+    });
+
+    private vectorDestructuring = this.RULE('vectorDestructuring', () => {
+        this.CONSUME(Ellipsis);
+        this.CONSUME(Identifier, { LABEL: 'vectorName' });
     });
 
     private matrix = this.RULE('matrix', () => {

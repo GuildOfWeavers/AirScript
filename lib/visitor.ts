@@ -10,7 +10,7 @@ import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { StatementContext } from './StatementContext';
 import { getOperationHandler } from './operations';
-import { Dimensions, isScalar, isVector, validateVariableName } from './utils';
+import { Dimensions, isScalar, isVector, isMatrix, validateVariableName } from './utils';
 
 // INTERFACES
 // ================================================================================================
@@ -27,6 +27,7 @@ export interface Statement {
 export interface Expression {
     code            : string;
     dimensions      : Dimensions;
+    destructured?   : boolean;
 }
 
 export interface ConstantDeclaration {
@@ -322,12 +323,36 @@ class AirVisitor extends BaseCstVisitor {
         let code = `[`;
         for (let i = 0; i < ctx.elements.length; i++) {
             let element: Expression = this.visit(ctx.elements[i], sc);
-            if (!isScalar(element.dimensions)) throw new Error('Vector elements must be scalars');
+            if (!isScalar(element.dimensions)) {
+                if (isVector(element.dimensions) && element.destructured) {
+                    dimensions[0] += (element.dimensions[0] - 1);
+                }
+                else {
+                    throw new Error('Vector elements must be scalars');
+                }
+            }
             code += `${element.code}, `;
         }
         code = code.slice(0, -2) + ']';
 
         return { dimensions, code };
+    }
+
+    vectorDestructuring(ctx: any, sc: StatementContext): Expression {
+        const variableName = ctx.vectorName[0].image;
+        const element = sc.buildVariableReference(variableName);
+        if (isScalar(element.dimensions)) {
+            throw new Error(`Cannot expand scalar variable '${variableName}'`);
+        }
+        else if (isMatrix(element.dimensions)) {
+            throw new Error(`Cannot expand matrix variable '${variableName}'`);
+        }
+
+        return {
+            code        : `...${element.code}`,
+            dimensions  : element.dimensions,
+            destructured: true
+        };
     }
 
     matrix(ctx: any, sc: StatementContext): Expression {
@@ -342,7 +367,7 @@ class AirVisitor extends BaseCstVisitor {
                 colCount = row.dimensions[0];
             }
             else if (colCount !== row.dimensions[0]) {
-                throw new Error('All matrix rows must have the same number of columns')
+                throw new Error('All matrix rows must have the same number of columns');
             }
             code += `${row.code}, `;
         }

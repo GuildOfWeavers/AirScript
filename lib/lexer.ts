@@ -58,15 +58,16 @@ export const ExpOp  = createToken({ name: "ExpOp",  pattern: /\^/ });
 
 // SYMBOLS
 // ================================================================================================
-export const LCurly     = createToken({ name: "LCurly",     pattern: /{/    });
-export const RCurly     = createToken({ name: "RCurly",     pattern: /}/    });
-export const LSquare    = createToken({ name: "LSquare",    pattern: /\[/   });
-export const RSquare    = createToken({ name: "RSquare",    pattern: /]/    });
-export const LParen     = createToken({ name: "LParen",     pattern: /\(/   });
-export const RParen     = createToken({ name: "RParen",     pattern: /\)/   });
-export const Comma      = createToken({ name: "Comma",      pattern: /,/    });
-export const Colon      = createToken({ name: "Colon",      pattern: /:/    });
-export const Semicolon  = createToken({ name: "Semicolon",  pattern: /;/    });
+export const LCurly     = createToken({ name: "LCurly",     pattern: /{/        });
+export const RCurly     = createToken({ name: "RCurly",     pattern: /}/        });
+export const LSquare    = createToken({ name: "LSquare",    pattern: /\[/       });
+export const RSquare    = createToken({ name: "RSquare",    pattern: /]/        });
+export const LParen     = createToken({ name: "LParen",     pattern: /\(/       });
+export const RParen     = createToken({ name: "RParen",     pattern: /\)/       });
+export const Comma      = createToken({ name: "Comma",      pattern: /,/        });
+export const Colon      = createToken({ name: "Colon",      pattern: /:/        });
+export const Semicolon  = createToken({ name: "Semicolon",  pattern: /;/        });
+export const Ellipsis   = createToken({ name: 'Ellipsis',   pattern: /\.\.\./   });
 
 // WHITESPACE AND COMMENTS
 // ================================================================================================
@@ -92,7 +93,7 @@ export const allTokens = [
 
     Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 
-    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon,
+    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis,
 
     Identifier,
 
