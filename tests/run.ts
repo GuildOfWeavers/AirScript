@@ -8,12 +8,12 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
 
     // transition function definition
     transition 1 register in 2^13 steps {
-        out: $r0^alpha + $k0;
+        out <- $r0^alpha + $k0;
     }
 
     // transition constraint definition
     enforce 1 constraint of degree 3 {
-        out: $n0 - ($r0^alpha + $k0);
+        out <- $n0 - ($r0^alpha + $k0);
     }
 
     // readonly registers accessible in transition function and constraints

@@ -357,6 +357,9 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.parenExpression) {
             return this.visit(ctx.parenExpression, sc);
         }
+        else if (ctx.conditionalExpression) {
+            return this.visit(ctx.conditionalExpression, sc);
+        }
         else if (ctx.Identifier) {
             const variable = ctx.Identifier[0].image;
             return sc.buildVariableReference(variable);
@@ -379,6 +382,31 @@ class AirVisitor extends BaseCstVisitor {
     }
     parenExpression(ctx, sc) {
         return this.visit(ctx.expression, sc);
+    }
+    conditionalExpression(ctx, sc) {
+        const registerName = ctx.register[0].image;
+        const registerRef = sc.buildRegisterReference(registerName);
+        // TODO: check if the register is binary?
+        // create expressions for k and for (1 - k)
+        const scalarDim = [0, 0];
+        const regExpression = { code: registerRef, dimensions: scalarDim };
+        const oneExpression = { code: 'this.one', dimensions: scalarDim };
+        const oneMinusReg = {
+            code: operations_1.subtraction.getCode(oneExpression, regExpression),
+            dimensions: scalarDim
+        };
+        // get expressions for true and fales options
+        const tExpression = this.visit(ctx.tExpression, sc);
+        const dimensions = tExpression.dimensions;
+        const fExpression = this.visit(ctx.fExpression, sc);
+        if (!utils_1.areSameDimension(dimensions, fExpression.dimensions)) {
+            throw new Error('Conditional expression options must have the same dimensions');
+        }
+        // compute tExpression * k + fExpression * (1 - k)
+        const tCode = operations_1.multiplication.getCode(tExpression, regExpression);
+        const fCode = operations_1.multiplication.getCode(fExpression, oneMinusReg);
+        const code = operations_1.addition.getCode({ code: tCode, dimensions }, { code: fCode, dimensions });
+        return { dimensions, code };
     }
     // LITERAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------

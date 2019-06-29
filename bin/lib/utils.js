@@ -12,6 +12,10 @@ function isMatrix(dim) {
     return (dim[1] > 0);
 }
 exports.isMatrix = isMatrix;
+function areSameDimension(d1, d2) {
+    return (d1[0] === d2[0] && d1[1] === d2[1]);
+}
+exports.areSameDimension = areSameDimension;
 // OTHER
 // ================================================================================================
 function isPowerOf2(value) {

@@ -134,7 +134,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         this.statement = this.RULE('statement', () => {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'variableName' });
-            this.CONSUME(lexer_1.Colon);
+            this.CONSUME(lexer_1.LAssign);
             this.OR([
                 { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
                 { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
@@ -144,7 +144,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         this.outStatement = this.RULE('outStatement', () => {
             this.CONSUME(lexer_1.Out);
-            this.CONSUME(lexer_1.Colon);
+            this.CONSUME(lexer_1.LAssign);
             this.OR([
                 { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
                 { ALT: () => {
@@ -222,6 +222,7 @@ class AirParser extends chevrotain_1.CstParser {
         this.atomicExpression = this.RULE('atomicExpression', () => {
             this.OR([
                 { ALT: () => this.SUBRULE(this.parenExpression) },
+                { ALT: () => this.SUBRULE(this.conditionalExpression) },
                 { ALT: () => this.CONSUME(lexer_1.Identifier) },
                 { ALT: () => this.CONSUME(lexer_1.MutableRegister) },
                 { ALT: () => this.CONSUME(lexer_1.ReadonlyRegister) },
@@ -232,6 +233,13 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.LParen);
             this.SUBRULE(this.expression);
             this.CONSUME(lexer_1.RParen);
+        });
+        this.conditionalExpression = this.RULE('conditionalExpression', () => {
+            this.CONSUME(lexer_1.ReadonlyRegister, { LABEL: 'register' });
+            this.CONSUME(lexer_1.QMark);
+            this.SUBRULE1(this.expression, { LABEL: 'tExpression' });
+            this.CONSUME(lexer_1.Colon);
+            this.SUBRULE2(this.expression, { LABEL: 'fExpression' });
         });
         // LITERAL EXPRESSIONS
         // --------------------------------------------------------------------------------------------

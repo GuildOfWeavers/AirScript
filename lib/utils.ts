@@ -15,6 +15,10 @@ export function isMatrix(dim: Dimensions) {
     return (dim[1] > 0);
 }
 
+export function areSameDimension(d1: Dimensions, d2: Dimensions) {
+    return (d1[0] === d2[0] && d1[1] === d2[1]);
+}
+
 // OTHER
 // ================================================================================================
 export function isPowerOf2(value: number | bigint): boolean {

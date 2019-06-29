@@ -9,8 +9,8 @@ import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { StatementContext } from './StatementContext';
-import { getOperationHandler } from './operations';
-import { Dimensions, isScalar, isVector, isMatrix, validateVariableName } from './utils';
+import { getOperationHandler, addition as addHandler, subtraction as subHandler, multiplication as mulHandler } from './operations';
+import { Dimensions, isScalar, isVector, isMatrix, validateVariableName, areSameDimension } from './utils';
 
 // INTERFACES
 // ================================================================================================
@@ -448,6 +448,9 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.parenExpression) {
             return this.visit(ctx.parenExpression, sc);
         }
+        else if (ctx.conditionalExpression) {
+            return this.visit(ctx.conditionalExpression, sc);
+        }
         else if (ctx.Identifier) {
             const variable = ctx.Identifier[0].image;
             return sc.buildVariableReference(variable);
@@ -469,8 +472,38 @@ class AirVisitor extends BaseCstVisitor {
         }
     }
 
-    parenExpression(ctx: any, sc: StatementContext) {
+    parenExpression(ctx: any, sc: StatementContext): Expression {
         return this.visit(ctx.expression, sc);
+    }
+
+    conditionalExpression(ctx: any, sc: StatementContext): Expression {
+        const registerName = ctx.register[0].image;
+        const registerRef = sc.buildRegisterReference(registerName);
+        // TODO: check if the register is binary?
+        
+        // create expressions for k and for (1 - k)
+        const scalarDim: Dimensions = [0, 0];
+        const regExpression: Expression = { code: registerRef, dimensions: scalarDim };
+        const oneExpression: Expression = { code: 'this.one', dimensions: scalarDim };
+        const oneMinusReg: Expression = {
+            code        : subHandler.getCode(oneExpression, regExpression),
+            dimensions  : scalarDim
+        };
+
+        // get expressions for true and fales options
+        const tExpression: Expression = this.visit(ctx.tExpression, sc);
+        const dimensions = tExpression.dimensions;
+        const fExpression: Expression = this.visit(ctx.fExpression, sc);
+        if (!areSameDimension(dimensions, fExpression.dimensions)) {
+            throw new Error('Conditional expression options must have the same dimensions');
+        }
+
+        // compute tExpression * k + fExpression * (1 - k)
+        const tCode = mulHandler.getCode(tExpression, regExpression);
+        const fCode = mulHandler.getCode(fExpression, oneMinusReg);
+        const code = addHandler.getCode({ code: tCode , dimensions }, { code: fCode, dimensions });
+
+        return { dimensions, code };
     }
 
     // LITERAL EXPRESSIONS

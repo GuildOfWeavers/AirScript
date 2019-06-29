@@ -7,11 +7,11 @@ const lexer_1 = require("./lexer");
 // ================================================================================================
 function getOperationHandler(token) {
     if (chevrotain_1.tokenMatcher(token, lexer_1.Plus))
-        return addition;
+        return exports.addition;
     else if (chevrotain_1.tokenMatcher(token, lexer_1.Minus))
-        return subtraction;
+        return exports.subtraction;
     else if (chevrotain_1.tokenMatcher(token, lexer_1.Star))
-        return multiplication;
+        return exports.multiplication;
     else if (chevrotain_1.tokenMatcher(token, lexer_1.Slash))
         return division;
     else if (chevrotain_1.tokenMatcher(token, lexer_1.ExpOp))
@@ -24,7 +24,7 @@ function getOperationHandler(token) {
 exports.getOperationHandler = getOperationHandler;
 // ADDITION
 // ================================================================================================
-const addition = {
+exports.addition = {
     name: 'add',
     getDimensions(d1, d2) {
         if (utils_1.isScalar(d2))
@@ -46,7 +46,7 @@ const addition = {
 };
 // SUBTRACTION
 // ================================================================================================
-const subtraction = {
+exports.subtraction = {
     name: 'sub',
     getDimensions(d1, d2) {
         if (utils_1.isScalar(d2))
@@ -68,7 +68,7 @@ const subtraction = {
 };
 // MULTIPLICATION
 // ================================================================================================
-const multiplication = {
+exports.multiplication = {
     name: 'mul',
     getDimensions(d1, d2) {
         if (utils_1.isScalar(d2))

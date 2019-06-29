@@ -2,7 +2,7 @@
 // ================================================================================================
 import { Expression } from './visitor';
 import { Dimensions, isScalar, isVector, isMatrix } from './utils';
-import { tokenMatcher, IToken } from 'chevrotain';
+import { tokenMatcher, IToken, TokenType } from 'chevrotain';
 import { Plus, Minus, Star, Slash, ExpOp, Pound } from './lexer';
 
 // INTERFACES
@@ -27,7 +27,7 @@ export function getOperationHandler(token: IToken): OperationHandler {
 
 // ADDITION
 // ================================================================================================
-const addition = {
+export const addition = {
     name: 'add',
     getDimensions (d1: Dimensions, d2: Dimensions): Dimensions {
         if (isScalar(d2)) return d1;                        
@@ -44,7 +44,7 @@ const addition = {
 
 // SUBTRACTION
 // ================================================================================================
-const subtraction = {
+export const subtraction = {
     name: 'sub',
     getDimensions (d1: Dimensions, d2: Dimensions): Dimensions {
         if (isScalar(d2)) return d1;                        
@@ -61,7 +61,7 @@ const subtraction = {
 
 // MULTIPLICATION
 // ================================================================================================
-const multiplication = {
+export const multiplication = {
     name: 'mul',
     getDimensions (d1: Dimensions, d2: Dimensions): Dimensions {
         if (isScalar(d2)) return d1;                        

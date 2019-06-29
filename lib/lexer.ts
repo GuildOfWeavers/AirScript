@@ -45,16 +45,19 @@ export const As          = createToken({ name: "As",          pattern: /as/,    
 
 // OPERATORS
 // ================================================================================================
-export const AddOp  = createToken({ name: "AddOp",  pattern: Lexer.NA });
-export const Plus   = createToken({ name: "Plus",   pattern: /\+/,  categories: AddOp });
-export const Minus  = createToken({ name: "Minus",  pattern: /-/,   categories: AddOp });
+export const LAssign    = createToken({ name: "LAssign",    pattern: /<-/ });
+export const RAssign    = createToken({ name: "LAssign",    pattern: /->/ });
 
-export const MulOp  = createToken({ name: "MulOp",  pattern: Lexer.NA });
-export const Star   = createToken({ name: "Star",   pattern: /\*/,  categories: MulOp });
-export const Slash  = createToken({ name: "Slash",  pattern: /\//,  categories: MulOp });
-export const Pound  = createToken({ name: "Pound",  pattern: /#/,   categories: MulOp });
+export const AddOp      = createToken({ name: "AddOp",      pattern: Lexer.NA });
+export const Plus       = createToken({ name: "Plus",       pattern: /\+/,  categories: AddOp });
+export const Minus      = createToken({ name: "Minus",      pattern: /-/,   categories: AddOp, longer_alt: RAssign });
 
-export const ExpOp  = createToken({ name: "ExpOp",  pattern: /\^/ });
+export const MulOp      = createToken({ name: "MulOp",      pattern: Lexer.NA });
+export const Star       = createToken({ name: "Star",       pattern: /\*/,  categories: MulOp });
+export const Slash      = createToken({ name: "Slash",      pattern: /\//,  categories: MulOp });
+export const Pound      = createToken({ name: "Pound",      pattern: /#/,   categories: MulOp });
+
+export const ExpOp      = createToken({ name: "ExpOp",      pattern: /\^/ });
 
 // SYMBOLS
 // ================================================================================================
@@ -68,6 +71,7 @@ export const Comma      = createToken({ name: "Comma",      pattern: /,/        
 export const Colon      = createToken({ name: "Colon",      pattern: /:/        });
 export const Semicolon  = createToken({ name: "Semicolon",  pattern: /;/        });
 export const Ellipsis   = createToken({ name: 'Ellipsis',   pattern: /\.\.\./   });
+export const QMark      = createToken({ name: 'QMark',      pattern: /\?/       });
 
 // WHITESPACE AND COMMENTS
 // ================================================================================================
@@ -91,9 +95,9 @@ export const allTokens = [
     Define, Over, Prime, Binary, Field, Transition, Registers, In, Steps, Enforce, Constraints,
     Of, Degree, For, Do, With, Nothing, Out, Repeat, Spread, Using, Readonly, Import, From, As,
 
-    Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
+    LAssign, RAssign, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 
-    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis,
+    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, QMark,
 
     Identifier,
 

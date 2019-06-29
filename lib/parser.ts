@@ -3,8 +3,8 @@
 import { CstParser } from "chevrotain";
 import { allTokens, Identifier,
     Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly, ExpOp, MulOp, AddOp,
-    Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Colon, Semicolon, Out, 
-    MutableRegister, ReadonlyRegister, LSquare, RSquare, Comma, Using, Readonly, Repeat, Spread, Ellipsis
+    Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Out, MutableRegister, ReadonlyRegister,
+    LSquare, RSquare, Comma, Using, Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, LAssign, QMark
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -151,7 +151,7 @@ class AirParser extends CstParser {
 
     private statement = this.RULE('statement', () => {
         this.CONSUME(Identifier, { LABEL: 'variableName' });
-        this.CONSUME(Colon);
+        this.CONSUME(LAssign);
         this.OR([
             { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
             { ALT: () => this.SUBRULE(this.vector,      { LABEL: 'expression' }) },
@@ -162,7 +162,7 @@ class AirParser extends CstParser {
 
     private outStatement = this.RULE('outStatement', () => {
         this.CONSUME(Out);
-        this.CONSUME(Colon);
+        this.CONSUME(LAssign);
         this.OR([
             { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
             { ALT: () => {
@@ -248,11 +248,12 @@ class AirParser extends CstParser {
 
     private atomicExpression = this.RULE('atomicExpression', () => {
         this.OR([
-            { ALT: () => this.SUBRULE(this.parenExpression) },
-            { ALT: () => this.CONSUME(Identifier) },
-            { ALT: () => this.CONSUME(MutableRegister) },
-            { ALT: () => this.CONSUME(ReadonlyRegister) },
-            { ALT: () => this.CONSUME(IntegerLiteral) }
+            { ALT: () => this.SUBRULE(this.parenExpression)         },
+            { ALT: () => this.SUBRULE(this.conditionalExpression)   },
+            { ALT: () => this.CONSUME(Identifier)                   },
+            { ALT: () => this.CONSUME(MutableRegister)              },
+            { ALT: () => this.CONSUME(ReadonlyRegister)             },
+            { ALT: () => this.CONSUME(IntegerLiteral)               }
         ]);
     });
 
@@ -260,6 +261,14 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.SUBRULE(this.expression);
         this.CONSUME(RParen);
+    });
+
+    private conditionalExpression = this.RULE('conditionalExpression', () => {
+        this.CONSUME(ReadonlyRegister, { LABEL: 'register'   });
+        this.CONSUME(QMark);
+        this.SUBRULE1(this.expression, { LABEL: 'tExpression' });
+        this.CONSUME(Colon);
+        this.SUBRULE2(this.expression, { LABEL: 'fExpression' });
     });
 
     // LITERAL EXPRESSIONS
