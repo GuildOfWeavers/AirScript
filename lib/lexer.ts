@@ -71,7 +71,11 @@ export const Comma      = createToken({ name: "Comma",      pattern: /,/        
 export const Colon      = createToken({ name: "Colon",      pattern: /:/        });
 export const Semicolon  = createToken({ name: "Semicolon",  pattern: /;/        });
 export const Ellipsis   = createToken({ name: 'Ellipsis',   pattern: /\.\.\./   });
+export const Pipe       = createToken({ name: 'Pipe',       pattern: /\|/       });
+export const Tilde      = createToken({ name: 'Tilde',      pattern: /~/        });
+export const Ampersand  = createToken({ name: 'Ampersand',  pattern: /&/        });
 export const QMark      = createToken({ name: 'QMark',      pattern: /\?/       });
+export const EMark      = createToken({ name: 'EMark',      pattern: /!/        });
 
 // WHITESPACE AND COMMENTS
 // ================================================================================================
@@ -97,7 +101,8 @@ export const allTokens = [
 
     LAssign, RAssign, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 
-    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, QMark,
+    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, Pipe,
+    Tilde, Ampersand, QMark, EMark,
 
     Identifier,
 
