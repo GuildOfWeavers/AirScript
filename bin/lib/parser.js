@@ -134,7 +134,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         this.statement = this.RULE('statement', () => {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'variableName' });
-            this.CONSUME(lexer_1.LAssign);
+            this.CONSUME(lexer_1.Colon);
             this.OR([
                 { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
                 { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
@@ -144,7 +144,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         this.outStatement = this.RULE('outStatement', () => {
             this.CONSUME(lexer_1.Out);
-            this.CONSUME(lexer_1.LAssign);
+            this.CONSUME(lexer_1.Colon);
             this.OR([
                 { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
                 { ALT: () => {
@@ -238,7 +238,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.ReadonlyRegister, { LABEL: 'register' });
             this.CONSUME(lexer_1.QMark);
             this.SUBRULE1(this.expression, { LABEL: 'tExpression' });
-            this.CONSUME(lexer_1.Colon);
+            this.CONSUME(lexer_1.Pipe);
             this.SUBRULE2(this.expression, { LABEL: 'fExpression' });
         });
         // LITERAL EXPRESSIONS

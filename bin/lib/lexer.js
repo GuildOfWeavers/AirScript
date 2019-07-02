@@ -39,11 +39,9 @@ exports.From = chevrotain_1.createToken({ name: "From", pattern: /from/, longer_
 exports.As = chevrotain_1.createToken({ name: "As", pattern: /as/, longer_alt: exports.Identifier });
 // OPERATORS
 // ================================================================================================
-exports.LAssign = chevrotain_1.createToken({ name: "LAssign", pattern: /<-/ });
-exports.RAssign = chevrotain_1.createToken({ name: "LAssign", pattern: /->/ });
 exports.AddOp = chevrotain_1.createToken({ name: "AddOp", pattern: chevrotain_1.Lexer.NA });
 exports.Plus = chevrotain_1.createToken({ name: "Plus", pattern: /\+/, categories: exports.AddOp });
-exports.Minus = chevrotain_1.createToken({ name: "Minus", pattern: /-/, categories: exports.AddOp, longer_alt: exports.RAssign });
+exports.Minus = chevrotain_1.createToken({ name: "Minus", pattern: /-/, categories: exports.AddOp });
 exports.MulOp = chevrotain_1.createToken({ name: "MulOp", pattern: chevrotain_1.Lexer.NA });
 exports.Star = chevrotain_1.createToken({ name: "Star", pattern: /\*/, categories: exports.MulOp });
 exports.Slash = chevrotain_1.createToken({ name: "Slash", pattern: /\//, categories: exports.MulOp });
@@ -82,9 +80,9 @@ exports.Comment = chevrotain_1.createToken({
 // ================================================================================================
 exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
-    exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.In, exports.Steps, exports.Enforce, exports.Constraints,
-    exports.Of, exports.Degree, exports.For, exports.Do, exports.With, exports.Nothing, exports.Out, exports.Repeat, exports.Spread, exports.Using, exports.Readonly, exports.Import, exports.From, exports.As,
-    exports.LAssign, exports.RAssign, exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
+    exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.In, exports.Steps, exports.Enforce, exports.Constraints, exports.Of,
+    exports.Degree, exports.For, exports.Do, exports.With, exports.Nothing, exports.Out, exports.Repeat, exports.Spread, exports.Using, exports.Readonly, exports.Import, exports.From, exports.As,
+    exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon, exports.Ellipsis, exports.Pipe,
     exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,

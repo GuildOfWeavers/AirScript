@@ -4,7 +4,7 @@ import { CstParser } from "chevrotain";
 import { allTokens, Identifier,
     Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly, ExpOp, MulOp, AddOp,
     Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Out, MutableRegister, ReadonlyRegister,
-    LSquare, RSquare, Comma, Using, Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, LAssign, QMark
+    LSquare, RSquare, Comma, Using, Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, QMark, Pipe
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -151,7 +151,7 @@ class AirParser extends CstParser {
 
     private statement = this.RULE('statement', () => {
         this.CONSUME(Identifier, { LABEL: 'variableName' });
-        this.CONSUME(LAssign);
+        this.CONSUME(Colon);
         this.OR([
             { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
             { ALT: () => this.SUBRULE(this.vector,      { LABEL: 'expression' }) },
@@ -162,7 +162,7 @@ class AirParser extends CstParser {
 
     private outStatement = this.RULE('outStatement', () => {
         this.CONSUME(Out);
-        this.CONSUME(LAssign);
+        this.CONSUME(Colon);
         this.OR([
             { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
             { ALT: () => {
@@ -267,7 +267,7 @@ class AirParser extends CstParser {
         this.CONSUME(ReadonlyRegister, { LABEL: 'register'   });
         this.CONSUME(QMark);
         this.SUBRULE1(this.expression, { LABEL: 'tExpression' });
-        this.CONSUME(Colon);
+        this.CONSUME(Pipe);
         this.SUBRULE2(this.expression, { LABEL: 'fExpression' });
     });
 

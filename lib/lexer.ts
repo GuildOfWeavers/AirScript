@@ -45,12 +45,9 @@ export const As          = createToken({ name: "As",          pattern: /as/,    
 
 // OPERATORS
 // ================================================================================================
-export const LAssign    = createToken({ name: "LAssign",    pattern: /<-/ });
-export const RAssign    = createToken({ name: "LAssign",    pattern: /->/ });
-
 export const AddOp      = createToken({ name: "AddOp",      pattern: Lexer.NA });
 export const Plus       = createToken({ name: "Plus",       pattern: /\+/,  categories: AddOp });
-export const Minus      = createToken({ name: "Minus",      pattern: /-/,   categories: AddOp, longer_alt: RAssign });
+export const Minus      = createToken({ name: "Minus",      pattern: /-/,   categories: AddOp });
 
 export const MulOp      = createToken({ name: "MulOp",      pattern: Lexer.NA });
 export const Star       = createToken({ name: "Star",       pattern: /\*/,  categories: MulOp });
@@ -96,10 +93,10 @@ export const Comment = createToken({
 export const allTokens = [
     WhiteSpace, Comment,
     
-    Define, Over, Prime, Binary, Field, Transition, Registers, In, Steps, Enforce, Constraints,
-    Of, Degree, For, Do, With, Nothing, Out, Repeat, Spread, Using, Readonly, Import, From, As,
+    Define, Over, Prime, Binary, Field, Transition, Registers, In, Steps, Enforce, Constraints, Of,
+    Degree, For, Do, With, Nothing, Out, Repeat, Spread, Using, Readonly, Import, From, As,
 
-    LAssign, RAssign, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
+    Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 
     LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, Pipe,
     Tilde, Ampersand, QMark, EMark,
