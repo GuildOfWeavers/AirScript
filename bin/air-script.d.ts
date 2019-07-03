@@ -63,6 +63,53 @@ declare module '@guildofweavers/air-script' {
         constructor(errors: any[]);
     }
 
+    // CONTEXTS
+    // --------------------------------------------------------------------------------------------
+    export interface AirObject {
+
+        readonly name   : string;
+        readonly field  : FiniteField;
+
+        createExecutionContext(sInputs: bigint[][], pInputs: bigint[][]): ExecutionContext;
+        createEvaluationContext(pInputs: bigint[][]): VerificationContext;
+
+        generateExecutionTrace(ctx: ExecutionContext): bigint[][];
+        evaluateConstraints(trace: bigint[][], ctx: ExecutionContext): bigint[][];
+        evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[], ctx: VerificationContext): bigint[];
+    }
+
+    export interface EvaluationContext {
+        readonly field              : FiniteField
+        readonly totalSteps         : number;
+        readonly extensionFactor    : number;
+        readonly rootOfUnity        : bigint;
+        readonly executionDomain?   : bigint[];
+        readonly evaluationDomain?  : bigint[];
+    }
+
+    export interface VerificationContext extends EvaluationContext {
+        readonly stateWidth         : number;
+        readonly constraints        : ConstraintSpecs[];
+        readonly kRegisters         : ComputedRegister[];
+        readonly pRegisters         : ComputedRegister[];
+        readonly sRegisters         : ComputedRegister[];
+    }
+
+    export interface ExecutionContext extends VerificationContext {
+        readonly executionDomain    : bigint[];
+        readonly evaluationDomain   : bigint[];
+    }
+
+    export interface ComputedRegister {
+        getTraceValue(step: number): bigint;
+        getEvaluation(position: number): bigint;
+        getEvaluationAt(x: bigint): bigint;
+    }
+    
+    export interface ConstraintSpecs {
+        degree  : number;
+    }
+
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
     export function parseScript(text: string, limits?: Partial<StarkLimits>): StarkConfig;

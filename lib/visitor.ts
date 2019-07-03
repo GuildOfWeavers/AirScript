@@ -490,7 +490,7 @@ class AirVisitor extends BaseCstVisitor {
             dimensions  : scalarDim
         };
 
-        // get expressions for true and fales options
+        // get expressions for true and false options
         const tExpression: Expression = this.visit(ctx.tExpression, sc);
         const dimensions = tExpression.dimensions;
         const fExpression: Expression = this.visit(ctx.fExpression, sc);
