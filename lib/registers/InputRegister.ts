@@ -19,8 +19,8 @@ export class InputRegister implements ComputedRegister {
         this.field = ctx.field;
         this.extensionFactor = ctx.extensionFactor;
 
-        const cycleLength = ctx.totalSteps / values.length;
-        const trace = new Array<bigint>(ctx.totalSteps);
+        const cycleLength = ctx.traceLength / values.length;
+        const trace = new Array<bigint>(ctx.traceLength);
 
         let start = 0;
         for (let i = 0; i < values.length; i++, start += cycleLength) {

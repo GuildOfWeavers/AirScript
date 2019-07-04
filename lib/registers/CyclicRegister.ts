@@ -19,7 +19,7 @@ export class CyclicRegister implements ComputedRegister {
 
         this.field = ctx.field;
         this.extensionFactor = ctx.extensionFactor;
-        this.cycleCount = BigInt(ctx.totalSteps / values.length);
+        this.cycleCount = BigInt(ctx.traceLength / values.length);
 
         if (ctx.evaluationDomain) {
             const domainSize = ctx.evaluationDomain.length;

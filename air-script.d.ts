@@ -67,20 +67,22 @@ declare module '@guildofweavers/air-script' {
     // --------------------------------------------------------------------------------------------
     export interface AirObject {
 
-        readonly name   : string;
-        readonly field  : FiniteField;
+        readonly name                   : string;
+        readonly field                  : FiniteField;
+        readonly stateWidth             : number;
+        readonly maxConstraintDegree    : number;
 
-        createExecutionContext(sInputs: bigint[][], pInputs: bigint[][]): ExecutionContext;
-        createEvaluationContext(pInputs: bigint[][]): VerificationContext;
+        createContext(publicInputs: bigint[][]): VerificationContext;
+        createContext(publicInputs: bigint[][], secretInputs: bigint[][]): ProofContext;
 
-        generateExecutionTrace(ctx: ExecutionContext): bigint[][];
-        evaluateConstraints(trace: bigint[][], ctx: ExecutionContext): bigint[][];
+        generateExecutionTrace(initValues: bigint[], ctx: ProofContext): bigint[][];
+        evaluateExtendedTrace(extendedTrace: bigint[][], ctx: ProofContext): bigint[][];
         evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[], ctx: VerificationContext): bigint[];
     }
 
     export interface EvaluationContext {
         readonly field              : FiniteField
-        readonly totalSteps         : number;
+        readonly traceLength        : number;
         readonly extensionFactor    : number;
         readonly rootOfUnity        : bigint;
         readonly executionDomain?   : bigint[];
@@ -89,15 +91,16 @@ declare module '@guildofweavers/air-script' {
 
     export interface VerificationContext extends EvaluationContext {
         readonly stateWidth         : number;
+        readonly secretInputCount   : number;
         readonly constraints        : ConstraintSpecs[];
         readonly kRegisters         : ComputedRegister[];
         readonly pRegisters         : ComputedRegister[];
-        readonly sRegisters         : ComputedRegister[];
     }
 
-    export interface ExecutionContext extends VerificationContext {
+    export interface ProofContext extends VerificationContext {
         readonly executionDomain    : bigint[];
         readonly evaluationDomain   : bigint[];
+        readonly sRegisters         : ComputedRegister[];
     }
 
     export interface ComputedRegister {
