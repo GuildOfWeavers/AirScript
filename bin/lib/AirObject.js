@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const CyclicRegister_1 = require("./registers/CyclicRegister");
-const InputRegister_1 = require("./registers/InputRegister");
+const RepeatRegister_1 = require("./registers/RepeatRegister");
+const SpreadRegister_1 = require("./registers/SpreadRegister");
 // CLASS DEFINITION
 // ================================================================================================
 class AirObject {
@@ -12,8 +12,8 @@ class AirObject {
         this.field = config.field;
         this.steps = config.steps;
         this.stateWidth = config.stateWidth;
-        this.secretInputCount = config.secretInputCount;
-        this.publicInputCount = config.publicInputCount;
+        this.secretInputs = config.secretInputs;
+        this.publicInputs = config.publicInputs;
         this.constants = config.constants;
         this.constraints = config.constraints;
         this.extensionFactor = extensionFactor;
@@ -31,12 +31,30 @@ class AirObject {
         }
         return result;
     }
+    get hasSpreadRegisters() {
+        for (let specs of this.secretInputs) {
+            if (specs.pattern === 'spread')
+                return true;
+        }
+        ;
+        for (let specs of this.publicInputs) {
+            if (specs.pattern === 'spread')
+                return true;
+        }
+        ;
+        for (let specs of this.constants) {
+            if (specs.pattern === 'spread')
+                return true;
+        }
+        ;
+        return false;
+    }
     createContext(pInputs, sInputs) {
         const field = this.field;
         const traceLength = this.steps;
         const extensionFactor = this.extensionFactor;
         // make sure all inputs are valid
-        validateInputs(traceLength, pInputs, this.publicInputCount, sInputs, this.secretInputCount);
+        validateInputs(traceLength, pInputs, this.publicInputs.length, sInputs, this.secretInputs.length);
         // determine domain size and compute root of unity
         const evaluationDomainSize = traceLength * extensionFactor;
         const rootOfUnity = field.getRootOfUnity(evaluationDomainSize);
@@ -52,21 +70,27 @@ class AirObject {
                 executionDomain[i] = evaluationDomain[i * this.extensionFactor];
             }
             ctx = { field, traceLength, extensionFactor, rootOfUnity, evaluationDomain, executionDomain };
-            sRegisters = buildInputRegisters(sInputs, ctx);
+            sRegisters = buildInputRegisters(sInputs, this.secretInputs, ctx);
         }
         else {
             // if secret inputs were not provided, we are verifying STARK proof
             // so, no need to compute the entire execution and evaluation domains
             ctx = { field, traceLength, rootOfUnity, extensionFactor };
+            if (this.hasSpreadRegisters) {
+                const rootOfUnity2 = field.exp(rootOfUnity, BigInt(extensionFactor));
+                const executionDomain = field.getPowerCycle(rootOfUnity2);
+                ctx = { ...ctx, executionDomain };
+            }
         }
         // build registers for public inputs and constant values
-        const pRegisters = buildInputRegisters(pInputs, ctx);
-        const kRegisters = buildConstantRegisters(this.constants, ctx);
+        const pRegisters = buildInputRegisters(pInputs, this.publicInputs, ctx);
+        const kRegisters = buildComputedRegisters(this.constants, ctx);
         // build and return the context
         return { ...ctx, kRegisters, sRegisters, pRegisters,
             stateWidth: this.stateWidth,
             constraints: this.constraints,
-            secretInputCount: this.secretInputCount
+            secretInputCount: this.secretInputs.length,
+            publicInputCount: this.publicInputs.length
         };
     }
     // EXECUTION
@@ -193,31 +217,29 @@ class AirObject {
 exports.AirObject = AirObject;
 // HELPER FUNCTIONS
 // ================================================================================================
-function buildConstantRegisters(constants, ctx) {
-    const kRegisters = [];
-    for (let constant of constants) {
-        if (constant.pattern === 'repeat') {
-            let register = new CyclicRegister_1.CyclicRegister(constant.values, ctx);
-            kRegisters.push(register);
+function buildComputedRegisters(specs, ctx) {
+    const registers = [];
+    for (let s of specs) {
+        if (s.pattern === 'repeat') {
+            let register = new RepeatRegister_1.RepeatRegister(s.values, ctx);
+            registers.push(register);
+        }
+        else if (s.pattern === 'spread') {
+            let register = new SpreadRegister_1.SpreadRegister(s.values, ctx);
+            registers.push(register);
         }
         else {
-            throw new TypeError(`Invalid constant pattern '${constant.pattern}'`);
+            throw new TypeError(`Invalid value pattern '${s.pattern}'`);
         }
     }
-    return kRegisters;
+    return registers;
 }
-function buildInputRegisters(inputs, ctx) {
-    const pRegisters = [];
-    if (!ctx.executionDomain) {
-        const rootOfUnity = ctx.field.exp(ctx.rootOfUnity, BigInt(ctx.extensionFactor));
-        const executionDomain = ctx.field.getPowerCycle(rootOfUnity);
-        ctx = { ...ctx, executionDomain };
-    }
+function buildInputRegisters(inputs, specs, ctx) {
+    const regSpecs = new Array(inputs.length);
     for (let i = 0; i < inputs.length; i++) {
-        let register = new InputRegister_1.InputRegister(inputs[i], ctx);
-        pRegisters.push(register);
+        regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern };
     }
-    return pRegisters;
+    return buildComputedRegisters(regSpecs, ctx);
 }
 // VALIDATORS
 // ================================================================================================
@@ -283,19 +305,19 @@ function validateInitValues(values, stateWidth) {
 }
 function validateExtendedTrace(trace, stateWidth, domainSize) {
     if (!trace)
-        throw new TypeError('Evaluation trace is undefined');
+        throw new TypeError('Extended trace is undefined');
     if (!Array.isArray(trace))
         throw new TypeError('Evaluation trace parameter must be an array');
     if (trace.length !== stateWidth) {
-        throw new Error(`Evaluation trace array must contain exactly ${stateWidth} elements`);
+        throw new Error(`Extended trace array must contain exactly ${stateWidth} elements`);
     }
     for (let i = 0; i < stateWidth; i++) {
         const values = trace[i];
         if (!Array.isArray(values)) {
-            throw new TypeError(`Evaluation trace element ${i} is invalid: trace element must be an array`);
+            throw new TypeError(`Extended trace element ${i} is invalid: trace element must be an array`);
         }
         if (values.length !== domainSize) {
-            throw new TypeError(`Evaluation trace element ${i} is invalid: trace element must ${domainSize} values`);
+            throw new TypeError(`Extended trace element ${i} is invalid: trace element must ${domainSize} values`);
         }
     }
 }

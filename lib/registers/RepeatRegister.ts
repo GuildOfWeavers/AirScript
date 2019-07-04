@@ -5,7 +5,7 @@ import { ComputedRegister, EvaluationContext } from "@guildofweavers/air-script"
 
 // CLASS DEFINITION
 // ================================================================================================
-export class CyclicRegister implements ComputedRegister {
+export class RepeatRegister implements ComputedRegister {
 
     readonly field              : FiniteField;
     readonly cycleCount         : bigint;

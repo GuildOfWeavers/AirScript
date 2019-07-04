@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 // CLASS DEFINITION
 // ================================================================================================
-class InputRegister {
+class SpreadRegister {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(values, ctx) {
@@ -34,5 +34,5 @@ class InputRegister {
         return this.field.evalPolyAt(this.poly, x);
     }
 }
-exports.InputRegister = InputRegister;
-//# sourceMappingURL=InputRegister.js.map
+exports.SpreadRegister = SpreadRegister;
+//# sourceMappingURL=SpreadRegister.js.map

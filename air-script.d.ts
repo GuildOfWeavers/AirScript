@@ -58,13 +58,6 @@ declare module '@guildofweavers/air-script' {
         pattern : ReadonlyValuePattern;
     }
 
-    export class AirScriptError {
-        readonly errors: any[];
-        constructor(errors: any[]);
-    }
-
-    // CONTEXTS
-    // --------------------------------------------------------------------------------------------
     export interface AirObject {
 
         readonly name                   : string;
@@ -80,6 +73,13 @@ declare module '@guildofweavers/air-script' {
         evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[], ctx: VerificationContext): bigint[];
     }
 
+    export class AirScriptError {
+        readonly errors: any[];
+        constructor(errors: any[]);
+    }
+
+    // CONTEXTS
+    // --------------------------------------------------------------------------------------------
     export interface EvaluationContext {
         readonly field              : FiniteField
         readonly traceLength        : number;
@@ -92,6 +92,7 @@ declare module '@guildofweavers/air-script' {
     export interface VerificationContext extends EvaluationContext {
         readonly stateWidth         : number;
         readonly secretInputCount   : number;
+        readonly publicInputCount   : number;
         readonly constraints        : ConstraintSpecs[];
         readonly kRegisters         : ComputedRegister[];
         readonly pRegisters         : ComputedRegister[];
@@ -107,11 +108,6 @@ declare module '@guildofweavers/air-script' {
         getTraceValue(step: number): bigint;
         getEvaluation(position: number): bigint;
         getEvaluationAt(x: bigint): bigint;
-    }
-    
-    export interface ConstantSpecs {
-        values  : bigint[];
-        pattern : 'repeat';
     }
 
     export interface ConstraintSpecs {

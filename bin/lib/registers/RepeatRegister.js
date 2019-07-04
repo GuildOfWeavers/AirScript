@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 // CLASS DEFINITION
 // ================================================================================================
-class CyclicRegister {
+class RepeatRegister {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(values, ctx) {
@@ -46,5 +46,5 @@ class CyclicRegister {
         return this.field.evalPolyAt(this.poly, xp);
     }
 }
-exports.CyclicRegister = CyclicRegister;
-//# sourceMappingURL=CyclicRegister.js.map
+exports.RepeatRegister = RepeatRegister;
+//# sourceMappingURL=RepeatRegister.js.map

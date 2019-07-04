@@ -5,7 +5,7 @@ import { ComputedRegister, EvaluationContext } from "@guildofweavers/air-script"
 
 // CLASS DEFINITION
 // ================================================================================================
-export class InputRegister implements ComputedRegister {
+export class SpreadRegister implements ComputedRegister {
 
     readonly field              : FiniteField;
     readonly poly               : Polynom;
