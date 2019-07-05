@@ -8,6 +8,8 @@ import { Dimensions, isPowerOf2 } from './utils';
 // ================================================================================================
 export class ScriptSpecs {
 
+    private readonly limits : StarkLimits;
+
     field!                  : FiniteField;
     steps!                  : number;
     mutableRegisterCount!   : number;
@@ -15,7 +17,6 @@ export class ScriptSpecs {
     constraintCount!        : number;
     maxConstraintDegree!    : number;
     globalConstants!        : Map<string, Dimensions>;
-    private readonly limits : StarkLimits;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------

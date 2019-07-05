@@ -81,6 +81,7 @@ class StatementContext {
                 throw new Error(`${errorMessage}: register index must be smaller than ${this.readonlyRegisterCount}`);
             }
         }
+        // TODO: add handling of secret and public input registers
         return `${name}[${index}]`;
     }
 }

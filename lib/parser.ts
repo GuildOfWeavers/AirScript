@@ -1,10 +1,11 @@
 // IMPORTS
 // ================================================================================================
 import { CstParser } from "chevrotain";
-import { allTokens, Identifier,
-    Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly, ExpOp, MulOp, AddOp,
-    Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Out, MutableRegister, ReadonlyRegister,
-    LSquare, RSquare, Comma, Using, Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, QMark, Pipe
+import {
+    allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
+    ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Out, 
+    MutableRegister, PresetRegister, SecretRegister, PublicRegister, LSquare, RSquare, Comma, Using,
+    Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, QMark, Pipe
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -110,19 +111,55 @@ class AirParser extends CstParser {
     private readonlyRegisters = this.RULE('readonlyRegisters', () => {
         this.CONSUME(LCurly);
         this.AT_LEAST_ONE(() => {
-            this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registers' });
+            this.OR([
+                { ALT: () => {
+                    this.SUBRULE(this.presetRegisterDefinition, { LABEL: 'presetRegisters' })
+                }},
+                { ALT: () => {
+                    this.SUBRULE(this.secretRegisterDefinition, { LABEL: 'secretRegisters' })
+                }},
+                { ALT: () => {
+                    this.SUBRULE(this.publicRegisterDefinition, { LABEL: 'publicRegisters' })
+                }}
+            ]);
         });
         this.CONSUME(RCurly);
     });
 
-    private readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
-        this.CONSUME1(ReadonlyRegister, { LABEL: 'name' });
+    private presetRegisterDefinition = this.RULE('presetRegisterDefinition', () => {
+        this.CONSUME1(PresetRegister, { LABEL: 'name' });
         this.CONSUME(Colon);
         this.OR([
             { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
             { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
         ]);
         this.SUBRULE(this.literalVector, { LABEL: 'values' });
+        this.CONSUME(Semicolon);
+    });
+
+    private secretRegisterDefinition = this.RULE('secretRegisterDefinition', () => {
+        this.CONSUME1(SecretRegister, { LABEL: 'name' });
+        this.CONSUME(Colon);
+        this.OR([
+            { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
+            { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
+        ]);
+        this.CONSUME(LSquare);
+        this.CONSUME(Ellipsis);
+        this.CONSUME(RSquare);
+        this.CONSUME(Semicolon);
+    });
+
+    private publicRegisterDefinition = this.RULE('publicRegisterDefinition', () => {
+        this.CONSUME1(PublicRegister, { LABEL: 'name' });
+        this.CONSUME(Colon);
+        this.OR([
+            { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
+            { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
+        ]);
+        this.CONSUME(LSquare);
+        this.CONSUME(Ellipsis);
+        this.CONSUME(RSquare);
         this.CONSUME(Semicolon);
     });
 
@@ -252,7 +289,9 @@ class AirParser extends CstParser {
             { ALT: () => this.SUBRULE(this.conditionalExpression)   },
             { ALT: () => this.CONSUME(Identifier)                   },
             { ALT: () => this.CONSUME(MutableRegister)              },
-            { ALT: () => this.CONSUME(ReadonlyRegister)             },
+            { ALT: () => this.CONSUME(PresetRegister)               },
+            { ALT: () => this.CONSUME(SecretRegister)               },
+            { ALT: () => this.CONSUME(PublicRegister)               },
             { ALT: () => this.CONSUME(IntegerLiteral)               }
         ]);
     });
@@ -264,7 +303,17 @@ class AirParser extends CstParser {
     });
 
     private conditionalExpression = this.RULE('conditionalExpression', () => {
-        this.CONSUME(ReadonlyRegister, { LABEL: 'register'   });
+        this.OR([
+            { ALT: () => {
+                this.CONSUME(PresetRegister,   { LABEL: 'register'   });
+            }},
+            { ALT: () => {
+                this.CONSUME(SecretRegister,   { LABEL: 'register'   });
+            }},
+            { ALT: () => {
+                this.CONSUME(PublicRegister,   { LABEL: 'register'   });
+            }}
+        ]);
         this.CONSUME(QMark);
         this.SUBRULE1(this.expression, { LABEL: 'tExpression' });
         this.CONSUME(Pipe);

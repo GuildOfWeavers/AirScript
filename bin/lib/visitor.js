@@ -42,6 +42,15 @@ class AirVisitor extends BaseCstVisitor {
         specs.setConstraintCount(this.visit(ctx.constraintCount));
         specs.setMaxConstraintDegree(this.visit(ctx.maxConstraintDegree));
         specs.setGlobalConstants(globalConstantMap);
+        // build readonly registers
+        let readonlyRegisters;
+        if (specs.readonlyRegisterCount > 0) {
+            validateReadonlyRegisterDefinitions(ctx.readonlyRegisters);
+            readonlyRegisters = this.visit(ctx.readonlyRegisters, specs);
+        }
+        else {
+            readonlyRegisters = { presetRegisters: [], secretRegisters: [], publicRegisters: [] };
+        }
         // build transition function
         validateTransitionFunction(ctx.transitionFunction);
         const tFunction = this.visit(ctx.transitionFunction, specs);
@@ -53,21 +62,15 @@ class AirVisitor extends BaseCstVisitor {
             // TODO: determine degree of each constraint individually
             constraints[i] = { degree: specs.maxConstraintDegree };
         }
-        // build readonly registers
-        let readonlyRegisters = [];
-        if (specs.readonlyRegisterCount > 0) {
-            validateReadonlyRegisterDefinitions(ctx.readonlyRegisters);
-            readonlyRegisters = this.visit(ctx.readonlyRegisters, specs);
-        }
         // build and return stark config
         return {
             name: starkName,
             field: field,
             steps: specs.steps,
             stateWidth: specs.mutableRegisterCount,
-            secretInputs: [],
-            publicInputs: [],
-            presetRegisters: readonlyRegisters,
+            secretInputs: readonlyRegisters.secretRegisters,
+            publicInputs: readonlyRegisters.publicRegisters,
+            presetRegisters: readonlyRegisters.presetRegisters,
             globalConstants: globalConstants,
             constraints: constraints,
             transitionFunction: tFunction,
@@ -139,37 +142,81 @@ class AirVisitor extends BaseCstVisitor {
     // READONLY REGISTERS
     // --------------------------------------------------------------------------------------------
     readonlyRegisters(ctx, specs) {
-        if (ctx.registers.length > specs.readonlyRegisterCount) {
+        const registerNames = new Set();
+        const presetRegisters = [];
+        if (ctx.presetRegisters) {
+            for (let i = 0; i < ctx.presetRegisters.length; i++) {
+                let register = this.visit(ctx.presetRegisters[i], specs);
+                if (registerNames.has(register.name)) {
+                    throw new Error(`Readonly register ${register.name} is defined more than once`);
+                }
+                else if (register.index !== i) {
+                    throw new Error(`Readonly register ${register.name} is declared out of order`);
+                }
+                registerNames.add(register.name);
+                let registerIndex = Number.parseInt(register.name.slice(2), 10);
+                presetRegisters[registerIndex] = { pattern: register.pattern, values: register.values };
+            }
+        }
+        const secretRegisters = [];
+        if (ctx.secretRegisters) {
+            for (let i = 0; i < ctx.secretRegisters.length; i++) {
+                let register = this.visit(ctx.secretRegisters[i], specs);
+                if (registerNames.has(register.name)) {
+                    throw new Error(`Readonly register ${register.name} is defined more than once`);
+                }
+                else if (register.index !== i) {
+                    throw new Error(`Readonly register ${register.name} is declared out of order`);
+                }
+                registerNames.add(register.name);
+                let registerIndex = Number.parseInt(register.name.slice(2), 10);
+                secretRegisters[registerIndex] = { pattern: register.pattern };
+            }
+        }
+        const publicRegisters = [];
+        if (ctx.publicRegisters) {
+            for (let i = 0; i < ctx.publicRegisters.length; i++) {
+                let register = this.visit(ctx.publicRegisters[i], specs);
+                if (registerNames.has(register.name)) {
+                    throw new Error(`Readonly register ${register.name} is defined more than once`);
+                }
+                else if (register.index !== i) {
+                    throw new Error(`Readonly register ${register.name} is declared out of order`);
+                }
+                registerNames.add(register.name);
+                let registerIndex = Number.parseInt(register.name.slice(2), 10);
+                publicRegisters[registerIndex] = { pattern: register.pattern };
+            }
+        }
+        if (registerNames.size > specs.readonlyRegisterCount) {
             throw new Error(`Too many readonly register definitions: exactly ${specs.readonlyRegisterCount} registers must be defined`);
         }
-        else if (ctx.registers.length < specs.readonlyRegisterCount) {
+        else if (registerNames.size < specs.readonlyRegisterCount) {
             throw new Error(`Missing readonly register definitions: exactly ${specs.readonlyRegisterCount} registers must be defined`);
         }
-        const registers = [];
-        const registerNames = new Set();
-        for (let i = 0; i < ctx.registers.length; i++) {
-            let register = this.visit(ctx.registers[i], specs);
-            if (registerNames.has(register.name)) {
-                throw new Error(`Readonly register ${register.name} is defined more than once`);
-            }
-            registerNames.add(register.name);
-            let registerIndex = Number.parseInt(register.name.slice(2), 10);
-            registers[registerIndex] = { pattern: register.pattern, values: register.values };
-        }
-        return registers;
+        return { presetRegisters, secretRegisters, publicRegisters };
     }
-    readonlyRegisterDefinition(ctx, specs) {
+    presetRegisterDefinition(ctx, specs) {
         const registerName = ctx.name[0].image;
         const registerIndex = Number.parseInt(registerName.slice(2), 10);
-        if (registerIndex >= specs.readonlyRegisterCount) {
-            throw new Error(`Invalid readonly register definition ${registerName}: register index must be smaller than ${specs.readonlyRegisterCount}`);
-        }
         const pattern = ctx.pattern[0].image;
         const values = this.visit(ctx.values);
         if (specs.steps % values.length !== 0) {
             throw new Error(`Invalid definition for readonly register ${registerName}: number of values must evenly divide the number of steps (${specs.steps})`);
         }
-        return { name: registerName, pattern, values };
+        return { name: registerName, index: registerIndex, pattern, values };
+    }
+    secretRegisterDefinition(ctx, specs) {
+        const registerName = ctx.name[0].image;
+        const registerIndex = Number.parseInt(registerName.slice(2), 10);
+        const pattern = ctx.pattern[0].image;
+        return { name: registerName, index: registerIndex, pattern };
+    }
+    publicRegisterDefinition(ctx, specs) {
+        const registerName = ctx.name[0].image;
+        const registerIndex = Number.parseInt(registerName.slice(2), 10);
+        const pattern = ctx.pattern[0].image;
+        return { name: registerName, index: registerIndex, pattern };
     }
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
@@ -374,8 +421,16 @@ class AirVisitor extends BaseCstVisitor {
             const register = ctx.MutableRegister[0].image;
             return { code: sc.buildRegisterReference(register), dimensions: [0, 0] };
         }
-        else if (ctx.ReadonlyRegister) {
-            const register = ctx.ReadonlyRegister[0].image;
+        else if (ctx.PresetRegister) {
+            const register = ctx.PresetRegister[0].image;
+            return { code: sc.buildRegisterReference(register), dimensions: [0, 0] };
+        }
+        else if (ctx.SecretRegister) {
+            const register = ctx.SecretRegister[0].image;
+            return { code: sc.buildRegisterReference(register), dimensions: [0, 0] };
+        }
+        else if (ctx.PublicRegister) {
+            const register = ctx.PublicRegister[0].image;
             return { code: sc.buildRegisterReference(register), dimensions: [0, 0] };
         }
         else if (ctx.IntegerLiteral) {

@@ -8,7 +8,9 @@ const errors_1 = require("./errors");
 // ================================================================================================
 exports.IntegerLiteral = chevrotain_1.createToken({ name: "IntegerLiteral", pattern: /0|[1-9]\d*/ });
 exports.MutableRegister = chevrotain_1.createToken({ name: "MutableRegister", pattern: /\$[rn]\d{1,2}/ });
-exports.ReadonlyRegister = chevrotain_1.createToken({ name: "ReadonlyRegister", pattern: /\$k\d{1,2}/ });
+exports.PresetRegister = chevrotain_1.createToken({ name: "PresetRegister", pattern: /\$k\d{1,2}/ });
+exports.SecretRegister = chevrotain_1.createToken({ name: "SecretRegister", pattern: /\$s\d{1,2}/ });
+exports.PublicRegister = chevrotain_1.createToken({ name: "PublicRegister", pattern: /\$p\d{1,2}/ });
 exports.Identifier = chevrotain_1.createToken({ name: "Identifier", pattern: /[a-zA-Z]\w*/ });
 // KEYWORDS
 // ================================================================================================
@@ -86,7 +88,7 @@ exports.allTokens = [
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon, exports.Ellipsis, exports.Pipe,
     exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,
-    exports.MutableRegister, exports.ReadonlyRegister,
+    exports.MutableRegister, exports.PresetRegister, exports.SecretRegister, exports.PublicRegister,
     exports.IntegerLiteral
 ];
 // EXPORT LEXER INSTANCE

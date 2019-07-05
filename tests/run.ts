@@ -17,23 +17,25 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
     }
 
     // readonly registers accessible in transition function and constraints
-    using 1 readonly register {
+    using 2 readonly registers {
         $k0: repeat [
             42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931,
             10000042, 19487209, 35831850, 62748495, 105413546, 170859333
         ];
+
+        $p0: spread [...];
     }
 }`;
 
 const air = parseScript(script);
 
-const pContext = air.createContext([], []);
+const pContext = air.createContext([[1n, 2n, 3n, 4n]], []);
 const trace = air.generateExecutionTrace([3n], pContext);
 const pPoly = air.field.interpolateRoots(pContext.executionDomain, trace[0]);
 const pEvaluations = air.field.evalPolyAtRoots(pPoly, pContext.evaluationDomain);
 
 const qEvaluations = air.evaluateExtendedTrace([pEvaluations], pContext);
-const vContext = air.createContext([]);
+const vContext = air.createContext([[1n, 2n, 3n, 4n]]);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
 const rValues = [pEvaluations[2]];
