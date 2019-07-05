@@ -1,8 +1,7 @@
 // IMPORTS
 // ================================================================================================
-import {
-    StarkConfig, StarkLimits, TransitionFunction, ConstraintEvaluator, ReadonlyRegisterSpecs, ReadonlyValuePattern
-} from '@guildofweavers/air-script';
+import { StarkLimits, ConstraintSpecs } from '@guildofweavers/air-script';
+import { AirConfig, ReadonlyValuePattern, ReadonlyRegisterSpecs } from './AirObject';
 import { PrimeField, FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
@@ -53,7 +52,7 @@ class AirVisitor extends BaseCstVisitor {
         this.validateVisitor()
     }
 
-    script(ctx: any, limits: StarkLimits): StarkConfig {
+    script(ctx: any, limits: StarkLimits): AirConfig {
 
         const starkName = ctx.starkName[0].image;
 
@@ -86,11 +85,16 @@ class AirVisitor extends BaseCstVisitor {
 
         // build transition function
         validateTransitionFunction(ctx.transitionFunction);
-        const tFunction: TransitionFunction = this.visit(ctx.transitionFunction, specs);
+        const tFunction: Function = this.visit(ctx.transitionFunction, specs);
 
         // build transition constraint evaluator
         validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraintEvaluator: ConstraintEvaluator = this.visit(ctx.transitionConstraints, specs);
+        const tConstraintEvaluator: Function = this.visit(ctx.transitionConstraints, specs);
+        const constraints = new Array<ConstraintSpecs>(specs.constraintCount);
+        for (let i = 0; i < constraints.length; i++) {
+            // TODO: determine degree of each constraint individually
+            constraints[i] = { degree: specs.maxConstraintDegree };
+        }
 
         // build readonly registers
         let readonlyRegisters: ReadonlyRegisterSpecs[] = [];
@@ -104,13 +108,14 @@ class AirVisitor extends BaseCstVisitor {
             name                : starkName,
             field               : field,
             steps               : specs.steps,
-            mutableRegisterCount: specs.mutableRegisterCount,
-            constraintCount     : specs.constraintCount,
-            transitionFunction  : tFunction.bind(field),
-            constraintEvaluator : tConstraintEvaluator.bind(field),
-            maxConstraintDegree : specs.maxConstraintDegree,
-            readonlyRegisters   : readonlyRegisters,
-            globalConstants     : globalConstants
+            stateWidth          : specs.mutableRegisterCount,
+            secretInputs        : [],   // TODO
+            publicInputs        : [],   // TODO
+            presetRegisters     : readonlyRegisters,
+            globalConstants     : globalConstants,
+            constraints         : constraints,
+            transitionFunction  : tFunction,
+            constraintEvaluator : tConstraintEvaluator
         };
     }
 
@@ -228,7 +233,7 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, specs: ScriptSpecs): TransitionFunction {
+    transitionFunction(ctx: any, specs: ScriptSpecs): Function {
         const sc = new StatementContext(specs.globalConstants, specs.mutableRegisterCount, specs.readonlyRegisterCount, false);
         const statements: StatementBlock = this.visit(ctx.statements, sc);
         if (statements.outputSize !== sc.mutableRegisterCount) {
@@ -239,10 +244,10 @@ class AirVisitor extends BaseCstVisitor {
                 throw new Error(`Transition function must evaluate to a vector of exactly ${sc.mutableRegisterCount} values`);
             }
         }
-        return new Function('r', 'k', 'g', 'out', statements.code) as TransitionFunction;
+        return new Function('g', 'r', 'k', 's', 'p', 'out', statements.code);
     }
 
-    transitionConstraints(ctx: any, specs: ScriptSpecs): ConstraintEvaluator {
+    transitionConstraints(ctx: any, specs: ScriptSpecs): Function {
         const sc = new StatementContext(specs.globalConstants, specs.mutableRegisterCount, specs.readonlyRegisterCount, true);
         const statements: StatementBlock = this.visit(ctx.statements, sc);
         if (statements.outputSize !== specs.constraintCount) {
@@ -253,7 +258,7 @@ class AirVisitor extends BaseCstVisitor {
                 throw new Error(`Transition constraints must evaluate to a vector of exactly ${specs.constraintCount} values`);
             }
         }
-        return new Function('r', 'n', 'k', 'g', 'out', statements.code) as ConstraintEvaluator;
+        return new Function('g', 'r', 'n', 'k', 's', `p`, 'out', statements.code);
     }
 
     // STATEMENTS

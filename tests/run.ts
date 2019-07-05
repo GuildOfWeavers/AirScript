@@ -25,14 +25,19 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
     }
 }`;
 
-const result = parseScript(script);
+const air = parseScript(script);
 
-const r = [3n];
-const k = [42n];
-const n = new Array<bigint>(1);
-result.transitionFunction(r, k, result.globalConstants, n);
-console.log(n);
+const pContext = air.createContext([], []);
+const trace = air.generateExecutionTrace([3n], pContext);
+const pPoly = air.field.interpolateRoots(pContext.executionDomain, trace[0]);
+const pEvaluations = air.field.evalPolyAtRoots(pPoly, pContext.evaluationDomain);
 
-const c = new Array<bigint>(1);
-result.constraintEvaluator(r, n, k, result.globalConstants, c);
-console.log(c);
+const qEvaluations = air.evaluateExtendedTrace([pEvaluations], pContext);
+const vContext = air.createContext([]);
+
+const x = air.field.exp(vContext.rootOfUnity, 2n);
+const rValues = [pEvaluations[2]];
+const nValues = [pEvaluations[10]];
+const qValues = air.evaluateConstraintsAt(x, rValues, nValues, [], vContext);
+
+console.log(qEvaluations[0][2] === qValues[0]);

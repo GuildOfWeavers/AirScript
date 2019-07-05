@@ -1,11 +1,11 @@
 // IMPORTS
 // ================================================================================================
 import { FiniteField, Polynom } from "@guildofweavers/galois";
-import { ComputedRegister, EvaluationContext } from "@guildofweavers/air-script";
+import { ReadonlyRegister, EvaluationContext } from "@guildofweavers/air-script";
 
 // CLASS DEFINITION
 // ================================================================================================
-export class SpreadRegister implements ComputedRegister {
+export class SpreadRegister implements ReadonlyRegister {
 
     readonly field              : FiniteField;
     readonly poly               : Polynom;

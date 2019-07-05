@@ -2,8 +2,7 @@
 // ================================================================================================
 import { FiniteField } from "@guildofweavers/galois";
 import {
-    AirObject as IAirObject, EvaluationContext, ProofContext, VerificationContext, ComputedRegister,
-    ConstraintSpecs
+    AirObject as IAirObject, EvaluationContext, ProofContext, VerificationContext, ReadonlyRegister, ConstraintSpecs
 } from "@guildofweavers/air-script";
 import { RepeatRegister } from "./registers/RepeatRegister";
 import { SpreadRegister } from "./registers/SpreadRegister";
@@ -17,27 +16,44 @@ export interface AirConfig {
     stateWidth          : number;
     secretInputs        : InputRegisterSpecs[];
     publicInputs        : InputRegisterSpecs[];
-    constants           : ComputedRegisterSpecs[];
+    presetRegisters     : ReadonlyRegisterSpecs[];
+    globalConstants     : any;
     constraints         : ConstraintSpecs[];
-    globals             : any;
     transitionFunction  : Function;
     constraintEvaluator : Function;
 }
 
+export type ReadonlyValuePattern = 'repeat' | 'spread';
+
 export interface InputRegisterSpecs {
-    pattern : 'repeat' | 'spread';
+    pattern : ReadonlyValuePattern;
 }
 
-export interface ComputedRegisterSpecs {
-    pattern : 'repeat' | 'spread';
+export interface ReadonlyRegisterSpecs {
+    pattern : ReadonlyValuePattern;
     values  : bigint[];
 }
 
 interface TransitionFunction {
+    /**
+     * @param r Array with values of mutable registers at the current step
+     * @param k Array with values of predefined registers at the current step
+     * @param s Array with values of secret inputs at the current step
+     * @param p Array with values of public inputs at the current step
+     * @param out Array to hold values of mutable registers for the next step
+     */
     (r: bigint[], k: bigint[], s: bigint[], p: bigint[], out: bigint[]): void;
 }
 
 interface ConstraintEvaluator {
+    /**
+     * @param r Array with values of mutable registers at the current step
+     * @param n Array with values of mutable registers at the next step
+     * @param k Array with values of predefined registers at the current step
+     * @param s Array with values of secret inputs at the current step
+     * @param p Array with values of public inputs at the current step
+     * @param out Array to hold values of constraint evaluated at the current step
+     */
     (r: bigint[], n: bigint[], k: bigint[], s: bigint[], p: bigint[], out: bigint[]): void;
 }
 
@@ -52,7 +68,7 @@ export class AirObject implements IAirObject {
     readonly stateWidth         : number;
     readonly secretInputs       : InputRegisterSpecs[];
     readonly publicInputs       : InputRegisterSpecs[];
-    readonly constants          : ComputedRegisterSpecs[];
+    readonly presetRegisters    : ReadonlyRegisterSpecs[];
     readonly constraints        : ConstraintSpecs[];
 
     readonly extensionFactor    : number;
@@ -62,7 +78,7 @@ export class AirObject implements IAirObject {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(config: AirConfig, extensionFactor: number) {
+    constructor(config: AirConfig, extensionFactor?: number) {
         this.name = config.name;
         this.field = config.field;
 
@@ -70,13 +86,13 @@ export class AirObject implements IAirObject {
         this.stateWidth = config.stateWidth;
         this.secretInputs = config.secretInputs;
         this.publicInputs = config.publicInputs;
-        this.constants = config.constants;
+        this.presetRegisters = config.presetRegisters;
         this.constraints = config.constraints;
 
-        this.extensionFactor = extensionFactor;
+        this.extensionFactor = getExtensionFactor(this.maxConstraintDegree, extensionFactor);
 
-        this.applyTransition = config.transitionFunction.bind(this.field, config.globals);
-        this.evaluateConstraints = config.constraintEvaluator.bind(this.field, config.globals);
+        this.applyTransition = config.transitionFunction.bind(this.field, config.globalConstants);
+        this.evaluateConstraints = config.constraintEvaluator.bind(this.field, config.globalConstants);
     }
 
     // PUBLIC ACCESSORS
@@ -94,7 +110,7 @@ export class AirObject implements IAirObject {
     get hasSpreadRegisters(): boolean {
         for (let specs of this.secretInputs) { if (specs.pattern === 'spread') return true };
         for (let specs of this.publicInputs) { if (specs.pattern === 'spread') return true };
-        for (let specs of this.constants) { if (specs.pattern === 'spread') return true };
+        for (let specs of this.presetRegisters) { if (specs.pattern === 'spread') return true };
         return false;
     }
 
@@ -115,7 +131,7 @@ export class AirObject implements IAirObject {
         const evaluationDomainSize = traceLength * extensionFactor;
         const rootOfUnity = field.getRootOfUnity(evaluationDomainSize);
 
-        let ctx: EvaluationContext, sRegisters: ComputedRegister[] | undefined;
+        let ctx: EvaluationContext, sRegisters: ReadonlyRegister[] | undefined;
         if (sInputs) {
             // if secret inputs are provided, we are generating STARK proof;
             // so, first compute the entire evaluation domain
@@ -145,7 +161,7 @@ export class AirObject implements IAirObject {
 
         // build registers for public inputs and constant values
         const pRegisters = buildInputRegisters(pInputs, this.publicInputs, ctx);
-        const kRegisters = buildComputedRegisters(this.constants, ctx);
+        const kRegisters = buildReadonlyRegisters(this.presetRegisters, ctx);
 
         // build and return the context
         return {...ctx, kRegisters, sRegisters, pRegisters, 
@@ -308,8 +324,8 @@ export class AirObject implements IAirObject {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function buildComputedRegisters(specs: ComputedRegisterSpecs[], ctx: EvaluationContext): ComputedRegister[] {
-    const registers: ComputedRegister[] = [];
+function buildReadonlyRegisters(specs: ReadonlyRegisterSpecs[], ctx: EvaluationContext): ReadonlyRegister[] {
+    const registers: ReadonlyRegister[] = [];
 
     for (let s of specs) {
         if (s.pattern === 'repeat') {
@@ -328,12 +344,21 @@ function buildComputedRegisters(specs: ComputedRegisterSpecs[], ctx: EvaluationC
     return registers;
 }
 
-function buildInputRegisters(inputs: bigint[][], specs: InputRegisterSpecs[], ctx: EvaluationContext): ComputedRegister[] {
-    const regSpecs = new Array<ComputedRegisterSpecs>(inputs.length);
+function buildInputRegisters(inputs: bigint[][], specs: InputRegisterSpecs[], ctx: EvaluationContext): ReadonlyRegister[] {
+    const regSpecs = new Array<ReadonlyRegisterSpecs>(inputs.length);
     for (let i = 0; i < inputs.length; i++) {
         regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern };
     }
-    return buildComputedRegisters(regSpecs, ctx);
+    return buildReadonlyRegisters(regSpecs, ctx);
+}
+
+function getExtensionFactor(maxConstraintDegree: number, extensionFactor?: number): number {
+    if (!extensionFactor) {
+        return 2**Math.ceil(Math.log2(maxConstraintDegree * 2));
+    }
+    else {
+        return extensionFactor;
+    }
 }
 
 // VALIDATORS

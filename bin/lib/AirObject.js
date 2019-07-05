@@ -14,11 +14,11 @@ class AirObject {
         this.stateWidth = config.stateWidth;
         this.secretInputs = config.secretInputs;
         this.publicInputs = config.publicInputs;
-        this.constants = config.constants;
+        this.presetRegisters = config.presetRegisters;
         this.constraints = config.constraints;
-        this.extensionFactor = extensionFactor;
-        this.applyTransition = config.transitionFunction.bind(this.field, config.globals);
-        this.evaluateConstraints = config.constraintEvaluator.bind(this.field, config.globals);
+        this.extensionFactor = getExtensionFactor(this.maxConstraintDegree, extensionFactor);
+        this.applyTransition = config.transitionFunction.bind(this.field, config.globalConstants);
+        this.evaluateConstraints = config.constraintEvaluator.bind(this.field, config.globalConstants);
     }
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -42,7 +42,7 @@ class AirObject {
                 return true;
         }
         ;
-        for (let specs of this.constants) {
+        for (let specs of this.presetRegisters) {
             if (specs.pattern === 'spread')
                 return true;
         }
@@ -84,7 +84,7 @@ class AirObject {
         }
         // build registers for public inputs and constant values
         const pRegisters = buildInputRegisters(pInputs, this.publicInputs, ctx);
-        const kRegisters = buildComputedRegisters(this.constants, ctx);
+        const kRegisters = buildReadonlyRegisters(this.presetRegisters, ctx);
         // build and return the context
         return { ...ctx, kRegisters, sRegisters, pRegisters,
             stateWidth: this.stateWidth,
@@ -217,7 +217,7 @@ class AirObject {
 exports.AirObject = AirObject;
 // HELPER FUNCTIONS
 // ================================================================================================
-function buildComputedRegisters(specs, ctx) {
+function buildReadonlyRegisters(specs, ctx) {
     const registers = [];
     for (let s of specs) {
         if (s.pattern === 'repeat') {
@@ -239,7 +239,15 @@ function buildInputRegisters(inputs, specs, ctx) {
     for (let i = 0; i < inputs.length; i++) {
         regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern };
     }
-    return buildComputedRegisters(regSpecs, ctx);
+    return buildReadonlyRegisters(regSpecs, ctx);
+}
+function getExtensionFactor(maxConstraintDegree, extensionFactor) {
+    if (!extensionFactor) {
+        return 2 ** Math.ceil(Math.log2(maxConstraintDegree * 2));
+    }
+    else {
+        return extensionFactor;
+    }
 }
 // VALIDATORS
 // ================================================================================================

@@ -48,6 +48,11 @@ class AirVisitor extends BaseCstVisitor {
         // build transition constraint evaluator
         validateTransitionConstraints(ctx.transitionConstraints);
         const tConstraintEvaluator = this.visit(ctx.transitionConstraints, specs);
+        const constraints = new Array(specs.constraintCount);
+        for (let i = 0; i < constraints.length; i++) {
+            // TODO: determine degree of each constraint individually
+            constraints[i] = { degree: specs.maxConstraintDegree };
+        }
         // build readonly registers
         let readonlyRegisters = [];
         if (specs.readonlyRegisterCount > 0) {
@@ -59,13 +64,14 @@ class AirVisitor extends BaseCstVisitor {
             name: starkName,
             field: field,
             steps: specs.steps,
-            mutableRegisterCount: specs.mutableRegisterCount,
-            constraintCount: specs.constraintCount,
-            transitionFunction: tFunction.bind(field),
-            constraintEvaluator: tConstraintEvaluator.bind(field),
-            maxConstraintDegree: specs.maxConstraintDegree,
-            readonlyRegisters: readonlyRegisters,
-            globalConstants: globalConstants
+            stateWidth: specs.mutableRegisterCount,
+            secretInputs: [],
+            publicInputs: [],
+            presetRegisters: readonlyRegisters,
+            globalConstants: globalConstants,
+            constraints: constraints,
+            transitionFunction: tFunction,
+            constraintEvaluator: tConstraintEvaluator
         };
     }
     // FINITE FIELD
@@ -178,7 +184,7 @@ class AirVisitor extends BaseCstVisitor {
                 throw new Error(`Transition function must evaluate to a vector of exactly ${sc.mutableRegisterCount} values`);
             }
         }
-        return new Function('r', 'k', 'g', 'out', statements.code);
+        return new Function('g', 'r', 'k', 's', 'p', 'out', statements.code);
     }
     transitionConstraints(ctx, specs) {
         const sc = new StatementContext_1.StatementContext(specs.globalConstants, specs.mutableRegisterCount, specs.readonlyRegisterCount, true);
@@ -191,7 +197,7 @@ class AirVisitor extends BaseCstVisitor {
                 throw new Error(`Transition constraints must evaluate to a vector of exactly ${specs.constraintCount} values`);
             }
         }
-        return new Function('r', 'n', 'k', 'g', 'out', statements.code);
+        return new Function('g', 'r', 'n', 'k', 's', `p`, 'out', statements.code);
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
