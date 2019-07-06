@@ -51,6 +51,7 @@ class AirVisitor extends BaseCstVisitor {
         else {
             readonlyRegisters = { presetRegisters: [], secretRegisters: [], publicRegisters: [] };
         }
+        specs.setReadonlyRegisterCounts(readonlyRegisters);
         // build transition function
         validateTransitionFunction(ctx.transitionFunction);
         const tFunction = this.visit(ctx.transitionFunction, specs);
@@ -188,12 +189,6 @@ class AirVisitor extends BaseCstVisitor {
                 publicRegisters[registerIndex] = { pattern: register.pattern };
             }
         }
-        if (registerNames.size > specs.readonlyRegisterCount) {
-            throw new Error(`Too many readonly register definitions: exactly ${specs.readonlyRegisterCount} registers must be defined`);
-        }
-        else if (registerNames.size < specs.readonlyRegisterCount) {
-            throw new Error(`Missing readonly register definitions: exactly ${specs.readonlyRegisterCount} registers must be defined`);
-        }
         return { presetRegisters, secretRegisters, publicRegisters };
     }
     presetRegisterDefinition(ctx, specs) {
@@ -221,7 +216,7 @@ class AirVisitor extends BaseCstVisitor {
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx, specs) {
-        const sc = new StatementContext_1.StatementContext(specs.globalConstants, specs.mutableRegisterCount, specs.readonlyRegisterCount, false);
+        const sc = new StatementContext_1.StatementContext(specs, false);
         const statements = this.visit(ctx.statements, sc);
         if (statements.outputSize !== sc.mutableRegisterCount) {
             if (sc.mutableRegisterCount === 1) {
@@ -234,7 +229,7 @@ class AirVisitor extends BaseCstVisitor {
         return new Function('g', 'r', 'k', 's', 'p', 'out', statements.code);
     }
     transitionConstraints(ctx, specs) {
-        const sc = new StatementContext_1.StatementContext(specs.globalConstants, specs.mutableRegisterCount, specs.readonlyRegisterCount, true);
+        const sc = new StatementContext_1.StatementContext(specs, true);
         const statements = this.visit(ctx.statements, sc);
         if (statements.outputSize !== specs.constraintCount) {
             if (specs.constraintCount === 1) {

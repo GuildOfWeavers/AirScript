@@ -8,11 +8,13 @@ const utils_1 = require("./utils");
 class StatementContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(globalConstants, muRegisterCount, roRegisterCount, canAccessFutureState) {
-        this.globalConstants = globalConstants;
+    constructor(specs, canAccessFutureState) {
         this.localVariables = new Map();
-        this.mutableRegisterCount = muRegisterCount;
-        this.readonlyRegisterCount = roRegisterCount;
+        this.globalConstants = specs.globalConstants;
+        this.mutableRegisterCount = specs.mutableRegisterCount;
+        this.presetRegisterCount = specs.presetRegisterCount;
+        this.secretRegisterCount = specs.secretRegisterCount;
+        this.publicRegisterCount = specs.publicRegisterCount;
         this.canAccessFutureState = canAccessFutureState;
     }
     // VARIABLE METHODS
@@ -77,11 +79,20 @@ class StatementContext {
             }
         }
         else if (name === 'k') {
-            if (index >= this.readonlyRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${this.readonlyRegisterCount}`);
+            if (index >= this.presetRegisterCount) {
+                throw new Error(`${errorMessage}: register index must be smaller than ${this.presetRegisterCount}`);
             }
         }
-        // TODO: add handling of secret and public input registers
+        else if (name === 's') {
+            if (index >= this.secretRegisterCount) {
+                throw new Error(`${errorMessage}: register index must be smaller than ${this.secretRegisterCount}`);
+            }
+        }
+        else if (name === 'p') {
+            if (index >= this.publicRegisterCount) {
+                throw new Error(`${errorMessage}: register index must be smaller than ${this.publicRegisterCount}`);
+            }
+        }
         return `${name}[${index}]`;
     }
 }

@@ -2,6 +2,7 @@
 // ================================================================================================
 import { StarkLimits } from '@guildofweavers/air-script';
 import { FiniteField } from '@guildofweavers/galois';
+import { ReadonlyRegisterGroup } from './visitor';
 import { Dimensions, isPowerOf2 } from './utils';
 
 // CLASS DEFINITION
@@ -14,6 +15,9 @@ export class ScriptSpecs {
     steps!                  : number;
     mutableRegisterCount!   : number;
     readonlyRegisterCount!  : number;
+    presetRegisterCount!    : number;
+    secretRegisterCount!    : number;
+    publicRegisterCount!    : number;
     constraintCount!        : number;
     maxConstraintDegree!    : number;
     globalConstants!        : Map<string, Dimensions>;
@@ -40,6 +44,13 @@ export class ScriptSpecs {
 
     setReadonlyRegisterCount(value: bigint) {
         this.readonlyRegisterCount = validateReadonlyRegisterCount(value, this.limits);
+    }
+
+    setReadonlyRegisterCounts(registers: ReadonlyRegisterGroup) {
+        validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
+        this.presetRegisterCount = registers.presetRegisters.length;
+        this.secretRegisterCount = registers.secretRegisters.length;
+        this.publicRegisterCount = registers.publicRegisters.length;
     }
 
     setConstraintCount(value: bigint) {
@@ -103,6 +114,21 @@ function validateReadonlyRegisterCount(registerCount: number | bigint, limits: S
     }
 
     return registerCount;
+}
+
+function validateReadonlyRegisterCounts(registers: ReadonlyRegisterGroup, readonlyRegisterCount: number) {
+
+    const totalRegisterCount = 
+        registers.presetRegisters.length
+        + registers.secretRegisters.length
+        + registers.publicRegisters.length;
+
+    if (totalRegisterCount > readonlyRegisterCount) {
+        throw new Error(`Too many readonly register definitions: ${readonlyRegisterCount} registers expected`);
+    }
+    else if (totalRegisterCount < readonlyRegisterCount) {
+        throw new Error(`Missing readonly register definitions: ${readonlyRegisterCount} registers expected`);
+    }
 }
 
 function validateConstraintCount(constraintCount: number | bigint, limits: StarkLimits): number {

@@ -23,6 +23,12 @@ class ScriptSpecs {
     setReadonlyRegisterCount(value) {
         this.readonlyRegisterCount = validateReadonlyRegisterCount(value, this.limits);
     }
+    setReadonlyRegisterCounts(registers) {
+        validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
+        this.presetRegisterCount = registers.presetRegisters.length;
+        this.secretRegisterCount = registers.secretRegisters.length;
+        this.publicRegisterCount = registers.publicRegisters.length;
+    }
     setConstraintCount(value) {
         this.constraintCount = validateConstraintCount(value, this.limits);
     }
@@ -77,6 +83,17 @@ function validateReadonlyRegisterCount(registerCount, limits) {
         registerCount = Number.parseInt(registerCount);
     }
     return registerCount;
+}
+function validateReadonlyRegisterCounts(registers, readonlyRegisterCount) {
+    const totalRegisterCount = registers.presetRegisters.length
+        + registers.secretRegisters.length
+        + registers.publicRegisters.length;
+    if (totalRegisterCount > readonlyRegisterCount) {
+        throw new Error(`Too many readonly register definitions: ${readonlyRegisterCount} registers expected`);
+    }
+    else if (totalRegisterCount < readonlyRegisterCount) {
+        throw new Error(`Missing readonly register definitions: ${readonlyRegisterCount} registers expected`);
+    }
 }
 function validateConstraintCount(constraintCount, limits) {
     if (constraintCount > limits.maxConstraintCount) {
