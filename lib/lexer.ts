@@ -35,6 +35,8 @@ export const Do          = createToken({ name: "Do",          pattern: /do/,    
 export const With        = createToken({ name: "With",        pattern: /with/,          longer_alt: Identifier });
 export const Nothing     = createToken({ name: "Nothing",     pattern: /nothing/,       longer_alt: Identifier });
 export const Out         = createToken({ name: "Out",         pattern: /out/,           longer_alt: Identifier });
+export const When        = createToken({ name: "When",        pattern: /when/,          longer_alt: Identifier });
+export const Else        = createToken({ name: "Else",        pattern: /else/,          longer_alt: Identifier });
 
 export const Using       = createToken({ name: "Using",       pattern: /using/,         longer_alt: Identifier });
 export const Readonly    = createToken({ name: "Readonly",    pattern: /readonly/,      longer_alt: Identifier });
@@ -96,7 +98,7 @@ export const allTokens = [
     WhiteSpace, Comment,
     
     Define, Over, Prime, Binary, Field, Transition, Registers, In, Steps, Enforce, Constraints, Of,
-    Degree, For, Do, With, Nothing, Out, Repeat, Spread, Using, Readonly, Import, From, As,
+    Degree, For, Do, With, Nothing, When, Else, Out, Repeat, Spread, Using, Readonly, Import, From, As,
 
     Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 

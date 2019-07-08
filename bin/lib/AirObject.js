@@ -16,9 +16,10 @@ class AirObject {
         this.publicInputs = config.publicInputs;
         this.presetRegisters = config.presetRegisters;
         this.constraints = config.constraints;
+        this.globalConstants = config.globalConstants;
         this.extensionFactor = getExtensionFactor(this.maxConstraintDegree, extensionFactor);
-        this.applyTransition = config.transitionFunction.bind(this.field, config.globalConstants);
-        this.evaluateConstraints = config.constraintEvaluator.bind(this.field, config.globalConstants);
+        this.applyTransition = config.transitionFunction;
+        this.evaluateConstraints = config.constraintEvaluator;
     }
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -126,7 +127,7 @@ class AirObject {
                 pValues[i] = ctx.pRegisters[i].getTraceValue(step);
             }
             // populate nValues with the next computation state
-            this.applyTransition(rValues, kValues, sValues, pValues, nValues);
+            this.applyTransition(this.field, this.globalConstants, rValues, kValues, sValues, pValues, nValues);
             // copy nValues to execution trace and update rValues for the next iteration
             step++;
             for (let register = 0; register < nValues.length; register++) {
@@ -174,7 +175,7 @@ class AirObject {
                 pValues[i] = ctx.pRegisters[i].getEvaluation(position);
             }
             // populate qValues with results of constraint evaluations
-            this.evaluateConstraints(rValues, nValues, kValues, sValues, pValues, qValues);
+            this.evaluateConstraints(this.field, this.globalConstants, rValues, nValues, kValues, sValues, pValues, qValues);
             // copy evaluations to the result, and also check that constraints evaluate to 0
             // at multiples of the extensions factor
             if (position % extensionFactor === 0 && position < nfSteps) {
@@ -210,7 +211,7 @@ class AirObject {
         }
         // populate qValues with constraint evaluations
         const qValues = new Array(this.constraints.length);
-        this.evaluateConstraints(rValues, nValues, kValues, sValues, pValues, qValues);
+        this.evaluateConstraints(this.field, this.globalConstants, rValues, nValues, kValues, sValues, pValues, qValues);
         return qValues;
     }
 }

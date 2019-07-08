@@ -5,7 +5,7 @@ import {
     allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
     ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Out, 
     MutableRegister, PresetRegister, SecretRegister, PublicRegister, LSquare, RSquare, Comma, Using,
-    Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, QMark, Pipe, Binary
+    Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, QMark, Pipe, Binary, When, Else
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -176,13 +176,27 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private transitionFunction = this.RULE('transitionFunction', () => {
         this.CONSUME(LCurly);
-        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+        this.OR([
+            { ALT: () => {
+                this.SUBRULE(this.statementBlock,   { LABEL: 'statements' });
+            }},
+            { ALT: () => {
+                this.SUBRULE(this.whenStatement,    { LABEL: 'statements' });
+            }}
+        ]);
         this.CONSUME(RCurly);
     });
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
         this.CONSUME(LCurly);
-        this.SUBRULE1(this.statementBlock, { LABEL: 'statements' });
+        this.OR([
+            { ALT: () => {
+                this.SUBRULE(this.statementBlock,   { LABEL: 'statements' });
+            }},
+            { ALT: () => {
+                this.SUBRULE(this.whenStatement,    { LABEL: 'statements' });
+            }}
+        ]);
         this.CONSUME(RCurly);
     });
 
@@ -221,6 +235,41 @@ class AirParser extends CstParser {
             }}
         ]);
         this.CONSUME(Semicolon);
+    });
+
+    // WHEN STATEMENT
+    // --------------------------------------------------------------------------------------------
+    private whenStatement = this.RULE('whenStatement', () => {
+        this.CONSUME(When);
+        this.CONSUME(LParen);
+        this.OR1([
+            { ALT: () => {
+                this.CONSUME(PresetRegister,        { LABEL: 'condition'   });
+            }},
+            { ALT: () => {
+                this.CONSUME(SecretRegister,        { LABEL: 'condition'   });
+            }},
+            { ALT: () => {
+                this.CONSUME(PublicRegister,        { LABEL: 'condition'   });
+            }}
+        ]);
+        this.CONSUME(RParen);
+        this.CONSUME1(LCurly);
+        this.OR2([
+            { ALT: () => {
+                this.SUBRULE1(this.statementBlock,  { LABEL: 'tBlock' });
+            }}
+        ]);
+        this.CONSUME1(RCurly);
+        this.CONSUME(Else);
+        this.CONSUME2(LCurly);
+        this.OR3([
+            { ALT: () => {
+                this.SUBRULE2(this.statementBlock,  { LABEL: 'fBlock' });
+            }}
+        ]);
+        this.CONSUME2(RCurly);
+
     });
 
     // VECTORS AND MATRIXES

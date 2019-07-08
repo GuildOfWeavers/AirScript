@@ -236,7 +236,7 @@ class AirVisitor extends BaseCstVisitor {
                 throw new Error(`Transition function must evaluate to a vector of exactly ${sc.mutableRegisterCount} values`);
             }
         }
-        return new Function('g', 'r', 'k', 's', 'p', 'out', statements.code);
+        return new Function('f', 'g', 'r', 'k', 's', 'p', 'out', statements.code);
     }
     transitionConstraints(ctx, specs) {
         const sc = new StatementContext_1.StatementContext(specs, true);
@@ -249,7 +249,7 @@ class AirVisitor extends BaseCstVisitor {
                 throw new Error(`Transition constraints must evaluate to a vector of exactly ${specs.constraintCount} values`);
             }
         }
-        return new Function('g', 'r', 'n', 'k', 's', `p`, 'out', statements.code);
+        return new Function('f', 'g', 'r', 'n', 'k', 's', `p`, 'out', statements.code);
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
@@ -302,6 +302,36 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
         return { code, dimensions };
+    }
+    // WHEN STATEMENT
+    // --------------------------------------------------------------------------------------------
+    whenStatement(ctx, sc) {
+        const registerName = ctx.condition[0].image;
+        const registerRef = sc.buildRegisterReference(registerName);
+        if (!sc.isBinaryRegister(registerName)) {
+            throw new Error('When statement condition must be based on a binary register');
+        }
+        // create expressions for k and for (1 - k)
+        const regExpression = { code: registerRef, dimensions: [0, 0] };
+        const oneMinusReg = operations_1.subtraction.getResult({ code: 'f.one', dimensions: [0, 0] }, regExpression);
+        // build functions for true and false options
+        const tBlock = this.visit(ctx.tBlock, sc);
+        const tFunction = `function tBranch(f, g, r, k, s, p, out) {\n${tBlock.code}}`; // TODO: make work for constraints as well
+        const outputSize = tBlock.outputSize;
+        const resultDim = [outputSize, 0];
+        const fBlock = this.visit(ctx.fBlock, sc);
+        const fFunction = `function fBranch(f, g, r, k, s, p, out) {\n${fBlock.code}}`; // TODO: make work for constraints as well
+        let code = `let tOut = new Array(${outputSize}), fOut = new Array(${outputSize});\n`;
+        code += `tBranch(f, g, r, k, s, p, tOut);\n`; // TODO: make work for constraints as well
+        code += `fBranch(f, g, r, k, s, p, fOut);\n`; // TODO: make work for constraints as well
+        code += `tOut = ${operations_1.multiplication.getCode({ code: 'tOut', dimensions: resultDim }, regExpression)};\n`;
+        code += `fOut = ${operations_1.multiplication.getCode({ code: 'fOut', dimensions: resultDim }, oneMinusReg)};\n`;
+        for (let i = 0; i < outputSize; i++) {
+            code += `out[${i}] = f.add(tOut[${i}], fOut[${i}]);\n`;
+        }
+        code += `${tFunction}\n`;
+        code += `${fFunction}\n`;
+        return { code, outputSize };
     }
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------
@@ -458,7 +488,7 @@ class AirVisitor extends BaseCstVisitor {
         // create expressions for k and for (1 - k)
         const scalarDim = [0, 0];
         const regExpression = { code: registerRef, dimensions: scalarDim };
-        const oneExpression = { code: 'this.one', dimensions: scalarDim };
+        const oneExpression = { code: 'f.one', dimensions: scalarDim };
         const oneMinusReg = {
             code: operations_1.subtraction.getCode(oneExpression, regExpression),
             dimensions: scalarDim

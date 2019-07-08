@@ -8,7 +8,12 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
 
     // transition function definition
     transition 1 register in 2^8 steps {
-        out: $k1 ? $r0^alpha + $k0 + $p0 | $r0^alpha + $k0;
+        when ($k1) {
+            out: $r0^alpha + $k0 + $p0;
+        }
+        else {
+            out: $r0^alpha + $k0;
+        }
     }
 
     // transition constraint definition

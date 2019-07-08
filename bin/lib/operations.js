@@ -37,11 +37,25 @@ exports.addition = {
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
-            return `this.add(${e1.code}, ${e2.code})`;
+            return `f.add(${e1.code}, ${e2.code})`;
         else if (utils_1.isVector(d1))
-            return `this.addVectorElements(${e1.code}, ${e2.code})`;
+            return `f.addVectorElements(${e1.code}, ${e2.code})`;
         else
-            return `this.addMatrixElements(${e1.code}, ${e2.code})`;
+            return `f.addMatrixElements(${e1.code}, ${e2.code})`;
+    },
+    getResult(e1, e2) {
+        const d1 = e1.dimensions;
+        let code = '';
+        if (utils_1.isScalar(d1)) {
+            code = `f.add(${e1.code}, ${e2.code})`;
+        }
+        else if (utils_1.isVector(d1)) {
+            code = `f.addVectorElements(${e1.code}, ${e2.code})`;
+        }
+        else {
+            code = `f.addMatrixElements(${e1.code}, ${e2.code})`;
+        }
+        return { code, dimensions: d1 };
     }
 };
 // SUBTRACTION
@@ -59,11 +73,25 @@ exports.subtraction = {
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
-            return `this.sub(${e1.code}, ${e2.code})`;
+            return `f.sub(${e1.code}, ${e2.code})`;
         else if (utils_1.isVector(d1))
-            return `this.subVectorElements(${e1.code}, ${e2.code})`;
+            return `f.subVectorElements(${e1.code}, ${e2.code})`;
         else
-            return `this.subMatrixElements(${e1.code}, ${e2.code})`;
+            return `f.subMatrixElements(${e1.code}, ${e2.code})`;
+    },
+    getResult(e1, e2) {
+        const d1 = e1.dimensions;
+        let code = '';
+        if (utils_1.isScalar(d1)) {
+            code = `f.sub(${e1.code}, ${e2.code})`;
+        }
+        else if (utils_1.isVector(d1)) {
+            code = `f.subVectorElements(${e1.code}, ${e2.code})`;
+        }
+        else {
+            code = `f.subMatrixElements(${e1.code}, ${e2.code})`;
+        }
+        return { code, dimensions: d1 };
     }
 };
 // MULTIPLICATION
@@ -81,11 +109,25 @@ exports.multiplication = {
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
-            return `this.mul(${e1.code}, ${e2.code})`;
+            return `f.mul(${e1.code}, ${e2.code})`;
         else if (utils_1.isVector(d1))
-            return `this.mulVectorElements(${e1.code}, ${e2.code})`;
+            return `f.mulVectorElements(${e1.code}, ${e2.code})`;
         else
-            return `this.mulMatrixElements(${e1.code}, ${e2.code})`;
+            return `f.mulMatrixElements(${e1.code}, ${e2.code})`;
+    },
+    getResult(e1, e2) {
+        const d1 = e1.dimensions;
+        let code = '';
+        if (utils_1.isScalar(d1)) {
+            code = `f.mul(${e1.code}, ${e2.code})`;
+        }
+        else if (utils_1.isVector(d1)) {
+            code = `f.mulVectorElements(${e1.code}, ${e2.code})`;
+        }
+        else {
+            code = `f.mulMatrixElements(${e1.code}, ${e2.code})`;
+        }
+        return { code, dimensions: d1 };
     }
 };
 // DIVISION
@@ -103,11 +145,11 @@ const division = {
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
-            return `this.div(${e1.code}, ${e2.code})`;
+            return `f.div(${e1.code}, ${e2.code})`;
         else if (utils_1.isVector(d1))
-            return `this.divVectorElements(${e1.code}, ${e2.code})`;
+            return `f.divVectorElements(${e1.code}, ${e2.code})`;
         else
-            return `this.divMatrixElements(${e1.code}, ${e2.code})`;
+            return `f.divMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 // EXPONENTIATION
@@ -123,11 +165,11 @@ const exponentiation = {
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
-            return `this.exp(${e1.code}, ${e2.code})`;
+            return `f.exp(${e1.code}, ${e2.code})`;
         else if (utils_1.isVector(d1))
-            return `this.expVectorElements(${e1.code}, ${e2.code})`;
+            return `f.expVectorElements(${e1.code}, ${e2.code})`;
         else
-            return `this.expMatrixElements(${e1.code}, ${e2.code})`;
+            return `f.expMatrixElements(${e1.code}, ${e2.code})`;
     }
 };
 // MATRIX AND VECTOR PRODUCT
@@ -146,11 +188,11 @@ const product = {
         const d1 = e1.dimensions;
         const d2 = e2.dimensions;
         if (utils_1.isVector(d1) && utils_1.isVector(d2))
-            return `this.combineVectors(${e1.code}, ${e2.code})`;
+            return `f.combineVectors(${e1.code}, ${e2.code})`;
         else if (utils_1.isMatrix(d1) && utils_1.isVector(d2))
-            return `this.mulMatrixByVector(${e1.code}, ${e2.code})`;
+            return `f.mulMatrixByVector(${e1.code}, ${e2.code})`;
         else
-            return `this.mulMatrixes(${e1.code}, ${e2.code})`;
+            return `f.mulMatrixes(${e1.code}, ${e2.code})`;
     }
 };
 //# sourceMappingURL=operations.js.map

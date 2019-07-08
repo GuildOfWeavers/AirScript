@@ -159,12 +159,26 @@ class AirParser extends chevrotain_1.CstParser {
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+            this.OR([
+                { ALT: () => {
+                        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+                    } },
+                { ALT: () => {
+                        this.SUBRULE(this.whenStatement, { LABEL: 'statements' });
+                    } }
+            ]);
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE1(this.statementBlock, { LABEL: 'statements' });
+            this.OR([
+                { ALT: () => {
+                        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+                    } },
+                { ALT: () => {
+                        this.SUBRULE(this.whenStatement, { LABEL: 'statements' });
+                    } }
+            ]);
             this.CONSUME(lexer_1.RCurly);
         });
         // STATEMENTS
@@ -200,6 +214,39 @@ class AirParser extends chevrotain_1.CstParser {
                     } }
             ]);
             this.CONSUME(lexer_1.Semicolon);
+        });
+        // WHEN STATEMENT
+        // --------------------------------------------------------------------------------------------
+        this.whenStatement = this.RULE('whenStatement', () => {
+            this.CONSUME(lexer_1.When);
+            this.CONSUME(lexer_1.LParen);
+            this.OR1([
+                { ALT: () => {
+                        this.CONSUME(lexer_1.PresetRegister, { LABEL: 'condition' });
+                    } },
+                { ALT: () => {
+                        this.CONSUME(lexer_1.SecretRegister, { LABEL: 'condition' });
+                    } },
+                { ALT: () => {
+                        this.CONSUME(lexer_1.PublicRegister, { LABEL: 'condition' });
+                    } }
+            ]);
+            this.CONSUME(lexer_1.RParen);
+            this.CONSUME1(lexer_1.LCurly);
+            this.OR2([
+                { ALT: () => {
+                        this.SUBRULE1(this.statementBlock, { LABEL: 'tBlock' });
+                    } }
+            ]);
+            this.CONSUME1(lexer_1.RCurly);
+            this.CONSUME(lexer_1.Else);
+            this.CONSUME2(lexer_1.LCurly);
+            this.OR3([
+                { ALT: () => {
+                        this.SUBRULE2(this.statementBlock, { LABEL: 'fBlock' });
+                    } }
+            ]);
+            this.CONSUME2(lexer_1.RCurly);
         });
         // VECTORS AND MATRIXES
         // --------------------------------------------------------------------------------------------

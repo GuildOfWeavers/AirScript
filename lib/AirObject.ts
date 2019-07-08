@@ -38,17 +38,21 @@ export interface ReadonlyRegisterSpecs {
 
 interface TransitionFunction {
     /**
+     * @param f Finite field for all arithmetic operations
+     * @param g Global constants
      * @param r Array with values of mutable registers at the current step
      * @param k Array with values of predefined registers at the current step
      * @param s Array with values of secret inputs at the current step
      * @param p Array with values of public inputs at the current step
      * @param out Array to hold values of mutable registers for the next step
      */
-    (r: bigint[], k: bigint[], s: bigint[], p: bigint[], out: bigint[]): void;
+    (f: FiniteField, g: any, r: bigint[], k: bigint[], s: bigint[], p: bigint[], out: bigint[]): void;
 }
 
 interface ConstraintEvaluator {
     /**
+     * @param f Finite field for all arithmetic operations
+     * @param g Global constants
      * @param r Array with values of mutable registers at the current step
      * @param n Array with values of mutable registers at the next step
      * @param k Array with values of predefined registers at the current step
@@ -56,7 +60,7 @@ interface ConstraintEvaluator {
      * @param p Array with values of public inputs at the current step
      * @param out Array to hold values of constraint evaluated at the current step
      */
-    (r: bigint[], n: bigint[], k: bigint[], s: bigint[], p: bigint[], out: bigint[]): void;
+    (f: FiniteField, g: any, r: bigint[], n: bigint[], k: bigint[], s: bigint[], p: bigint[], out: bigint[]): void;
 }
 
 // CLASS DEFINITION
@@ -72,6 +76,7 @@ export class AirObject implements IAirObject {
     readonly publicInputs       : InputRegisterSpecs[];
     readonly presetRegisters    : ReadonlyRegisterSpecs[];
     readonly constraints        : ConstraintSpecs[];
+    readonly globalConstants    : any;
 
     readonly extensionFactor    : number;
 
@@ -90,11 +95,12 @@ export class AirObject implements IAirObject {
         this.publicInputs = config.publicInputs;
         this.presetRegisters = config.presetRegisters;
         this.constraints = config.constraints;
+        this.globalConstants = config.globalConstants;
 
         this.extensionFactor = getExtensionFactor(this.maxConstraintDegree, extensionFactor);
 
-        this.applyTransition = config.transitionFunction.bind(this.field, config.globalConstants);
-        this.evaluateConstraints = config.constraintEvaluator.bind(this.field, config.globalConstants);
+        this.applyTransition = config.transitionFunction as any;
+        this.evaluateConstraints = config.constraintEvaluator as any;
     }
 
     // PUBLIC ACCESSORS
@@ -214,7 +220,7 @@ export class AirObject implements IAirObject {
             }
 
             // populate nValues with the next computation state
-            this.applyTransition(rValues, kValues, sValues, pValues, nValues);
+            this.applyTransition(this.field, this.globalConstants, rValues, kValues, sValues, pValues, nValues);
 
             // copy nValues to execution trace and update rValues for the next iteration
             step++;
@@ -276,7 +282,7 @@ export class AirObject implements IAirObject {
             }
 
             // populate qValues with results of constraint evaluations
-            this.evaluateConstraints(rValues, nValues, kValues, sValues, pValues, qValues);
+            this.evaluateConstraints(this.field, this.globalConstants, rValues, nValues, kValues, sValues, pValues, qValues);
 
             // copy evaluations to the result, and also check that constraints evaluate to 0
             // at multiples of the extensions factor
@@ -318,7 +324,7 @@ export class AirObject implements IAirObject {
 
         // populate qValues with constraint evaluations
         const qValues = new Array<bigint>(this.constraints.length);
-        this.evaluateConstraints(rValues, nValues, kValues, sValues, pValues, qValues);
+        this.evaluateConstraints(this.field, this.globalConstants, rValues, nValues, kValues, sValues, pValues, qValues);
 
         return qValues;
     }
