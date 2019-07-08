@@ -2,6 +2,7 @@
 // ================================================================================================
 import { Dimensions, validateVariableName } from './utils';
 import { ScriptSpecs } from './ScriptSpecs';
+import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './AirObject';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -10,9 +11,9 @@ export class StatementContext {
     readonly globalConstants        : Map<string, Dimensions>;
     readonly localVariables         : Map<string, Dimensions>;
     readonly mutableRegisterCount   : number;
-    readonly presetRegisterCount    : number;
-    readonly secretRegisterCount    : number;
-    readonly publicRegisterCount    : number;
+    readonly presetRegisters        : ReadonlyRegisterSpecs[];
+    readonly secretRegisters        : InputRegisterSpecs[];
+    readonly publicRegisters        : InputRegisterSpecs[];
     readonly canAccessFutureState   : boolean;
 
     // CONSTRUCTOR
@@ -21,9 +22,9 @@ export class StatementContext {
         this.localVariables = new Map();
         this.globalConstants = specs.globalConstants;
         this.mutableRegisterCount = specs.mutableRegisterCount;
-        this.presetRegisterCount = specs.presetRegisterCount;
-        this.secretRegisterCount = specs.secretRegisterCount;
-        this.publicRegisterCount = specs.publicRegisterCount;
+        this.presetRegisters = specs.presetRegisters;
+        this.secretRegisters = specs.secretRegisters;
+        this.publicRegisters = specs.publicRegisters;
         this.canAccessFutureState = canAccessFutureState;
     }
 
@@ -96,21 +97,42 @@ export class StatementContext {
             }
         }
         else if (name === 'k') {
-            if (index >= this.presetRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${this.presetRegisterCount}`);
+            let presetRegisterCount = this.presetRegisters.length;
+            if (index >= presetRegisterCount) {
+                throw new Error(`${errorMessage}: register index must be smaller than ${presetRegisterCount}`);
             }
         }
         else if (name === 's') {
-            if (index >= this.secretRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${this.secretRegisterCount}`);
+            let secretRegisterCount = this.secretRegisters.length;
+            if (index >= secretRegisterCount) {
+                throw new Error(`${errorMessage}: register index must be smaller than ${secretRegisterCount}`);
             }
         }
         else if (name === 'p') {
-            if (index >= this.publicRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${this.publicRegisterCount}`);
+            let publicRegisterCount = this.publicRegisters.length;
+            if (index >= publicRegisterCount) {
+                throw new Error(`${errorMessage}: register index must be smaller than ${publicRegisterCount}`);
             }
         }
 
         return `${name}[${index}]`;
+    }
+
+    isBinaryRegister(register: string): boolean {
+        const name = register.slice(1, 2);
+        const index = Number.parseInt(register.slice(2), 10);
+        
+        if (name === 'k') {
+            return this.presetRegisters[index].binary;
+        }
+        else if (name === 's') {
+            return this.secretRegisters[index].binary;
+        }
+        else if (name === 'p') {
+            return this.publicRegisters[index].binary;
+        }
+        else {
+            throw new Error(''); // TODO
+        }
     }
 }

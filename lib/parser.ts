@@ -5,7 +5,7 @@ import {
     allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
     ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Out, 
     MutableRegister, PresetRegister, SecretRegister, PublicRegister, LSquare, RSquare, Comma, Using,
-    Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, QMark, Pipe
+    Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, QMark, Pipe, Binary
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -133,6 +133,9 @@ class AirParser extends CstParser {
             { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
             { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
         ]);
+        this.OPTION(() => {
+            this.CONSUME(Binary,         { LABEL: 'binary' });
+        });
         this.SUBRULE(this.literalVector, { LABEL: 'values' });
         this.CONSUME(Semicolon);
     });
@@ -144,6 +147,9 @@ class AirParser extends CstParser {
             { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
             { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
         ]);
+        this.OPTION(() => {
+            this.CONSUME(Binary,         { LABEL: 'binary' });
+        });
         this.CONSUME(LSquare);
         this.CONSUME(Ellipsis);
         this.CONSUME(RSquare);
@@ -157,6 +163,9 @@ class AirParser extends CstParser {
             { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
             { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
         ]);
+        this.OPTION(() => {
+            this.CONSUME(Binary,         { LABEL: 'binary' });
+        });
         this.CONSUME(LSquare);
         this.CONSUME(Ellipsis);
         this.CONSUME(RSquare);

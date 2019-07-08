@@ -2,6 +2,7 @@
 // ================================================================================================
 import { StarkLimits } from '@guildofweavers/air-script';
 import { FiniteField } from '@guildofweavers/galois';
+import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './AirObject';
 import { ReadonlyRegisterGroup } from './visitor';
 import { Dimensions, isPowerOf2 } from './utils';
 
@@ -15,9 +16,9 @@ export class ScriptSpecs {
     steps!                  : number;
     mutableRegisterCount!   : number;
     readonlyRegisterCount!  : number;
-    presetRegisterCount!    : number;
-    secretRegisterCount!    : number;
-    publicRegisterCount!    : number;
+    presetRegisters!        : ReadonlyRegisterSpecs[];
+    secretRegisters!        : InputRegisterSpecs[];
+    publicRegisters!        : InputRegisterSpecs[];
     constraintCount!        : number;
     maxConstraintDegree!    : number;
     globalConstants!        : Map<string, Dimensions>;
@@ -48,9 +49,9 @@ export class ScriptSpecs {
 
     setReadonlyRegisterCounts(registers: ReadonlyRegisterGroup) {
         validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
-        this.presetRegisterCount = registers.presetRegisters.length;
-        this.secretRegisterCount = registers.secretRegisters.length;
-        this.publicRegisterCount = registers.publicRegisters.length;
+        this.presetRegisters = registers.presetRegisters;
+        this.secretRegisters = registers.secretRegisters;
+        this.publicRegisters = registers.publicRegisters;
     }
 
     setConstraintCount(value: bigint) {

@@ -237,7 +237,16 @@ function buildReadonlyRegisters(specs, ctx) {
 function buildInputRegisters(inputs, specs, ctx) {
     const regSpecs = new Array(inputs.length);
     for (let i = 0; i < inputs.length; i++) {
-        regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern };
+        let binary = specs[i].binary;
+        if (binary) {
+            for (let value of inputs[i]) {
+                if (value !== ctx.field.zero && value !== ctx.field.one) {
+                    let registerName = `$p${i}`; // TODO
+                    throw new Error(`Invalid definition for readonly register ${registerName}: the register can contain only binary values`);
+                }
+            }
+        }
+        regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern, binary };
     }
     return buildReadonlyRegisters(regSpecs, ctx);
 }

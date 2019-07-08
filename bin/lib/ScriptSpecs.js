@@ -25,9 +25,9 @@ class ScriptSpecs {
     }
     setReadonlyRegisterCounts(registers) {
         validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
-        this.presetRegisterCount = registers.presetRegisters.length;
-        this.secretRegisterCount = registers.secretRegisters.length;
-        this.publicRegisterCount = registers.publicRegisters.length;
+        this.presetRegisters = registers.presetRegisters;
+        this.secretRegisters = registers.secretRegisters;
+        this.publicRegisters = registers.publicRegisters;
     }
     setConstraintCount(value) {
         this.constraintCount = validateConstraintCount(value, this.limits);

@@ -119,6 +119,9 @@ class AirParser extends chevrotain_1.CstParser {
                 { ALT: () => { this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }); } },
                 { ALT: () => { this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }); } }
             ]);
+            this.OPTION(() => {
+                this.CONSUME(lexer_1.Binary, { LABEL: 'binary' });
+            });
             this.SUBRULE(this.literalVector, { LABEL: 'values' });
             this.CONSUME(lexer_1.Semicolon);
         });
@@ -129,6 +132,9 @@ class AirParser extends chevrotain_1.CstParser {
                 { ALT: () => { this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }); } },
                 { ALT: () => { this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }); } }
             ]);
+            this.OPTION(() => {
+                this.CONSUME(lexer_1.Binary, { LABEL: 'binary' });
+            });
             this.CONSUME(lexer_1.LSquare);
             this.CONSUME(lexer_1.Ellipsis);
             this.CONSUME(lexer_1.RSquare);
@@ -141,6 +147,9 @@ class AirParser extends chevrotain_1.CstParser {
                 { ALT: () => { this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }); } },
                 { ALT: () => { this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }); } }
             ]);
+            this.OPTION(() => {
+                this.CONSUME(lexer_1.Binary, { LABEL: 'binary' });
+            });
             this.CONSUME(lexer_1.LSquare);
             this.CONSUME(lexer_1.Ellipsis);
             this.CONSUME(lexer_1.RSquare);

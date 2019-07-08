@@ -156,7 +156,7 @@ class AirVisitor extends BaseCstVisitor {
                 }
                 registerNames.add(register.name);
                 let registerIndex = Number.parseInt(register.name.slice(2), 10);
-                presetRegisters[registerIndex] = { pattern: register.pattern, values: register.values };
+                presetRegisters[registerIndex] = { pattern: register.pattern, values: register.values, binary: register.binary };
             }
         }
         const secretRegisters = [];
@@ -171,7 +171,7 @@ class AirVisitor extends BaseCstVisitor {
                 }
                 registerNames.add(register.name);
                 let registerIndex = Number.parseInt(register.name.slice(2), 10);
-                secretRegisters[registerIndex] = { pattern: register.pattern };
+                secretRegisters[registerIndex] = { pattern: register.pattern, binary: register.binary };
             }
         }
         const publicRegisters = [];
@@ -186,7 +186,7 @@ class AirVisitor extends BaseCstVisitor {
                 }
                 registerNames.add(register.name);
                 let registerIndex = Number.parseInt(register.name.slice(2), 10);
-                publicRegisters[registerIndex] = { pattern: register.pattern };
+                publicRegisters[registerIndex] = { pattern: register.pattern, binary: register.binary };
             }
         }
         return { presetRegisters, secretRegisters, publicRegisters };
@@ -196,22 +196,32 @@ class AirVisitor extends BaseCstVisitor {
         const registerIndex = Number.parseInt(registerName.slice(2), 10);
         const pattern = ctx.pattern[0].image;
         const values = this.visit(ctx.values);
+        const binary = ctx.binary ? true : false;
         if (specs.steps % values.length !== 0) {
             throw new Error(`Invalid definition for readonly register ${registerName}: number of values must evenly divide the number of steps (${specs.steps})`);
         }
-        return { name: registerName, index: registerIndex, pattern, values };
+        if (binary) {
+            for (let value of values) {
+                if (value !== specs.field.zero && value !== specs.field.one) {
+                    throw new Error(`Invalid definition for readonly register ${registerName}: the register can contain only binary values`);
+                }
+            }
+        }
+        return { name: registerName, index: registerIndex, pattern, binary, values };
     }
     secretRegisterDefinition(ctx, specs) {
         const registerName = ctx.name[0].image;
         const registerIndex = Number.parseInt(registerName.slice(2), 10);
         const pattern = ctx.pattern[0].image;
-        return { name: registerName, index: registerIndex, pattern };
+        const binary = ctx.binary ? true : false;
+        return { name: registerName, index: registerIndex, binary, pattern };
     }
     publicRegisterDefinition(ctx, specs) {
         const registerName = ctx.name[0].image;
         const registerIndex = Number.parseInt(registerName.slice(2), 10);
         const pattern = ctx.pattern[0].image;
-        return { name: registerName, index: registerIndex, pattern };
+        const binary = ctx.binary ? true : false;
+        return { name: registerName, index: registerIndex, binary, pattern };
     }
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
@@ -442,7 +452,9 @@ class AirVisitor extends BaseCstVisitor {
     conditionalExpression(ctx, sc) {
         const registerName = ctx.register[0].image;
         const registerRef = sc.buildRegisterReference(registerName);
-        // TODO: check if the register is binary?
+        if (!sc.isBinaryRegister(registerName)) {
+            throw new Error('Conditional expression can be based only on binary registers');
+        }
         // create expressions for k and for (1 - k)
         const scalarDim = [0, 0];
         const regExpression = { code: registerRef, dimensions: scalarDim };
