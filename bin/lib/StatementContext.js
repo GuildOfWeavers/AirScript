@@ -9,6 +9,7 @@ class StatementContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(specs, canAccessFutureState) {
+        this.subroutines = new Map();
         this.localVariables = new Map();
         this.globalConstants = specs.globalConstants;
         this.mutableRegisterCount = specs.mutableRegisterCount;
@@ -17,7 +18,7 @@ class StatementContext {
         this.publicRegisters = specs.publicRegisters;
         this.canAccessFutureState = canAccessFutureState;
     }
-    // VARIABLE METHODS
+    // VARIABLES
     // --------------------------------------------------------------------------------------------
     buildVariableAssignment(variable, dimensions) {
         if (this.globalConstants.has(variable)) {
@@ -59,7 +60,7 @@ class StatementContext {
             throw new Error(`Variable '${variable}' is not defined`);
         }
     }
-    // REGISTER METHODS
+    // REGISTERS
     // --------------------------------------------------------------------------------------------
     buildRegisterReference(register) {
         const name = register.slice(1, 2);
@@ -112,6 +113,28 @@ class StatementContext {
         }
         else {
             throw new Error(''); // TODO
+        }
+    }
+    // SUBROUTINES
+    // --------------------------------------------------------------------------------------------
+    addSubroutine(code) {
+        const subName = `sub${this.subroutines.size}`;
+        const subParams = this.getSubroutineParameters().join(', ');
+        const subFunction = `function ${subName}(${subParams}) {\n${code}}\n`;
+        this.subroutines.set(subName, subFunction);
+        return subName;
+    }
+    callSubroutine(subName, outParamName) {
+        const subParams = this.getSubroutineParameters();
+        subParams[subParams.length - 1] = outParamName;
+        return `${subName}(${subParams.join(', ')});\n`;
+    }
+    getSubroutineParameters() {
+        if (this.canAccessFutureState) {
+            return ['r', 'n', 'k', 's', 'p', 'out'];
+        }
+        else {
+            return ['r', 'k', 's', 'p', 'out'];
         }
     }
 }

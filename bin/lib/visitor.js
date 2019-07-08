@@ -54,10 +54,12 @@ class AirVisitor extends BaseCstVisitor {
         specs.setReadonlyRegisterCounts(readonlyRegisters);
         // build transition function
         validateTransitionFunction(ctx.transitionFunction);
-        const tFunction = this.visit(ctx.transitionFunction, specs);
+        const tFunctionBuilder = this.visit(ctx.transitionFunction, specs);
+        const tFunction = tFunctionBuilder(field, globalConstants);
         // build transition constraint evaluator
         validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraintEvaluator = this.visit(ctx.transitionConstraints, specs);
+        const tConstraintEvaluatorBuilder = this.visit(ctx.transitionConstraints, specs);
+        const tConstraintEvaluator = tConstraintEvaluatorBuilder(field, globalConstants);
         const constraints = new Array(specs.constraintCount);
         for (let i = 0; i < constraints.length; i++) {
             // TODO: determine degree of each constraint individually
@@ -236,7 +238,12 @@ class AirVisitor extends BaseCstVisitor {
                 throw new Error(`Transition function must evaluate to a vector of exactly ${sc.mutableRegisterCount} values`);
             }
         }
-        return new Function('f', 'g', 'r', 'k', 's', 'p', 'out', statements.code);
+        let builderCode = '';
+        for (let subCode of sc.subroutines.values()) {
+            builderCode += `${subCode}\n`;
+        }
+        builderCode += `return function (r, k, s, p, out) {\n${statements.code}}`;
+        return new Function('f', 'g', builderCode);
     }
     transitionConstraints(ctx, specs) {
         const sc = new StatementContext_1.StatementContext(specs, true);
@@ -249,7 +256,12 @@ class AirVisitor extends BaseCstVisitor {
                 throw new Error(`Transition constraints must evaluate to a vector of exactly ${specs.constraintCount} values`);
             }
         }
-        return new Function('f', 'g', 'r', 'n', 'k', 's', `p`, 'out', statements.code);
+        let builderCode = '';
+        for (let subCode of sc.subroutines.values()) {
+            builderCode += `${subCode}\n`;
+        }
+        builderCode += `return function (r, n, k, s, p, out) {\n${statements.code}}`;
+        return new Function('f', 'g', builderCode);
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
@@ -314,23 +326,22 @@ class AirVisitor extends BaseCstVisitor {
         // create expressions for k and for (1 - k)
         const regExpression = { code: registerRef, dimensions: [0, 0] };
         const oneMinusReg = operations_1.subtraction.getResult({ code: 'f.one', dimensions: [0, 0] }, regExpression);
-        // build functions for true and false options
+        // build functions for true and false branches
         const tBlock = this.visit(ctx.tBlock, sc);
-        const tFunction = `function tBranch(f, g, r, k, s, p, out) {\n${tBlock.code}}`; // TODO: make work for constraints as well
+        const tSubroutine = sc.addSubroutine(tBlock.code);
         const outputSize = tBlock.outputSize;
         const resultDim = [outputSize, 0];
         const fBlock = this.visit(ctx.fBlock, sc);
-        const fFunction = `function fBranch(f, g, r, k, s, p, out) {\n${fBlock.code}}`; // TODO: make work for constraints as well
+        const fSubroutine = sc.addSubroutine(fBlock.code);
+        // TODO: make sure dimensions of both blocks are the same
         let code = `let tOut = new Array(${outputSize}), fOut = new Array(${outputSize});\n`;
-        code += `tBranch(f, g, r, k, s, p, tOut);\n`; // TODO: make work for constraints as well
-        code += `fBranch(f, g, r, k, s, p, fOut);\n`; // TODO: make work for constraints as well
+        code += sc.callSubroutine(tSubroutine, 'tOut');
+        code += sc.callSubroutine(fSubroutine, 'fOut');
         code += `tOut = ${operations_1.multiplication.getCode({ code: 'tOut', dimensions: resultDim }, regExpression)};\n`;
         code += `fOut = ${operations_1.multiplication.getCode({ code: 'fOut', dimensions: resultDim }, oneMinusReg)};\n`;
         for (let i = 0; i < outputSize; i++) {
             code += `out[${i}] = f.add(tOut[${i}], fOut[${i}]);\n`;
         }
-        code += `${tFunction}\n`;
-        code += `${fFunction}\n`;
         return { code, outputSize };
     }
     // VECTORS AND MATRIXES

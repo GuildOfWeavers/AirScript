@@ -10,6 +10,7 @@ export class StatementContext {
 
     readonly globalConstants        : Map<string, Dimensions>;
     readonly localVariables         : Map<string, Dimensions>;
+    readonly subroutines            : Map<string, string>;
     readonly mutableRegisterCount   : number;
     readonly presetRegisters        : ReadonlyRegisterSpecs[];
     readonly secretRegisters        : InputRegisterSpecs[];
@@ -19,6 +20,7 @@ export class StatementContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(specs: ScriptSpecs, canAccessFutureState: boolean) {
+        this.subroutines = new Map();
         this.localVariables = new Map();
         this.globalConstants = specs.globalConstants;
         this.mutableRegisterCount = specs.mutableRegisterCount;
@@ -28,7 +30,7 @@ export class StatementContext {
         this.canAccessFutureState = canAccessFutureState;
     }
 
-    // VARIABLE METHODS
+    // VARIABLES
     // --------------------------------------------------------------------------------------------
     buildVariableAssignment(variable: string, dimensions: Dimensions) {
         if (this.globalConstants.has(variable)) {
@@ -75,7 +77,7 @@ export class StatementContext {
         }
     }
 
-    // REGISTER METHODS
+    // REGISTERS
     // --------------------------------------------------------------------------------------------
     buildRegisterReference(register: string): string {
         const name = register.slice(1, 2);
@@ -133,6 +135,31 @@ export class StatementContext {
         }
         else {
             throw new Error(''); // TODO
+        }
+    }
+
+    // SUBROUTINES
+    // --------------------------------------------------------------------------------------------
+    addSubroutine(code: string): string {
+        const subName = `sub${this.subroutines.size}`;
+        const subParams = this.getSubroutineParameters().join(', ');
+        const subFunction = `function ${subName}(${subParams}) {\n${code}}\n`;
+        this.subroutines.set(subName, subFunction);
+        return subName;
+    }
+
+    callSubroutine(subName: string, outParamName: string): string {
+        const subParams = this.getSubroutineParameters();
+        subParams[subParams.length - 1] = outParamName;
+        return `${subName}(${subParams.join(', ')});\n`;
+    }
+
+    getSubroutineParameters() {
+        if (this.canAccessFutureState) {
+            return ['r', 'n', 'k', 's', 'p', 'out'];
+        }
+        else {
+            return ['r', 'k', 's', 'p', 'out'];
         }
     }
 }
