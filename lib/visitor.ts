@@ -49,6 +49,14 @@ export interface ReadonlyRegisterGroup {
     publicRegisters : InputRegisterSpecs[];
 }
 
+export interface TransitionFunctionInfo {
+    buildFunction(f: FiniteField, g: any): TransitionFunction;
+}
+
+export interface ConstraintEvaluatorInfo {
+    buildFunction(f: FiniteField, g: any): ConstraintEvaluator;
+}
+
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser.getBaseCstVisitorConstructor();
@@ -104,13 +112,11 @@ class AirVisitor extends BaseCstVisitor {
 
         // build transition function
         validateTransitionFunction(ctx.transitionFunction);
-        const tFunctionBuilder: Function = this.visit(ctx.transitionFunction, specs);
-        const tFunction: TransitionFunction = tFunctionBuilder(field, globalConstants);
+        const tFunction: TransitionFunctionInfo = this.visit(ctx.transitionFunction, specs);
 
         // build transition constraint evaluator
         validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraintEvaluatorBuilder: Function = this.visit(ctx.transitionConstraints, specs);
-        const tConstraintEvaluator: ConstraintEvaluator = tConstraintEvaluatorBuilder(field, globalConstants);
+        const tConstraintEvaluator: ConstraintEvaluatorInfo = this.visit(ctx.transitionConstraints, specs);
         const constraints = new Array<ConstraintSpecs>(specs.constraintCount);
         for (let i = 0; i < constraints.length; i++) {
             // TODO: determine degree of each constraint individually
@@ -126,10 +132,9 @@ class AirVisitor extends BaseCstVisitor {
             secretInputs        : readonlyRegisters.secretRegisters,
             publicInputs        : readonlyRegisters.publicRegisters,
             presetRegisters     : readonlyRegisters.presetRegisters,
-            globalConstants     : globalConstants,
             constraints         : constraints,
-            transitionFunction  : tFunction,
-            constraintEvaluator : tConstraintEvaluator
+            transitionFunction  : tFunction.buildFunction(field, globalConstants),
+            constraintEvaluator : tConstraintEvaluator.buildFunction(field, globalConstants)
         };
     }
 
@@ -300,7 +305,7 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, specs: ScriptSpecs): Function {
+    transitionFunction(ctx: any, specs: ScriptSpecs): TransitionFunctionInfo {
         const sc = new StatementContext(specs, false);
         const statements: StatementBlock = this.visit(ctx.statements, sc);
         if (statements.outputSize !== sc.mutableRegisterCount) {
@@ -312,16 +317,19 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
 
-        let builderCode = '';
+        // generate code that can build a transition function
+        let functionBuilderCode = '';
         for (let subCode of sc.subroutines.values()) {
-            builderCode += `${subCode}\n`;
+            functionBuilderCode += `${subCode}\n`;
         }
-        builderCode += `return function (r, k, s, p, out) {\n${statements.code}}`;
+        functionBuilderCode += `return function (r, k, s, p, out) {\n${statements.code}}`;
 
-        return new Function('f', 'g', builderCode);
+        return {
+            buildFunction: new Function('f', 'g', functionBuilderCode) as any
+        };
     }
 
-    transitionConstraints(ctx: any, specs: ScriptSpecs): Function {
+    transitionConstraints(ctx: any, specs: ScriptSpecs): ConstraintEvaluatorInfo {
         const sc = new StatementContext(specs, true);
         const statements: StatementBlock = this.visit(ctx.statements, sc);
         if (statements.outputSize !== specs.constraintCount) {
@@ -333,13 +341,16 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
 
+        // generate code that can build a constraint evaluator
         let builderCode = '';
         for (let subCode of sc.subroutines.values()) {
             builderCode += `${subCode}\n`;
         }
         builderCode += `return function (r, n, k, s, p, out) {\n${statements.code}}`;
 
-        return new Function('f', 'g', builderCode);
+        return {
+            buildFunction: new Function('f', 'g', builderCode) as any
+        };
     }
 
     // STATEMENTS
@@ -378,7 +389,7 @@ class AirVisitor extends BaseCstVisitor {
             }
             else if (isVector(expression.dimensions)) {
                 dimensions = expression.dimensions;
-                code = `_out = ${expression.code};\n`;
+                code = `_out = ${expression.code};\n`;  // TODO: make sure this works
                 for (let i = 0; i < dimensions[0]; i++) {
                     code += `out[${i}] = _out[${i}];\n`;
                 }
@@ -407,31 +418,40 @@ class AirVisitor extends BaseCstVisitor {
         const registerName: string = ctx.condition[0].image;
         const registerRef = sc.buildRegisterReference(registerName);
 
+        // make sure the condition register holds only binary values
         if (!sc.isBinaryRegister(registerName)) {
-            throw new Error('When statement condition must be based on a binary register');
+            throw new Error(`when...else statement condition must be based on a binary register`);
         }
 
         // create expressions for k and for (1 - k)
         const regExpression: Expression = { code: registerRef, dimensions: [0, 0] };
         const oneMinusReg = subHandler.getResult({ code: 'f.one', dimensions: [0, 0] }, regExpression);
 
-        // build functions for true and false branches
+        // build subroutines for true and false conditions
         const tBlock: StatementBlock = this.visit(ctx.tBlock, sc);
-        const tSubroutine = sc.addSubroutine(tBlock.code);
+        const fBlock: StatementBlock = this.visit(ctx.fBlock, sc);
+
+        // make sure the output vectors of both subroutines are the same length
         const outputSize = tBlock.outputSize;
+        if (outputSize !== fBlock.outputSize) {
+            throw new Error(`when...else statement branches must evaluate to vectors of the same size`);
+        }
         const resultDim: Dimensions = [outputSize, 0];
 
-        const fBlock: StatementBlock = this.visit(ctx.fBlock, sc);
+        // add both subroutines to statement context
+        const tSubroutine = sc.addSubroutine(tBlock.code);
         const fSubroutine = sc.addSubroutine(fBlock.code);
-        // TODO: make sure dimensions of both blocks are the same
 
+        // generate code for the main function
         let code = `let tOut = new Array(${outputSize}), fOut = new Array(${outputSize});\n`;
         code += sc.callSubroutine(tSubroutine, 'tOut');
         code += sc.callSubroutine(fSubroutine, 'fOut');
         code += `tOut = ${mulHandler.getCode({ code: 'tOut', dimensions: resultDim }, regExpression)};\n`;
         code += `fOut = ${mulHandler.getCode({ code: 'fOut', dimensions: resultDim }, oneMinusReg)};\n`;
         for (let i = 0; i < outputSize; i++) {
-            code += `out[${i}] = f.add(tOut[${i}], fOut[${i}]);\n`;
+            let tExpression: Expression = { code: `tOut[${i}]`, dimensions: [0, 0] };
+            let fExpression: Expression = { code: `fOut[${i}]`, dimensions: [0, 0] };
+            code += `out[${i}] = ${addHandler.getCode(tExpression, fExpression)};\n`;
         }
         
         return { code, outputSize };

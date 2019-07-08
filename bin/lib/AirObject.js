@@ -16,7 +16,6 @@ class AirObject {
         this.publicInputs = config.publicInputs;
         this.presetRegisters = config.presetRegisters;
         this.constraints = config.constraints;
-        this.globalConstants = config.globalConstants;
         this.extensionFactor = getExtensionFactor(this.maxConstraintDegree, extensionFactor);
         this.applyTransition = config.transitionFunction;
         this.evaluateConstraints = config.constraintEvaluator;

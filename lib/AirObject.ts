@@ -17,7 +17,6 @@ export interface AirConfig {
     secretInputs        : InputRegisterSpecs[];
     publicInputs        : InputRegisterSpecs[];
     presetRegisters     : ReadonlyRegisterSpecs[];
-    globalConstants     : any;
     constraints         : ConstraintSpecs[];
     transitionFunction  : TransitionFunction;
     constraintEvaluator : ConstraintEvaluator;
@@ -72,7 +71,6 @@ export class AirObject implements IAirObject {
     readonly publicInputs       : InputRegisterSpecs[];
     readonly presetRegisters    : ReadonlyRegisterSpecs[];
     readonly constraints        : ConstraintSpecs[];
-    readonly globalConstants    : any;
 
     readonly extensionFactor    : number;
 
@@ -91,12 +89,11 @@ export class AirObject implements IAirObject {
         this.publicInputs = config.publicInputs;
         this.presetRegisters = config.presetRegisters;
         this.constraints = config.constraints;
-        this.globalConstants = config.globalConstants;
 
         this.extensionFactor = getExtensionFactor(this.maxConstraintDegree, extensionFactor);
 
-        this.applyTransition = config.transitionFunction as any;
-        this.evaluateConstraints = config.constraintEvaluator as any;
+        this.applyTransition = config.transitionFunction;
+        this.evaluateConstraints = config.constraintEvaluator;
     }
 
     // PUBLIC ACCESSORS
