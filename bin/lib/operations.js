@@ -26,160 +26,130 @@ exports.getOperationHandler = getOperationHandler;
 // ================================================================================================
 exports.addition = {
     name: 'add',
-    getCode(e1, e2) {
-        const d1 = e1.dimensions;
-        if (utils_1.isScalar(d1))
-            return `f.add(${e1.code}, ${e2.code})`;
-        else if (utils_1.isVector(d1))
-            return `f.addVectorElements(${e1.code}, ${e2.code})`;
-        else
-            return `f.addMatrixElements(${e1.code}, ${e2.code})`;
-    },
     getResult(e1, e2) {
         const d1 = e1.dimensions;
         const d2 = e2.dimensions;
         if (!utils_1.isScalar(d2) && !utils_1.areSameDimension(d1, d2)) {
             throw new Error(`Cannot add ${d1[0]}x${d1[1]} value to ${d2[0]}x${d2[1]} value`);
         }
-        let code = '';
+        let code = '', degree;
         if (utils_1.isScalar(d1)) {
             code = `f.add(${e1.code}, ${e2.code})`;
+            degree = maxDegree(e1.degree, e2.degree);
         }
         else if (utils_1.isVector(d1)) {
             code = `f.addVectorElements(${e1.code}, ${e2.code})`;
+            degree = vectorDegree(maxDegree, e1.degree, e2.degree);
         }
         else {
             code = `f.addMatrixElements(${e1.code}, ${e2.code})`;
+            degree = matrixDegree(maxDegree, e1.degree, e2.degree);
         }
-        return { code, dimensions: d1 };
+        return { code, dimensions: d1, degree };
     }
 };
 // SUBTRACTION
 // ================================================================================================
 exports.subtraction = {
     name: 'sub',
-    getCode(e1, e2) {
-        const d1 = e1.dimensions;
-        if (utils_1.isScalar(d1))
-            return `f.sub(${e1.code}, ${e2.code})`;
-        else if (utils_1.isVector(d1))
-            return `f.subVectorElements(${e1.code}, ${e2.code})`;
-        else
-            return `f.subMatrixElements(${e1.code}, ${e2.code})`;
-    },
     getResult(e1, e2) {
         const d1 = e1.dimensions;
         const d2 = e2.dimensions;
         if (!utils_1.isScalar(d2) && !utils_1.areSameDimension(d1, d2)) {
             throw new Error(`Cannot subtract ${d1[0]}x${d1[1]} value from ${d2[0]}x${d2[1]} value`);
         }
-        let code = '';
+        let code = '', degree;
         if (utils_1.isScalar(d1)) {
             code = `f.sub(${e1.code}, ${e2.code})`;
+            degree = maxDegree(e1.degree, e2.degree);
         }
         else if (utils_1.isVector(d1)) {
             code = `f.subVectorElements(${e1.code}, ${e2.code})`;
+            degree = vectorDegree(maxDegree, e1.degree, e2.degree);
         }
         else {
             code = `f.subMatrixElements(${e1.code}, ${e2.code})`;
+            degree = matrixDegree(maxDegree, e1.degree, e2.degree);
         }
-        return { code, dimensions: d1 };
+        return { code, dimensions: d1, degree };
     }
 };
 // MULTIPLICATION
 // ================================================================================================
 exports.multiplication = {
     name: 'mul',
-    getCode(e1, e2) {
-        const d1 = e1.dimensions;
-        if (utils_1.isScalar(d1))
-            return `f.mul(${e1.code}, ${e2.code})`;
-        else if (utils_1.isVector(d1))
-            return `f.mulVectorElements(${e1.code}, ${e2.code})`;
-        else
-            return `f.mulMatrixElements(${e1.code}, ${e2.code})`;
-    },
     getResult(e1, e2) {
         const d1 = e1.dimensions;
         const d2 = e2.dimensions;
         if (!utils_1.isScalar(d2) && !utils_1.areSameDimension(d1, d2)) {
             throw new Error(`Cannot multiply ${d1[0]}x${d1[1]} value by ${d2[0]}x${d2[1]} value`);
         }
-        let code = '';
+        let code = '', degree;
         if (utils_1.isScalar(d1)) {
             code = `f.mul(${e1.code}, ${e2.code})`;
+            degree = addDegree(e1.degree, e2.degree);
         }
         else if (utils_1.isVector(d1)) {
             code = `f.mulVectorElements(${e1.code}, ${e2.code})`;
+            degree = vectorDegree(addDegree, e1.degree, e2.degree);
         }
         else {
             code = `f.mulMatrixElements(${e1.code}, ${e2.code})`;
+            degree = matrixDegree(addDegree, e1.degree, e2.degree);
         }
-        return { code, dimensions: d1 };
+        return { code, dimensions: d1, degree };
     }
 };
 // DIVISION
 // ================================================================================================
 const division = {
     name: 'div',
-    getCode(e1, e2) {
-        const d1 = e1.dimensions;
-        if (utils_1.isScalar(d1))
-            return `f.div(${e1.code}, ${e2.code})`;
-        else if (utils_1.isVector(d1))
-            return `f.divVectorElements(${e1.code}, ${e2.code})`;
-        else
-            return `f.divMatrixElements(${e1.code}, ${e2.code})`;
-    },
     getResult(e1, e2) {
         const d1 = e1.dimensions;
         const d2 = e2.dimensions;
         if (!utils_1.isScalar(d2) && !utils_1.areSameDimension(d1, d2)) {
             throw new Error(`Cannot divide ${d1[0]}x${d1[1]} value by ${d2[0]}x${d2[1]} value`);
         }
-        let code = '';
+        let code = '', degree;
         if (utils_1.isScalar(d1)) {
             code = `f.div(${e1.code}, ${e2.code})`;
+            degree = addDegree(e1.degree, e2.degree);
         }
         else if (utils_1.isVector(d1)) {
             code = `f.divVectorElements(${e1.code}, ${e2.code})`;
+            degree = vectorDegree(addDegree, e1.degree, e2.degree);
         }
         else {
             code = `f.divMatrixElements(${e1.code}, ${e2.code})`;
+            degree = matrixDegree(addDegree, e1.degree, e2.degree);
         }
-        return { code, dimensions: d1 };
+        return { code, dimensions: d1, degree };
     }
 };
 // EXPONENTIATION
 // ================================================================================================
 const exponentiation = {
     name: 'exp',
-    getCode(e1, e2) {
-        const d1 = e1.dimensions;
-        if (utils_1.isScalar(d1))
-            return `f.exp(${e1.code}, ${e2.code})`;
-        else if (utils_1.isVector(d1))
-            return `f.expVectorElements(${e1.code}, ${e2.code})`;
-        else
-            return `f.expMatrixElements(${e1.code}, ${e2.code})`;
-    },
     getResult(e1, e2) {
         const d1 = e1.dimensions;
         const d2 = e2.dimensions;
         if (!utils_1.isScalar(d2)) {
             throw new Error(`Cannot raise to non-scalar power`);
         }
-        let code = '';
+        let code = '', degree;
         if (utils_1.isScalar(d1)) {
             code = `f.exp(${e1.code}, ${e2.code})`;
+            degree = mulDegree(e1.degree, 3n); // TODO: get value for e2
         }
         else if (utils_1.isVector(d1)) {
             code = `f.expVectorElements(${e1.code}, ${e2.code})`;
+            degree = vectorDegree(mulDegree, e1.degree, 3n); // TODO: get value for e2
         }
         else {
             code = `f.expMatrixElements(${e1.code}, ${e2.code})`;
+            degree = matrixDegree(mulDegree, e1.degree, 3n); // TODO: get value for e2
         }
-        return { code, dimensions: d1 };
+        return { code, dimensions: d1, degree };
     }
 };
 // MATRIX AND VECTOR PRODUCT
@@ -199,7 +169,7 @@ const product = {
     getResult(e1, e2) {
         const d1 = e1.dimensions;
         const d2 = e2.dimensions;
-        let code = '', dimensions;
+        let code = '', dimensions, degree;
         if (utils_1.isVector(d1) && utils_1.isVector(d2)) {
             if (d1[0] !== d2[0]) {
                 throw new Error(`Cannot compute a product of ${d1[0]}x${d1[1]} and ${d2[0]}x${d2[1]} values`);
@@ -221,7 +191,41 @@ const product = {
             code = `f.mulMatrixes(${e1.code}, ${e2.code})`;
             dimensions = [d1[0], d2[1]];
         }
-        return { code, dimensions };
+        degree = [3n]; // TODO: calculate
+        return { code, dimensions, degree };
     }
 };
+// EXPRESSION DEGREE
+// ================================================================================================
+function maxDegree(d1, d2) {
+    if (d1 > d2)
+        return d1;
+    else
+        return d2;
+}
+function addDegree(d1, d2) {
+    return d1 + d2;
+}
+function mulDegree(d1, d2) {
+    return d1 * d2;
+}
+function vectorDegree(op, d1, d2) {
+    const result = new Array(d1.length);
+    for (let i = 0; i < d1.length; i++) {
+        let v2 = (typeof d2 === 'bigint' ? d2 : d2[i]);
+        result[i] = op(d1[i], v2);
+    }
+    return result;
+}
+function matrixDegree(op, d1, d2) {
+    const result = new Array(d1.length);
+    for (let i = 0; i < d1.length; i++) {
+        result[i] = new Array(d1[i].length);
+        for (let j = 0; j < d1[i].length; j++) {
+            let v2 = (typeof d2 === 'bigint' ? d2 : d2[i][j]);
+            result[i][j] = op(d1[i][j], v2);
+        }
+    }
+    return result;
+}
 //# sourceMappingURL=operations.js.map

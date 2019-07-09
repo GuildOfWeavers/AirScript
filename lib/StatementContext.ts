@@ -1,15 +1,23 @@
 // IMPORTS
 // ================================================================================================
-import { Dimensions, validateVariableName } from './utils';
+import { Dimensions, validateVariableName, areSameDimension } from './utils';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './AirObject';
+import { Expression, ExpressionDegree } from './visitor';
+
+// INTERFACES
+// ================================================================================================
+interface VariableInfo {
+    dimensions  : Dimensions;
+    degree      : ExpressionDegree;
+}
 
 // CLASS DEFINITION
 // ================================================================================================
 export class StatementContext {
 
     readonly globalConstants        : Map<string, Dimensions>;
-    readonly localVariables         : Map<string, Dimensions>;
+    readonly localVariables         : Map<string, VariableInfo>;
     readonly subroutines            : Map<string, string>;
     readonly mutableRegisterCount   : number;
     readonly presetRegisters        : ReadonlyRegisterSpecs[];
@@ -32,14 +40,14 @@ export class StatementContext {
 
     // VARIABLES
     // --------------------------------------------------------------------------------------------
-    buildVariableAssignment(variable: string, dimensions: Dimensions) {
+    buildVariableAssignment(variable: string, dimensions: Dimensions, degree: ExpressionDegree) {
         if (this.globalConstants.has(variable)) {
             throw new Error(`Value of global constant '${variable}' cannot be changed`);
         }
         
-        const sDimensions = this.localVariables.get(variable);
-        if (sDimensions) {
-            if (dimensions[0] !== sDimensions[0] || dimensions[1] !== sDimensions[1]) {
+        const variableInfo = this.localVariables.get(variable);
+        if (variableInfo) {
+            if (!areSameDimension(dimensions, variableInfo.dimensions)) {
                 throw new Error(`Dimensions of variable '${variable}' cannot be changed`);
             }
 
@@ -50,7 +58,7 @@ export class StatementContext {
         }
         else {
             validateVariableName(variable, dimensions);
-            this.localVariables.set(variable, dimensions);
+            this.localVariables.set(variable, { dimensions, degree });
 
             return {
                 code        : `let $${variable}`,
@@ -59,17 +67,20 @@ export class StatementContext {
         }
     }
 
-    buildVariableReference(variable: string) {
+    buildVariableReference(variable: string): Expression {
         if (this.localVariables.has(variable)) {
+            const variableInfo = this.localVariables.get(variable)!;
             return {
                 code        : `$${variable}`,
-                dimensions  : this.localVariables.get(variable)!
+                dimensions  : variableInfo.dimensions,
+                degree      : variableInfo.degree
             };
         }
         else if (this.globalConstants.has(variable)) {
             return {
                 code        : `g.${variable}`,
-                dimensions  : this.globalConstants.get(variable)!
+                dimensions  : this.globalConstants.get(variable)!,
+                degree      : 0n
             };
         }
         else {
@@ -79,7 +90,7 @@ export class StatementContext {
 
     // REGISTERS
     // --------------------------------------------------------------------------------------------
-    buildRegisterReference(register: string): string {
+    buildRegisterReference(register: string): Expression {
         const name = register.slice(1, 2);
         const index = Number.parseInt(register.slice(2), 10);
         
@@ -117,7 +128,7 @@ export class StatementContext {
             }
         }
 
-        return `${name}[${index}]`;
+        return { code: `${name}[${index}]`, dimensions: [0, 0], degree: 1n };
     }
 
     isBinaryRegister(register: string): boolean {

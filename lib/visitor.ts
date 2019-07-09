@@ -16,6 +16,7 @@ import { Dimensions, isScalar, isVector, isMatrix, validateVariableName, areSame
 export interface StatementBlock {
     code            : string;
     outputSize      : number;
+    outputDegrees   : bigint[];
 }
 
 export interface Statement {
@@ -26,8 +27,11 @@ export interface Statement {
 export interface Expression {
     code            : string;
     dimensions      : Dimensions;
+    degree          : ExpressionDegree;
     destructured?   : boolean;
 }
+
+export type ExpressionDegree = bigint | bigint[] | bigint[][];
 
 export interface ConstantDeclaration {
     name            : string;
@@ -53,8 +57,9 @@ export interface TransitionFunctionInfo {
     buildFunction(f: FiniteField, g: any): TransitionFunction;
 }
 
-export interface ConstraintEvaluatorInfo {
-    buildFunction(f: FiniteField, g: any): ConstraintEvaluator;
+export interface TransitionConstraints {
+    buildEvaluator(f: FiniteField, g: any): ConstraintEvaluator;
+    degrees: number[];
 }
 
 // MODULE VARIABLES
@@ -116,11 +121,10 @@ class AirVisitor extends BaseCstVisitor {
 
         // build transition constraint evaluator
         validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraintEvaluator: ConstraintEvaluatorInfo = this.visit(ctx.transitionConstraints, specs);
-        const constraints = new Array<ConstraintSpecs>(specs.constraintCount);
-        for (let i = 0; i < constraints.length; i++) {
-            // TODO: determine degree of each constraint individually
-            constraints[i] = { degree: specs.maxConstraintDegree };
+        const tConstraints: TransitionConstraints = this.visit(ctx.transitionConstraints, specs);
+        const constraintSpecs = new Array<ConstraintSpecs>(specs.constraintCount);
+        for (let i = 0; i < constraintSpecs.length; i++) {
+            constraintSpecs[i] = { degree: tConstraints.degrees[i] };
         }
 
         // build and return stark config
@@ -132,9 +136,9 @@ class AirVisitor extends BaseCstVisitor {
             secretInputs        : readonlyRegisters.secretRegisters,
             publicInputs        : readonlyRegisters.publicRegisters,
             presetRegisters     : readonlyRegisters.presetRegisters,
-            constraints         : constraints,
+            constraints         : constraintSpecs,
             transitionFunction  : tFunction.buildFunction(field, globalConstants),
-            constraintEvaluator : tConstraintEvaluator.buildFunction(field, globalConstants)
+            constraintEvaluator : tConstraints.buildEvaluator(field, globalConstants)
         };
     }
 
@@ -329,7 +333,7 @@ class AirVisitor extends BaseCstVisitor {
         };
     }
 
-    transitionConstraints(ctx: any, specs: ScriptSpecs): ConstraintEvaluatorInfo {
+    transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionConstraints {
         const sc = new StatementContext(specs, true);
         const statements: StatementBlock = this.visit(ctx.statements, sc);
         if (statements.outputSize !== specs.constraintCount) {
@@ -348,8 +352,18 @@ class AirVisitor extends BaseCstVisitor {
         }
         builderCode += `return function (r, n, k, s, p, out) {\n${statements.code}}`;
 
+        // convert bigint degrees to numbers
+        const degrees: number[] = [];
+        for (let degree of statements.outputDegrees) {
+            if (degree >= Number.MAX_SAFE_INTEGER) {
+                throw new Error(''); // TODO: validate against script limits
+            }
+            degrees.push(Number.parseInt(degree as any));
+        }
+
         return {
-            buildFunction: new Function('f', 'g', builderCode) as any
+            buildEvaluator  : new Function('f', 'g', builderCode) as any,
+            degrees         : degrees
         };
     }
 
@@ -362,15 +376,17 @@ class AirVisitor extends BaseCstVisitor {
             for (let i = 0; i < ctx.statements.length; i++) {
                 let statement: Statement = this.visit(ctx.statements[i], sc);
                 let expression = statement.expression;
-                let variable = sc.buildVariableAssignment(statement.variable, expression.dimensions);
+                let variable = sc.buildVariableAssignment(statement.variable, expression.dimensions, expression.degree);
                 code += `${variable.code} = ${expression.code};\n`;
             }
         }
 
         const out: Expression = this.visit(ctx.outStatement, sc);
         code += out.code;
+
+        const outputDegrees = out.degree as bigint[];
         
-        return { code, outputSize: out.dimensions[0] };
+        return { code, outputSize: out.dimensions[0], outputDegrees };
     }
 
     statement(ctx: any, sc: StatementContext): Statement {
@@ -380,12 +396,13 @@ class AirVisitor extends BaseCstVisitor {
     }
 
     outStatement(ctx: any, sc: StatementContext): Expression {
-        let code = '', dimensions: Dimensions;
+        let code = '', dimensions: Dimensions, degree: bigint[];
         if (ctx.expression) {
             const expression: Expression = this.visit(ctx.expression, sc);
             if (isScalar(expression.dimensions)) {
                 code = `out[0] = ${expression.code};\n`;
                 dimensions = [1, 0];
+                degree = [expression.degree as bigint];
             }
             else if (isVector(expression.dimensions)) {
                 dimensions = expression.dimensions;
@@ -393,30 +410,32 @@ class AirVisitor extends BaseCstVisitor {
                 for (let i = 0; i < dimensions[0]; i++) {
                     code += `out[${i}] = _out[${i}];\n`;
                 }
+                degree = expression.degree as bigint[];
             }
             else {
                 throw new Error('Out statement must evaluate either to a scalar or to a vector');
             }
         }
         else {
+            degree = [];
             dimensions = [ctx.expressions.length, 0];
             for (let i = 0; i < ctx.expressions.length; i++) {
-                let expression = this.visit(ctx.expressions[i], sc);
+                let expression: Expression = this.visit(ctx.expressions[i], sc);
                 if (!isScalar(expression.dimensions)) {
                     throw new Error(`Out vector elements must be scalars`);
                 }
                 code += `out[${i}] = ${expression.code};\n`;
+                degree.push(expression.degree as bigint);
             }
         }
 
-        return { code, dimensions };
+        return { code, dimensions, degree };
     }
 
     // WHEN STATEMENT
     // --------------------------------------------------------------------------------------------
     whenStatement(ctx: any, sc: StatementContext): StatementBlock {
         const registerName: string = ctx.condition[0].image;
-        const registerRef = sc.buildRegisterReference(registerName);
 
         // make sure the condition register holds only binary values
         if (!sc.isBinaryRegister(registerName)) {
@@ -424,8 +443,8 @@ class AirVisitor extends BaseCstVisitor {
         }
 
         // create expressions for k and for (1 - k)
-        const regExpression: Expression = { code: registerRef, dimensions: [0, 0] };
-        const oneMinusReg = subHandler.getResult({ code: 'f.one', dimensions: [0, 0] }, regExpression);
+        const registerRef = sc.buildRegisterReference(registerName);
+        const oneMinusReg = subHandler.getResult({ code: 'f.one', dimensions: [0, 0], degree: 0n }, registerRef);
 
         // build subroutines for true and false conditions
         const tBlock: StatementBlock = this.visit(ctx.tBlock, sc);
@@ -434,7 +453,7 @@ class AirVisitor extends BaseCstVisitor {
         // make sure the output vectors of both subroutines are the same length
         const outputSize = tBlock.outputSize;
         if (outputSize !== fBlock.outputSize) {
-            throw new Error(`when...else statement branches must evaluate to vectors of the same size`);
+            throw new Error(`when...else statement branches must evaluate to values of same dimensions`);
         }
         const resultDim: Dimensions = [outputSize, 0];
 
@@ -442,42 +461,57 @@ class AirVisitor extends BaseCstVisitor {
         const tSubroutine = sc.addSubroutine(tBlock.code);
         const fSubroutine = sc.addSubroutine(fBlock.code);
 
+        // compute expressions for true and false branches
+        const tExpression: Expression = { code: `tOut`, dimensions: resultDim, degree: tBlock.outputDegrees };
+        const fExpression: Expression = { code: `fOut`, dimensions: resultDim, degree: fBlock.outputDegrees };
+
+        const tBranch = mulHandler.getResult(tExpression, registerRef);
+        const fBranch = mulHandler.getResult(fExpression, oneMinusReg);
+        
         // generate code for the main function
         let code = `let tOut = new Array(${outputSize}), fOut = new Array(${outputSize});\n`;
         code += sc.callSubroutine(tSubroutine, 'tOut');
         code += sc.callSubroutine(fSubroutine, 'fOut');
-        code += `tOut = ${mulHandler.getCode({ code: 'tOut', dimensions: resultDim }, regExpression)};\n`;
-        code += `fOut = ${mulHandler.getCode({ code: 'fOut', dimensions: resultDim }, oneMinusReg)};\n`;
+        code += `tOut = ${tBranch.code};\n`;
+        code += `fOut = ${fBranch.code};\n`;
         for (let i = 0; i < outputSize; i++) {
-            let tExpression: Expression = { code: `tOut[${i}]`, dimensions: [0, 0] };
-            let fExpression: Expression = { code: `fOut[${i}]`, dimensions: [0, 0] };
-            code += `out[${i}] = ${addHandler.getCode(tExpression, fExpression)};\n`;
+            code += `out[${i}] = f.add(tOut[${i}], fOut[${i}]);\n`;
         }
         
-        return { code, outputSize };
+        // compute out expression to get the degree of the output
+        const outExpression = addHandler.getResult(tBranch, fBranch);
+        const outputDegrees = outExpression.degree as bigint[];
+
+        return { code, outputSize, outputDegrees };
     }
 
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------
     vector(ctx: any, sc: StatementContext): Expression {
 
-        const dimensions: Dimensions = [ctx.elements.length, 0];
+        const dimensions: Dimensions = [ctx.elements.length, 0], degree: bigint[] = [];
         let code = `[`;
         for (let i = 0; i < ctx.elements.length; i++) {
             let element: Expression = this.visit(ctx.elements[i], sc);
             if (!isScalar(element.dimensions)) {
                 if (isVector(element.dimensions) && element.destructured) {
                     dimensions[0] += (element.dimensions[0] - 1);
+                    for (let cd of element.degree as bigint[]) {
+                        degree.push(cd);
+                    }
                 }
                 else {
                     throw new Error('Vector elements must be scalars');
                 }
             }
+            else {
+                degree.push(element.degree as bigint);
+            }
             code += `${element.code}, `;
         }
         code = code.slice(0, -2) + ']';
 
-        return { dimensions, code };
+        return { dimensions, code, degree };
     }
 
     vectorDestructuring(ctx: any, sc: StatementContext): Expression {
@@ -493,12 +527,14 @@ class AirVisitor extends BaseCstVisitor {
         return {
             code        : `...${element.code}`,
             dimensions  : element.dimensions,
+            degree      : element.degree,
             destructured: true
         };
     }
 
     matrix(ctx: any, sc: StatementContext): Expression {
 
+        const degree: bigint[][] = [];
         const rowCount = ctx.rows.length;
         let colCount = 0;
 
@@ -512,24 +548,26 @@ class AirVisitor extends BaseCstVisitor {
                 throw new Error('All matrix rows must have the same number of columns');
             }
             code += `${row.code}, `;
+            degree.push(row.degree as bigint[]);
         }
         code = code.slice(0, -2) + ']';
 
-        return { dimensions: [rowCount, colCount], code };
+        return { dimensions: [rowCount, colCount], code, degree };
     }
 
     matrixRow(ctx: any, sc: StatementContext): Expression {
 
-        const dimensions: Dimensions = [ctx.elements.length, 0];
+        const dimensions: Dimensions = [ctx.elements.length, 0], degree: bigint[] = [];
         let code = `[`;
         for (let i = 0; i < ctx.elements.length; i++) {
-            let element = this.visit(ctx.elements[i], sc);
+            let element: Expression = this.visit(ctx.elements[i], sc);
             if (!isScalar(element.dimensions)) throw new Error('Matrix elements must be scalars');
             code += `${element.code}, `;
+            degree.push(element.degree as bigint);
         }
         code = code.slice(0, -2) + ']';
 
-        return { dimensions, code };
+        return { dimensions, code, degree };
     }
 
     // EXPRESSIONS
@@ -593,23 +631,23 @@ class AirVisitor extends BaseCstVisitor {
         }
         else if (ctx.MutableRegister) {
             const register = ctx.MutableRegister[0].image;
-            return { code: sc.buildRegisterReference(register), dimensions: [0,0] };
+            return sc.buildRegisterReference(register);
         }
         else if (ctx.PresetRegister) {
             const register = ctx.PresetRegister[0].image;
-            return { code: sc.buildRegisterReference(register), dimensions: [0,0] };
+            return sc.buildRegisterReference(register);
         }
         else if (ctx.SecretRegister) {
             const register = ctx.SecretRegister[0].image;
-            return { code: sc.buildRegisterReference(register), dimensions: [0,0] };
+            return sc.buildRegisterReference(register);
         }
         else if (ctx.PublicRegister) {
             const register = ctx.PublicRegister[0].image;
-            return { code: sc.buildRegisterReference(register), dimensions: [0,0] };
+            return sc.buildRegisterReference(register);
         }
         else if (ctx.IntegerLiteral) {
             const value = ctx.IntegerLiteral[0].image;
-            return { code: `${value}n`, dimensions: [0,0] };
+            return { code: `${value}n`, dimensions: [0,0], degree: 0n };
         }
         else {
             throw new Error('Invalid expression syntax');
@@ -622,26 +660,26 @@ class AirVisitor extends BaseCstVisitor {
 
     conditionalExpression(ctx: any, sc: StatementContext): Expression {
         const registerName = ctx.register[0].image;
-        const registerRef = sc.buildRegisterReference(registerName);
         
         if (!sc.isBinaryRegister(registerName)) {
             throw new Error('Conditional expression can be based only on binary registers');
         }
         
         // create expressions for k and for (1 - k)
-        const regExpression: Expression = { code: registerRef, dimensions: [0, 0] };
-        const oneMinusReg = subHandler.getResult({ code: 'f.one', dimensions: [0, 0] }, regExpression);
+        const registerRef = sc.buildRegisterReference(registerName);
+        const oneMinusReg = subHandler.getResult({ code: 'f.one', dimensions: [0, 0], degree: 0n }, registerRef);
 
         // get expressions for true and false options
         const tExpression: Expression = this.visit(ctx.tExpression, sc);
-        const dimensions = tExpression.dimensions;
         const fExpression: Expression = this.visit(ctx.fExpression, sc);
+
+        const dimensions = tExpression.dimensions;
         if (!areSameDimension(dimensions, fExpression.dimensions)) {
-            throw new Error('Conditional expression options must have the same dimensions');
+            throw new Error('Conditional expression branches must evaluate to values of same dimensions');
         }
 
         // compute tExpression * k + fExpression * (1 - k)
-        const tBranch = mulHandler.getResult(tExpression, regExpression);
+        const tBranch = mulHandler.getResult(tExpression, registerRef);
         const fBranch = mulHandler.getResult(fExpression, oneMinusReg);
         return addHandler.getResult(tBranch, fBranch);
     }

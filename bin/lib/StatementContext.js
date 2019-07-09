@@ -20,13 +20,13 @@ class StatementContext {
     }
     // VARIABLES
     // --------------------------------------------------------------------------------------------
-    buildVariableAssignment(variable, dimensions) {
+    buildVariableAssignment(variable, dimensions, degree) {
         if (this.globalConstants.has(variable)) {
             throw new Error(`Value of global constant '${variable}' cannot be changed`);
         }
-        const sDimensions = this.localVariables.get(variable);
-        if (sDimensions) {
-            if (dimensions[0] !== sDimensions[0] || dimensions[1] !== sDimensions[1]) {
+        const variableInfo = this.localVariables.get(variable);
+        if (variableInfo) {
+            if (!utils_1.areSameDimension(dimensions, variableInfo.dimensions)) {
                 throw new Error(`Dimensions of variable '${variable}' cannot be changed`);
             }
             return {
@@ -36,7 +36,7 @@ class StatementContext {
         }
         else {
             utils_1.validateVariableName(variable, dimensions);
-            this.localVariables.set(variable, dimensions);
+            this.localVariables.set(variable, { dimensions, degree });
             return {
                 code: `let $${variable}`,
                 dimensions: dimensions
@@ -45,15 +45,18 @@ class StatementContext {
     }
     buildVariableReference(variable) {
         if (this.localVariables.has(variable)) {
+            const variableInfo = this.localVariables.get(variable);
             return {
                 code: `$${variable}`,
-                dimensions: this.localVariables.get(variable)
+                dimensions: variableInfo.dimensions,
+                degree: variableInfo.degree
             };
         }
         else if (this.globalConstants.has(variable)) {
             return {
                 code: `g.${variable}`,
-                dimensions: this.globalConstants.get(variable)
+                dimensions: this.globalConstants.get(variable),
+                degree: 0n
             };
         }
         else {
@@ -97,7 +100,7 @@ class StatementContext {
                 throw new Error(`${errorMessage}: register index must be smaller than ${publicRegisterCount}`);
             }
         }
-        return `${name}[${index}]`;
+        return { code: `${name}[${index}]`, dimensions: [0, 0], degree: 1n };
     }
     isBinaryRegister(register) {
         const name = register.slice(1, 2);
