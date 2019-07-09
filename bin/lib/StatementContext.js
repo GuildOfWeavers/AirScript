@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const utils_1 = require("./utils");
+const Expression_1 = require("./Expression");
 // CLASS DEFINITION
 // ================================================================================================
 class StatementContext {
@@ -20,44 +21,38 @@ class StatementContext {
     }
     // VARIABLES
     // --------------------------------------------------------------------------------------------
-    buildVariableAssignment(variable, dimensions, degree) {
+    buildVariableAssignment(variable, expression) {
         if (this.globalConstants.has(variable)) {
             throw new Error(`Value of global constant '${variable}' cannot be changed`);
         }
-        const variableInfo = this.localVariables.get(variable);
-        if (variableInfo) {
-            if (!utils_1.areSameDimension(dimensions, variableInfo.dimensions)) {
+        const sExpression = this.localVariables.get(variable);
+        if (sExpression) {
+            if (!sExpression.isSameDimensions(expression)) {
                 throw new Error(`Dimensions of variable '${variable}' cannot be changed`);
+            }
+            if (sExpression.degree !== expression.degree) {
+                this.localVariables.set(variable, expression);
             }
             return {
                 code: `$${variable}`,
-                dimensions: dimensions
+                dimensions: expression.dimensions
             };
         }
         else {
-            utils_1.validateVariableName(variable, dimensions);
-            this.localVariables.set(variable, { dimensions, degree });
+            utils_1.validateVariableName(variable, expression.dimensions);
+            this.localVariables.set(variable, expression);
             return {
                 code: `let $${variable}`,
-                dimensions: dimensions
+                dimensions: expression.dimensions
             };
         }
     }
     buildVariableReference(variable) {
         if (this.localVariables.has(variable)) {
-            const variableInfo = this.localVariables.get(variable);
-            return {
-                code: `$${variable}`,
-                dimensions: variableInfo.dimensions,
-                degree: variableInfo.degree
-            };
+            return this.localVariables.get(variable);
         }
         else if (this.globalConstants.has(variable)) {
-            return {
-                code: `g.${variable}`,
-                dimensions: this.globalConstants.get(variable),
-                degree: 0n
-            };
+            return this.globalConstants.get(variable);
         }
         else {
             throw new Error(`Variable '${variable}' is not defined`);
@@ -100,7 +95,7 @@ class StatementContext {
                 throw new Error(`${errorMessage}: register index must be smaller than ${publicRegisterCount}`);
             }
         }
-        return { code: `${name}[${index}]`, dimensions: [0, 0], degree: 1n };
+        return Expression_1.Expression.register(name, index);
     }
     isBinaryRegister(register) {
         const name = register.slice(1, 2);

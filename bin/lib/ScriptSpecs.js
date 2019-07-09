@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
+const Expression_1 = require("./Expression");
 // CLASS DEFINITION
 // ================================================================================================
 class ScriptSpecs {
@@ -8,6 +9,8 @@ class ScriptSpecs {
     // --------------------------------------------------------------------------------------------
     constructor(limits) {
         this.limits = limits;
+        this.globalConstants = new Map();
+        this.constantBindings = {};
     }
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
@@ -35,8 +38,15 @@ class ScriptSpecs {
     setMaxConstraintDegree(value) {
         this.maxConstraintDegree = validateConstraintDegree(value, this.limits);
     }
-    setGlobalConstants(value) {
-        this.globalConstants = value;
+    setGlobalConstants(declarations) {
+        for (let constant of declarations) {
+            if (this.globalConstants.has(constant.name)) {
+                throw new Error(`Global constant '${constant.name}' is defined more than once`);
+            }
+            let constExpression = Expression_1.Expression.constant(constant.name, constant.dimensions, constant.value);
+            this.globalConstants.set(constant.name, constExpression);
+            this.constantBindings[constant.name] = constant.value;
+        }
     }
 }
 exports.ScriptSpecs = ScriptSpecs;

@@ -8,8 +8,8 @@ import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { StatementContext } from './StatementContext';
-import { getOperationHandler, addition as addHandler, subtraction as subHandler, multiplication as mulHandler } from './operations';
-import { Dimensions, isScalar, isVector, isMatrix, validateVariableName, areSameDimension } from './utils';
+import { Expression } from './Expression';
+import { Dimensions, isScalar, isVector, isMatrix, validateVariableName } from './utils';
 
 // INTERFACES
 // ================================================================================================
@@ -23,15 +23,6 @@ export interface Statement {
     variable        : string;
     expression      : Expression;
 }
-
-export interface Expression {
-    code            : string;
-    dimensions      : Dimensions;
-    degree          : ExpressionDegree;
-    destructured?   : boolean;
-}
-
-export type ExpressionDegree = bigint | bigint[] | bigint[][];
 
 export interface ConstantDeclaration {
     name            : string;
@@ -80,20 +71,6 @@ class AirVisitor extends BaseCstVisitor {
         // set up the field
         const field: FiniteField = this.visit(ctx.fieldDeclaration);
 
-        // build global constants
-        const globalConstants: any = {};
-        const globalConstantMap = new Map<string, Dimensions>();
-        if (ctx.globalConstants) {
-            for (let i = 0; i < ctx.globalConstants.length; i++) {
-                let constant: ConstantDeclaration = this.visit(ctx.globalConstants[i]);
-                if (globalConstantMap.has(constant.name)) {
-                    throw new Error(`Global constant '${constant.name}' is defined more than once`);
-                }
-                globalConstants[constant.name] = constant.value;
-                globalConstantMap.set(constant.name, constant.dimensions);
-            }
-        }
-
         // build script specs
         const specs = new ScriptSpecs(limits);
         specs.setField(field);
@@ -102,7 +79,9 @@ class AirVisitor extends BaseCstVisitor {
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
         specs.setMaxConstraintDegree(this.visit(ctx.maxConstraintDegree));
-        specs.setGlobalConstants(globalConstantMap);
+        if (ctx.globalConstants) {
+            specs.setGlobalConstants(ctx.globalConstants.map((element: any) => this.visit(element)));
+        }
 
         // build readonly registers
         let readonlyRegisters: ReadonlyRegisterGroup;
@@ -137,8 +116,8 @@ class AirVisitor extends BaseCstVisitor {
             publicInputs        : readonlyRegisters.publicRegisters,
             presetRegisters     : readonlyRegisters.presetRegisters,
             constraints         : constraintSpecs,
-            transitionFunction  : tFunction.buildFunction(field, globalConstants),
-            constraintEvaluator : tConstraints.buildEvaluator(field, globalConstants)
+            transitionFunction  : tFunction.buildFunction(field, specs.constantBindings),
+            constraintEvaluator : tConstraints.buildEvaluator(field, specs.constantBindings)
         };
     }
 
@@ -376,7 +355,7 @@ class AirVisitor extends BaseCstVisitor {
             for (let i = 0; i < ctx.statements.length; i++) {
                 let statement: Statement = this.visit(ctx.statements[i], sc);
                 let expression = statement.expression;
-                let variable = sc.buildVariableAssignment(statement.variable, expression.dimensions, expression.degree);
+                let variable = sc.buildVariableAssignment(statement.variable, expression);
                 code += `${variable.code} = ${expression.code};\n`;
             }
         }
@@ -429,7 +408,7 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
 
-        return { code, dimensions, degree };
+        return new Expression(code, dimensions, degree);
     }
 
     // WHEN STATEMENT
@@ -444,7 +423,7 @@ class AirVisitor extends BaseCstVisitor {
 
         // create expressions for k and for (1 - k)
         const registerRef = sc.buildRegisterReference(registerName);
-        const oneMinusReg = subHandler.getResult({ code: 'f.one', dimensions: [0, 0], degree: 0n }, registerRef);
+        const oneMinusReg = Expression.one.sub(registerRef);
 
         // build subroutines for true and false conditions
         const tBlock: StatementBlock = this.visit(ctx.tBlock, sc);
@@ -462,11 +441,11 @@ class AirVisitor extends BaseCstVisitor {
         const fSubroutine = sc.addSubroutine(fBlock.code);
 
         // compute expressions for true and false branches
-        const tExpression: Expression = { code: `tOut`, dimensions: resultDim, degree: tBlock.outputDegrees };
-        const fExpression: Expression = { code: `fOut`, dimensions: resultDim, degree: fBlock.outputDegrees };
+        const tExpression = new Expression('tOut', resultDim, tBlock.outputDegrees);
+        const fExpression = new Expression('fOut', resultDim, fBlock.outputDegrees);
 
-        const tBranch = mulHandler.getResult(tExpression, registerRef);
-        const fBranch = mulHandler.getResult(fExpression, oneMinusReg);
+        const tBranch = tExpression.mul(registerRef);
+        const fBranch = fExpression.mul(oneMinusReg);
         
         // generate code for the main function
         let code = `let tOut = new Array(${outputSize}), fOut = new Array(${outputSize});\n`;
@@ -479,7 +458,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         
         // compute out expression to get the degree of the output
-        const outExpression = addHandler.getResult(tBranch, fBranch);
+        const outExpression = tBranch.add(fBranch);
         const outputDegrees = outExpression.degree as bigint[];
 
         return { code, outputSize, outputDegrees };
@@ -511,7 +490,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         code = code.slice(0, -2) + ']';
 
-        return { dimensions, code, degree };
+        return new Expression(code, dimensions, degree);
     }
 
     vectorDestructuring(ctx: any, sc: StatementContext): Expression {
@@ -524,12 +503,7 @@ class AirVisitor extends BaseCstVisitor {
             throw new Error(`Cannot expand matrix variable '${variableName}'`);
         }
 
-        return {
-            code        : `...${element.code}`,
-            dimensions  : element.dimensions,
-            degree      : element.degree,
-            destructured: true
-        };
+        return new Expression(`...${element.code}`, element.dimensions, element.degree, true);
     }
 
     matrix(ctx: any, sc: StatementContext): Expression {
@@ -552,7 +526,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         code = code.slice(0, -2) + ']';
 
-        return { dimensions: [rowCount, colCount], code, degree };
+        return new Expression(code, [rowCount, colCount], degree);
     }
 
     matrixRow(ctx: any, sc: StatementContext): Expression {
@@ -567,7 +541,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         code = code.slice(0, -2) + ']';
 
-        return { dimensions, code, degree };
+        return new Expression(code, dimensions, degree);
     }
 
     // EXPRESSIONS
@@ -582,8 +556,16 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
                 let rhs: Expression = this.visit(rhsOperand, sc);
-                let opHandler = getOperationHandler(ctx.AddOp[i]);
-                result = opHandler.getResult(result, rhs)
+                let opToken = ctx.AddOp[i];
+                if (tokenMatcher(opToken, Plus)) {
+                    result = result.add(rhs);
+                }
+                else if (tokenMatcher(opToken, Minus)) {
+                    result = result.sub(rhs);
+                }
+                else {
+                    throw new Error(`Invalid operator '${opToken.image}'`);
+                }
             });
         }
 
@@ -596,8 +578,19 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
                 let rhs: Expression = this.visit(rhsOperand, sc);
-                let opHandler = getOperationHandler(ctx.MulOp[i]);
-                result = opHandler.getResult(result, rhs)
+                let opToken = ctx.MulOp[i];
+                if (tokenMatcher(opToken, Star)) {
+                    result = result.mul(rhs);
+                }
+                else if (tokenMatcher(opToken, Slash)) {
+                    result = result.div(rhs);
+                }
+                else if (tokenMatcher(opToken, Pound)) {
+                    result = result.prod(rhs);
+                }
+                else {
+                    throw new Error(`Invalid operator '${opToken.image}'`);
+                }
             });
         }
 
@@ -610,8 +603,7 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
                 let rhs: Expression = this.visit(rhsOperand, sc);
-                let opHandler = getOperationHandler(ctx.ExpOp[i]);
-                result = opHandler.getResult(result, rhs)
+                result = result.exp(rhs);
             });
         }
 
@@ -647,7 +639,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         else if (ctx.IntegerLiteral) {
             const value = ctx.IntegerLiteral[0].image;
-            return { code: `${value}n`, dimensions: [0,0], degree: 0n };
+            return Expression.literal(value);
         }
         else {
             throw new Error('Invalid expression syntax');
@@ -667,21 +659,18 @@ class AirVisitor extends BaseCstVisitor {
         
         // create expressions for k and for (1 - k)
         const registerRef = sc.buildRegisterReference(registerName);
-        const oneMinusReg = subHandler.getResult({ code: 'f.one', dimensions: [0, 0], degree: 0n }, registerRef);
+        const oneMinusReg = Expression.one.sub(registerRef);
 
         // get expressions for true and false options
         const tExpression: Expression = this.visit(ctx.tExpression, sc);
         const fExpression: Expression = this.visit(ctx.fExpression, sc);
 
-        const dimensions = tExpression.dimensions;
-        if (!areSameDimension(dimensions, fExpression.dimensions)) {
+        if (!tExpression.isSameDimensions(fExpression)) {
             throw new Error('Conditional expression branches must evaluate to values of same dimensions');
         }
 
         // compute tExpression * k + fExpression * (1 - k)
-        const tBranch = mulHandler.getResult(tExpression, registerRef);
-        const fBranch = mulHandler.getResult(fExpression, oneMinusReg);
-        return addHandler.getResult(tBranch, fBranch);
+        return tExpression.mul(registerRef).add(fExpression.mul(oneMinusReg));
     }
 
     // LITERAL EXPRESSIONS

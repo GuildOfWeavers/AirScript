@@ -3,8 +3,9 @@
 import { StarkLimits } from '@guildofweavers/air-script';
 import { FiniteField } from '@guildofweavers/galois';
 import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './AirObject';
-import { ReadonlyRegisterGroup } from './visitor';
+import { ReadonlyRegisterGroup, ConstantDeclaration } from './visitor';
 import { Dimensions, isPowerOf2 } from './utils';
+import { Expression } from './Expression';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -21,12 +22,15 @@ export class ScriptSpecs {
     publicRegisters!        : InputRegisterSpecs[];
     constraintCount!        : number;
     maxConstraintDegree!    : number;
-    globalConstants!        : Map<string, Dimensions>;
+    globalConstants!        : Map<string, Expression>;
+    constantBindings        : any;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(limits: StarkLimits) {
         this.limits = limits;
+        this.globalConstants = new Map();
+        this.constantBindings = {};
     }
 
     // PROPERTY SETTERS
@@ -62,8 +66,15 @@ export class ScriptSpecs {
         this.maxConstraintDegree = validateConstraintDegree(value, this.limits);
     }
 
-    setGlobalConstants(value: Map<string, Dimensions>) {
-        this.globalConstants = value;
+    setGlobalConstants(declarations: ConstantDeclaration[]) {
+        for (let constant of declarations) {
+            if (this.globalConstants.has(constant.name)) {
+                throw new Error(`Global constant '${constant.name}' is defined more than once`);
+            }
+            let constExpression = Expression.constant(constant.name, constant.dimensions, constant.value);
+            this.globalConstants.set(constant.name, constExpression);
+            this.constantBindings[constant.name] = constant.value;
+        }
     }
 }
 

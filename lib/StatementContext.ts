@@ -1,23 +1,16 @@
 // IMPORTS
 // ================================================================================================
-import { Dimensions, validateVariableName, areSameDimension } from './utils';
+import { validateVariableName } from './utils';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './AirObject';
-import { Expression, ExpressionDegree } from './visitor';
-
-// INTERFACES
-// ================================================================================================
-interface VariableInfo {
-    dimensions  : Dimensions;
-    degree      : ExpressionDegree;
-}
+import { Expression } from './Expression';
 
 // CLASS DEFINITION
 // ================================================================================================
 export class StatementContext {
 
-    readonly globalConstants        : Map<string, Dimensions>;
-    readonly localVariables         : Map<string, VariableInfo>;
+    readonly globalConstants        : Map<string, Expression>;
+    readonly localVariables         : Map<string, Expression>;
     readonly subroutines            : Map<string, string>;
     readonly mutableRegisterCount   : number;
     readonly presetRegisters        : ReadonlyRegisterSpecs[];
@@ -40,48 +33,43 @@ export class StatementContext {
 
     // VARIABLES
     // --------------------------------------------------------------------------------------------
-    buildVariableAssignment(variable: string, dimensions: Dimensions, degree: ExpressionDegree) {
+    buildVariableAssignment(variable: string, expression: Expression) {
         if (this.globalConstants.has(variable)) {
             throw new Error(`Value of global constant '${variable}' cannot be changed`);
         }
         
-        const variableInfo = this.localVariables.get(variable);
-        if (variableInfo) {
-            if (!areSameDimension(dimensions, variableInfo.dimensions)) {
+        const sExpression = this.localVariables.get(variable);
+        if (sExpression) {
+            if (!sExpression.isSameDimensions(expression)) {
                 throw new Error(`Dimensions of variable '${variable}' cannot be changed`);
+            }
+
+            if (sExpression.degree !== expression.degree) {
+                this.localVariables.set(variable, expression);
             }
 
             return {
                 code        : `$${variable}`,
-                dimensions  : dimensions
+                dimensions  : expression.dimensions
             };
         }
         else {
-            validateVariableName(variable, dimensions);
-            this.localVariables.set(variable, { dimensions, degree });
+            validateVariableName(variable, expression.dimensions);
+            this.localVariables.set(variable, expression);
 
             return {
                 code        : `let $${variable}`,
-                dimensions  : dimensions
+                dimensions  : expression.dimensions
             };
         }
     }
 
     buildVariableReference(variable: string): Expression {
         if (this.localVariables.has(variable)) {
-            const variableInfo = this.localVariables.get(variable)!;
-            return {
-                code        : `$${variable}`,
-                dimensions  : variableInfo.dimensions,
-                degree      : variableInfo.degree
-            };
+            return this.localVariables.get(variable)!;
         }
         else if (this.globalConstants.has(variable)) {
-            return {
-                code        : `g.${variable}`,
-                dimensions  : this.globalConstants.get(variable)!,
-                degree      : 0n
-            };
+            return this.globalConstants.get(variable)!;
         }
         else {
             throw new Error(`Variable '${variable}' is not defined`);
@@ -128,7 +116,7 @@ export class StatementContext {
             }
         }
 
-        return { code: `${name}[${index}]`, dimensions: [0, 0], degree: 1n };
+        return Expression.register(name, index);
     }
 
     isBinaryRegister(register: string): boolean {
