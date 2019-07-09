@@ -430,9 +430,7 @@ class AirVisitor extends BaseCstVisitor {
             ctx.rhs.forEach((rhsOperand, i) => {
                 let rhs = this.visit(rhsOperand, sc);
                 let opHandler = operations_1.getOperationHandler(ctx.AddOp[i]);
-                let dimensions = opHandler.getDimensions(result.dimensions, rhs.dimensions);
-                let code = opHandler.getCode(result, rhs);
-                result = { code, dimensions };
+                result = opHandler.getResult(result, rhs);
             });
         }
         return result;
@@ -443,9 +441,7 @@ class AirVisitor extends BaseCstVisitor {
             ctx.rhs.forEach((rhsOperand, i) => {
                 let rhs = this.visit(rhsOperand, sc);
                 let opHandler = operations_1.getOperationHandler(ctx.MulOp[i]);
-                let dimensions = opHandler.getDimensions(result.dimensions, rhs.dimensions);
-                let code = opHandler.getCode(result, rhs);
-                result = { code, dimensions };
+                result = opHandler.getResult(result, rhs);
             });
         }
         return result;
@@ -456,9 +452,7 @@ class AirVisitor extends BaseCstVisitor {
             ctx.rhs.forEach((rhsOperand, i) => {
                 let rhs = this.visit(rhsOperand, sc);
                 let opHandler = operations_1.getOperationHandler(ctx.ExpOp[i]);
-                let dimensions = opHandler.getDimensions(result.dimensions, rhs.dimensions);
-                let code = opHandler.getCode(result, rhs);
-                result = { code, dimensions };
+                result = opHandler.getResult(result, rhs);
             });
         }
         return result;
@@ -508,13 +502,8 @@ class AirVisitor extends BaseCstVisitor {
             throw new Error('Conditional expression can be based only on binary registers');
         }
         // create expressions for k and for (1 - k)
-        const scalarDim = [0, 0];
-        const regExpression = { code: registerRef, dimensions: scalarDim };
-        const oneExpression = { code: 'f.one', dimensions: scalarDim };
-        const oneMinusReg = {
-            code: operations_1.subtraction.getCode(oneExpression, regExpression),
-            dimensions: scalarDim
-        };
+        const regExpression = { code: registerRef, dimensions: [0, 0] };
+        const oneMinusReg = operations_1.subtraction.getResult({ code: 'f.one', dimensions: [0, 0] }, regExpression);
         // get expressions for true and false options
         const tExpression = this.visit(ctx.tExpression, sc);
         const dimensions = tExpression.dimensions;
@@ -523,10 +512,9 @@ class AirVisitor extends BaseCstVisitor {
             throw new Error('Conditional expression options must have the same dimensions');
         }
         // compute tExpression * k + fExpression * (1 - k)
-        const tCode = operations_1.multiplication.getCode(tExpression, regExpression);
-        const fCode = operations_1.multiplication.getCode(fExpression, oneMinusReg);
-        const code = operations_1.addition.getCode({ code: tCode, dimensions }, { code: fCode, dimensions });
-        return { dimensions, code };
+        const tBranch = operations_1.multiplication.getResult(tExpression, regExpression);
+        const fBranch = operations_1.multiplication.getResult(fExpression, oneMinusReg);
+        return operations_1.addition.getResult(tBranch, fBranch);
     }
     // LITERAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------

@@ -26,14 +26,6 @@ exports.getOperationHandler = getOperationHandler;
 // ================================================================================================
 exports.addition = {
     name: 'add',
-    getDimensions(d1, d2) {
-        if (utils_1.isScalar(d2))
-            return d1;
-        else if (d1[0] === d2[0] && d1[1] === d2[1])
-            return d1;
-        else
-            throw new Error(`Cannot add ${d1[0]}x${d1[1]} value to ${d2[0]}x${d2[1]} value`);
-    },
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
@@ -45,6 +37,10 @@ exports.addition = {
     },
     getResult(e1, e2) {
         const d1 = e1.dimensions;
+        const d2 = e2.dimensions;
+        if (!utils_1.isScalar(d2) && !utils_1.areSameDimension(d1, d2)) {
+            throw new Error(`Cannot add ${d1[0]}x${d1[1]} value to ${d2[0]}x${d2[1]} value`);
+        }
         let code = '';
         if (utils_1.isScalar(d1)) {
             code = `f.add(${e1.code}, ${e2.code})`;
@@ -62,14 +58,6 @@ exports.addition = {
 // ================================================================================================
 exports.subtraction = {
     name: 'sub',
-    getDimensions(d1, d2) {
-        if (utils_1.isScalar(d2))
-            return d1;
-        else if (d1[0] === d2[0] && d1[1] === d2[1])
-            return d1;
-        else
-            throw new Error(`Cannot subtract ${d1[0]}x${d1[1]} value from ${d2[0]}x${d2[1]} value`);
-    },
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
@@ -81,6 +69,10 @@ exports.subtraction = {
     },
     getResult(e1, e2) {
         const d1 = e1.dimensions;
+        const d2 = e2.dimensions;
+        if (!utils_1.isScalar(d2) && !utils_1.areSameDimension(d1, d2)) {
+            throw new Error(`Cannot subtract ${d1[0]}x${d1[1]} value from ${d2[0]}x${d2[1]} value`);
+        }
         let code = '';
         if (utils_1.isScalar(d1)) {
             code = `f.sub(${e1.code}, ${e2.code})`;
@@ -98,14 +90,6 @@ exports.subtraction = {
 // ================================================================================================
 exports.multiplication = {
     name: 'mul',
-    getDimensions(d1, d2) {
-        if (utils_1.isScalar(d2))
-            return d1;
-        else if (d1[0] === d2[0] && d1[1] === d2[1])
-            return d1;
-        else
-            throw new Error(`Cannot multiply ${d1[0]}x${d1[1]} value by ${d2[0]}x${d2[1]} value`);
-    },
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
@@ -117,6 +101,10 @@ exports.multiplication = {
     },
     getResult(e1, e2) {
         const d1 = e1.dimensions;
+        const d2 = e2.dimensions;
+        if (!utils_1.isScalar(d2) && !utils_1.areSameDimension(d1, d2)) {
+            throw new Error(`Cannot multiply ${d1[0]}x${d1[1]} value by ${d2[0]}x${d2[1]} value`);
+        }
         let code = '';
         if (utils_1.isScalar(d1)) {
             code = `f.mul(${e1.code}, ${e2.code})`;
@@ -134,14 +122,6 @@ exports.multiplication = {
 // ================================================================================================
 const division = {
     name: 'div',
-    getDimensions(d1, d2) {
-        if (utils_1.isScalar(d2))
-            return d1;
-        else if (d1[0] === d2[0] && d1[1] === d2[1])
-            return d1;
-        else
-            throw new Error(`Cannot divide ${d1[0]}x${d1[1]} value by ${d2[0]}x${d2[1]} value`);
-    },
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
@@ -150,18 +130,30 @@ const division = {
             return `f.divVectorElements(${e1.code}, ${e2.code})`;
         else
             return `f.divMatrixElements(${e1.code}, ${e2.code})`;
+    },
+    getResult(e1, e2) {
+        const d1 = e1.dimensions;
+        const d2 = e2.dimensions;
+        if (!utils_1.isScalar(d2) && !utils_1.areSameDimension(d1, d2)) {
+            throw new Error(`Cannot divide ${d1[0]}x${d1[1]} value by ${d2[0]}x${d2[1]} value`);
+        }
+        let code = '';
+        if (utils_1.isScalar(d1)) {
+            code = `f.div(${e1.code}, ${e2.code})`;
+        }
+        else if (utils_1.isVector(d1)) {
+            code = `f.divVectorElements(${e1.code}, ${e2.code})`;
+        }
+        else {
+            code = `f.divMatrixElements(${e1.code}, ${e2.code})`;
+        }
+        return { code, dimensions: d1 };
     }
 };
 // EXPONENTIATION
 // ================================================================================================
 const exponentiation = {
     name: 'exp',
-    getDimensions(d1, d2) {
-        if (utils_1.isScalar(d2))
-            return d1;
-        else
-            throw new Error(`Cannot raise to non-scalar power`);
-    },
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         if (utils_1.isScalar(d1))
@@ -170,20 +162,30 @@ const exponentiation = {
             return `f.expVectorElements(${e1.code}, ${e2.code})`;
         else
             return `f.expMatrixElements(${e1.code}, ${e2.code})`;
+    },
+    getResult(e1, e2) {
+        const d1 = e1.dimensions;
+        const d2 = e2.dimensions;
+        if (!utils_1.isScalar(d2)) {
+            throw new Error(`Cannot raise to non-scalar power`);
+        }
+        let code = '';
+        if (utils_1.isScalar(d1)) {
+            code = `f.exp(${e1.code}, ${e2.code})`;
+        }
+        else if (utils_1.isVector(d1)) {
+            code = `f.expVectorElements(${e1.code}, ${e2.code})`;
+        }
+        else {
+            code = `f.expMatrixElements(${e1.code}, ${e2.code})`;
+        }
+        return { code, dimensions: d1 };
     }
 };
 // MATRIX AND VECTOR PRODUCT
 // ================================================================================================
 const product = {
     name: 'prod',
-    getDimensions(d1, d2) {
-        if (utils_1.isVector(d1) && utils_1.isVector(d2) && d1[0] === d2[0])
-            return [0, 0];
-        else if (utils_1.isMatrix(d1) && d1[1] === d2[0])
-            return [d1[0], d2[1]];
-        else
-            throw new Error(`Cannot compute a product of ${d1[0]}x${d1[1]} and ${d2[0]}x${d2[1]} values`);
-    },
     getCode(e1, e2) {
         const d1 = e1.dimensions;
         const d2 = e2.dimensions;
@@ -193,6 +195,33 @@ const product = {
             return `f.mulMatrixByVector(${e1.code}, ${e2.code})`;
         else
             return `f.mulMatrixes(${e1.code}, ${e2.code})`;
+    },
+    getResult(e1, e2) {
+        const d1 = e1.dimensions;
+        const d2 = e2.dimensions;
+        let code = '', dimensions;
+        if (utils_1.isVector(d1) && utils_1.isVector(d2)) {
+            if (d1[0] !== d2[0]) {
+                throw new Error(`Cannot compute a product of ${d1[0]}x${d1[1]} and ${d2[0]}x${d2[1]} values`);
+            }
+            code = `f.combineVectors(${e1.code}, ${e2.code})`;
+            dimensions = [0, 0];
+        }
+        else if (utils_1.isMatrix(d1) && utils_1.isVector(d2)) {
+            if (d1[1] !== d2[0]) {
+                throw new Error(`Cannot compute a product of ${d1[0]}x${d1[1]} and ${d2[0]}x${d2[1]} values`);
+            }
+            code = `f.mulMatrixByVector(${e1.code}, ${e2.code})`;
+            dimensions = [d1[0], 0];
+        }
+        else {
+            if (d1[1] !== d2[0]) {
+                throw new Error(`Cannot compute a product of ${d1[0]}x${d1[1]} and ${d2[0]}x${d2[1]} values`);
+            }
+            code = `f.mulMatrixes(${e1.code}, ${e2.code})`;
+            dimensions = [d1[0], d2[1]];
+        }
+        return { code, dimensions };
     }
 };
 //# sourceMappingURL=operations.js.map

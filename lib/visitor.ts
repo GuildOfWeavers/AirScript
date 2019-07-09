@@ -545,9 +545,7 @@ class AirVisitor extends BaseCstVisitor {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
                 let rhs: Expression = this.visit(rhsOperand, sc);
                 let opHandler = getOperationHandler(ctx.AddOp[i]);
-                let dimensions = opHandler.getDimensions(result.dimensions, rhs.dimensions);
-                let code = opHandler.getCode(result, rhs);
-                result = { code, dimensions };
+                result = opHandler.getResult(result, rhs)
             });
         }
 
@@ -561,9 +559,7 @@ class AirVisitor extends BaseCstVisitor {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
                 let rhs: Expression = this.visit(rhsOperand, sc);
                 let opHandler = getOperationHandler(ctx.MulOp[i]);
-                let dimensions = opHandler.getDimensions(result.dimensions, rhs.dimensions);
-                let code = opHandler.getCode(result, rhs);
-                result = { code, dimensions };
+                result = opHandler.getResult(result, rhs)
             });
         }
 
@@ -577,9 +573,7 @@ class AirVisitor extends BaseCstVisitor {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
                 let rhs: Expression = this.visit(rhsOperand, sc);
                 let opHandler = getOperationHandler(ctx.ExpOp[i]);
-                let dimensions = opHandler.getDimensions(result.dimensions, rhs.dimensions);
-                let code = opHandler.getCode(result, rhs);
-                result = { code, dimensions };
+                result = opHandler.getResult(result, rhs)
             });
         }
 
@@ -635,13 +629,8 @@ class AirVisitor extends BaseCstVisitor {
         }
         
         // create expressions for k and for (1 - k)
-        const scalarDim: Dimensions = [0, 0];
-        const regExpression: Expression = { code: registerRef, dimensions: scalarDim };
-        const oneExpression: Expression = { code: 'f.one', dimensions: scalarDim };
-        const oneMinusReg: Expression = {
-            code        : subHandler.getCode(oneExpression, regExpression),
-            dimensions  : scalarDim
-        };
+        const regExpression: Expression = { code: registerRef, dimensions: [0, 0] };
+        const oneMinusReg = subHandler.getResult({ code: 'f.one', dimensions: [0, 0] }, regExpression);
 
         // get expressions for true and false options
         const tExpression: Expression = this.visit(ctx.tExpression, sc);
@@ -652,11 +641,9 @@ class AirVisitor extends BaseCstVisitor {
         }
 
         // compute tExpression * k + fExpression * (1 - k)
-        const tCode = mulHandler.getCode(tExpression, regExpression);
-        const fCode = mulHandler.getCode(fExpression, oneMinusReg);
-        const code = addHandler.getCode({ code: tCode , dimensions }, { code: fCode, dimensions });
-
-        return { dimensions, code };
+        const tBranch = mulHandler.getResult(tExpression, regExpression);
+        const fBranch = mulHandler.getResult(fExpression, oneMinusReg);
+        return addHandler.getResult(tBranch, fBranch);
     }
 
     // LITERAL EXPRESSIONS
