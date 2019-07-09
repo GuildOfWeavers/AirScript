@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
-const Expression_1 = require("./Expression");
+const StaticExpression_1 = require("./expressions/StaticExpression");
 // CLASS DEFINITION
 // ================================================================================================
 class ScriptSpecs {
@@ -9,7 +9,7 @@ class ScriptSpecs {
     // --------------------------------------------------------------------------------------------
     constructor(limits) {
         this.limits = limits;
-        this.globalConstants = new Map();
+        this.staticConstants = new Map();
         this.constantBindings = {};
     }
     // PROPERTY SETTERS
@@ -35,18 +35,29 @@ class ScriptSpecs {
     setConstraintCount(value) {
         this.constraintCount = validateConstraintCount(value, this.limits);
     }
-    setMaxConstraintDegree(value) {
-        this.maxConstraintDegree = validateConstraintDegree(value, this.limits);
-    }
-    setGlobalConstants(declarations) {
+    setStaticConstants(declarations) {
         for (let constant of declarations) {
-            if (this.globalConstants.has(constant.name)) {
-                throw new Error(`Global constant '${constant.name}' is defined more than once`);
+            if (this.staticConstants.has(constant.name)) {
+                throw new Error(`Static constant '${constant.name}' is defined more than once`);
             }
-            let constExpression = Expression_1.Expression.constant(constant.name, constant.dimensions, constant.value);
-            this.globalConstants.set(constant.name, constExpression);
+            let constExpression = new StaticExpression_1.StaticExpression(constant.value, constant.name);
+            this.staticConstants.set(constant.name, constExpression);
             this.constantBindings[constant.name] = constant.value;
         }
+    }
+    // VALIDATORS
+    // --------------------------------------------------------------------------------------------
+    validateConstraintDegree(constraintDegree) {
+        if (constraintDegree > this.limits.maxConstraintDegree) {
+            throw new Error(`Degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
+        }
+        else if (constraintDegree < 0n) {
+            throw new Error('Degree of transition constraints must be positive');
+        }
+        else if (constraintDegree === 0n) {
+            throw new Error('Degree of transition constraints cannot be 0');
+        }
+        return Number.parseInt(constraintDegree);
     }
 }
 exports.ScriptSpecs = ScriptSpecs;
@@ -119,20 +130,5 @@ function validateConstraintCount(constraintCount, limits) {
         constraintCount = Number.parseInt(constraintCount);
     }
     return constraintCount;
-}
-function validateConstraintDegree(constraintDegree, limits) {
-    if (constraintDegree > limits.maxConstraintDegree) {
-        throw new Error(`Degree of transition constraints cannot exceed ${limits.maxConstraintDegree}`);
-    }
-    else if (constraintDegree < 0) {
-        throw new Error('Degree of transition constraints must be positive');
-    }
-    else if (constraintDegree == 0) {
-        throw new Error('Degree of transition constraints cannot be 0');
-    }
-    else if (typeof constraintDegree === 'bigint') {
-        constraintDegree = Number.parseInt(constraintDegree);
-    }
-    return constraintDegree;
 }
 //# sourceMappingURL=ScriptSpecs.js.map

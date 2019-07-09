@@ -6,7 +6,8 @@ const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
 const ScriptSpecs_1 = require("./ScriptSpecs");
 const StatementContext_1 = require("./StatementContext");
-const Expression_1 = require("./Expression");
+const Expression_1 = require("./expressions/Expression");
+const StaticExpression_1 = require("./expressions/StaticExpression");
 const utils_1 = require("./utils");
 // MODULE VARIABLES
 // ================================================================================================
@@ -27,9 +28,8 @@ class AirVisitor extends BaseCstVisitor {
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
-        specs.setMaxConstraintDegree(this.visit(ctx.maxConstraintDegree));
-        if (ctx.globalConstants) {
-            specs.setGlobalConstants(ctx.globalConstants.map((element) => this.visit(element)));
+        if (ctx.staticConstants) {
+            specs.setStaticConstants(ctx.staticConstants.map((element) => this.visit(element)));
         }
         // build readonly registers
         let readonlyRegisters;
@@ -71,7 +71,7 @@ class AirVisitor extends BaseCstVisitor {
         const modulus = this.visit(ctx.modulus);
         return new galois_1.PrimeField(modulus);
     }
-    // GLOBAL CONSTANTS
+    // STATIC CONSTANTS
     // --------------------------------------------------------------------------------------------
     constantDeclaration(ctx) {
         const name = ctx.constantName[0].image;
@@ -90,7 +90,7 @@ class AirVisitor extends BaseCstVisitor {
             dimensions = [value.length, value[0].length];
         }
         else {
-            throw new Error(`Failed to parse the value of global constant '${name}'`);
+            throw new Error(`Failed to parse the value of static constant '${name}'`);
         }
         utils_1.validateVariableName(name, dimensions);
         return { name, value, dimensions };
@@ -245,21 +245,18 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
         // generate code that can build a constraint evaluator
-        let builderCode = '';
+        let evaluatorBuilderCode = '';
         for (let subCode of sc.subroutines.values()) {
-            builderCode += `${subCode}\n`;
+            evaluatorBuilderCode += `${subCode}\n`;
         }
-        builderCode += `return function (r, n, k, s, p, out) {\n${statements.code}}`;
+        evaluatorBuilderCode += `return function (r, n, k, s, p, out) {\n${statements.code}}`;
         // convert bigint degrees to numbers
         const degrees = [];
         for (let degree of statements.outputDegrees) {
-            if (degree >= Number.MAX_SAFE_INTEGER) {
-                throw new Error(''); // TODO: validate against script limits
-            }
-            degrees.push(Number.parseInt(degree));
+            degrees.push(specs.validateConstraintDegree(degree));
         }
         return {
-            buildEvaluator: new Function('f', 'g', builderCode),
+            buildEvaluator: new Function('f', 'g', evaluatorBuilderCode),
             degrees: degrees
         };
     }
@@ -516,7 +513,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         else if (ctx.IntegerLiteral) {
             const value = ctx.IntegerLiteral[0].image;
-            return Expression_1.Expression.literal(value);
+            return new StaticExpression_1.StaticExpression(value);
         }
         else {
             throw new Error('Invalid expression syntax');

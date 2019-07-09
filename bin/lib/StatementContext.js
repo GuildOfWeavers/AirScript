@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const utils_1 = require("./utils");
-const Expression_1 = require("./Expression");
+const Expression_1 = require("./expressions/Expression");
 // CLASS DEFINITION
 // ================================================================================================
 class StatementContext {
@@ -12,7 +12,7 @@ class StatementContext {
     constructor(specs, canAccessFutureState) {
         this.subroutines = new Map();
         this.localVariables = new Map();
-        this.globalConstants = specs.globalConstants;
+        this.staticConstants = specs.staticConstants;
         this.mutableRegisterCount = specs.mutableRegisterCount;
         this.presetRegisters = specs.presetRegisters;
         this.secretRegisters = specs.secretRegisters;
@@ -22,8 +22,8 @@ class StatementContext {
     // VARIABLES
     // --------------------------------------------------------------------------------------------
     buildVariableAssignment(variable, expression) {
-        if (this.globalConstants.has(variable)) {
-            throw new Error(`Value of global constant '${variable}' cannot be changed`);
+        if (this.staticConstants.has(variable)) {
+            throw new Error(`Value of static constant '${variable}' cannot be changed`);
         }
         const sExpression = this.localVariables.get(variable);
         if (sExpression) {
@@ -51,8 +51,8 @@ class StatementContext {
         if (this.localVariables.has(variable)) {
             return this.localVariables.get(variable);
         }
-        else if (this.globalConstants.has(variable)) {
-            return this.globalConstants.get(variable);
+        else if (this.staticConstants.has(variable)) {
+            return this.staticConstants.get(variable);
         }
         else {
             throw new Error(`Variable '${variable}' is not defined`);

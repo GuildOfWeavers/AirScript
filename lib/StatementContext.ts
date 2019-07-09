@@ -3,13 +3,13 @@
 import { validateVariableName } from './utils';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './AirObject';
-import { Expression } from './Expression';
+import { Expression } from './expressions/Expression';
 
 // CLASS DEFINITION
 // ================================================================================================
 export class StatementContext {
 
-    readonly globalConstants        : Map<string, Expression>;
+    readonly staticConstants        : Map<string, Expression>;
     readonly localVariables         : Map<string, Expression>;
     readonly subroutines            : Map<string, string>;
     readonly mutableRegisterCount   : number;
@@ -23,7 +23,7 @@ export class StatementContext {
     constructor(specs: ScriptSpecs, canAccessFutureState: boolean) {
         this.subroutines = new Map();
         this.localVariables = new Map();
-        this.globalConstants = specs.globalConstants;
+        this.staticConstants = specs.staticConstants;
         this.mutableRegisterCount = specs.mutableRegisterCount;
         this.presetRegisters = specs.presetRegisters;
         this.secretRegisters = specs.secretRegisters;
@@ -34,8 +34,8 @@ export class StatementContext {
     // VARIABLES
     // --------------------------------------------------------------------------------------------
     buildVariableAssignment(variable: string, expression: Expression) {
-        if (this.globalConstants.has(variable)) {
-            throw new Error(`Value of global constant '${variable}' cannot be changed`);
+        if (this.staticConstants.has(variable)) {
+            throw new Error(`Value of static constant '${variable}' cannot be changed`);
         }
         
         const sExpression = this.localVariables.get(variable);
@@ -68,8 +68,8 @@ export class StatementContext {
         if (this.localVariables.has(variable)) {
             return this.localVariables.get(variable)!;
         }
-        else if (this.globalConstants.has(variable)) {
-            return this.globalConstants.get(variable)!;
+        else if (this.staticConstants.has(variable)) {
+            return this.staticConstants.get(variable)!;
         }
         else {
             throw new Error(`Variable '${variable}' is not defined`);

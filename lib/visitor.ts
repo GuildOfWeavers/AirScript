@@ -8,7 +8,8 @@ import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { StatementContext } from './StatementContext';
-import { Expression } from './Expression';
+import { Expression } from './expressions/Expression';
+import { StaticExpression } from './expressions/StaticExpression';
 import { Dimensions, isScalar, isVector, isMatrix, validateVariableName } from './utils';
 
 // INTERFACES
@@ -78,9 +79,8 @@ class AirVisitor extends BaseCstVisitor {
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
-        specs.setMaxConstraintDegree(this.visit(ctx.maxConstraintDegree));
-        if (ctx.globalConstants) {
-            specs.setGlobalConstants(ctx.globalConstants.map((element: any) => this.visit(element)));
+        if (ctx.staticConstants) {
+            specs.setStaticConstants(ctx.staticConstants.map((element: any) => this.visit(element)));
         }
 
         // build readonly registers
@@ -128,7 +128,7 @@ class AirVisitor extends BaseCstVisitor {
         return new PrimeField(modulus);
     }
 
-    // GLOBAL CONSTANTS
+    // STATIC CONSTANTS
     // --------------------------------------------------------------------------------------------
     constantDeclaration(ctx: any): ConstantDeclaration {
         const name = ctx.constantName[0].image;
@@ -147,7 +147,7 @@ class AirVisitor extends BaseCstVisitor {
             dimensions = [value.length, value[0].length];
         }
         else {
-            throw new Error(`Failed to parse the value of global constant '${name}'`);
+            throw new Error(`Failed to parse the value of static constant '${name}'`);
         }
 
         validateVariableName(name, dimensions);
@@ -325,23 +325,20 @@ class AirVisitor extends BaseCstVisitor {
         }
 
         // generate code that can build a constraint evaluator
-        let builderCode = '';
+        let evaluatorBuilderCode = '';
         for (let subCode of sc.subroutines.values()) {
-            builderCode += `${subCode}\n`;
+            evaluatorBuilderCode += `${subCode}\n`;
         }
-        builderCode += `return function (r, n, k, s, p, out) {\n${statements.code}}`;
+        evaluatorBuilderCode += `return function (r, n, k, s, p, out) {\n${statements.code}}`;
 
         // convert bigint degrees to numbers
         const degrees: number[] = [];
         for (let degree of statements.outputDegrees) {
-            if (degree >= Number.MAX_SAFE_INTEGER) {
-                throw new Error(''); // TODO: validate against script limits
-            }
-            degrees.push(Number.parseInt(degree as any));
+            degrees.push(specs.validateConstraintDegree(degree));
         }
 
         return {
-            buildEvaluator  : new Function('f', 'g', builderCode) as any,
+            buildEvaluator  : new Function('f', 'g', evaluatorBuilderCode) as any,
             degrees         : degrees
         };
     }
@@ -638,8 +635,8 @@ class AirVisitor extends BaseCstVisitor {
             return sc.buildRegisterReference(register);
         }
         else if (ctx.IntegerLiteral) {
-            const value = ctx.IntegerLiteral[0].image;
-            return Expression.literal(value);
+            const value: string = ctx.IntegerLiteral[0].image;
+            return new StaticExpression(value);
         }
         else {
             throw new Error('Invalid expression syntax');

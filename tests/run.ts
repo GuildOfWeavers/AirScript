@@ -3,13 +3,13 @@ import { parseScript } from '../index';
 const script = `
 define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
 
-    // global constants used in transition function and constraint computations
+    // constants used in transition function and constraint computations
     alpha: 3;
 
     // transition function definition
     transition 1 register in 2^8 steps {
         when ($k1) {
-            out: $r0^alpha + $k0 + $p0;
+            out: $r0^3 + $k0 + $p0;
         }
         else {
             out: $r0^alpha + $k0;
@@ -17,7 +17,14 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
     }
 
     // transition constraint definition
-    enforce 1 constraint of degree 3 {
+    enforce 1 constraint {
+
+        M: [[1, alpha], [$k0, $p0]];
+        V: [$k0, $p0];
+
+        M2: M^3;
+        V2: M # V;
+
         n0: $k1 ? $r0^alpha + $k0 + $p0 | $r0^alpha + $k0;
         out: $n0 - n0;
     }

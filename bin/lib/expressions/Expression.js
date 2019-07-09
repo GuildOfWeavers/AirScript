@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const StaticExpression_1 = require("./StaticExpression");
 // CLASS DEFINITION
 // ================================================================================================
 class Expression {
@@ -11,24 +12,11 @@ class Expression {
         this.degree = degree;
         this.destructured = destructured;
     }
-    static literal(value) {
-        const parsedValue = BigInt(value); // TODO: pass to constructor?
-        return new Expression(`${value}n`, [0, 0], 0n);
-    }
-    static constant(name, dimensions, value) {
-        // TODO: build degree based on dimensions
-        return new Expression(`g.${name}`, dimensions, 0n);
-    }
     static variable(name, dimensions, degree) {
         return new Expression(`$${name}`, dimensions, degree);
     }
     static register(name, index) {
         return new Expression(`${name}[${index}]`, [0, 0], 1n);
-    }
-    // PUBLIC ACCESSORS
-    // --------------------------------------------------------------------------------------------
-    get isConstant() {
-        return this.degree === 0n;
     }
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -135,18 +123,22 @@ class Expression {
         if (!e.isScalar) {
             throw new Error(`Cannot raise to non-scalar power`);
         }
+        if (e instanceof StaticExpression_1.StaticExpression === false) {
+            throw new Error(`Cannot raise to non-static power`);
+        }
+        const eValue = e.value;
         let code = '', degree;
         if (this.isScalar) {
             code = `f.exp(${this.code}, ${e.code})`;
-            degree = mulDegree(this.degree, 3n); // TODO: get value for e2
+            degree = mulDegree(this.degree, eValue);
         }
         else if (this.isVector) {
             code = `f.expVectorElements(${this.code}, ${e.code})`;
-            degree = vectorDegree(mulDegree, this.degree, 3n); // TODO: get value for e2
+            degree = vectorDegree(mulDegree, this.degree, eValue);
         }
         else {
             code = `f.expMatrixElements(${this.code}, ${e.code})`;
-            degree = matrixDegree(mulDegree, this.degree, 3n); // TODO: get value for e2
+            degree = matrixDegree(mulDegree, this.degree, eValue);
         }
         return new Expression(code, this.dimensions, degree);
     }
@@ -160,6 +152,7 @@ class Expression {
             }
             code = `f.combineVectors(${this.code}, ${e.code})`;
             dimensions = [0, 0];
+            degree = linearCombinationDegree(this.degree, e.degree);
         }
         else if (this.isMatrix && e.isVector) {
             if (d1[1] !== d2[0]) {
@@ -167,6 +160,7 @@ class Expression {
             }
             code = `f.mulMatrixByVector(${this.code}, ${e.code})`;
             dimensions = [d1[0], 0];
+            degree = matrixVectorProductDegree(this.degree, e.degree);
         }
         else {
             if (d1[1] !== d2[0]) {
@@ -174,9 +168,9 @@ class Expression {
             }
             code = `f.mulMatrixes(${this.code}, ${e.code})`;
             dimensions = [d1[0], d2[1]];
+            degree = matrixMatrixProductDegree(this.degree, e.degree);
         }
-        degree = [3n]; // TODO: calculate
-        return new Expression(code, this.dimensions, degree);
+        return new Expression(code, dimensions, degree);
     }
 }
 // STATIC EXPRESSIONS
@@ -213,6 +207,44 @@ function matrixDegree(op, d1, d2) {
         for (let j = 0; j < d1[i].length; j++) {
             let v2 = (typeof d2 === 'bigint' ? d2 : d2[i][j]);
             result[i][j] = op(d1[i][j], v2);
+        }
+    }
+    return result;
+}
+function linearCombinationDegree(d1, d2) {
+    let result = 0n;
+    for (let i = 0; i < d1.length; i++) {
+        let d = addDegree(d1[i], d2[i]);
+        if (d > result) {
+            result = d;
+        }
+    }
+    return result;
+}
+function matrixVectorProductDegree(d1, d2) {
+    const result = new Array();
+    for (let row of d1) {
+        result.push(linearCombinationDegree(row, d2));
+    }
+    return result;
+}
+function matrixMatrixProductDegree(d1, d2) {
+    const n = d1.length;
+    const m = d1[0].length;
+    const p = d2[0].length;
+    const result = new Array(n);
+    for (let i = 0; i < n; i++) {
+        let row = result[i] = new Array(p);
+        for (let j = 0; j < p; j++) {
+            let s = 0n;
+            for (let k = 0; k < m; k++) {
+                let d = addDegree(d1[i][k], d2[k][j]);
+                if (d > s) {
+                    s = d;
+                }
+                ;
+            }
+            row[j] = s;
         }
     }
     return result;

@@ -19,7 +19,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.MANY(() => {
                 this.OR([
                     { ALT: () => {
-                            this.SUBRULE(this.constantDeclaration, { LABEL: 'globalConstants' });
+                            this.SUBRULE(this.constantDeclaration, { LABEL: 'staticConstants' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Transition);
@@ -34,9 +34,6 @@ class AirParser extends chevrotain_1.CstParser {
                             this.CONSUME(lexer_1.Enforce);
                             this.SUBRULE4(this.literalExpression, { LABEL: 'constraintCount' });
                             this.CONSUME(lexer_1.Constraints);
-                            this.CONSUME(lexer_1.Of);
-                            this.CONSUME(lexer_1.Degree);
-                            this.SUBRULE5(this.literalExpression, { LABEL: 'maxConstraintDegree' });
                             this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
                         } },
                     { ALT: () => {
@@ -57,7 +54,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.Field);
             this.SUBRULE(this.literalParenExpression, { LABEL: 'modulus' });
         });
-        // GLOBAL CONSTANTS
+        // STATIC CONSTANTS
         // --------------------------------------------------------------------------------------------
         this.constantDeclaration = this.RULE('constantDeclaration', () => {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'constantName' });
