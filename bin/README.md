@@ -268,6 +268,8 @@ else {
 ```
 Both `when` and `else` blocks must contain a complete list of arithmetic statements terminating with the `out` statement, and both blocks must resolve to a vector of the same length. Also, similarly to ternary expressions, the `selector` must be a [binary register](#Binary-registers).
 
+In the above, `when...else` statement is equivalent to multiplying `out` elements of the `when` block by `$k0`, multiplying `out` elements of the `else` block by `1 - $k0`, and then performing an element-wise sum of resulting vectors.
+
 ## Readonly registers
 
 In addition to mutable registers, you can define STARKs with readonly registers. A readonly register is a register whose value cannot be changed by a transition function. There are 3 types of readonly registers:

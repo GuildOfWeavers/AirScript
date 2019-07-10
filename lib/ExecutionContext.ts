@@ -7,10 +7,10 @@ import { Expression } from './expressions/Expression';
 
 // CLASS DEFINITION
 // ================================================================================================
-export class StatementContext {
+export class ExecutionContext {
 
     readonly staticConstants        : Map<string, Expression>;
-    readonly localVariables         : Map<string, Expression>;
+    readonly localVariables         : Map<string, Expression>[];
     readonly subroutines            : Map<string, string>;
     readonly mutableRegisterCount   : number;
     readonly staticRegisters        : ReadonlyRegisterSpecs[];
@@ -22,7 +22,7 @@ export class StatementContext {
     // --------------------------------------------------------------------------------------------
     constructor(specs: ScriptSpecs, canAccessFutureState: boolean) {
         this.subroutines = new Map();
-        this.localVariables = new Map();
+        this.localVariables = [new Map()];
         this.staticConstants = specs.staticConstants;
         this.mutableRegisterCount = specs.mutableRegisterCount;
         this.staticRegisters = specs.staticRegisters;
@@ -38,8 +38,11 @@ export class StatementContext {
             throw new Error(`Value of static constant '${variable}' cannot be changed`);
         }
         
+        // get the last frame from the local variable stack
+        const localVariables = this.localVariables[this.localVariables.length - 1];
+
         const refCode = `$${variable}`;
-        const sExpression = this.localVariables.get(variable);
+        const sExpression = localVariables.get(variable);
         if (sExpression) {
             if (!sExpression.isSameDimensions(expression)) {
                 throw new Error(`Dimensions of variable '${variable}' cannot be changed`);
@@ -47,7 +50,7 @@ export class StatementContext {
 
             if (sExpression.degree !== expression.degree) {
                 const refExpression = new Expression(refCode, expression.dimensions, expression.degree);
-                this.localVariables.set(variable, refExpression);
+                localVariables.set(variable, refExpression);
             }
 
             return {
@@ -58,7 +61,7 @@ export class StatementContext {
         else {
             validateVariableName(variable, expression.dimensions);
             const refExpression = new Expression(refCode, expression.dimensions, expression.degree);
-            this.localVariables.set(variable, refExpression);
+            localVariables.set(variable, refExpression);
 
             return {
                 code        : `let ${refCode}`,
@@ -68,8 +71,11 @@ export class StatementContext {
     }
 
     getVariableReference(variable: string): Expression {
-        if (this.localVariables.has(variable)) {
-            return this.localVariables.get(variable)!;
+        // get the last frame from the local variable stack
+        const localVariables = this.localVariables[this.localVariables.length - 1];
+
+        if (localVariables.has(variable)) {
+            return localVariables.get(variable)!;
         }
         else if (this.staticConstants.has(variable)) {
             return this.staticConstants.get(variable)!;
@@ -77,6 +83,17 @@ export class StatementContext {
         else {
             throw new Error(`Variable '${variable}' is not defined`);
         }
+    }
+
+    createNewVariableFrame() {
+        this.localVariables.push(new Map());
+    }
+
+    destroyVariableFrame() {
+        if (this.localVariables.length === 1) {
+            throw new Error('Cannot destroy last variable frame');
+        }
+        this.localVariables.pop();
     }
 
     // REGISTERS
