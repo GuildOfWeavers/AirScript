@@ -224,11 +224,11 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
         // generate code that can build a transition function
-        let functionBuilderCode = '';
+        let functionBuilderCode = `'use strict';\n\n`;
         for (let subCode of sc.subroutines.values()) {
             functionBuilderCode += `${subCode}\n`;
         }
-        functionBuilderCode += `'use strict';\nreturn function (r, k, s, p, out) {\n${statements.code}}`;
+        functionBuilderCode += `return function (r, k, s, p, out) {\n${statements.code}}`;
         return {
             buildFunction: new Function('f', 'g', functionBuilderCode)
         };
@@ -245,11 +245,11 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
         // generate code that can build a constraint evaluator
-        let evaluatorBuilderCode = '';
+        let evaluatorBuilderCode = `'use strict';\n\n`;
         for (let subCode of sc.subroutines.values()) {
             evaluatorBuilderCode += `${subCode}\n`;
         }
-        evaluatorBuilderCode += `'use strict';\nreturn function (r, n, k, s, p, out) {\n${statements.code}}`;
+        evaluatorBuilderCode += `return function (r, n, k, s, p, out) {\n${statements.code}}`;
         // convert bigint degrees to numbers
         const degrees = [];
         for (let degree of statements.outputDegrees) {
@@ -286,12 +286,12 @@ class AirVisitor extends BaseCstVisitor {
         let code = '', dimensions, degree;
         if (ctx.expression) {
             const expression = this.visit(ctx.expression, sc);
-            if (utils_1.isScalar(expression.dimensions)) {
+            if (expression.isScalar) {
                 code = `out[0] = ${expression.code};\n`;
                 dimensions = [1, 0];
                 degree = [expression.degree];
             }
-            else if (utils_1.isVector(expression.dimensions)) {
+            else if (expression.isVector) {
                 dimensions = expression.dimensions;
                 code = `let _out = ${expression.code};\n`;
                 for (let i = 0; i < dimensions[0]; i++) {
@@ -304,16 +304,14 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
         else {
-            degree = [];
-            dimensions = [ctx.expressions.length, 0];
-            for (let i = 0; i < ctx.expressions.length; i++) {
-                let expression = this.visit(ctx.expressions[i], sc);
-                if (!utils_1.isScalar(expression.dimensions)) {
-                    throw new Error(`Out vector elements must be scalars`);
-                }
-                code += `out[${i}] = ${expression.code};\n`;
-                degree.push(expression.degree);
+            // out statement was defined as a vector
+            const expression = this.visit(ctx.vector, sc);
+            dimensions = expression.dimensions;
+            code = `let _out = ${expression.code};\n`;
+            for (let i = 0; i < dimensions[0]; i++) {
+                code += `out[${i}] = _out[${i}];\n`;
             }
+            degree = expression.degree;
         }
         return new Expression_1.Expression(code, dimensions, degree);
     }

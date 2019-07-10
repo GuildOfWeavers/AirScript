@@ -222,14 +222,7 @@ class AirParser extends CstParser {
         this.CONSUME(Colon);
         this.OR([
             { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
-            { ALT: () => {
-                this.CONSUME(LSquare);
-                this.AT_LEAST_ONE_SEP({
-                    SEP : Comma,
-                    DEF : () => this.SUBRULE2(this.expression, { LABEL: 'expressions' })
-                })
-                this.CONSUME(RSquare);
-            }}
+            { ALT: () => this.SUBRULE(this.vector,      { LABEL: 'vector'     }) }
         ]);
         this.CONSUME(Semicolon);
     });

@@ -15,6 +15,14 @@ exports.parserErrorMessageProvider = {
     buildMismatchTokenMessage(options) {
         const token = options.actual;
         return `Syntax error near '${token.image}' [${token.startLine}, ${token.startColumn}]`;
+    },
+    buildNoViableAltMessage(options) {
+        const token = options.actual[0];
+        return `Syntax error near '${token.image}' [${token.startLine}, ${token.startColumn}]`;
+    },
+    buildEarlyExitMessage(options) {
+        const token = options.actual[0];
+        return `Syntax error near '${token.image}' [${token.startLine}, ${token.startColumn}]`;
     }
 };
 // SCRIPT ERROR

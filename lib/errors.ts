@@ -18,6 +18,14 @@ export const parserErrorMessageProvider: IParserErrorMessageProvider = {
     buildMismatchTokenMessage(options): string {
         const token = options.actual;
         return `Syntax error near '${token.image}' [${token.startLine}, ${token.startColumn}]`;
+    },
+    buildNoViableAltMessage(options): string {
+        const token = options.actual[0];
+        return `Syntax error near '${token.image}' [${token.startLine}, ${token.startColumn}]`;
+    },
+    buildEarlyExitMessage(options): string {
+        const token = options.actual[0];
+        return `Syntax error near '${token.image}' [${token.startLine}, ${token.startColumn}]`;
     }
 };
 
