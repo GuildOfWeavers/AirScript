@@ -1,10 +1,12 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits, StarkConfig } from '@guildofweavers/air-script';
+import { StarkLimits } from '@guildofweavers/air-script';
 import { lexer } from './lib/lexer';
 import { parser } from './lib/parser';
 import { visitor } from './lib/visitor';
+import { AirObject, AirConfig } from './lib/AirObject';
 import { AirScriptError } from './lib/errors';
+import { isPowerOf2 } from './lib/utils';
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -13,12 +15,13 @@ const DEFAULT_LIMITS: StarkLimits = {
     maxMutableRegisters     : 64,
     maxReadonlyRegisters    : 64,
     maxConstraintCount      : 1024,
-    maxConstraintDegree     : 16
+    maxConstraintDegree     : 16,
+    maxExtensionFactor      : 32
 };
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function parseScript(text: string, limits?: Partial<StarkLimits>): StarkConfig {
+export function parseScript(text: string, limits?: Partial<StarkLimits>, extensionFactor?: number): AirObject {
     // apply defaults
     limits = {...DEFAULT_LIMITS, ...limits};
 
@@ -37,10 +40,31 @@ export function parseScript(text: string, limits?: Partial<StarkLimits>): StarkC
 
     // build STARK config
     try {
-        const result = visitor.visit(cst, limits);
-        return result;
+        const airConfig: AirConfig = visitor.visit(cst, limits);
+        const air = new AirObject(airConfig, extensionFactor);
+        validateExtensionFactor(air.extensionFactor, air.maxConstraintDegree, limits.maxExtensionFactor!);
+        return air;
     }
     catch (error) {
         throw new AirScriptError([error]);
+    }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+function validateExtensionFactor(extensionFactor: number, maxConstraintDegree: number, maxExtensionFactor: number) {
+
+    const minExtensionFactor = 2**Math.ceil(Math.log2(maxConstraintDegree * 2));
+
+    if (extensionFactor > maxExtensionFactor || !Number.isInteger(extensionFactor)) {
+        throw new TypeError(`Extension factor must be an integer smaller than or equal to ${maxExtensionFactor}`);
+    }
+
+    if (!isPowerOf2(extensionFactor)) {
+        throw new TypeError(`Extension factor must be a power of 2`);
+    }
+
+    if (extensionFactor < minExtensionFactor) {
+        throw new TypeError(`Extension factor must be at ${minExtensionFactor}`);
     }
 }

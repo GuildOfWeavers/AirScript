@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
+const StaticExpression_1 = require("./expressions/StaticExpression");
 // CLASS DEFINITION
 // ================================================================================================
 class ScriptSpecs {
@@ -8,6 +9,8 @@ class ScriptSpecs {
     // --------------------------------------------------------------------------------------------
     constructor(limits) {
         this.limits = limits;
+        this.staticConstants = new Map();
+        this.constantBindings = {};
     }
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
@@ -23,14 +26,38 @@ class ScriptSpecs {
     setReadonlyRegisterCount(value) {
         this.readonlyRegisterCount = validateReadonlyRegisterCount(value, this.limits);
     }
+    setReadonlyRegisterCounts(registers) {
+        validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
+        this.staticRegisters = registers.staticRegisters;
+        this.secretRegisters = registers.secretRegisters;
+        this.publicRegisters = registers.publicRegisters;
+    }
     setConstraintCount(value) {
         this.constraintCount = validateConstraintCount(value, this.limits);
     }
-    setMaxConstraintDegree(value) {
-        this.maxConstraintDegree = validateConstraintDegree(value, this.limits);
+    setStaticConstants(declarations) {
+        for (let constant of declarations) {
+            if (this.staticConstants.has(constant.name)) {
+                throw new Error(`Static constant '${constant.name}' is defined more than once`);
+            }
+            let constExpression = new StaticExpression_1.StaticExpression(constant.value, constant.name);
+            this.staticConstants.set(constant.name, constExpression);
+            this.constantBindings[constant.name] = constant.value;
+        }
     }
-    setGlobalConstants(value) {
-        this.globalConstants = value;
+    // VALIDATORS
+    // --------------------------------------------------------------------------------------------
+    validateConstraintDegree(constraintDegree) {
+        if (constraintDegree > this.limits.maxConstraintDegree) {
+            throw new Error(`Degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
+        }
+        else if (constraintDegree < 0n) {
+            throw new Error('Degree of transition constraints must be positive');
+        }
+        else if (constraintDegree === 0n) {
+            throw new Error('Degree of transition constraints cannot be 0');
+        }
+        return Number.parseInt(constraintDegree);
     }
 }
 exports.ScriptSpecs = ScriptSpecs;
@@ -78,6 +105,17 @@ function validateReadonlyRegisterCount(registerCount, limits) {
     }
     return registerCount;
 }
+function validateReadonlyRegisterCounts(registers, readonlyRegisterCount) {
+    const totalRegisterCount = registers.staticRegisters.length
+        + registers.secretRegisters.length
+        + registers.publicRegisters.length;
+    if (totalRegisterCount > readonlyRegisterCount) {
+        throw new Error(`Too many readonly register definitions: ${readonlyRegisterCount} registers expected`);
+    }
+    else if (totalRegisterCount < readonlyRegisterCount) {
+        throw new Error(`Missing readonly register definitions: ${readonlyRegisterCount} registers expected`);
+    }
+}
 function validateConstraintCount(constraintCount, limits) {
     if (constraintCount > limits.maxConstraintCount) {
         throw new Error(`Number of transition constraints cannot exceed ${limits.maxConstraintCount}`);
@@ -92,20 +130,5 @@ function validateConstraintCount(constraintCount, limits) {
         constraintCount = Number.parseInt(constraintCount);
     }
     return constraintCount;
-}
-function validateConstraintDegree(constraintDegree, limits) {
-    if (constraintDegree > limits.maxConstraintDegree) {
-        throw new Error(`Degree of transition constraints cannot exceed ${limits.maxConstraintDegree}`);
-    }
-    else if (constraintDegree < 0) {
-        throw new Error('Degree of transition constraints must be positive');
-    }
-    else if (constraintDegree == 0) {
-        throw new Error('Degree of transition constraints cannot be 0');
-    }
-    else if (typeof constraintDegree === 'bigint') {
-        constraintDegree = Number.parseInt(constraintDegree);
-    }
-    return constraintDegree;
 }
 //# sourceMappingURL=ScriptSpecs.js.map

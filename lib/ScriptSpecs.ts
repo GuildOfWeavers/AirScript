@@ -2,25 +2,35 @@
 // ================================================================================================
 import { StarkLimits } from '@guildofweavers/air-script';
 import { FiniteField } from '@guildofweavers/galois';
-import { Dimensions, isPowerOf2 } from './utils';
+import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './AirObject';
+import { ReadonlyRegisterGroup, ConstantDeclaration } from './visitor';
+import { isPowerOf2 } from './utils';
+import { Expression } from './expressions/Expression';
+import { StaticExpression } from './expressions/StaticExpression';
 
 // CLASS DEFINITION
 // ================================================================================================
 export class ScriptSpecs {
 
+    private readonly limits : StarkLimits;
+
     field!                  : FiniteField;
     steps!                  : number;
     mutableRegisterCount!   : number;
     readonlyRegisterCount!  : number;
+    staticRegisters!        : ReadonlyRegisterSpecs[];
+    secretRegisters!        : InputRegisterSpecs[];
+    publicRegisters!        : InputRegisterSpecs[];
     constraintCount!        : number;
-    maxConstraintDegree!    : number;
-    globalConstants!        : Map<string, Dimensions>;
-    private readonly limits : StarkLimits;
+    staticConstants!        : Map<string, Expression>;
+    constantBindings        : any;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(limits: StarkLimits) {
         this.limits = limits;
+        this.staticConstants = new Map();
+        this.constantBindings = {};
     }
 
     // PROPERTY SETTERS
@@ -41,16 +51,42 @@ export class ScriptSpecs {
         this.readonlyRegisterCount = validateReadonlyRegisterCount(value, this.limits);
     }
 
+    setReadonlyRegisterCounts(registers: ReadonlyRegisterGroup) {
+        validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
+        this.staticRegisters = registers.staticRegisters;
+        this.secretRegisters = registers.secretRegisters;
+        this.publicRegisters = registers.publicRegisters;
+    }
+
     setConstraintCount(value: bigint) {
         this.constraintCount = validateConstraintCount(value, this.limits);
     }
 
-    setMaxConstraintDegree(value: bigint) {
-        this.maxConstraintDegree = validateConstraintDegree(value, this.limits);
+    setStaticConstants(declarations: ConstantDeclaration[]) {
+        for (let constant of declarations) {
+            if (this.staticConstants.has(constant.name)) {
+                throw new Error(`Static constant '${constant.name}' is defined more than once`);
+            }
+            let constExpression = new StaticExpression(constant.value, constant.name);
+            this.staticConstants.set(constant.name, constExpression);
+            this.constantBindings[constant.name] = constant.value;
+        }
     }
 
-    setGlobalConstants(value: Map<string, Dimensions>) {
-        this.globalConstants = value;
+    // VALIDATORS
+    // --------------------------------------------------------------------------------------------
+    validateConstraintDegree(constraintDegree: bigint): number {
+        if (constraintDegree > this.limits.maxConstraintDegree) {
+            throw new Error(`Degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
+        }
+        else if (constraintDegree < 0n) {
+            throw new Error('Degree of transition constraints must be positive');
+        }
+        else if (constraintDegree === 0n) {
+            throw new Error('Degree of transition constraints cannot be 0');
+        }
+    
+        return Number.parseInt(constraintDegree as any);
     }
 }
 
@@ -104,6 +140,21 @@ function validateReadonlyRegisterCount(registerCount: number | bigint, limits: S
     return registerCount;
 }
 
+function validateReadonlyRegisterCounts(registers: ReadonlyRegisterGroup, readonlyRegisterCount: number) {
+
+    const totalRegisterCount = 
+        registers.staticRegisters.length
+        + registers.secretRegisters.length
+        + registers.publicRegisters.length;
+
+    if (totalRegisterCount > readonlyRegisterCount) {
+        throw new Error(`Too many readonly register definitions: ${readonlyRegisterCount} registers expected`);
+    }
+    else if (totalRegisterCount < readonlyRegisterCount) {
+        throw new Error(`Missing readonly register definitions: ${readonlyRegisterCount} registers expected`);
+    }
+}
+
 function validateConstraintCount(constraintCount: number | bigint, limits: StarkLimits): number {
     if (constraintCount > limits.maxConstraintCount) {
         throw new Error(`Number of transition constraints cannot exceed ${limits.maxConstraintCount}`);
@@ -119,21 +170,4 @@ function validateConstraintCount(constraintCount: number | bigint, limits: Stark
     }
 
     return constraintCount;
-}
-
-function validateConstraintDegree(constraintDegree: number | bigint, limits: StarkLimits): number {
-    if (constraintDegree > limits.maxConstraintDegree) {
-        throw new Error(`Degree of transition constraints cannot exceed ${limits.maxConstraintDegree}`);
-    }
-    else if (constraintDegree < 0) {
-        throw new Error('Degree of transition constraints must be positive');
-    }
-    else if (constraintDegree == 0) {
-        throw new Error('Degree of transition constraints cannot be 0');
-    }
-    else if (typeof constraintDegree === 'bigint') {
-        constraintDegree = Number.parseInt(constraintDegree as any);
-    }
-
-    return constraintDegree;
 }

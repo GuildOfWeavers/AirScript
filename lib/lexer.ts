@@ -5,10 +5,12 @@ import { lexerErrorMessageProvider } from "./errors";
 
 // LITERALS, REGISTERS, and IDENTIFIERS
 // ================================================================================================
-export const IntegerLiteral   = createToken({ name: "IntegerLiteral",   pattern: /0|[1-9]\d*/    })
-export const MutableRegister  = createToken({ name: "MutableRegister",  pattern: /\$[rn]\d{1,2}/ });
-export const ReadonlyRegister = createToken({ name: "ReadonlyRegister", pattern: /\$k\d{1,2}/    });
-export const Identifier       = createToken({ name: "Identifier",       pattern: /[a-zA-Z]\w*/   });
+export const IntegerLiteral     = createToken({ name: "IntegerLiteral",   pattern: /0|[1-9]\d*/    })
+export const MutableRegister    = createToken({ name: "MutableRegister",  pattern: /\$[rn]\d{1,2}/ });
+export const StaticRegister     = createToken({ name: "StaticRegister",   pattern: /\$k\d{1,2}/    });
+export const SecretRegister     = createToken({ name: "SecretRegister",   pattern: /\$s\d{1,2}/    });
+export const PublicRegister     = createToken({ name: "PublicRegister",   pattern: /\$p\d{1,2}/    });
+export const Identifier         = createToken({ name: "Identifier",       pattern: /[a-zA-Z]\w*/   });
 
 // KEYWORDS
 // ================================================================================================
@@ -33,6 +35,8 @@ export const Do          = createToken({ name: "Do",          pattern: /do/,    
 export const With        = createToken({ name: "With",        pattern: /with/,          longer_alt: Identifier });
 export const Nothing     = createToken({ name: "Nothing",     pattern: /nothing/,       longer_alt: Identifier });
 export const Out         = createToken({ name: "Out",         pattern: /out/,           longer_alt: Identifier });
+export const When        = createToken({ name: "When",        pattern: /when/,          longer_alt: Identifier });
+export const Else        = createToken({ name: "Else",        pattern: /else/,          longer_alt: Identifier });
 
 export const Using       = createToken({ name: "Using",       pattern: /using/,         longer_alt: Identifier });
 export const Readonly    = createToken({ name: "Readonly",    pattern: /readonly/,      longer_alt: Identifier });
@@ -45,16 +49,16 @@ export const As          = createToken({ name: "As",          pattern: /as/,    
 
 // OPERATORS
 // ================================================================================================
-export const AddOp  = createToken({ name: "AddOp",  pattern: Lexer.NA });
-export const Plus   = createToken({ name: "Plus",   pattern: /\+/,  categories: AddOp });
-export const Minus  = createToken({ name: "Minus",  pattern: /-/,   categories: AddOp });
+export const AddOp      = createToken({ name: "AddOp",      pattern: Lexer.NA });
+export const Plus       = createToken({ name: "Plus",       pattern: /\+/,  categories: AddOp });
+export const Minus      = createToken({ name: "Minus",      pattern: /-/,   categories: AddOp });
 
-export const MulOp  = createToken({ name: "MulOp",  pattern: Lexer.NA });
-export const Star   = createToken({ name: "Star",   pattern: /\*/,  categories: MulOp });
-export const Slash  = createToken({ name: "Slash",  pattern: /\//,  categories: MulOp });
-export const Pound  = createToken({ name: "Pound",  pattern: /#/,   categories: MulOp });
+export const MulOp      = createToken({ name: "MulOp",      pattern: Lexer.NA });
+export const Star       = createToken({ name: "Star",       pattern: /\*/,  categories: MulOp });
+export const Slash      = createToken({ name: "Slash",      pattern: /\//,  categories: MulOp });
+export const Pound      = createToken({ name: "Pound",      pattern: /#/,   categories: MulOp });
 
-export const ExpOp  = createToken({ name: "ExpOp",  pattern: /\^/ });
+export const ExpOp      = createToken({ name: "ExpOp",      pattern: /\^/ });
 
 // SYMBOLS
 // ================================================================================================
@@ -68,6 +72,11 @@ export const Comma      = createToken({ name: "Comma",      pattern: /,/        
 export const Colon      = createToken({ name: "Colon",      pattern: /:/        });
 export const Semicolon  = createToken({ name: "Semicolon",  pattern: /;/        });
 export const Ellipsis   = createToken({ name: 'Ellipsis',   pattern: /\.\.\./   });
+export const Pipe       = createToken({ name: 'Pipe',       pattern: /\|/       });
+export const Tilde      = createToken({ name: 'Tilde',      pattern: /~/        });
+export const Ampersand  = createToken({ name: 'Ampersand',  pattern: /&/        });
+export const QMark      = createToken({ name: 'QMark',      pattern: /\?/       });
+export const EMark      = createToken({ name: 'EMark',      pattern: /!/        });
 
 // WHITESPACE AND COMMENTS
 // ================================================================================================
@@ -88,16 +97,17 @@ export const Comment = createToken({
 export const allTokens = [
     WhiteSpace, Comment,
     
-    Define, Over, Prime, Binary, Field, Transition, Registers, In, Steps, Enforce, Constraints,
-    Of, Degree, For, Do, With, Nothing, Out, Repeat, Spread, Using, Readonly, Import, From, As,
+    Define, Over, Prime, Binary, Field, Transition, Registers, In, Steps, Enforce, Constraints, Of,
+    Degree, For, Do, With, Nothing, When, Else, Out, Repeat, Spread, Using, Readonly, Import, From, As,
 
     Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 
-    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis,
+    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, Pipe,
+    Tilde, Ampersand, QMark, EMark,
 
     Identifier,
 
-    MutableRegister, ReadonlyRegister,
+    MutableRegister, StaticRegister, SecretRegister, PublicRegister,
 
     IntegerLiteral
 ];
