@@ -25,6 +25,7 @@ function copyFiles(cb) {
   gulp.src('./air-script.d.ts').pipe(gulp.dest('./bin'));
   gulp.src('./.npmignore').pipe(gulp.dest('./bin'));
   gulp.src('./README.md').pipe(gulp.dest('./bin'));
+  gulp.src('./CHANGELOG.md').pipe(gulp.dest('./bin'));
   cb();
 }
 
