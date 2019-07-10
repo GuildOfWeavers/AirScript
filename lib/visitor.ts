@@ -305,7 +305,7 @@ class AirVisitor extends BaseCstVisitor {
         for (let subCode of sc.subroutines.values()) {
             functionBuilderCode += `${subCode}\n`;
         }
-        functionBuilderCode += `'use strict'; return function (r, k, s, p, out) {\n${statements.code}}`;
+        functionBuilderCode += `'use strict';\nreturn function (r, k, s, p, out) {\n${statements.code}}`;
 
         return {
             buildFunction: new Function('f', 'g', functionBuilderCode) as any
@@ -329,7 +329,7 @@ class AirVisitor extends BaseCstVisitor {
         for (let subCode of sc.subroutines.values()) {
             evaluatorBuilderCode += `${subCode}\n`;
         }
-        evaluatorBuilderCode += `'use strict'; return function (r, n, k, s, p, out) {\n${statements.code}}`;
+        evaluatorBuilderCode += `'use strict';\nreturn function (r, n, k, s, p, out) {\n${statements.code}}`;
 
         // convert bigint degrees to numbers
         const degrees: number[] = [];

@@ -7,54 +7,34 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
     alpha: 3;
 
     // transition function definition
-    transition 1 register in 2^8 steps {
-        when ($k1) {
-            out: $r0^3 + $k0 + $p0;
-        }
-        else {
-            out: $r0^alpha + $k0;
-        }
+    transition 1 register in 2^16 steps {
+        out: $r0^3 + $k0;
     }
 
     // transition constraint definition
-    enforce 2 constraints {
-
-        M: [[1, alpha], [$k0, $p0]];
-        V: [$k0, $p0];
-
-        M2: M^3;
-        V2: M # V;
-
-        n0: $k1 ? $r0^alpha + $k0 + $p0 | $r0^alpha + $k0;
-        V3: [$n0, n0];
-
-        out: V3 - n0;
+    enforce 1 constraint {
+        out: $n0 - ($r0^3 + $k0);
     }
 
     // readonly registers accessible in transition function and constraints
-    using 4 readonly registers {
+    using 1 readonly register {
         $k0: repeat [
             42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931,
             10000042, 19487209, 35831850, 62748495, 105413546, 170859333
         ];
-
-        $k1: repeat binary [1, 0, 1, 0];
-
-        $p0: spread [...];
-
-        $s0: spread binary [...];
     }
 }`;
 
 const air = parseScript(script);
+console.log(`degree: ${air.maxConstraintDegree}`);
 
-const pContext = air.createContext([[1n, 2n, 3n, 4n]], [[0n, 1n, 1n, 0n]]);
+const pContext = air.createContext([], []);
 const trace = air.generateExecutionTrace([3n], pContext);
 const pPoly = air.field.interpolateRoots(pContext.executionDomain, trace[0]);
 const pEvaluations = air.field.evalPolyAtRoots(pPoly, pContext.evaluationDomain);
 
 const qEvaluations = air.evaluateExtendedTrace([pEvaluations], pContext);
-const vContext = air.createContext([[1n, 2n, 3n, 4n]]);
+const vContext = air.createContext([]);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
 const rValues = [pEvaluations[2]];
