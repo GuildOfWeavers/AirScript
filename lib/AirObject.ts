@@ -16,7 +16,7 @@ export interface AirConfig {
     stateWidth          : number;
     secretInputs        : InputRegisterSpecs[];
     publicInputs        : InputRegisterSpecs[];
-    presetRegisters     : ReadonlyRegisterSpecs[];
+    staticRegisters     : ReadonlyRegisterSpecs[];
     constraints         : ConstraintSpecs[];
     transitionFunction  : TransitionFunction;
     constraintEvaluator : ConstraintEvaluator;
@@ -38,7 +38,7 @@ export interface ReadonlyRegisterSpecs {
 export interface TransitionFunction {
     /**
      * @param r Array with values of mutable registers at the current step
-     * @param k Array with values of predefined registers at the current step
+     * @param k Array with values of static registers at the current step
      * @param s Array with values of secret inputs at the current step
      * @param p Array with values of public inputs at the current step
      * @param out Array to hold values of mutable registers for the next step
@@ -50,7 +50,7 @@ export interface ConstraintEvaluator {
     /**
      * @param r Array with values of mutable registers at the current step
      * @param n Array with values of mutable registers at the next step
-     * @param k Array with values of predefined registers at the current step
+     * @param k Array with values of static registers at the current step
      * @param s Array with values of secret inputs at the current step
      * @param p Array with values of public inputs at the current step
      * @param out Array to hold values of constraint evaluated at the current step
@@ -69,7 +69,7 @@ export class AirObject implements IAirObject {
     readonly stateWidth         : number;
     readonly secretInputs       : InputRegisterSpecs[];
     readonly publicInputs       : InputRegisterSpecs[];
-    readonly presetRegisters    : ReadonlyRegisterSpecs[];
+    readonly staticRegisters    : ReadonlyRegisterSpecs[];
     readonly constraints        : ConstraintSpecs[];
 
     readonly extensionFactor    : number;
@@ -87,7 +87,7 @@ export class AirObject implements IAirObject {
         this.stateWidth = config.stateWidth;
         this.secretInputs = config.secretInputs;
         this.publicInputs = config.publicInputs;
-        this.presetRegisters = config.presetRegisters;
+        this.staticRegisters = config.staticRegisters;
         this.constraints = config.constraints;
 
         this.extensionFactor = getExtensionFactor(this.maxConstraintDegree, extensionFactor);
@@ -111,7 +111,7 @@ export class AirObject implements IAirObject {
     get hasSpreadRegisters(): boolean {
         for (let specs of this.secretInputs) { if (specs.pattern === 'spread') return true };
         for (let specs of this.publicInputs) { if (specs.pattern === 'spread') return true };
-        for (let specs of this.presetRegisters) { if (specs.pattern === 'spread') return true };
+        for (let specs of this.staticRegisters) { if (specs.pattern === 'spread') return true };
         return false;
     }
 
@@ -146,7 +146,7 @@ export class AirObject implements IAirObject {
             }
 
             ctx = { field, traceLength, extensionFactor, rootOfUnity, evaluationDomain, executionDomain };
-            sRegisters = buildInputRegisters(sInputs, this.secretInputs, ctx);
+            sRegisters = buildInputRegisters(sInputs, this.secretInputs, true, ctx);
         }
         else {
             // if secret inputs were not provided, we are verifying STARK proof
@@ -161,8 +161,8 @@ export class AirObject implements IAirObject {
         }
 
         // build registers for public inputs and constant values
-        const pRegisters = buildInputRegisters(pInputs, this.publicInputs, ctx);
-        const kRegisters = buildReadonlyRegisters(this.presetRegisters, ctx);
+        const pRegisters = buildInputRegisters(pInputs, this.publicInputs, false, ctx);
+        const kRegisters = buildReadonlyRegisters(this.staticRegisters, ctx);
 
         // build and return the context
         return {...ctx, kRegisters, sRegisters, pRegisters, 
@@ -345,14 +345,14 @@ function buildReadonlyRegisters(specs: ReadonlyRegisterSpecs[], ctx: EvaluationC
     return registers;
 }
 
-function buildInputRegisters(inputs: bigint[][], specs: InputRegisterSpecs[], ctx: EvaluationContext): ReadonlyRegister[] {
+function buildInputRegisters(inputs: bigint[][], specs: InputRegisterSpecs[], isSecret: boolean, ctx: EvaluationContext): ReadonlyRegister[] {
     const regSpecs = new Array<ReadonlyRegisterSpecs>(inputs.length);
     for (let i = 0; i < inputs.length; i++) {
         let binary = specs[i].binary;
         if (binary) {
             for (let value of inputs[i]) {
                 if (value !== ctx.field.zero && value !== ctx.field.one) {
-                    let registerName = `$p${i}`;    // TODO
+                    let registerName = isSecret ? `$s${i}` : `$p${i}`;
                     throw new Error(`Invalid definition for readonly register ${registerName}: the register can contain only binary values`);
                 }
             }

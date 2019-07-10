@@ -40,7 +40,7 @@ export interface ReadonlyRegisterDeclaration {
 }
 
 export interface ReadonlyRegisterGroup {
-    presetRegisters : ReadonlyRegisterSpecs[];
+    staticRegisters : ReadonlyRegisterSpecs[];
     secretRegisters : InputRegisterSpecs[];
     publicRegisters : InputRegisterSpecs[];
 }
@@ -90,7 +90,7 @@ class AirVisitor extends BaseCstVisitor {
             readonlyRegisters = this.visit(ctx.readonlyRegisters, specs);
         }
         else {
-            readonlyRegisters = { presetRegisters: [], secretRegisters: [], publicRegisters: [] };
+            readonlyRegisters = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
         }
         specs.setReadonlyRegisterCounts(readonlyRegisters);
 
@@ -114,7 +114,7 @@ class AirVisitor extends BaseCstVisitor {
             stateWidth          : specs.mutableRegisterCount,
             secretInputs        : readonlyRegisters.secretRegisters,
             publicInputs        : readonlyRegisters.publicRegisters,
-            presetRegisters     : readonlyRegisters.presetRegisters,
+            staticRegisters     : readonlyRegisters.staticRegisters,
             constraints         : constraintSpecs,
             transitionFunction  : tFunction.buildFunction(field, specs.constantBindings),
             constraintEvaluator : tConstraints.buildEvaluator(field, specs.constantBindings)
@@ -197,10 +197,10 @@ class AirVisitor extends BaseCstVisitor {
 
         const registerNames = new Set<string>();
 
-        const presetRegisters: ReadonlyRegisterSpecs[] = [];
-        if (ctx.presetRegisters) {
-            for (let i = 0; i < ctx.presetRegisters.length; i++) {
-                let register: ReadonlyRegisterDeclaration = this.visit(ctx.presetRegisters[i], specs);
+        const staticRegisters: ReadonlyRegisterSpecs[] = [];
+        if (ctx.staticRegisters) {
+            for (let i = 0; i < ctx.staticRegisters.length; i++) {
+                let register: ReadonlyRegisterDeclaration = this.visit(ctx.staticRegisters[i], specs);
                 if (registerNames.has(register.name)) {
                     throw new Error(`Readonly register ${register.name} is defined more than once`);
                 }
@@ -209,7 +209,7 @@ class AirVisitor extends BaseCstVisitor {
                 }
                 registerNames.add(register.name);
                 let registerIndex = Number.parseInt(register.name.slice(2), 10);
-                presetRegisters[registerIndex] = { pattern: register.pattern, values: register.values!, binary: register.binary };
+                staticRegisters[registerIndex] = { pattern: register.pattern, values: register.values!, binary: register.binary };
             }
         }
 
@@ -245,10 +245,10 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
 
-        return { presetRegisters, secretRegisters, publicRegisters };
+        return { staticRegisters, secretRegisters, publicRegisters };
     }
 
-    presetRegisterDefinition(ctx: any, specs: ScriptSpecs): ReadonlyRegisterDeclaration {
+    staticRegisterDefinition(ctx: any, specs: ScriptSpecs): ReadonlyRegisterDeclaration {
         const registerName = ctx.name[0].image;
         const registerIndex = Number.parseInt(registerName.slice(2), 10);
         const pattern = ctx.pattern[0].image;
@@ -305,7 +305,7 @@ class AirVisitor extends BaseCstVisitor {
         for (let subCode of sc.subroutines.values()) {
             functionBuilderCode += `${subCode}\n`;
         }
-        functionBuilderCode += `return function (r, k, s, p, out) {\n${statements.code}}`;
+        functionBuilderCode += `'use strict'; return function (r, k, s, p, out) {\n${statements.code}}`;
 
         return {
             buildFunction: new Function('f', 'g', functionBuilderCode) as any
@@ -329,7 +329,7 @@ class AirVisitor extends BaseCstVisitor {
         for (let subCode of sc.subroutines.values()) {
             evaluatorBuilderCode += `${subCode}\n`;
         }
-        evaluatorBuilderCode += `return function (r, n, k, s, p, out) {\n${statements.code}}`;
+        evaluatorBuilderCode += `'use strict'; return function (r, n, k, s, p, out) {\n${statements.code}}`;
 
         // convert bigint degrees to numbers
         const degrees: number[] = [];
@@ -352,7 +352,7 @@ class AirVisitor extends BaseCstVisitor {
             for (let i = 0; i < ctx.statements.length; i++) {
                 let statement: Statement = this.visit(ctx.statements[i], sc);
                 let expression = statement.expression;
-                let variable = sc.buildVariableAssignment(statement.variable, expression);
+                let variable = sc.setVariableAssignment(statement.variable, expression);
                 code += `${variable.code} = ${expression.code};\n`;
             }
         }
@@ -382,7 +382,7 @@ class AirVisitor extends BaseCstVisitor {
             }
             else if (isVector(expression.dimensions)) {
                 dimensions = expression.dimensions;
-                code = `_out = ${expression.code};\n`;  // TODO: make sure this works
+                code = `let _out = ${expression.code};\n`;
                 for (let i = 0; i < dimensions[0]; i++) {
                     code += `out[${i}] = _out[${i}];\n`;
                 }
@@ -419,7 +419,7 @@ class AirVisitor extends BaseCstVisitor {
         }
 
         // create expressions for k and for (1 - k)
-        const registerRef = sc.buildRegisterReference(registerName);
+        const registerRef = sc.getRegisterReference(registerName);
         const oneMinusReg = Expression.one.sub(registerRef);
 
         // build subroutines for true and false conditions
@@ -492,7 +492,7 @@ class AirVisitor extends BaseCstVisitor {
 
     vectorDestructuring(ctx: any, sc: StatementContext): Expression {
         const variableName = ctx.vectorName[0].image;
-        const element = sc.buildVariableReference(variableName);
+        const element = sc.getVariableReference(variableName);
         if (isScalar(element.dimensions)) {
             throw new Error(`Cannot expand scalar variable '${variableName}'`);
         }
@@ -616,23 +616,23 @@ class AirVisitor extends BaseCstVisitor {
         }
         else if (ctx.Identifier) {
             const variable = ctx.Identifier[0].image;
-            return sc.buildVariableReference(variable);
+            return sc.getVariableReference(variable);
         }
         else if (ctx.MutableRegister) {
             const register = ctx.MutableRegister[0].image;
-            return sc.buildRegisterReference(register);
+            return sc.getRegisterReference(register);
         }
-        else if (ctx.PresetRegister) {
-            const register = ctx.PresetRegister[0].image;
-            return sc.buildRegisterReference(register);
+        else if (ctx.StaticRegister) {
+            const register = ctx.StaticRegister[0].image;
+            return sc.getRegisterReference(register);
         }
         else if (ctx.SecretRegister) {
             const register = ctx.SecretRegister[0].image;
-            return sc.buildRegisterReference(register);
+            return sc.getRegisterReference(register);
         }
         else if (ctx.PublicRegister) {
             const register = ctx.PublicRegister[0].image;
-            return sc.buildRegisterReference(register);
+            return sc.getRegisterReference(register);
         }
         else if (ctx.IntegerLiteral) {
             const value: string = ctx.IntegerLiteral[0].image;
@@ -655,7 +655,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         
         // create expressions for k and for (1 - k)
-        const registerRef = sc.buildRegisterReference(registerName);
+        const registerRef = sc.getRegisterReference(registerName);
         const oneMinusReg = Expression.one.sub(registerRef);
 
         // get expressions for true and false options

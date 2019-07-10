@@ -97,7 +97,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.AT_LEAST_ONE(() => {
                 this.OR([
                     { ALT: () => {
-                            this.SUBRULE(this.presetRegisterDefinition, { LABEL: 'presetRegisters' });
+                            this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'staticRegisters' });
                         } },
                     { ALT: () => {
                             this.SUBRULE(this.secretRegisterDefinition, { LABEL: 'secretRegisters' });
@@ -109,8 +109,8 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.CONSUME(lexer_1.RCurly);
         });
-        this.presetRegisterDefinition = this.RULE('presetRegisterDefinition', () => {
-            this.CONSUME1(lexer_1.PresetRegister, { LABEL: 'name' });
+        this.staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
+            this.CONSUME1(lexer_1.StaticRegister, { LABEL: 'name' });
             this.CONSUME(lexer_1.Colon);
             this.OR([
                 { ALT: () => { this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }); } },
@@ -219,7 +219,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.LParen);
             this.OR1([
                 { ALT: () => {
-                        this.CONSUME(lexer_1.PresetRegister, { LABEL: 'condition' });
+                        this.CONSUME(lexer_1.StaticRegister, { LABEL: 'condition' });
                     } },
                 { ALT: () => {
                         this.CONSUME(lexer_1.SecretRegister, { LABEL: 'condition' });
@@ -312,7 +312,7 @@ class AirParser extends chevrotain_1.CstParser {
                 { ALT: () => this.SUBRULE(this.conditionalExpression) },
                 { ALT: () => this.CONSUME(lexer_1.Identifier) },
                 { ALT: () => this.CONSUME(lexer_1.MutableRegister) },
-                { ALT: () => this.CONSUME(lexer_1.PresetRegister) },
+                { ALT: () => this.CONSUME(lexer_1.StaticRegister) },
                 { ALT: () => this.CONSUME(lexer_1.SecretRegister) },
                 { ALT: () => this.CONSUME(lexer_1.PublicRegister) },
                 { ALT: () => this.CONSUME(lexer_1.IntegerLiteral) }
@@ -326,7 +326,7 @@ class AirParser extends chevrotain_1.CstParser {
         this.conditionalExpression = this.RULE('conditionalExpression', () => {
             this.OR([
                 { ALT: () => {
-                        this.CONSUME(lexer_1.PresetRegister, { LABEL: 'register' });
+                        this.CONSUME(lexer_1.StaticRegister, { LABEL: 'register' });
                     } },
                 { ALT: () => {
                         this.CONSUME(lexer_1.SecretRegister, { LABEL: 'register' });

@@ -4,7 +4,7 @@ import { CstParser } from "chevrotain";
 import {
     allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
     ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Out, 
-    MutableRegister, PresetRegister, SecretRegister, PublicRegister, LSquare, RSquare, Comma, Using,
+    MutableRegister, StaticRegister, SecretRegister, PublicRegister, LSquare, RSquare, Comma, Using,
     Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, QMark, Pipe, Binary, When, Else
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
@@ -110,7 +110,7 @@ class AirParser extends CstParser {
         this.AT_LEAST_ONE(() => {
             this.OR([
                 { ALT: () => {
-                    this.SUBRULE(this.presetRegisterDefinition, { LABEL: 'presetRegisters' })
+                    this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'staticRegisters' })
                 }},
                 { ALT: () => {
                     this.SUBRULE(this.secretRegisterDefinition, { LABEL: 'secretRegisters' })
@@ -123,8 +123,8 @@ class AirParser extends CstParser {
         this.CONSUME(RCurly);
     });
 
-    private presetRegisterDefinition = this.RULE('presetRegisterDefinition', () => {
-        this.CONSUME1(PresetRegister, { LABEL: 'name' });
+    private staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
+        this.CONSUME1(StaticRegister, { LABEL: 'name' });
         this.CONSUME(Colon);
         this.OR([
             { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
@@ -241,7 +241,7 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.OR1([
             { ALT: () => {
-                this.CONSUME(PresetRegister,        { LABEL: 'condition'   });
+                this.CONSUME(StaticRegister,        { LABEL: 'condition'   });
             }},
             { ALT: () => {
                 this.CONSUME(SecretRegister,        { LABEL: 'condition'   });
@@ -344,7 +344,7 @@ class AirParser extends CstParser {
             { ALT: () => this.SUBRULE(this.conditionalExpression)   },
             { ALT: () => this.CONSUME(Identifier)                   },
             { ALT: () => this.CONSUME(MutableRegister)              },
-            { ALT: () => this.CONSUME(PresetRegister)               },
+            { ALT: () => this.CONSUME(StaticRegister)               },
             { ALT: () => this.CONSUME(SecretRegister)               },
             { ALT: () => this.CONSUME(PublicRegister)               },
             { ALT: () => this.CONSUME(IntegerLiteral)               }
@@ -360,7 +360,7 @@ class AirParser extends CstParser {
     private conditionalExpression = this.RULE('conditionalExpression', () => {
         this.OR([
             { ALT: () => {
-                this.CONSUME(PresetRegister,   { LABEL: 'register'   });
+                this.CONSUME(StaticRegister,   { LABEL: 'register'   });
             }},
             { ALT: () => {
                 this.CONSUME(SecretRegister,   { LABEL: 'register'   });

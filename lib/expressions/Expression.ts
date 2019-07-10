@@ -21,21 +21,13 @@ export class Expression {
     readonly degree         : ExpressionDegree;
     readonly destructured   : boolean;
 
-    // CONSTRUCTORS
+    // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(code: string, dimensions: Dimensions, degree: ExpressionDegree, destructured = false) {
         this.code = code;
         this.dimensions = dimensions;
         this.degree = degree;
         this.destructured = destructured;
-    }
-
-    static variable(name: string, dimensions: Dimensions, degree: ExpressionDegree) {
-        return new Expression(`$${name}`, dimensions, degree);
-    }
-
-    static register(name: string, index: number): Expression {
-        return new Expression(`${name}[${index}]`, [0, 0], 1n);
     }
 
     // DIMENSION METHODS AND ACCESSORS

@@ -18,7 +18,7 @@ export class ScriptSpecs {
     steps!                  : number;
     mutableRegisterCount!   : number;
     readonlyRegisterCount!  : number;
-    presetRegisters!        : ReadonlyRegisterSpecs[];
+    staticRegisters!        : ReadonlyRegisterSpecs[];
     secretRegisters!        : InputRegisterSpecs[];
     publicRegisters!        : InputRegisterSpecs[];
     constraintCount!        : number;
@@ -53,7 +53,7 @@ export class ScriptSpecs {
 
     setReadonlyRegisterCounts(registers: ReadonlyRegisterGroup) {
         validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
-        this.presetRegisters = registers.presetRegisters;
+        this.staticRegisters = registers.staticRegisters;
         this.secretRegisters = registers.secretRegisters;
         this.publicRegisters = registers.publicRegisters;
     }
@@ -143,7 +143,7 @@ function validateReadonlyRegisterCount(registerCount: number | bigint, limits: S
 function validateReadonlyRegisterCounts(registers: ReadonlyRegisterGroup, readonlyRegisterCount: number) {
 
     const totalRegisterCount = 
-        registers.presetRegisters.length
+        registers.staticRegisters.length
         + registers.secretRegisters.length
         + registers.publicRegisters.length;
 

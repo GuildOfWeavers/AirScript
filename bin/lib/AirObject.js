@@ -14,7 +14,7 @@ class AirObject {
         this.stateWidth = config.stateWidth;
         this.secretInputs = config.secretInputs;
         this.publicInputs = config.publicInputs;
-        this.presetRegisters = config.presetRegisters;
+        this.staticRegisters = config.staticRegisters;
         this.constraints = config.constraints;
         this.extensionFactor = getExtensionFactor(this.maxConstraintDegree, extensionFactor);
         this.applyTransition = config.transitionFunction;
@@ -42,7 +42,7 @@ class AirObject {
                 return true;
         }
         ;
-        for (let specs of this.presetRegisters) {
+        for (let specs of this.staticRegisters) {
             if (specs.pattern === 'spread')
                 return true;
         }
@@ -70,7 +70,7 @@ class AirObject {
                 executionDomain[i] = evaluationDomain[i * this.extensionFactor];
             }
             ctx = { field, traceLength, extensionFactor, rootOfUnity, evaluationDomain, executionDomain };
-            sRegisters = buildInputRegisters(sInputs, this.secretInputs, ctx);
+            sRegisters = buildInputRegisters(sInputs, this.secretInputs, true, ctx);
         }
         else {
             // if secret inputs were not provided, we are verifying STARK proof
@@ -83,8 +83,8 @@ class AirObject {
             }
         }
         // build registers for public inputs and constant values
-        const pRegisters = buildInputRegisters(pInputs, this.publicInputs, ctx);
-        const kRegisters = buildReadonlyRegisters(this.presetRegisters, ctx);
+        const pRegisters = buildInputRegisters(pInputs, this.publicInputs, false, ctx);
+        const kRegisters = buildReadonlyRegisters(this.staticRegisters, ctx);
         // build and return the context
         return { ...ctx, kRegisters, sRegisters, pRegisters,
             stateWidth: this.stateWidth,
@@ -234,14 +234,14 @@ function buildReadonlyRegisters(specs, ctx) {
     }
     return registers;
 }
-function buildInputRegisters(inputs, specs, ctx) {
+function buildInputRegisters(inputs, specs, isSecret, ctx) {
     const regSpecs = new Array(inputs.length);
     for (let i = 0; i < inputs.length; i++) {
         let binary = specs[i].binary;
         if (binary) {
             for (let value of inputs[i]) {
                 if (value !== ctx.field.zero && value !== ctx.field.one) {
-                    let registerName = `$p${i}`; // TODO
+                    let registerName = isSecret ? `$s${i}` : `$p${i}`;
                     throw new Error(`Invalid definition for readonly register ${registerName}: the register can contain only binary values`);
                 }
             }

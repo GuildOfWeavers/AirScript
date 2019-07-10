@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { validateVariableName } from './utils';
+import { validateVariableName, Dimensions } from './utils';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './AirObject';
 import { Expression } from './expressions/Expression';
@@ -13,7 +13,7 @@ export class StatementContext {
     readonly localVariables         : Map<string, Expression>;
     readonly subroutines            : Map<string, string>;
     readonly mutableRegisterCount   : number;
-    readonly presetRegisters        : ReadonlyRegisterSpecs[];
+    readonly staticRegisters        : ReadonlyRegisterSpecs[];
     readonly secretRegisters        : InputRegisterSpecs[];
     readonly publicRegisters        : InputRegisterSpecs[];
     readonly canAccessFutureState   : boolean;
@@ -25,7 +25,7 @@ export class StatementContext {
         this.localVariables = new Map();
         this.staticConstants = specs.staticConstants;
         this.mutableRegisterCount = specs.mutableRegisterCount;
-        this.presetRegisters = specs.presetRegisters;
+        this.staticRegisters = specs.staticRegisters;
         this.secretRegisters = specs.secretRegisters;
         this.publicRegisters = specs.publicRegisters;
         this.canAccessFutureState = canAccessFutureState;
@@ -33,11 +33,12 @@ export class StatementContext {
 
     // VARIABLES
     // --------------------------------------------------------------------------------------------
-    buildVariableAssignment(variable: string, expression: Expression) {
+    setVariableAssignment(variable: string, expression: Expression): { code: string, dimensions: Dimensions } {
         if (this.staticConstants.has(variable)) {
             throw new Error(`Value of static constant '${variable}' cannot be changed`);
         }
         
+        const refCode = `$${variable}`;
         const sExpression = this.localVariables.get(variable);
         if (sExpression) {
             if (!sExpression.isSameDimensions(expression)) {
@@ -45,26 +46,28 @@ export class StatementContext {
             }
 
             if (sExpression.degree !== expression.degree) {
-                this.localVariables.set(variable, expression);
+                const refExpression = new Expression(refCode, expression.dimensions, expression.degree);
+                this.localVariables.set(variable, refExpression);
             }
 
             return {
-                code        : `$${variable}`,
+                code        : refCode,
                 dimensions  : expression.dimensions
             };
         }
         else {
             validateVariableName(variable, expression.dimensions);
-            this.localVariables.set(variable, expression);
+            const refExpression = new Expression(refCode, expression.dimensions, expression.degree);
+            this.localVariables.set(variable, refExpression);
 
             return {
-                code        : `let $${variable}`,
+                code        : `let ${refCode}`,
                 dimensions  : expression.dimensions
             };
         }
     }
 
-    buildVariableReference(variable: string): Expression {
+    getVariableReference(variable: string): Expression {
         if (this.localVariables.has(variable)) {
             return this.localVariables.get(variable)!;
         }
@@ -78,7 +81,7 @@ export class StatementContext {
 
     // REGISTERS
     // --------------------------------------------------------------------------------------------
-    buildRegisterReference(register: string): Expression {
+    getRegisterReference(register: string): Expression {
         const name = register.slice(1, 2);
         const index = Number.parseInt(register.slice(2), 10);
         
@@ -98,9 +101,9 @@ export class StatementContext {
             }
         }
         else if (name === 'k') {
-            let presetRegisterCount = this.presetRegisters.length;
-            if (index >= presetRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${presetRegisterCount}`);
+            let staticRegisterCount = this.staticRegisters.length;
+            if (index >= staticRegisterCount) {
+                throw new Error(`${errorMessage}: register index must be smaller than ${staticRegisterCount}`);
             }
         }
         else if (name === 's') {
@@ -116,7 +119,7 @@ export class StatementContext {
             }
         }
 
-        return Expression.register(name, index);
+        return new Expression(`${name}[${index}]`, [0, 0], 1n);
     }
 
     isBinaryRegister(register: string): boolean {
@@ -124,7 +127,7 @@ export class StatementContext {
         const index = Number.parseInt(register.slice(2), 10);
         
         if (name === 'k') {
-            return this.presetRegisters[index].binary;
+            return this.staticRegisters[index].binary;
         }
         else if (name === 's') {
             return this.secretRegisters[index].binary;
@@ -133,7 +136,7 @@ export class StatementContext {
             return this.publicRegisters[index].binary;
         }
         else {
-            throw new Error(''); // TODO
+            throw new Error(`Register ${register} cannot be restricted to binary values`);
         }
     }
 

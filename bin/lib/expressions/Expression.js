@@ -4,19 +4,13 @@ const StaticExpression_1 = require("./StaticExpression");
 // CLASS DEFINITION
 // ================================================================================================
 class Expression {
-    // CONSTRUCTORS
+    // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(code, dimensions, degree, destructured = false) {
         this.code = code;
         this.dimensions = dimensions;
         this.degree = degree;
         this.destructured = destructured;
-    }
-    static variable(name, dimensions, degree) {
-        return new Expression(`$${name}`, dimensions, degree);
-    }
-    static register(name, index) {
-        return new Expression(`${name}[${index}]`, [0, 0], 1n);
     }
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------

@@ -17,7 +17,7 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
     }
 
     // transition constraint definition
-    enforce 1 constraint {
+    enforce 2 constraints {
 
         M: [[1, alpha], [$k0, $p0]];
         V: [$k0, $p0];
@@ -26,7 +26,9 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
         V2: M # V;
 
         n0: $k1 ? $r0^alpha + $k0 + $p0 | $r0^alpha + $k0;
-        out: $n0 - n0;
+        V3: [$n0, n0];
+
+        out: V3 - n0;
     }
 
     // readonly registers accessible in transition function and constraints

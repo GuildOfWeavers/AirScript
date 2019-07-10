@@ -28,7 +28,7 @@ class ScriptSpecs {
     }
     setReadonlyRegisterCounts(registers) {
         validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
-        this.presetRegisters = registers.presetRegisters;
+        this.staticRegisters = registers.staticRegisters;
         this.secretRegisters = registers.secretRegisters;
         this.publicRegisters = registers.publicRegisters;
     }
@@ -106,7 +106,7 @@ function validateReadonlyRegisterCount(registerCount, limits) {
     return registerCount;
 }
 function validateReadonlyRegisterCounts(registers, readonlyRegisterCount) {
-    const totalRegisterCount = registers.presetRegisters.length
+    const totalRegisterCount = registers.staticRegisters.length
         + registers.secretRegisters.length
         + registers.publicRegisters.length;
     if (totalRegisterCount > readonlyRegisterCount) {

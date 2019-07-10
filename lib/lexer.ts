@@ -7,7 +7,7 @@ import { lexerErrorMessageProvider } from "./errors";
 // ================================================================================================
 export const IntegerLiteral     = createToken({ name: "IntegerLiteral",   pattern: /0|[1-9]\d*/    })
 export const MutableRegister    = createToken({ name: "MutableRegister",  pattern: /\$[rn]\d{1,2}/ });
-export const PresetRegister     = createToken({ name: "PresetRegister",   pattern: /\$k\d{1,2}/    });
+export const StaticRegister     = createToken({ name: "StaticRegister",   pattern: /\$k\d{1,2}/    });
 export const SecretRegister     = createToken({ name: "SecretRegister",   pattern: /\$s\d{1,2}/    });
 export const PublicRegister     = createToken({ name: "PublicRegister",   pattern: /\$p\d{1,2}/    });
 export const Identifier         = createToken({ name: "Identifier",       pattern: /[a-zA-Z]\w*/   });
@@ -107,7 +107,7 @@ export const allTokens = [
 
     Identifier,
 
-    MutableRegister, PresetRegister, SecretRegister, PublicRegister,
+    MutableRegister, StaticRegister, SecretRegister, PublicRegister,
 
     IntegerLiteral
 ];
