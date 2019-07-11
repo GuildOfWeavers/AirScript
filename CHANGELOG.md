@@ -1,5 +1,9 @@
 # Release History
 
+### v0.2.1 - July 11, 2019
+
+* Minor interface changes in AirObject
+
 ### v0.2 - July 10, 2019
 
 * Added support for vector composition

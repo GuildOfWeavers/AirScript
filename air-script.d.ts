@@ -21,7 +21,11 @@ declare module '@guildofweavers/air-script' {
         readonly name                   : string;
         readonly field                  : FiniteField;
         readonly stateWidth             : number;
+        readonly publicInputCount       : number;
+        readonly secretInputCount       : number;
+        readonly constraintCount        : number;
         readonly maxConstraintDegree    : number;
+        readonly extensionFactor        : number;
 
         createContext(publicInputs: bigint[][]): VerificationContext;
         createContext(publicInputs: bigint[][], secretInputs: bigint[][]): ProofContext;

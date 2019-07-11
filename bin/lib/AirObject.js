@@ -22,6 +22,12 @@ class AirObject {
     }
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
+    get publicInputCount() {
+        return this.publicInputs.length;
+    }
+    get secretInputCount() {
+        return this.secretInputs.length;
+    }
     get maxConstraintDegree() {
         let result = 0;
         for (let constraint of this.constraints) {
@@ -30,6 +36,9 @@ class AirObject {
             }
         }
         return result;
+    }
+    get constraintCount() {
+        return this.constraints.length;
     }
     get hasSpreadRegisters() {
         for (let specs of this.secretInputs) {
@@ -54,7 +63,7 @@ class AirObject {
         const traceLength = this.steps;
         const extensionFactor = this.extensionFactor;
         // make sure all inputs are valid
-        validateInputs(traceLength, pInputs, this.publicInputs.length, sInputs, this.secretInputs.length);
+        validateInputs(traceLength, pInputs, this.publicInputCount, sInputs, this.secretInputCount);
         // determine domain size and compute root of unity
         const evaluationDomainSize = traceLength * extensionFactor;
         const rootOfUnity = field.getRootOfUnity(evaluationDomainSize);
@@ -89,8 +98,8 @@ class AirObject {
         return { ...ctx, kRegisters, sRegisters, pRegisters,
             stateWidth: this.stateWidth,
             constraints: this.constraints,
-            secretInputCount: this.secretInputs.length,
-            publicInputCount: this.publicInputs.length
+            secretInputCount: this.secretInputCount,
+            publicInputCount: this.publicInputCount
         };
     }
     // EXECUTION
@@ -137,7 +146,7 @@ class AirObject {
     }
     evaluateExtendedTrace(extendedTrace, ctx) {
         const domainSize = ctx.evaluationDomain.length;
-        const constraintCount = ctx.constraints.length;
+        const constraintCount = this.constraintCount;
         const extensionFactor = this.extensionFactor;
         // make sure evaluation trace is valid
         validateExtendedTrace(extendedTrace, this.stateWidth, domainSize);
