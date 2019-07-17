@@ -20,6 +20,11 @@ export class RepeatRegister implements ReadonlyRegister {
 
         this.field = ctx.field;
         this.extensionFactor = ctx.extensionFactor;
+
+        // make sure the length of values is at least 4; this is needed for FFT interpolation
+        if (values.length === 2) {
+            values = values.concat(values);
+        }
         this.cycleCount = BigInt(ctx.traceLength / values.length);
 
         if (ctx.evaluationDomain) {

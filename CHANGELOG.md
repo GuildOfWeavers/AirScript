@@ -1,5 +1,9 @@
 # Release History
 
+### v0.2.3 - July 17, 2019
+
+* Fixed a bug in repeat readonly registers
+
 ### v0.2.2 - July 17, 2019
 
 * Added `sEvaluations` to `ProofContext`
