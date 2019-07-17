@@ -144,7 +144,8 @@ export class AirObject implements IAirObject {
         const evaluationDomainSize = traceLength * extensionFactor;
         const rootOfUnity = field.getRootOfUnity(evaluationDomainSize);
 
-        let ctx: EvaluationContext, sRegisters: ReadonlyRegister[] | undefined;
+        let ctx: EvaluationContext;
+        let sRegisters: ReadonlyRegister[] | undefined, sEvaluations: bigint[][] | undefined;
         if (sInputs) {
             // if secret inputs are provided, we are generating STARK proof;
             // so, first compute the entire evaluation domain
@@ -158,7 +159,10 @@ export class AirObject implements IAirObject {
             }
 
             ctx = { field, traceLength, extensionFactor, rootOfUnity, evaluationDomain, executionDomain };
+
+            // build secret registers and compute their evaluation traces
             sRegisters = buildInputRegisters(sInputs, this.secretInputs, true, ctx);
+            sEvaluations = sRegisters.map(register => register.getAllEvaluations());
         }
         else {
             // if secret inputs were not provided, we are verifying STARK proof
@@ -179,9 +183,10 @@ export class AirObject implements IAirObject {
         // build and return the context
         return {...ctx, kRegisters, sRegisters, pRegisters, 
             stateWidth          : this.stateWidth,
-            constraints         : this.constraints,
+            constraintCount     : this.constraintCount,
             secretInputCount    : this.secretInputCount,
-            publicInputCount    : this.publicInputCount
+            publicInputCount    : this.publicInputCount,
+            sEvaluations        : sEvaluations
         };
     }
 

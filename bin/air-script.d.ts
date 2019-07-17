@@ -23,7 +23,7 @@ declare module '@guildofweavers/air-script' {
         readonly stateWidth             : number;
         readonly publicInputCount       : number;
         readonly secretInputCount       : number;
-        readonly constraintCount        : number;
+        readonly constraints            : ConstraintSpecs[];
         readonly maxConstraintDegree    : number;
         readonly extensionFactor        : number;
 
@@ -53,15 +53,16 @@ declare module '@guildofweavers/air-script' {
 
     export interface VerificationContext extends EvaluationContext {
         readonly stateWidth         : number;
+        readonly constraintCount    : number;
         readonly secretInputCount   : number;
         readonly publicInputCount   : number;
-        readonly constraints        : ConstraintSpecs[];
         readonly kRegisters         : ReadonlyRegister[];
         readonly pRegisters         : ReadonlyRegister[];
     }
 
     export interface ProofContext extends VerificationContext {
         readonly sRegisters         : ReadonlyRegister[];
+        readonly sEvaluations       : bigint[][];
         readonly executionDomain    : bigint[];
         readonly evaluationDomain   : bigint[];
     }
@@ -70,6 +71,7 @@ declare module '@guildofweavers/air-script' {
         getTraceValue(step: number): bigint;
         getEvaluation(position: number): bigint;
         getEvaluationAt(x: bigint): bigint;
+        getAllEvaluations(): bigint[];
     }
 
     export interface ConstraintSpecs {

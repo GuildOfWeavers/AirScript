@@ -139,7 +139,7 @@ const pEvaluations0 = air.field.evalPolyAtRoots(pPoly0, pContext.evaluationDomai
 const pEvaluations1 = air.field.evalPolyAtRoots(pPoly1, pContext.evaluationDomain);
 const pEvaluations2 = air.field.evalPolyAtRoots(pPoly2, pContext.evaluationDomain);
 const pEvaluations3 = air.field.evalPolyAtRoots(pPoly3, pContext.evaluationDomain);
-const sEvaluations = (pContext.sRegisters[0] as any).evaluations;
+const sEvaluations = pContext.sEvaluations[0];
 
 const qEvaluations = air.evaluateExtendedTrace([pEvaluations0, pEvaluations1, pEvaluations2, pEvaluations3], pContext);
 const vContext = air.createContext([[0n, 1n, 0n, 1n]]);

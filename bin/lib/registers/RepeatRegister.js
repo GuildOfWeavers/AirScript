@@ -10,14 +10,14 @@ class RepeatRegister {
         this.extensionFactor = ctx.extensionFactor;
         this.cycleCount = BigInt(ctx.traceLength / values.length);
         if (ctx.evaluationDomain) {
-            const domainSize = ctx.evaluationDomain.length;
-            const skip = domainSize / values.length;
+            this.domainSize = ctx.evaluationDomain.length;
+            const skip = this.domainSize / values.length;
             const xs = new Array(values.length);
             for (let i = 0; i < values.length; i++) {
                 xs[i] = ctx.evaluationDomain[i * skip];
             }
             this.poly = this.field.interpolateRoots(xs, values);
-            const skip2 = domainSize / (values.length * this.extensionFactor);
+            const skip2 = this.domainSize / (values.length * this.extensionFactor);
             const xs2 = new Array(values.length * this.extensionFactor);
             for (let i = 0; i < xs2.length; i++) {
                 xs2[i] = ctx.evaluationDomain[i * skip2];
@@ -28,6 +28,7 @@ class RepeatRegister {
             const g = this.field.exp(ctx.rootOfUnity, BigInt(this.extensionFactor) * this.cycleCount);
             const xs = this.field.getPowerCycle(g);
             this.poly = this.field.interpolateRoots(xs, values);
+            this.domainSize = this.extensionFactor * ctx.traceLength;
         }
     }
     // PUBLIC FUNCTIONS
@@ -44,6 +45,16 @@ class RepeatRegister {
     getEvaluationAt(x) {
         const xp = this.field.exp(x, this.cycleCount);
         return this.field.evalPolyAt(this.poly, xp);
+    }
+    getAllEvaluations() {
+        if (!this.evaluations)
+            throw new Error('Register evaluations are undefined');
+        let allEvaluations = this.evaluations;
+        // double evaluation array until it reaches domain size
+        while (allEvaluations.length < this.domainSize) {
+            allEvaluations = allEvaluations.concat(allEvaluations);
+        }
+        return allEvaluations;
     }
 }
 exports.RepeatRegister = RepeatRegister;

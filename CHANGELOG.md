@@ -1,5 +1,9 @@
 # Release History
 
+### v0.2.2 - July 17, 2019
+
+* Added `sEvaluations` to `ProofContext`
+
 ### v0.2.1 - July 11, 2019
 
 * Minor interface changes in AirObject
