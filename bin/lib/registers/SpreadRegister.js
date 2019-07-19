@@ -9,7 +9,7 @@ class SpreadRegister {
         this.field = ctx.field;
         this.extensionFactor = ctx.extensionFactor;
         const cycleLength = ctx.traceLength / values.length;
-        const trace = new Array(ctx.traceLength);
+        const trace = this.field.newVector(ctx.traceLength);
         let start = 0;
         for (let i = 0; i < values.length; i++, start += cycleLength) {
             trace.fill(values[i], start, start + cycleLength);

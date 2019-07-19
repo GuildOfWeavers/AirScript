@@ -2,8 +2,8 @@ declare module '@guildofweavers/air-script' {
 
     // IMPORTS AND RE-EXPORTS
     // --------------------------------------------------------------------------------------------
-    import { FiniteField } from '@guildofweavers/galois';
-    export { FiniteField } from '@guildofweavers/galois';
+    import { FiniteField, Vector } from '@guildofweavers/galois';
+    export { FiniteField, Vector } from '@guildofweavers/galois';
 
     // INTERFACES
     // --------------------------------------------------------------------------------------------
@@ -30,8 +30,8 @@ declare module '@guildofweavers/air-script' {
         createContext(publicInputs: bigint[][]): VerificationContext;
         createContext(publicInputs: bigint[][], secretInputs: bigint[][]): ProofContext;
 
-        generateExecutionTrace(initValues: bigint[], ctx: ProofContext): bigint[][];
-        evaluateExtendedTrace(extendedTrace: bigint[][], ctx: ProofContext): bigint[][];
+        generateExecutionTrace(initValues: bigint[], ctx: ProofContext): Vector[];
+        evaluateExtendedTrace(extendedTrace: Vector[], ctx: ProofContext): Vector[];
         evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[], ctx: VerificationContext): bigint[];
     }
 
@@ -47,8 +47,8 @@ declare module '@guildofweavers/air-script' {
         readonly traceLength        : number;
         readonly extensionFactor    : number;
         readonly rootOfUnity        : bigint;
-        readonly executionDomain?   : bigint[];
-        readonly evaluationDomain?  : bigint[];
+        readonly executionDomain?   : Vector;
+        readonly evaluationDomain?  : Vector;
     }
 
     export interface VerificationContext extends EvaluationContext {
@@ -62,9 +62,9 @@ declare module '@guildofweavers/air-script' {
 
     export interface ProofContext extends VerificationContext {
         readonly sRegisters         : ReadonlyRegister[];
-        readonly sEvaluations       : bigint[][];
-        readonly executionDomain    : bigint[];
-        readonly evaluationDomain   : bigint[];
+        readonly sEvaluations       : Vector[];
+        readonly executionDomain    : Vector;
+        readonly evaluationDomain   : Vector;
     }
 
     export interface ReadonlyRegister {

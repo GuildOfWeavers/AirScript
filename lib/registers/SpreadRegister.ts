@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { FiniteField, Polynom } from "@guildofweavers/galois";
+import { FiniteField, Polynom, Vector } from "@guildofweavers/galois";
 import { ReadonlyRegister, EvaluationContext } from "@guildofweavers/air-script";
 
 // CLASS DEFINITION
@@ -10,7 +10,7 @@ export class SpreadRegister implements ReadonlyRegister {
     readonly field              : FiniteField;
     readonly poly               : Polynom;
     readonly extensionFactor    : number;
-    readonly allEvaluations?    : bigint[];
+    readonly allEvaluations?    : Vector;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -20,7 +20,7 @@ export class SpreadRegister implements ReadonlyRegister {
         this.extensionFactor = ctx.extensionFactor;
 
         const cycleLength = ctx.traceLength / values.length;
-        const trace = new Array<bigint>(ctx.traceLength);
+        const trace = this.field.newVector(ctx.traceLength);
 
         let start = 0;
         for (let i = 0; i < values.length; i++, start += cycleLength) {

@@ -75,7 +75,7 @@ class AirObject {
             const evaluationDomain = field.getPowerCycle(rootOfUnity);
             // then, build execution trace by picking elements from the
             // domain at positions that evenly divide extension factor
-            const executionDomain = new Array(traceLength);
+            const executionDomain = field.newVector(traceLength);
             for (let i = 0; i < executionDomain.length; i++) {
                 executionDomain[i] = evaluationDomain[i * this.extensionFactor];
             }
@@ -120,7 +120,7 @@ class AirObject {
         validateInitValues(initValues, this.stateWidth);
         // initialize rValues and set first state of execution trace to initValues
         for (let register = 0; register < trace.length; register++) {
-            trace[register] = new Array(ctx.traceLength);
+            trace[register] = this.field.newVector(ctx.traceLength);
             trace[register][0] = rValues[register] = initValues[register];
         }
         // apply transition function for each step
@@ -157,7 +157,7 @@ class AirObject {
         // initialize evaluation arrays
         const evaluations = new Array(constraintCount);
         for (let i = 0; i < constraintCount; i++) {
-            evaluations[i] = new Array(domainSize);
+            evaluations[i] = this.field.newVector(domainSize);
         }
         const nfSteps = domainSize - extensionFactor;
         const rValues = new Array(ctx.stateWidth);

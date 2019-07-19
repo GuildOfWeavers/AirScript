@@ -28,7 +28,7 @@
     "gulp": "4.0.x"
   },
   "dependencies": {
-    "@guildofweavers/galois": "0.2.x",
+    "@guildofweavers/galois": "0.3.x",
     "chevrotain": "4.8.x"
   }
 }

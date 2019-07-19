@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { FiniteField } from "@guildofweavers/galois";
+import { FiniteField, Vector } from "@guildofweavers/galois";
 import {
     AirObject as IAirObject, EvaluationContext, ProofContext, VerificationContext, ReadonlyRegister, ConstraintSpecs
 } from "@guildofweavers/air-script";
@@ -153,7 +153,7 @@ export class AirObject implements IAirObject {
 
             // then, build execution trace by picking elements from the
             // domain at positions that evenly divide extension factor
-            const executionDomain = new Array<bigint>(traceLength);
+            const executionDomain = field.newVector(traceLength);
             for (let i = 0; i < executionDomain.length; i++) {
                 executionDomain[i] = evaluationDomain[i * this.extensionFactor];
             }
@@ -192,7 +192,7 @@ export class AirObject implements IAirObject {
 
     // EXECUTION
     // --------------------------------------------------------------------------------------------
-    generateExecutionTrace(initValues: bigint[], ctx: ProofContext): bigint[][] {
+    generateExecutionTrace(initValues: bigint[], ctx: ProofContext): Vector[] {
 
         const steps = ctx.traceLength - 1;
         const trace = new Array<bigint[]>(ctx.stateWidth);
@@ -207,7 +207,7 @@ export class AirObject implements IAirObject {
 
         // initialize rValues and set first state of execution trace to initValues
         for (let register = 0; register < trace.length; register++) {
-            trace[register] = new Array<bigint>(ctx.traceLength);
+            trace[register] = this.field.newVector(ctx.traceLength);
             trace[register][0] = rValues[register] = initValues[register];
         }
 
@@ -242,7 +242,7 @@ export class AirObject implements IAirObject {
         return trace;
     }
 
-    evaluateExtendedTrace(extendedTrace: bigint[][], ctx: ProofContext): bigint[][] {
+    evaluateExtendedTrace(extendedTrace: Vector[], ctx: ProofContext): Vector[] {
 
         const domainSize = ctx.evaluationDomain.length;
         const constraintCount = this.constraintCount;
@@ -254,7 +254,7 @@ export class AirObject implements IAirObject {
         // initialize evaluation arrays
         const evaluations = new Array<bigint[]>(constraintCount);
         for (let i = 0; i < constraintCount; i++) {
-            evaluations[i] = new Array<bigint>(domainSize);
+            evaluations[i] = this.field.newVector(domainSize);
         }
 
         const nfSteps = domainSize - extensionFactor;
@@ -457,7 +457,7 @@ function validateInitValues(values: bigint[], stateWidth: number) {
     }
 }
 
-function validateExtendedTrace(trace: bigint[][], stateWidth: number, domainSize: number) {
+function validateExtendedTrace(trace: Vector[], stateWidth: number, domainSize: number) {
     if (!trace) throw new TypeError('Extended trace is undefined');
     if (!Array.isArray(trace)) throw new TypeError('Evaluation trace parameter must be an array');
     if (trace.length !== stateWidth) {

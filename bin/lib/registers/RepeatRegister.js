@@ -16,13 +16,13 @@ class RepeatRegister {
         if (ctx.evaluationDomain) {
             this.domainSize = ctx.evaluationDomain.length;
             const skip = this.domainSize / values.length;
-            const xs = new Array(values.length);
+            const xs = this.field.newVector(values.length);
             for (let i = 0; i < values.length; i++) {
                 xs[i] = ctx.evaluationDomain[i * skip];
             }
             this.poly = this.field.interpolateRoots(xs, values);
             const skip2 = this.domainSize / (values.length * this.extensionFactor);
-            const xs2 = new Array(values.length * this.extensionFactor);
+            const xs2 = this.field.newVector(values.length * this.extensionFactor);
             for (let i = 0; i < xs2.length; i++) {
                 xs2[i] = ctx.evaluationDomain[i * skip2];
             }
