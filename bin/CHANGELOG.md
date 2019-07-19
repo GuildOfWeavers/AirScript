@@ -1,5 +1,9 @@
 # Release History
 
+### v0.3 - July 19, 2019
+
+* Updated interfaces to work with vectors instead of bigint arrays
+
 ### v0.2.3 - July 17, 2019
 
 * Fixed a bug in repeat readonly registers
