@@ -29,16 +29,23 @@ const air = parseScript(script);
 console.log(`degree: ${air.maxConstraintDegree}`);
 
 const pContext = air.createContext([], []);
-const trace = air.generateExecutionTrace([3n], pContext);
-const pPoly = air.field.interpolateRoots(pContext.executionDomain, trace[0]);
-const pEvaluations = air.field.evalPolyAtRoots(pPoly, pContext.evaluationDomain);
 
-const qEvaluations = air.evaluateExtendedTrace([pEvaluations], pContext);
+let start = Date.now();
+const trace = air.generateExecutionTrace([3n], pContext);
+console.log(`Execution trace generated in ${Date.now() - start} ms`);
+
+const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
+const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
+
+start = Date.now();
+const qEvaluations = air.evaluateExtendedTrace(pEvaluations, pContext);
+console.log(`Constraints evaluated in ${Date.now() - start} ms`);
+
 const vContext = air.createContext([]);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
-const rValues = [pEvaluations[2]];
-const nValues = [pEvaluations[10]];
+const rValues = [pEvaluations.getValue(0, 2)];
+const nValues = [pEvaluations.getValue(0, 10)];
 const qValues = air.evaluateConstraintsAt(x, rValues, nValues, [], vContext);
 
-console.log(qEvaluations[0][2] === qValues[0]);
+console.log(qEvaluations.getValue(0, 2) === qValues[0]);

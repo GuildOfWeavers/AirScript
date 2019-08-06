@@ -130,24 +130,25 @@ const air = parseScript(script);
 console.log(`degree: ${air.maxConstraintDegree}`);
 
 const pContext = air.createContext([[0n, 1n, 0n, 1n]], [[1n, 2n, 3n, 4n]]);
+
+let start = Date.now();
 const trace = air.generateExecutionTrace([42n, 0n, 43n, 0n], pContext);
-const pPoly0 = air.field.interpolateRoots(pContext.executionDomain, trace[0]);
-const pPoly1 = air.field.interpolateRoots(pContext.executionDomain, trace[1]);
-const pPoly2 = air.field.interpolateRoots(pContext.executionDomain, trace[2]);
-const pPoly3 = air.field.interpolateRoots(pContext.executionDomain, trace[3]);
-const pEvaluations0 = air.field.evalPolyAtRoots(pPoly0, pContext.evaluationDomain);
-const pEvaluations1 = air.field.evalPolyAtRoots(pPoly1, pContext.evaluationDomain);
-const pEvaluations2 = air.field.evalPolyAtRoots(pPoly2, pContext.evaluationDomain);
-const pEvaluations3 = air.field.evalPolyAtRoots(pPoly3, pContext.evaluationDomain);
+console.log(`Execution trace generated in ${Date.now() - start} ms`);
+
+const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
+const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
 const sEvaluations = pContext.sEvaluations[0];
 
-const qEvaluations = air.evaluateExtendedTrace([pEvaluations0, pEvaluations1, pEvaluations2, pEvaluations3], pContext);
+start = Date.now();
+const qEvaluations = air.evaluateExtendedTrace(pEvaluations, pContext);
+console.log(`Constraints evaluated in ${Date.now() - start} ms`);
+
 const vContext = air.createContext([[0n, 1n, 0n, 1n]]);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
-const rValues = [pEvaluations0[2], pEvaluations1[2], pEvaluations2[2], pEvaluations3[2]];
-const nValues = [pEvaluations0[10], pEvaluations1[10], pEvaluations2[10], pEvaluations3[10]];
-const sValues = [sEvaluations[2]];
+const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2)];
+const nValues = [pEvaluations.getValue(0, 10), pEvaluations.getValue(1, 10), pEvaluations.getValue(2, 10), pEvaluations.getValue(3, 10)];
+const sValues = [sEvaluations.getValue(2)];
 const qValues = air.evaluateConstraintsAt(x, rValues, nValues, sValues, vContext);
 
-console.log(qEvaluations[0][2] === qValues[0]);
+console.log(qEvaluations.getValue(0, 2) === qValues[0]);

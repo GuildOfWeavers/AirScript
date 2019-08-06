@@ -2,7 +2,7 @@
 // ================================================================================================
 import { StarkLimits, ConstraintSpecs } from '@guildofweavers/air-script';
 import { AirConfig, ReadonlyValuePattern, ReadonlyRegisterSpecs, InputRegisterSpecs, TransitionFunction, ConstraintEvaluator } from './AirObject';
-import { PrimeField, FiniteField } from '@guildofweavers/galois';
+import { FiniteField, createPrimeField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
@@ -125,7 +125,7 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     fieldDeclaration(ctx: any) {
         const modulus = this.visit(ctx.modulus);
-        return new PrimeField(modulus);
+        return createPrimeField(modulus, null);
     }
 
     // STATIC CONSTANTS
@@ -384,7 +384,7 @@ class AirVisitor extends BaseCstVisitor {
                 dimensions = expression.dimensions;
                 code = `let _out = ${expression.code};\n`;
                 for (let i = 0; i < dimensions[0]; i++) {
-                    code += `out[${i}] = _out[${i}];\n`;
+                    code += `out[${i}] = _out.getValue(${i});\n`;
                 }
                 degree = expression.degree as bigint[];
             }
@@ -398,7 +398,7 @@ class AirVisitor extends BaseCstVisitor {
             dimensions = expression.dimensions;
             code = `let _out = ${expression.code};\n`;
             for (let i = 0; i < dimensions[0]; i++) {
-                code += `out[${i}] = _out[${i}];\n`;
+                code += `out[${i}] = _out.getValue(${i});\n`;
             }
             degree = expression.degree as bigint[];
         }
@@ -441,8 +441,8 @@ class AirVisitor extends BaseCstVisitor {
         const fSubroutine = exc.addSubroutine(fBlock.code);
 
         // compute expressions for true and false branches
-        const tExpression = new Expression('tOut', resultDim, tBlock.outputDegrees);
-        const fExpression = new Expression('fOut', resultDim, fBlock.outputDegrees);
+        const tExpression = new Expression('f.newVectorFrom(tOut)', resultDim, tBlock.outputDegrees);
+        const fExpression = new Expression('f.newVectorFrom(fOut)', resultDim, fBlock.outputDegrees);
 
         const tBranch = tExpression.mul(registerRef);
         const fBranch = fExpression.mul(oneMinusReg);
@@ -451,8 +451,8 @@ class AirVisitor extends BaseCstVisitor {
         let code = `let tOut = new Array(${outputSize}), fOut = new Array(${outputSize});\n`;
         code += exc.callSubroutine(tSubroutine, 'tOut');
         code += exc.callSubroutine(fSubroutine, 'fOut');
-        code += `tOut = ${tBranch.code};\n`;
-        code += `fOut = ${fBranch.code};\n`;
+        code += `tOut = ${tBranch.code}.values;\n`;
+        code += `fOut = ${fBranch.code}.values;\n`;
         for (let i = 0; i < outputSize; i++) {
             code += `out[${i}] = f.add(tOut[${i}], fOut[${i}]);\n`;
         }
@@ -469,7 +469,7 @@ class AirVisitor extends BaseCstVisitor {
     vector(ctx: any, exc: ExecutionContext): Expression {
 
         const dimensions: Dimensions = [ctx.elements.length, 0], degree: bigint[] = [];
-        let code = `[`;
+        let code = `f.newVectorFrom([`;
         for (let i = 0; i < ctx.elements.length; i++) {
             let element: Expression = this.visit(ctx.elements[i], exc);
             if (!isScalar(element.dimensions)) {
@@ -488,7 +488,7 @@ class AirVisitor extends BaseCstVisitor {
             }
             code += `${element.code}, `;
         }
-        code = code.slice(0, -2) + ']';
+        code = code.slice(0, -2) + '])';
 
         return new Expression(code, dimensions, degree);
     }
@@ -503,7 +503,7 @@ class AirVisitor extends BaseCstVisitor {
             throw new Error(`Cannot expand matrix variable '${variableName}'`);
         }
 
-        return new Expression(`...${element.code}`, element.dimensions, element.degree, true);
+        return new Expression(`...${element.code}.values`, element.dimensions, element.degree, true);
     }
 
     matrix(ctx: any, exc: ExecutionContext): Expression {
@@ -512,7 +512,7 @@ class AirVisitor extends BaseCstVisitor {
         const rowCount = ctx.rows.length;
         let colCount = 0;
 
-        let code = `[`;
+        let code = `f.newMatrixFrom([`;
         for (let i = 0; i < rowCount; i++) {
             let row: Expression = this.visit(ctx.rows[i], exc);
             if (colCount === 0) {
@@ -524,7 +524,7 @@ class AirVisitor extends BaseCstVisitor {
             code += `${row.code}, `;
             degree.push(row.degree as bigint[]);
         }
-        code = code.slice(0, -2) + ']';
+        code = code.slice(0, -2) + '])';
 
         return new Expression(code, [rowCount, colCount], degree);
     }

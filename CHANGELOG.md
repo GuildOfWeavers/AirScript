@@ -1,5 +1,9 @@
 # Release History
 
+### v0.3.1 - August 6, 2019
+
+* Updated galois dependency to v0.4
+
 ### v0.3 - July 19, 2019
 
 * Updated interfaces to work with vectors instead of bigint arrays

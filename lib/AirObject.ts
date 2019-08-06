@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { FiniteField, Vector } from "@guildofweavers/galois";
+import { FiniteField, Vector, Matrix } from "@guildofweavers/galois";
 import {
     AirObject as IAirObject, EvaluationContext, ProofContext, VerificationContext, ReadonlyRegister, ConstraintSpecs
 } from "@guildofweavers/air-script";
@@ -145,18 +145,15 @@ export class AirObject implements IAirObject {
         const rootOfUnity = field.getRootOfUnity(evaluationDomainSize);
 
         let ctx: EvaluationContext;
-        let sRegisters: ReadonlyRegister[] | undefined, sEvaluations: bigint[][] | undefined;
+        let sRegisters: ReadonlyRegister[] | undefined, sEvaluations: Vector[] | undefined;
         if (sInputs) {
             // if secret inputs are provided, we are generating STARK proof;
             // so, first compute the entire evaluation domain
-            const evaluationDomain = field.getPowerCycle(rootOfUnity);
+            const evaluationDomain = field.getPowerSeries(rootOfUnity, evaluationDomainSize);
 
             // then, build execution trace by picking elements from the
             // domain at positions that evenly divide extension factor
-            const executionDomain = field.newVector(traceLength);
-            for (let i = 0; i < executionDomain.length; i++) {
-                executionDomain[i] = evaluationDomain[i * this.extensionFactor];
-            }
+            const executionDomain = field.pluckVector(evaluationDomain, this.extensionFactor, traceLength);            
 
             ctx = { field, traceLength, extensionFactor, rootOfUnity, evaluationDomain, executionDomain };
 
@@ -171,7 +168,7 @@ export class AirObject implements IAirObject {
 
             if (this.hasSpreadRegisters) {
                 const rootOfUnity2 = field.exp(rootOfUnity, BigInt(extensionFactor));
-                const executionDomain = field.getPowerCycle(rootOfUnity2);
+                const executionDomain = field.getPowerSeries(rootOfUnity2, traceLength);
                 ctx = {...ctx, executionDomain };
             }
         }
@@ -192,10 +189,9 @@ export class AirObject implements IAirObject {
 
     // EXECUTION
     // --------------------------------------------------------------------------------------------
-    generateExecutionTrace(initValues: bigint[], ctx: ProofContext): Vector[] {
+    generateExecutionTrace(initValues: bigint[], ctx: ProofContext): Matrix {
 
         const steps = ctx.traceLength - 1;
-        const trace = new Array<bigint[]>(ctx.stateWidth);
         const rValues = new Array<bigint>(ctx.stateWidth);
         const nValues = new Array<bigint>(ctx.stateWidth);
         const sValues = new Array<bigint>(ctx.sRegisters.length);
@@ -206,9 +202,10 @@ export class AirObject implements IAirObject {
         validateInitValues(initValues, this.stateWidth);
 
         // initialize rValues and set first state of execution trace to initValues
-        for (let register = 0; register < trace.length; register++) {
-            trace[register] = this.field.newVector(ctx.traceLength);
-            trace[register][0] = rValues[register] = initValues[register];
+        const traceValues = new Array<bigint[]>(ctx.stateWidth);
+        for (let register = 0; register < traceValues.length; register++) {
+            traceValues[register] = new Array<bigint>(ctx.traceLength);
+            traceValues[register][0] = rValues[register] = initValues[register];
         }
 
         // apply transition function for each step
@@ -235,14 +232,14 @@ export class AirObject implements IAirObject {
             // copy nValues to execution trace and update rValues for the next iteration
             step++;
             for (let register = 0; register < nValues.length; register++) {
-                trace[register][step] = rValues[register] = nValues[register];
+                traceValues[register][step] = rValues[register] = nValues[register];
             }
         }
 
-        return trace;
+        return this.field.newMatrixFrom(traceValues);
     }
 
-    evaluateExtendedTrace(extendedTrace: Vector[], ctx: ProofContext): Vector[] {
+    evaluateExtendedTrace(extendedTrace: Matrix, ctx: ProofContext): Matrix {
 
         const domainSize = ctx.evaluationDomain.length;
         const constraintCount = this.constraintCount;
@@ -254,7 +251,7 @@ export class AirObject implements IAirObject {
         // initialize evaluation arrays
         const evaluations = new Array<bigint[]>(constraintCount);
         for (let i = 0; i < constraintCount; i++) {
-            evaluations[i] = this.field.newVector(domainSize);
+            evaluations[i] = new Array<bigint>(domainSize);
         }
 
         const nfSteps = domainSize - extensionFactor;
@@ -270,10 +267,10 @@ export class AirObject implements IAirObject {
 
             // set values for mutable registers for current and next steps
             for (let register = 0; register < ctx.stateWidth; register++) {
-                rValues[register] = extendedTrace[register][position];
+                rValues[register] = extendedTrace.getValue(register, position);
 
                 let nextStepIndex = (position + extensionFactor) % domainSize;
-                nValues[register] = extendedTrace[register][nextStepIndex];
+                nValues[register] = extendedTrace.getValue(register, nextStepIndex);
             }
 
             // get values of readonly registers for the current position
@@ -313,7 +310,7 @@ export class AirObject implements IAirObject {
             }
         }
 
-        return evaluations;
+        return this.field.newMatrixFrom(evaluations);
     }
 
     // VERIFICATION
@@ -457,22 +454,14 @@ function validateInitValues(values: bigint[], stateWidth: number) {
     }
 }
 
-function validateExtendedTrace(trace: Vector[], stateWidth: number, domainSize: number) {
+function validateExtendedTrace(trace: Matrix, stateWidth: number, domainSize: number) {
     if (!trace) throw new TypeError('Extended trace is undefined');
-    if (!Array.isArray(trace)) throw new TypeError('Evaluation trace parameter must be an array');
-    if (trace.length !== stateWidth) {
-        throw new Error(`Extended trace array must contain exactly ${stateWidth} elements`);
+    if (!trace.rowCount || !trace.colCount) throw new TypeError('Evaluation trace parameter must be a matrix'); // TODO: improve
+    if (trace.rowCount !== stateWidth) {
+        throw new Error(`Extended trace matrix must contain exactly ${stateWidth} rows`);
     }
 
-    for (let i = 0; i < stateWidth; i++) {
-        const values = trace[i];
-
-        if (!Array.isArray(values)) {
-            throw new TypeError(`Extended trace element ${i} is invalid: trace element must be an array`);
-        }
-
-        if (values.length !== domainSize) {
-            throw new TypeError(`Extended trace element ${i} is invalid: trace element must ${domainSize} values`);
-        }
+    if (trace.colCount !== domainSize) {
+        throw new Error(`Extended trace matrix must contain exactly ${domainSize} columns`);
     }
 }

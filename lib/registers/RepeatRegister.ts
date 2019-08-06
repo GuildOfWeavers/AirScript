@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { FiniteField, Polynom, Vector } from "@guildofweavers/galois";
+import { FiniteField, Vector } from "@guildofweavers/galois";
 import { ReadonlyRegister, EvaluationContext } from "@guildofweavers/air-script";
 
 // CLASS DEFINITION
@@ -9,7 +9,7 @@ export class RepeatRegister implements ReadonlyRegister {
 
     readonly field              : FiniteField;
     readonly cycleCount         : bigint;
-    readonly poly               : Polynom;
+    readonly poly               : Vector;
     readonly extensionFactor    : number;
     readonly domainSize         : number;
     readonly evaluations?       : Vector;
@@ -26,28 +26,24 @@ export class RepeatRegister implements ReadonlyRegister {
             values = values.concat(values);
         }
         this.cycleCount = BigInt(ctx.traceLength / values.length);
+        const ys = this.field.newVectorFrom(values);
 
         if (ctx.evaluationDomain) {
             this.domainSize = ctx.evaluationDomain.length;
             
             const skip = this.domainSize / values.length;
-            const xs = this.field.newVector(values.length);
-            for (let i = 0; i < values.length; i++) {
-                xs[i] = ctx.evaluationDomain[i * skip];
-            }
-            this.poly = this.field.interpolateRoots(xs, values);
+            const xs = this.field.pluckVector(ctx.evaluationDomain, skip, ys.length);
+            this.poly = this.field.interpolateRoots(xs, ys);
 
-            const skip2 = this.domainSize / (values.length * this.extensionFactor);
-            const xs2 = this.field.newVector(values.length * this.extensionFactor);
-            for (let i = 0; i < xs2.length; i++) {
-                xs2[i] = ctx.evaluationDomain[i * skip2];
-            }
+            const length2 = values.length * this.extensionFactor;
+            const skip2 = this.domainSize / length2;
+            const xs2 = this.field.pluckVector(ctx.evaluationDomain, skip2, length2);
             this.evaluations = this.field.evalPolyAtRoots(this.poly, xs2);
         }
         else {
             const g = this.field.exp(ctx.rootOfUnity, BigInt(this.extensionFactor) * this.cycleCount);
-            const xs = this.field.getPowerCycle(g);
-            this.poly = this.field.interpolateRoots(xs, values);
+            const xs = this.field.getPowerSeries(g, ys.length);
+            this.poly = this.field.interpolateRoots(xs, ys);
             this.domainSize = this.extensionFactor * ctx.traceLength;
         }
     }
@@ -57,12 +53,12 @@ export class RepeatRegister implements ReadonlyRegister {
     getTraceValue(step: number): bigint {
         const values = this.evaluations!;
         const position = step * this.extensionFactor;
-        return values[position % values.length];
+        return values.getValue(position % values.length);
     }
 
     getEvaluation(position: number): bigint {
         const values = this.evaluations!;
-        return values[position % values.length];
+        return values.getValue(position % values.length);
     }
 
     getEvaluationAt(x: bigint): bigint {
@@ -70,14 +66,22 @@ export class RepeatRegister implements ReadonlyRegister {
         return this.field.evalPolyAt(this.poly, xp);
     }
 
-    getAllEvaluations() {
+    getAllEvaluations(): Vector {
         if (!this.evaluations) throw new Error('Register evaluations are undefined');
-        let allEvaluations = this.evaluations;
-
-        // double evaluation array until it reaches domain size
-        while (allEvaluations.length < this.domainSize) {
-            allEvaluations = allEvaluations.concat(allEvaluations);
+        
+        // figure out how many times the evaluations vector needs to be doubled to reach domain size
+        let i = 0, length = this.evaluations.length;
+        while (length < this.domainSize) {
+            length = length << 1;
+            i++;
         }
-        return allEvaluations;
+
+        // duplicate the evaluation vector as needed
+        if (i > 0) {
+            return this.field.duplicateVector(this.evaluations, i);
+        }
+        else {
+            return this.evaluations;
+        }        
     }
 }

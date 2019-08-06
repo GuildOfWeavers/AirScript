@@ -4,7 +4,7 @@ import { StarkLimits } from '@guildofweavers/air-script';
 import { FiniteField } from '@guildofweavers/galois';
 import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './AirObject';
 import { ReadonlyRegisterGroup, ConstantDeclaration } from './visitor';
-import { isPowerOf2 } from './utils';
+import { isPowerOf2, isMatrix, isVector } from './utils';
 import { Expression } from './expressions/Expression';
 import { StaticExpression } from './expressions/StaticExpression';
 
@@ -69,7 +69,15 @@ export class ScriptSpecs {
             }
             let constExpression = new StaticExpression(constant.value, constant.name);
             this.staticConstants.set(constant.name, constExpression);
-            this.constantBindings[constant.name] = constant.value;
+            if (isMatrix(constant.dimensions)) {
+                this.constantBindings[constant.name] = this.field.newMatrixFrom(constant.value as bigint[][]);
+            }
+            else if (isVector(constant.dimensions)) {
+                this.constantBindings[constant.name] = this.field.newVectorFrom(constant.value as bigint[]);
+            }
+            else {
+                this.constantBindings[constant.name] = constant.value;
+            }
         }
     }
 

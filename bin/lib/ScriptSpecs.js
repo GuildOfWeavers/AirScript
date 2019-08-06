@@ -42,7 +42,15 @@ class ScriptSpecs {
             }
             let constExpression = new StaticExpression_1.StaticExpression(constant.value, constant.name);
             this.staticConstants.set(constant.name, constExpression);
-            this.constantBindings[constant.name] = constant.value;
+            if (utils_1.isMatrix(constant.dimensions)) {
+                this.constantBindings[constant.name] = this.field.newMatrixFrom(constant.value);
+            }
+            else if (utils_1.isVector(constant.dimensions)) {
+                this.constantBindings[constant.name] = this.field.newVectorFrom(constant.value);
+            }
+            else {
+                this.constantBindings[constant.name] = constant.value;
+            }
         }
     }
     // VALIDATORS

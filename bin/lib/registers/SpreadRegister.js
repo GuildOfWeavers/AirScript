@@ -9,11 +9,11 @@ class SpreadRegister {
         this.field = ctx.field;
         this.extensionFactor = ctx.extensionFactor;
         const cycleLength = ctx.traceLength / values.length;
-        const trace = this.field.newVector(ctx.traceLength);
-        let start = 0;
+        let start = 0, traceValues = new Array(ctx.traceLength);
         for (let i = 0; i < values.length; i++, start += cycleLength) {
-            trace.fill(values[i], start, start + cycleLength);
+            traceValues.fill(values[i], start, start + cycleLength);
         }
+        const trace = this.field.newVectorFrom(traceValues);
         this.poly = this.field.interpolateRoots(ctx.executionDomain, trace);
         if (ctx.evaluationDomain) {
             this.allEvaluations = this.field.evalPolyAtRoots(this.poly, ctx.evaluationDomain);
@@ -24,11 +24,11 @@ class SpreadRegister {
     getTraceValue(step) {
         const values = this.allEvaluations;
         const position = step * this.extensionFactor;
-        return values[position % values.length];
+        return values.getValue(position % values.length);
     }
     getEvaluation(position) {
         const values = this.allEvaluations;
-        return values[position % values.length];
+        return values.getValue(position % values.length);
     }
     getEvaluationAt(x) {
         return this.field.evalPolyAt(this.poly, x);

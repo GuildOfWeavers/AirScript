@@ -2,8 +2,8 @@ declare module '@guildofweavers/air-script' {
 
     // IMPORTS AND RE-EXPORTS
     // --------------------------------------------------------------------------------------------
-    import { FiniteField, Vector } from '@guildofweavers/galois';
-    export { FiniteField, Vector } from '@guildofweavers/galois';
+    import { FiniteField, Vector, Matrix } from '@guildofweavers/galois';
+    export { FiniteField, Vector, Matrix } from '@guildofweavers/galois';
 
     // INTERFACES
     // --------------------------------------------------------------------------------------------
@@ -30,8 +30,8 @@ declare module '@guildofweavers/air-script' {
         createContext(publicInputs: bigint[][]): VerificationContext;
         createContext(publicInputs: bigint[][], secretInputs: bigint[][]): ProofContext;
 
-        generateExecutionTrace(initValues: bigint[], ctx: ProofContext): Vector[];
-        evaluateExtendedTrace(extendedTrace: Vector[], ctx: ProofContext): Vector[];
+        generateExecutionTrace(initValues: bigint[], ctx: ProofContext): Matrix;
+        evaluateExtendedTrace(extendedTrace: Matrix, ctx: ProofContext): Matrix;
         evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[], ctx: VerificationContext): bigint[];
     }
 
@@ -71,7 +71,7 @@ declare module '@guildofweavers/air-script' {
         getTraceValue(step: number): bigint;
         getEvaluation(position: number): bigint;
         getEvaluationAt(x: bigint): bigint;
-        getAllEvaluations(): bigint[];
+        getAllEvaluations(): Vector;
     }
 
     export interface ConstraintSpecs {

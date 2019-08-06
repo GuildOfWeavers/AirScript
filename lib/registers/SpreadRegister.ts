@@ -20,13 +20,12 @@ export class SpreadRegister implements ReadonlyRegister {
         this.extensionFactor = ctx.extensionFactor;
 
         const cycleLength = ctx.traceLength / values.length;
-        const trace = this.field.newVector(ctx.traceLength);
-
-        let start = 0;
+        let start = 0, traceValues = new Array<bigint>(ctx.traceLength);
         for (let i = 0; i < values.length; i++, start += cycleLength) {
-            trace.fill(values[i], start, start + cycleLength);
+            traceValues.fill(values[i], start, start + cycleLength);
         }
 
+        const trace = this.field.newVectorFrom(traceValues);
         this.poly = this.field.interpolateRoots(ctx.executionDomain!, trace);
 
         if (ctx.evaluationDomain) {
@@ -39,19 +38,19 @@ export class SpreadRegister implements ReadonlyRegister {
     getTraceValue(step: number): bigint {
         const values = this.allEvaluations!;
         const position = step * this.extensionFactor!;
-        return values[position % values.length];
+        return values.getValue(position % values.length);
     }
 
     getEvaluation(position: number): bigint {
         const values = this.allEvaluations!;
-        return values[position % values.length];
+        return values.getValue(position % values.length);
     }
 
     getEvaluationAt(x: bigint): bigint {
         return this.field.evalPolyAt(this.poly, x);
     }
 
-    getAllEvaluations() {
+    getAllEvaluations(): Vector {
         if (!this.allEvaluations) throw new Error('Register evaluations are undefined');
         return this.allEvaluations;
     }
