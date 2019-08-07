@@ -81,6 +81,7 @@ define Rescue over prime field (2^64 - 21 * 2^30 + 1) {
 const air = parseScript(script);
 console.log(`degree: ${air.maxConstraintDegree}`);
 
+const gStart = Date.now();
 const pContext = air.createContext([], []);
 
 let start = Date.now();
@@ -93,6 +94,7 @@ const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomai
 start = Date.now();
 const qEvaluations = air.evaluateExtendedTrace(pEvaluations, pContext);
 console.log(`Constraints evaluated in ${Date.now() - start} ms`);
+console.log(`Total time: ${Date.now() - gStart} ms`);
 
 const vContext = air.createContext([]);
 

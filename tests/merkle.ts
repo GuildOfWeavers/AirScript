@@ -129,6 +129,7 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
 const air = parseScript(script);
 console.log(`degree: ${air.maxConstraintDegree}`);
 
+const gStart = Date.now();
 const pContext = air.createContext([[0n, 1n, 0n, 1n]], [[1n, 2n, 3n, 4n]]);
 
 let start = Date.now();
@@ -142,6 +143,7 @@ const sEvaluations = pContext.sEvaluations[0];
 start = Date.now();
 const qEvaluations = air.evaluateExtendedTrace(pEvaluations, pContext);
 console.log(`Constraints evaluated in ${Date.now() - start} ms`);
+console.log(`Total time: ${Date.now() - gStart} ms`);
 
 const vContext = air.createContext([[0n, 1n, 0n, 1n]]);
 

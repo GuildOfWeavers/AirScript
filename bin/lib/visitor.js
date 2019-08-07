@@ -61,15 +61,15 @@ class AirVisitor extends BaseCstVisitor {
             publicInputs: readonlyRegisters.publicRegisters,
             staticRegisters: readonlyRegisters.staticRegisters,
             constraints: constraintSpecs,
-            transitionFunction: tFunction.buildFunction(field, specs.constantBindings),
-            constraintEvaluator: tConstraints.buildEvaluator(field, specs.constantBindings)
+            transitionFunction: tFunction.buildFunction(field.jsField, specs.constantBindings),
+            constraintEvaluator: tConstraints.buildEvaluator(field.jsField, specs.constantBindings)
         };
     }
     // FINITE FIELD
     // --------------------------------------------------------------------------------------------
-    fieldDeclaration(ctx) {
+    fieldDeclaration(ctx, wasmOptions) {
         const modulus = this.visit(ctx.modulus);
-        return galois_1.createPrimeField(modulus, null);
+        return galois_1.createPrimeField(modulus, wasmOptions);
     }
     // STATIC CONSTANTS
     // --------------------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits } from '@guildofweavers/air-script';
+import { StarkLimits, ScriptOptions } from '@guildofweavers/air-script';
 import { lexer } from './lib/lexer';
 import { parser } from './lib/parser';
 import { visitor } from './lib/visitor';
@@ -21,7 +21,7 @@ const DEFAULT_LIMITS: StarkLimits = {
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function parseScript(text: string, limits?: Partial<StarkLimits>, extensionFactor?: number): AirObject {
+export function parseScript(text: string, limits?: Partial<StarkLimits>, options?: ScriptOptions): AirObject {
     // apply defaults
     limits = {...DEFAULT_LIMITS, ...limits};
 
@@ -40,8 +40,9 @@ export function parseScript(text: string, limits?: Partial<StarkLimits>, extensi
 
     // build STARK config
     try {
+        // TODO: pass options.wasmOptions to visitor
         const airConfig: AirConfig = visitor.visit(cst, limits);
-        const air = new AirObject(airConfig, extensionFactor);
+        const air = new AirObject(airConfig, options ? options.extensionFactor : undefined);
         validateExtensionFactor(air.extensionFactor, air.maxConstraintDegree, limits.maxExtensionFactor!);
         return air;
     }

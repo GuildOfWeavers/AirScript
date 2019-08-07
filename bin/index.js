@@ -18,7 +18,7 @@ const DEFAULT_LIMITS = {
 };
 // PUBLIC FUNCTIONS
 // ================================================================================================
-function parseScript(text, limits, extensionFactor) {
+function parseScript(text, limits, options) {
     // apply defaults
     limits = { ...DEFAULT_LIMITS, ...limits };
     // tokenize input
@@ -34,8 +34,9 @@ function parseScript(text, limits, extensionFactor) {
     }
     // build STARK config
     try {
+        // TODO: pass options.wasmOptions to visitor
         const airConfig = visitor_1.visitor.visit(cst, limits);
-        const air = new AirObject_1.AirObject(airConfig, extensionFactor);
+        const air = new AirObject_1.AirObject(airConfig, options ? options.extensionFactor : undefined);
         validateExtensionFactor(air.extensionFactor, air.maxConstraintDegree, limits.maxExtensionFactor);
         return air;
     }

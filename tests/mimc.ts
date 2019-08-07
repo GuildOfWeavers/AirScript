@@ -1,7 +1,7 @@
 import { parseScript } from '../index';
 
 const script = `
-define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
+define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
     // constants used in transition function and constraint computations
     alpha: 3;
@@ -28,6 +28,7 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
 const air = parseScript(script);
 console.log(`degree: ${air.maxConstraintDegree}`);
 
+const gStart = Date.now();
 const pContext = air.createContext([], []);
 
 let start = Date.now();
@@ -40,6 +41,7 @@ const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomai
 start = Date.now();
 const qEvaluations = air.evaluateExtendedTrace(pEvaluations, pContext);
 console.log(`Constraints evaluated in ${Date.now() - start} ms`);
+console.log(`Total time: ${Date.now() - gStart} ms`);
 
 const vContext = air.createContext([]);
 

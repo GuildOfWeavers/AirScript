@@ -2,8 +2,8 @@ declare module '@guildofweavers/air-script' {
 
     // IMPORTS AND RE-EXPORTS
     // --------------------------------------------------------------------------------------------
-    import { FiniteField, Vector, Matrix } from '@guildofweavers/galois';
-    export { FiniteField, Vector, Matrix } from '@guildofweavers/galois';
+    import { FiniteField, Vector, Matrix, WasmOptions } from '@guildofweavers/galois';
+    export { FiniteField, Vector, Matrix, WasmOptions } from '@guildofweavers/galois';
 
     // INTERFACES
     // --------------------------------------------------------------------------------------------
@@ -14,6 +14,11 @@ declare module '@guildofweavers/air-script' {
         maxConstraintCount      : number;
         maxConstraintDegree     : number;
         maxExtensionFactor      : number;
+    }
+
+    export interface ScriptOptions {
+        extensionFactor         : number;
+        wasmOptions             : WasmOptions;
     }
 
     export interface AirObject {
@@ -80,5 +85,5 @@ declare module '@guildofweavers/air-script' {
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
-    export function parseScript(script: string, limits?: Partial<StarkLimits>, extensionFactor?: number): AirObject;
+    export function parseScript(script: string, limits?: Partial<StarkLimits>, options?: ScriptOptions): AirObject;
 }

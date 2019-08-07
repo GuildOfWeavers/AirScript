@@ -2,7 +2,7 @@
 // ================================================================================================
 import { StarkLimits, ConstraintSpecs } from '@guildofweavers/air-script';
 import { AirConfig, ReadonlyValuePattern, ReadonlyRegisterSpecs, InputRegisterSpecs, TransitionFunction, ConstraintEvaluator } from './AirObject';
-import { FiniteField, createPrimeField } from '@guildofweavers/galois';
+import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
@@ -116,16 +116,16 @@ class AirVisitor extends BaseCstVisitor {
             publicInputs        : readonlyRegisters.publicRegisters,
             staticRegisters     : readonlyRegisters.staticRegisters,
             constraints         : constraintSpecs,
-            transitionFunction  : tFunction.buildFunction(field, specs.constantBindings),
-            constraintEvaluator : tConstraints.buildEvaluator(field, specs.constantBindings)
+            transitionFunction  : tFunction.buildFunction(field.jsField, specs.constantBindings),
+            constraintEvaluator : tConstraints.buildEvaluator(field.jsField, specs.constantBindings)
         };
     }
 
     // FINITE FIELD
     // --------------------------------------------------------------------------------------------
-    fieldDeclaration(ctx: any) {
+    fieldDeclaration(ctx: any, wasmOptions?: WasmOptions) {
         const modulus = this.visit(ctx.modulus);
-        return createPrimeField(modulus, null);
+        return createPrimeField(modulus, wasmOptions);
     }
 
     // STATIC CONSTANTS
