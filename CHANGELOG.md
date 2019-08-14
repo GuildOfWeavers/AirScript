@@ -1,5 +1,9 @@
 # Release History
 
+### v0.3.2 - August 14, 2019
+
+* Refactored `parseScript()` function to take `wasmOptions` config
+
 ### v0.3.1 - August 6, 2019
 
 * Updated galois dependency to v0.4
