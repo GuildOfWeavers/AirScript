@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits, ScriptOptions } from '@guildofweavers/air-script';
+import { StarkLimits, ScriptOptions, WasmOptions } from '@guildofweavers/air-script';
 import { lexer } from './lib/lexer';
 import { parser } from './lib/parser';
 import { visitor } from './lib/visitor';
@@ -21,12 +21,12 @@ const DEFAULT_LIMITS: StarkLimits = {
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function parseScript(text: string, limits?: Partial<StarkLimits>, options?: ScriptOptions): AirObject {
+export function parseScript(script: string, limits?: Partial<StarkLimits>, options?: Partial<ScriptOptions>): AirObject {
     // apply defaults
     limits = {...DEFAULT_LIMITS, ...limits};
 
     // tokenize input
-    const lexResult = lexer.tokenize(text);
+    const lexResult = lexer.tokenize(script);
     if(lexResult.errors.length > 0) {
         throw new AirScriptError(lexResult.errors);
     }
@@ -40,9 +40,15 @@ export function parseScript(text: string, limits?: Partial<StarkLimits>, options
 
     // build STARK config
     try {
-        // TODO: pass options.wasmOptions to visitor
-        const airConfig: AirConfig = visitor.visit(cst, limits);
-        const air = new AirObject(airConfig, options ? options.extensionFactor : undefined);
+        let extensionFactor: number | undefined;
+        let wasmOptions: Partial<WasmOptions> | null | undefined;
+        if (options) {
+            extensionFactor = options.extensionFactor;
+            wasmOptions = options.wasmOptions;
+        }
+
+        const airConfig: AirConfig = visitor.visit(cst, { limits, wasmOptions });
+        const air = new AirObject(airConfig, extensionFactor);
         validateExtensionFactor(air.extensionFactor, air.maxConstraintDegree, limits.maxExtensionFactor!);
         return air;
     }

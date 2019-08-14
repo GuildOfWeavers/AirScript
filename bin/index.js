@@ -18,11 +18,11 @@ const DEFAULT_LIMITS = {
 };
 // PUBLIC FUNCTIONS
 // ================================================================================================
-function parseScript(text, limits, options) {
+function parseScript(script, limits, options) {
     // apply defaults
     limits = { ...DEFAULT_LIMITS, ...limits };
     // tokenize input
-    const lexResult = lexer_1.lexer.tokenize(text);
+    const lexResult = lexer_1.lexer.tokenize(script);
     if (lexResult.errors.length > 0) {
         throw new errors_1.AirScriptError(lexResult.errors);
     }
@@ -34,9 +34,14 @@ function parseScript(text, limits, options) {
     }
     // build STARK config
     try {
-        // TODO: pass options.wasmOptions to visitor
-        const airConfig = visitor_1.visitor.visit(cst, limits);
-        const air = new AirObject_1.AirObject(airConfig, options ? options.extensionFactor : undefined);
+        let extensionFactor;
+        let wasmOptions;
+        if (options) {
+            extensionFactor = options.extensionFactor;
+            wasmOptions = options.wasmOptions;
+        }
+        const airConfig = visitor_1.visitor.visit(cst, { limits, wasmOptions });
+        const air = new AirObject_1.AirObject(airConfig, extensionFactor);
         validateExtensionFactor(air.extensionFactor, air.maxConstraintDegree, limits.maxExtensionFactor);
         return air;
     }

@@ -329,9 +329,9 @@ To annotate your scripts with comments, use `//`. Anything following `//` until 
 # API
 This module exposes a single `parseScript()` method. The method has the following signature:
 ```TypeScript
-parseScript(script: string, limits?: StarkLimits, extensionFactor?: number): AirObject;
+parseScript(script: string, limits?: StarkLimits, options?: ScriptOptions): AirObject;
 ```
-where `script` is the text of the script, `limits` is an optional object that specifies limits for the script, and `extensionFactor` is an optional value for the factor by which the execution trace is stretched.
+where `script` is the text of the script, `limits` is an optional object that specifies limits for the script, and `options` is an object containing config options for the generated `AirObject`.
 
 `StarkLimits` object can include any of the following properties:
 
@@ -344,7 +344,12 @@ where `script` is the text of the script, `limits` is an optional object that sp
 | maxConstraintDegree  | Maximum degree of transition constraints; the default is 16. |
 | maxExtensionFactor   | Maximum extension factor; the default is 32. |
 
-If `extensionFactor` is not provided, it defaults to the smallest degree of 2 which is greater than the maximum [constraint degree](#Constraint-degree) defined for the STARK.
+`ScriptOptions` object may include any of the following properties:
+
+| Property        | Description |
+| --------------- | ----------- |
+| extensionFactor | Value for the factor by which the execution trace is stretched; defaults to the smallest degree of 2 which is greater than the maximum [constraint degree](#Constraint-degree) defined for the STARK. |
+| wasmOptions     | Config options for WASM-optimized fields. Set this to `null` to turn WASM-optimization off. If you provide `wasmOptions` for fields that don't have WASM-optimization, an error will be thrown. |
 
 ### AirObject
 If parsing of the script is successful, the `parseScript()` method returns an `AirObject` with the following properties:
@@ -354,7 +359,11 @@ If parsing of the script is successful, the `parseScript()` method returns an `A
 | name                 | Name from the STARK declaration. |
 | field                | Finite field specified for the computation. |
 | stateWidth           | Number of mutable registers defined for the computation. |
+| publicInputCount     | Number of public input registers defined for the computation. |
+| secretInputCount     | Number of secret input registers defined for the computation. |
+| constraints          | An array of constraint specification objects. |
 | maxConstraintDegree  | Maximum algebraic degree of transition constraints required for the computation. |
+| extensionFactor      | Execution trace extension factor set for this computation. |
 
 `AirObject` also exposes the following methods:
 

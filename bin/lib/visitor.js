@@ -17,12 +17,12 @@ class AirVisitor extends BaseCstVisitor {
         super();
         this.validateVisitor();
     }
-    script(ctx, limits) {
+    script(ctx, config) {
         const starkName = ctx.starkName[0].image;
         // set up the field
-        const field = this.visit(ctx.fieldDeclaration);
+        const field = this.visit(ctx.fieldDeclaration, config.wasmOptions);
         // build script specs
-        const specs = new ScriptSpecs_1.ScriptSpecs(limits);
+        const specs = new ScriptSpecs_1.ScriptSpecs(config.limits);
         specs.setField(field);
         specs.setSteps(this.visit(ctx.steps));
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));

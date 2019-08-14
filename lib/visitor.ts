@@ -65,15 +65,15 @@ class AirVisitor extends BaseCstVisitor {
         this.validateVisitor()
     }
 
-    script(ctx: any, limits: StarkLimits): AirConfig {
+    script(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): AirConfig {
 
         const starkName = ctx.starkName[0].image;
 
         // set up the field
-        const field: FiniteField = this.visit(ctx.fieldDeclaration);
+        const field: FiniteField = this.visit(ctx.fieldDeclaration, config.wasmOptions);
 
         // build script specs
-        const specs = new ScriptSpecs(limits);
+        const specs = new ScriptSpecs(config.limits);
         specs.setField(field);
         specs.setSteps(this.visit(ctx.steps));
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
