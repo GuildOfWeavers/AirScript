@@ -349,7 +349,7 @@ where `script` is the text of the script, `limits` is an optional object that sp
 | Property        | Description |
 | --------------- | ----------- |
 | extensionFactor | Value for the factor by which the execution trace is stretched; defaults to the smallest degree of 2 which is greater than the maximum [constraint degree](#Constraint-degree) defined for the STARK. |
-| wasmOptions     | Config options for WASM-optimized fields. Set this to `null` to turn WASM-optimization off. If you provide `wasmOptions` for fields that don't have WASM-optimization, an error will be thrown. |
+| wasmOptions     | Config options for WASM-optimized fields. This can also be a `boolean`, in which case `false` will disable optimization, and `true` will use default config options. |
 
 ### AirObject
 If parsing of the script is successful, the `parseScript()` method returns an `AirObject` with the following properties:

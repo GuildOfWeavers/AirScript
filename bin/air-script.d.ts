@@ -18,7 +18,7 @@ declare module '@guildofweavers/air-script' {
 
     export interface ScriptOptions {
         extensionFactor         : number;
-        wasmOptions             : Partial<WasmOptions> | null;
+        wasmOptions             : Partial<WasmOptions> | boolean;
     }
 
     export interface AirObject {

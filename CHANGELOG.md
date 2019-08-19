@@ -1,5 +1,9 @@
 # Release History
 
+### v0.3.3 - August 14, 2019
+
+* Minor updates to `ScriptOptions` interface
+
 ### v0.3.2 - August 14, 2019
 
 * Refactored `parseScript()` function to take `wasmOptions` config

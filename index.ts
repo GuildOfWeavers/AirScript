@@ -23,7 +23,7 @@ const DEFAULT_LIMITS: StarkLimits = {
 // ================================================================================================
 export function parseScript(script: string, limits?: Partial<StarkLimits>, options?: Partial<ScriptOptions>): AirObject {
     // apply defaults
-    limits = {...DEFAULT_LIMITS, ...limits};
+    limits = {...DEFAULT_LIMITS, ...limits };
 
     // tokenize input
     const lexResult = lexer.tokenize(script);
@@ -41,7 +41,7 @@ export function parseScript(script: string, limits?: Partial<StarkLimits>, optio
     // build STARK config
     try {
         let extensionFactor: number | undefined;
-        let wasmOptions: Partial<WasmOptions> | null | undefined;
+        let wasmOptions: Partial<WasmOptions> | boolean | undefined;
         if (options) {
             extensionFactor = options.extensionFactor;
             wasmOptions = options.wasmOptions;
