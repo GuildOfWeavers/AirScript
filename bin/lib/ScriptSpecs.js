@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const expressions_1 = require("./expressions");
 const utils_1 = require("./utils");
-const StaticExpression_1 = require("./expressions/StaticExpression");
 // CLASS DEFINITION
 // ================================================================================================
 class ScriptSpecs {
@@ -40,7 +40,7 @@ class ScriptSpecs {
             if (this.staticConstants.has(constant.name)) {
                 throw new Error(`Static constant '${constant.name}' is defined more than once`);
             }
-            let constExpression = new StaticExpression_1.StaticExpression(constant.value, constant.name);
+            let constExpression = new expressions_1.StaticExpression(constant.value, constant.name);
             this.staticConstants.set(constant.name, constExpression);
             if (utils_1.isMatrix(constant.dimensions)) {
                 this.constantBindings[constant.name] = this.field.newMatrixFrom(constant.value);

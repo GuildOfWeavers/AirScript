@@ -1,12 +1,11 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits, ScriptOptions, WasmOptions } from '@guildofweavers/air-script';
+import { StarkLimits, WasmOptions } from '@guildofweavers/air-script';
 import { lexer } from './lib/lexer';
 import { parser } from './lib/parser';
 import { visitor } from './lib/visitor';
 import { AirObject, AirConfig } from './lib/AirObject';
 import { AirScriptError } from './lib/errors';
-import { isPowerOf2 } from './lib/utils';
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -15,13 +14,12 @@ const DEFAULT_LIMITS: StarkLimits = {
     maxMutableRegisters     : 64,
     maxReadonlyRegisters    : 64,
     maxConstraintCount      : 1024,
-    maxConstraintDegree     : 16,
-    maxExtensionFactor      : 32
+    maxConstraintDegree     : 16
 };
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function parseScript(script: string, limits?: Partial<StarkLimits>, options?: Partial<ScriptOptions>): AirObject {
+export function parseScript(script: string, limits?: Partial<StarkLimits>, wasmOptions?: Partial<WasmOptions> | boolean): AirObject {
     // apply defaults
     limits = {...DEFAULT_LIMITS, ...limits };
 
@@ -40,38 +38,12 @@ export function parseScript(script: string, limits?: Partial<StarkLimits>, optio
 
     // build STARK config
     try {
-        let extensionFactor: number | undefined;
-        let wasmOptions: Partial<WasmOptions> | boolean | undefined;
-        if (options) {
-            extensionFactor = options.extensionFactor;
-            wasmOptions = options.wasmOptions;
-        }
-
         const airConfig: AirConfig = visitor.visit(cst, { limits, wasmOptions });
-        const air = new AirObject(airConfig, extensionFactor);
-        validateExtensionFactor(air.extensionFactor, air.maxConstraintDegree, limits.maxExtensionFactor!);
+        const air = new AirObject(airConfig);
+        //validateExtensionFactor(air.extensionFactor, air.maxConstraintDegree, limits.maxExtensionFactor!);
         return air;
     }
     catch (error) {
         throw new AirScriptError([error]);
-    }
-}
-
-// HELPER FUNCTIONS
-// ================================================================================================
-function validateExtensionFactor(extensionFactor: number, maxConstraintDegree: number, maxExtensionFactor: number) {
-
-    const minExtensionFactor = 2**Math.ceil(Math.log2(maxConstraintDegree * 2));
-
-    if (extensionFactor > maxExtensionFactor || !Number.isInteger(extensionFactor)) {
-        throw new TypeError(`Extension factor must be an integer smaller than or equal to ${maxExtensionFactor}`);
-    }
-
-    if (!isPowerOf2(extensionFactor)) {
-        throw new TypeError(`Extension factor must be a power of 2`);
-    }
-
-    if (extensionFactor < minExtensionFactor) {
-        throw new TypeError(`Extension factor must be at ${minExtensionFactor}`);
     }
 }

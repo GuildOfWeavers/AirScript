@@ -126,31 +126,33 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
     }
 }`;
 
+const extensionFactor = 16;
 const air = parseScript(script);
 console.log(`degree: ${air.maxConstraintDegree}`);
 
 const gStart = Date.now();
-const pContext = air.createContext([[0n, 1n, 0n, 1n]], [[1n, 2n, 3n, 4n]]);
+const pContext = air.createContext([[0n, 1n, 0n, 1n]], [[1n, 2n, 3n, 4n]], extensionFactor);
 
 let start = Date.now();
-const trace = air.generateExecutionTrace([42n, 0n, 43n, 0n], pContext);
+const trace = pContext.generateExecutionTrace([42n, 0n, 43n, 0n]);
 console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
+// TODO
 const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
 const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
-const sEvaluations = pContext.sEvaluations[0];
+const sEvaluations = pContext.getSecretRegisterTraces()[0];
 
 start = Date.now();
-const qEvaluations = air.evaluateExtendedTrace(pEvaluations, pContext);
+const qEvaluations = pContext.evaluateExecutionTrace(trace);
 console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 console.log(`Total time: ${Date.now() - gStart} ms`);
 
-const vContext = air.createContext([[0n, 1n, 0n, 1n]]);
+const vContext = air.createContext([[0n, 1n, 0n, 1n]], extensionFactor);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
 const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2)];
 const nValues = [pEvaluations.getValue(0, 10), pEvaluations.getValue(1, 10), pEvaluations.getValue(2, 10), pEvaluations.getValue(3, 10)];
 const sValues = [sEvaluations.getValue(2)];
-const qValues = air.evaluateConstraintsAt(x, rValues, nValues, sValues, vContext);
+const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, sValues);
 
 console.log(qEvaluations.getValue(0, 2) === qValues[0]);

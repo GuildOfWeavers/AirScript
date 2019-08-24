@@ -1,15 +1,15 @@
 // IMPORTS
 // ================================================================================================
 import { StarkLimits, ConstraintSpecs } from '@guildofweavers/air-script';
-import { AirConfig, ReadonlyValuePattern, ReadonlyRegisterSpecs, InputRegisterSpecs, TransitionFunction, ConstraintEvaluator } from './AirObject';
+import { AirConfig, TransitionFunction, ConstraintEvaluator } from './AirObject';
 import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
-import { ExecutionContext } from './ExecutionContext';
-import { Expression } from './expressions/Expression';
-import { StaticExpression } from './expressions/StaticExpression';
+import { ExecutionContext } from './contexts';
+import { ReadonlyValuePattern, ReadonlyRegisterSpecs, InputRegisterSpecs } from './registers';
+import { Expression, StaticExpression } from './expressions';
 import { Dimensions, isScalar, isVector, isMatrix, validateVariableName } from './utils';
 
 // INTERFACES
