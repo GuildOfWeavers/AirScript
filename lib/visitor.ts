@@ -9,7 +9,8 @@ import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ExecutionContext } from './contexts';
 import { ReadonlyValuePattern, ReadonlyRegisterSpecs, InputRegisterSpecs } from './registers';
-import { Expression, StaticExpression } from './expressions';
+import { Expression } from './expressions/Expression';
+import { StaticExpression } from './expressions/StaticExpression';
 import { Dimensions, isScalar, isVector, isMatrix, validateVariableName } from './utils';
 
 // INTERFACES

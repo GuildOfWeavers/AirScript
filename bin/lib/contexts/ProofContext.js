@@ -1,101 +1,67 @@
-// IMPORTS
-// ================================================================================================
-import { FiniteField, Vector, Matrix } from "@guildofweavers/galois";
-import { ProofContext as IProofContext } from "@guildofweavers/air-script"
-import { AirObject } from "../AirObject";
-import { ReadonlyRegister, buildReadonlyRegisters, buildInputRegisters } from "../registers";
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const registers_1 = require("../registers");
 // CLASS DEFINITION
 // ================================================================================================
-export class ProofContext implements IProofContext {
-
-    private readonly air        : AirObject;
-    private readonly kRegisters : ReadonlyRegister[];
-    private readonly pRegisters : ReadonlyRegister[];
-    private readonly sRegisters : ReadonlyRegister[];
-
-    readonly traceLength        : number;
-    readonly extensionFactor    : number;
-    readonly compositionFactor  : number;
-    readonly rootOfUnity        : bigint;
-
-    readonly executionDomain    : Vector;
-    readonly evaluationDomain   : Vector;
-    readonly compositionDomain  : Vector;
-
+class ProofContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(air: AirObject, pInputs: bigint[][], sInputs: bigint[][], extensionFactor: number) {
+    constructor(air, pInputs, sInputs, extensionFactor) {
         this.air = air;
         this.traceLength = air.steps;
         this.extensionFactor = extensionFactor;
         this.compositionFactor = getCompositionFactor(air.maxConstraintDegree);
-
         // TODO: validate inputs
-
         // build evaluation domain
         const evaluationDomainSize = this.traceLength * extensionFactor;
         this.rootOfUnity = this.field.getRootOfUnity(evaluationDomainSize);
         this.evaluationDomain = this.field.getPowerSeries(this.rootOfUnity, evaluationDomainSize);
-
         // build execution and composition domains by plucking values from evaluation domain
         this.executionDomain = this.field.pluckVector(this.evaluationDomain, extensionFactor, this.traceLength);
         const compositionDomainLength = this.traceLength * this.compositionFactor;
         this.compositionDomain = this.field.pluckVector(this.evaluationDomain, this.compositionFactor, compositionDomainLength);
-
         // build readonly registers
-        this.kRegisters = buildReadonlyRegisters(this.air.staticRegisters, this);
-        this.pRegisters = buildInputRegisters(pInputs, this.air.publicInputs, false, this);
-        this.sRegisters = buildInputRegisters(sInputs, this.air.publicInputs, true, this);
+        this.kRegisters = registers_1.buildReadonlyRegisters(this.air.staticRegisters, this);
+        this.pRegisters = registers_1.buildInputRegisters(pInputs, this.air.publicInputs, false, this);
+        this.sRegisters = registers_1.buildInputRegisters(sInputs, this.air.secretInputs, true, this);
     }
-
     // AIR PASS-THROUGH PROPERTIES
     // --------------------------------------------------------------------------------------------
-    get field(): FiniteField {
+    get field() {
         return this.air.field;
     }
-
-    get stateWidth(): number {
+    get stateWidth() {
         return this.air.stateWidth;
     }
-
-    get constraintCount(): number {
+    get constraintCount() {
         return this.air.constraints.length;
     }
-
-    get secretInputCount(): number {
+    get secretInputCount() {
         return this.air.secretInputs.length;
     }
-
-    get publicInputCount(): number {
+    get publicInputCount() {
         return this.air.publicInputs.length;
     }
-
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    getSecretRegisterTraces(): Vector[] {
+    getSecretRegisterTraces() {
         return this.sRegisters.map(register => register.getAllEvaluations(this.evaluationDomain));
     }
-
-    generateExecutionTrace(initValues: bigint[]): Matrix {
-
+    generateExecutionTrace(initValues) {
         const steps = this.traceLength - 1;
-        const rValues = new Array<bigint>(this.stateWidth);
-        const nValues = new Array<bigint>(this.stateWidth);
-        const sValues = new Array<bigint>(this.sRegisters.length);
-        const pValues = new Array<bigint>(this.pRegisters.length);
-        const kValues = new Array<bigint>(this.kRegisters.length);
-
+        const rValues = new Array(this.stateWidth);
+        const nValues = new Array(this.stateWidth);
+        const sValues = new Array(this.sRegisters.length);
+        const pValues = new Array(this.pRegisters.length);
+        const kValues = new Array(this.kRegisters.length);
         // make sure all initial values are valid
         // TODO: validateInitValues(initValues, this.stateWidth);
-
         // initialize rValues and set first state of execution trace to initValues
-        const traceValues = new Array<bigint[]>(this.stateWidth);
+        const traceValues = new Array(this.stateWidth);
         for (let register = 0; register < traceValues.length; register++) {
-            traceValues[register] = new Array<bigint>(this.traceLength);
+            traceValues[register] = new Array(this.traceLength);
             traceValues[register][0] = rValues[register] = initValues[register];
         }
-
         // apply transition function for each step
         let step = 0;
         while (step < steps) {
@@ -103,87 +69,66 @@ export class ProofContext implements IProofContext {
             for (let i = 0; i < kValues.length; i++) {
                 kValues[i] = this.kRegisters[i].getTraceValue(step);
             }
-
             // get values of secret input registers for the current step
             for (let i = 0; i < sValues.length; i++) {
                 sValues[i] = this.sRegisters[i].getTraceValue(step);
             }
-
             // get values of public input registers for the current step
             for (let i = 0; i < pValues.length; i++) {
                 pValues[i] = this.pRegisters[i].getTraceValue(step);
             }
-
             // populate nValues with the next computation state
             this.air.applyTransition(rValues, kValues, sValues, pValues, nValues);
-
             // copy nValues to execution trace and update rValues for the next iteration
             step++;
             for (let register = 0; register < nValues.length; register++) {
                 traceValues[register][step] = rValues[register] = nValues[register];
             }
         }
-
         return this.field.newMatrixFrom(traceValues);
     }
-
-    evaluateExecutionTrace(executionTrace: Matrix): Matrix {
-
+    evaluateTracePolynomials(polynomials) {
         // make sure evaluation trace is valid
         // TODO
-
         // 1 --- extend execution trace over composition domain
-        const tPolynomials = this.field.interpolateRoots(this.executionDomain, executionTrace);
-        const tEvaluations = this.field.evalPolysAtRoots(tPolynomials, this.compositionDomain);
-
-        // 2 --- evaluate constraints over the extended trace
+        const tEvaluations = this.field.evalPolysAtRoots(polynomials, this.compositionDomain);
         const domainSize = this.compositionDomain.length;
         const constraintCount = this.constraintCount;
         const extensionFactor = domainSize / this.traceLength;
-
         // initialize evaluation arrays
-        const evaluations = new Array<bigint[]>(constraintCount);
+        const evaluations = new Array(constraintCount);
         for (let i = 0; i < constraintCount; i++) {
-            evaluations[i] = new Array<bigint>(domainSize);
+            evaluations[i] = new Array(domainSize);
         }
-
         const nfSteps = domainSize - extensionFactor;
-        const rValues = new Array<bigint>(this.stateWidth);
-        const nValues = new Array<bigint>(this.stateWidth);
-        const sValues = new Array<bigint>(this.sRegisters.length);
-        const pValues = new Array<bigint>(this.pRegisters.length);
-        const kValues = new Array<bigint>(this.kRegisters.length);
-        const qValues = new Array<bigint>(constraintCount);
-
+        const rValues = new Array(this.stateWidth);
+        const nValues = new Array(this.stateWidth);
+        const sValues = new Array(this.sRegisters.length);
+        const pValues = new Array(this.pRegisters.length);
+        const kValues = new Array(this.kRegisters.length);
+        const qValues = new Array(constraintCount);
         // evaluate constraints for each position of the extended trace
         for (let position = 0; position < domainSize; position++) {
-
             // set values for mutable registers for current and next steps
             for (let register = 0; register < this.stateWidth; register++) {
                 rValues[register] = tEvaluations.getValue(register, position);
-
                 let nextStepIndex = (position + extensionFactor) % domainSize;
                 nValues[register] = tEvaluations.getValue(register, nextStepIndex);
             }
-
             // get values of readonly registers for the current position
             for (let i = 0; i < kValues.length; i++) {
                 kValues[i] = this.kRegisters[i].getEvaluation(position);
             }
-
             // get values of secret input registers for the current position
             for (let i = 0; i < sValues.length; i++) {
                 sValues[i] = this.sRegisters[i].getEvaluation(position);
             }
-
             // get values of public input registers for the current position
             for (let i = 0; i < pValues.length; i++) {
                 pValues[i] = this.pRegisters[i].getEvaluation(position);
             }
-
             // populate qValues with results of constraint evaluations
             this.air.evaluateConstraints(rValues, nValues, kValues, sValues, pValues, qValues);
-
             // copy evaluations to the result, and also check that constraints evaluate to 0
             // at multiples of the extensions factor
             if (position % extensionFactor === 0 && position < nfSteps) {
@@ -202,13 +147,13 @@ export class ProofContext implements IProofContext {
                 }
             }
         }
-
         return this.field.newMatrixFrom(evaluations);
     }
 }
-
+exports.ProofContext = ProofContext;
 // HELPER FUNCTIONS
 // ================================================================================================
-function getCompositionFactor(maxConstraintDegree: number): number {
-    return 2**Math.ceil(Math.log2(maxConstraintDegree));
+function getCompositionFactor(maxConstraintDegree) {
+    return 2 ** Math.ceil(Math.log2(maxConstraintDegree));
 }
+//# sourceMappingURL=ProofContext.js.map

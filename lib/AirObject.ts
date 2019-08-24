@@ -134,8 +134,8 @@ export class AirObject implements IAirObject {
 // VALIDATORS
 // ================================================================================================
 function validateExtensionFactor(extensionFactor: number, maxConstraintDegree: number) {
-    if (Number.isInteger(extensionFactor)) throw new TypeError('Extension factor must be an integer');
-    if (isPowerOf2(extensionFactor)) throw new Error('Extension factor must be a power of 2');
+    if (!Number.isInteger(extensionFactor)) throw new TypeError('Extension factor must be an integer');
+    if (!isPowerOf2(extensionFactor)) throw new Error('Extension factor must be a power of 2');
     if (extensionFactor < maxConstraintDegree) {
         throw new Error(`Extension factor must be greater than max constraint degree`);
     }

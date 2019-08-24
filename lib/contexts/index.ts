@@ -1,3 +1,3 @@
 export { ExecutionContext } from './ExecutionContext';
-export { ProofContext } from './ProvingContext';
+export { ProofContext } from './ProofContext';
 export { VerificationContext } from './VerificationContext';

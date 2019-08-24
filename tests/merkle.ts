@@ -137,21 +137,31 @@ let start = Date.now();
 const trace = pContext.generateExecutionTrace([42n, 0n, 43n, 0n]);
 console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
-// TODO
+start = Date.now();
 const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
+console.log(`Trace polynomials computed in in ${Date.now() - start} ms`);
+
+start = Date.now();
 const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
+console.log(`Extended execution trace in ${Date.now() - start} ms`);
+
+start = Date.now();
+const cEvaluations = pContext.evaluateTracePolynomials(pPolys);
+console.log(`Constraints evaluated in ${Date.now() - start} ms`);
+
 const sEvaluations = pContext.getSecretRegisterTraces()[0];
 
 start = Date.now();
-const qEvaluations = pContext.evaluateExecutionTrace(trace);
-console.log(`Constraints evaluated in ${Date.now() - start} ms`);
+const qPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
+const qEvaluations = air.field.evalPolysAtRoots(qPolys, pContext.evaluationDomain);
+console.log(`Extended constraints in ${Date.now() - start} ms`);
 console.log(`Total time: ${Date.now() - gStart} ms`);
 
 const vContext = air.createContext([[0n, 1n, 0n, 1n]], extensionFactor);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
 const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2)];
-const nValues = [pEvaluations.getValue(0, 10), pEvaluations.getValue(1, 10), pEvaluations.getValue(2, 10), pEvaluations.getValue(3, 10)];
+const nValues = [pEvaluations.getValue(0, 18), pEvaluations.getValue(1, 18), pEvaluations.getValue(2, 18), pEvaluations.getValue(3, 18)];
 const sValues = [sEvaluations.getValue(2)];
 const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, sValues);
 

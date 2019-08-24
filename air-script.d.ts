@@ -82,7 +82,7 @@ declare module '@guildofweavers/air-script' {
 
         getSecretRegisterTraces(): Vector[];
         generateExecutionTrace(initValues: bigint[]): Matrix;
-        evaluateExecutionTrace(executionTrace: Matrix): Matrix;
+        evaluateTracePolynomials(polynomials: Matrix): Matrix;
     }
 
     // PUBLIC FUNCTIONS

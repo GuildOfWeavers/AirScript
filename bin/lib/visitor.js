@@ -6,7 +6,8 @@ const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
 const ScriptSpecs_1 = require("./ScriptSpecs");
 const contexts_1 = require("./contexts");
-const expressions_1 = require("./expressions");
+const Expression_1 = require("./expressions/Expression");
+const StaticExpression_1 = require("./expressions/StaticExpression");
 const utils_1 = require("./utils");
 // MODULE VARIABLES
 // ================================================================================================
@@ -312,7 +313,7 @@ class AirVisitor extends BaseCstVisitor {
             }
             degree = expression.degree;
         }
-        return new expressions_1.Expression(code, dimensions, degree);
+        return new Expression_1.Expression(code, dimensions, degree);
     }
     // WHEN STATEMENT
     // --------------------------------------------------------------------------------------------
@@ -324,7 +325,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         // create expressions for k and for (1 - k)
         const registerRef = exc.getRegisterReference(registerName);
-        const oneMinusReg = expressions_1.Expression.one.sub(registerRef);
+        const oneMinusReg = Expression_1.Expression.one.sub(registerRef);
         // build subroutines for true and false conditions
         exc.createNewVariableFrame();
         const tBlock = this.visit(ctx.tBlock, exc);
@@ -342,8 +343,8 @@ class AirVisitor extends BaseCstVisitor {
         const tSubroutine = exc.addSubroutine(tBlock.code);
         const fSubroutine = exc.addSubroutine(fBlock.code);
         // compute expressions for true and false branches
-        const tExpression = new expressions_1.Expression('f.newVectorFrom(tOut)', resultDim, tBlock.outputDegrees);
-        const fExpression = new expressions_1.Expression('f.newVectorFrom(fOut)', resultDim, fBlock.outputDegrees);
+        const tExpression = new Expression_1.Expression('f.newVectorFrom(tOut)', resultDim, tBlock.outputDegrees);
+        const fExpression = new Expression_1.Expression('f.newVectorFrom(fOut)', resultDim, fBlock.outputDegrees);
         const tBranch = tExpression.mul(registerRef);
         const fBranch = fExpression.mul(oneMinusReg);
         // generate code for the main function
@@ -384,7 +385,7 @@ class AirVisitor extends BaseCstVisitor {
             code += `${element.code}, `;
         }
         code = code.slice(0, -2) + '])';
-        return new expressions_1.Expression(code, dimensions, degree);
+        return new Expression_1.Expression(code, dimensions, degree);
     }
     vectorDestructuring(ctx, exc) {
         const variableName = ctx.vectorName[0].image;
@@ -395,7 +396,7 @@ class AirVisitor extends BaseCstVisitor {
         else if (utils_1.isMatrix(element.dimensions)) {
             throw new Error(`Cannot expand matrix variable '${variableName}'`);
         }
-        return new expressions_1.Expression(`...${element.code}.values`, element.dimensions, element.degree, true);
+        return new Expression_1.Expression(`...${element.code}.values`, element.dimensions, element.degree, true);
     }
     matrix(ctx, exc) {
         const degree = [];
@@ -414,7 +415,7 @@ class AirVisitor extends BaseCstVisitor {
             degree.push(row.degree);
         }
         code = code.slice(0, -2) + '])';
-        return new expressions_1.Expression(code, [rowCount, colCount], degree);
+        return new Expression_1.Expression(code, [rowCount, colCount], degree);
     }
     matrixRow(ctx, exc) {
         const dimensions = [ctx.elements.length, 0], degree = [];
@@ -427,7 +428,7 @@ class AirVisitor extends BaseCstVisitor {
             degree.push(element.degree);
         }
         code = code.slice(0, -2) + ']';
-        return new expressions_1.Expression(code, dimensions, degree);
+        return new Expression_1.Expression(code, dimensions, degree);
     }
     // EXPRESSIONS
     // --------------------------------------------------------------------------------------------
@@ -514,7 +515,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         else if (ctx.IntegerLiteral) {
             const value = ctx.IntegerLiteral[0].image;
-            return new expressions_1.StaticExpression(value);
+            return new StaticExpression_1.StaticExpression(value);
         }
         else {
             throw new Error('Invalid expression syntax');
@@ -530,7 +531,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         // create expressions for k and for (1 - k)
         const registerRef = exc.getRegisterReference(registerName);
-        const oneMinusReg = expressions_1.Expression.one.sub(registerRef);
+        const oneMinusReg = Expression_1.Expression.one.sub(registerRef);
         // get expressions for true and false options
         const tExpression = this.visit(ctx.tExpression, exc);
         const fExpression = this.visit(ctx.fExpression, exc);

@@ -29,18 +29,11 @@ const extensionFactor = 16;
 const air = parseScript(script);
 const pContext = air.createContext([], [], extensionFactor);
 const trace = pContext.generateExecutionTrace([3n]);
-const cEvaluations = pContext.evaluateExecutionTrace(trace);
+const tPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
 
-/*
-const air2 = parseScript(script, undefined, { extensionFactor: 8, wasmOptions: false });
-const pContext2 = air2.createContext([], []);
-const trace2 = air2.generateExecutionTrace([3n], pContext2);
-const pPolys2 = air2.field.interpolateRoots(pContext2.executionDomain, trace2);
-const pEvaluations2 = air2.field.evalPolysAtRoots(pPolys2, pContext2.evaluationDomain);
-const qEvaluations2 = air2.evaluateExtendedTrace(pEvaluations2, pContext2);
+const cEvaluations = pContext.evaluateTracePolynomials(tPolys);
 
-const t1 = air2.field.interpolateRoots(pContext2.evaluationDomain, qEvaluations2);
-const t2 = air1.field.evalPolysAtRoots(t1, pContext1.evaluationDomain);
-*/
+const pPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
+const qEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
 
 console.log('done!');
