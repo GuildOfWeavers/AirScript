@@ -38,7 +38,7 @@ console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
 start = Date.now();
 const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
-console.log(`Trace polynomials computed in in ${Date.now() - start} ms`);
+console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
 
 start = Date.now();
 const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);

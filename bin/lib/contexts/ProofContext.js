@@ -11,7 +11,6 @@ class ProofContext {
         this.traceLength = air.steps;
         this.extensionFactor = extensionFactor;
         this.compositionFactor = getCompositionFactor(air.maxConstraintDegree);
-        // TODO: validate inputs
         // build evaluation domain
         const evaluationDomainSize = this.traceLength * extensionFactor;
         this.rootOfUnity = this.field.getRootOfUnity(evaluationDomainSize);
@@ -55,7 +54,7 @@ class ProofContext {
         const pValues = new Array(this.pRegisters.length);
         const kValues = new Array(this.kRegisters.length);
         // make sure all initial values are valid
-        // TODO: validateInitValues(initValues, this.stateWidth);
+        validateInitValues(initValues, this.stateWidth);
         // initialize rValues and set first state of execution trace to initValues
         const traceValues = new Array(this.stateWidth);
         for (let register = 0; register < traceValues.length; register++) {
@@ -88,13 +87,13 @@ class ProofContext {
         return this.field.newMatrixFrom(traceValues);
     }
     evaluateTracePolynomials(polynomials) {
-        // make sure evaluation trace is valid
-        // TODO
-        // 1 --- extend execution trace over composition domain
-        const tEvaluations = this.field.evalPolysAtRoots(polynomials, this.compositionDomain);
         const domainSize = this.compositionDomain.length;
         const constraintCount = this.constraintCount;
         const extensionFactor = domainSize / this.traceLength;
+        // make sure trace polynomials are valid
+        validateTracePolynomials(polynomials, this.stateWidth, this.traceLength);
+        // evaluate transition polynomials over composition domain
+        const tEvaluations = this.field.evalPolysAtRoots(polynomials, this.compositionDomain);
         // initialize evaluation arrays
         const evaluations = new Array(constraintCount);
         for (let i = 0; i < constraintCount; i++) {
@@ -155,5 +154,32 @@ exports.ProofContext = ProofContext;
 // ================================================================================================
 function getCompositionFactor(maxConstraintDegree) {
     return 2 ** Math.ceil(Math.log2(maxConstraintDegree));
+}
+function validateInitValues(values, stateWidth) {
+    if (!values)
+        throw new TypeError('Initial values are undefined');
+    if (!Array.isArray(values))
+        throw new TypeError('Initial values parameter must be an array');
+    if (values.length !== stateWidth) {
+        throw new Error(`Initial values array must contain exactly ${stateWidth} elements`);
+    }
+    for (let i = 0; i < stateWidth; i++) {
+        if (typeof values[i] !== 'bigint') {
+            throw new TypeError(`Initial value ${i} is invalid: value '${values[i]}' is not a BigInt`);
+        }
+    }
+}
+function validateTracePolynomials(trace, stateWidth, traceLength) {
+    if (!trace)
+        throw new TypeError('Trace polynomials is undefined');
+    if (!trace.rowCount || !trace.colCount) { // TODO: improve type checking
+        throw new TypeError('Trace polynomials must be provided as a matrix of coefficients');
+    }
+    if (trace.rowCount !== stateWidth) {
+        throw new Error(`Trace polynomials matrix must contain exactly ${stateWidth} rows`);
+    }
+    if (trace.colCount !== traceLength) {
+        throw new Error(`Trace polynomials matrix must contain exactly ${traceLength} columns`);
+    }
 }
 //# sourceMappingURL=ProofContext.js.map

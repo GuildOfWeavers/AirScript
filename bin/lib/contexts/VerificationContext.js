@@ -10,7 +10,6 @@ class VerificationContext {
         this.air = air;
         this.traceLength = air.steps;
         this.extensionFactor = extensionFactor;
-        // TODO: validate inputs
         const evaluationDomainSize = this.traceLength * extensionFactor;
         this.rootOfUnity = this.field.getRootOfUnity(evaluationDomainSize);
         // pre-build execution domain for spread registers

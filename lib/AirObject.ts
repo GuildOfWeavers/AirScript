@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { FiniteField, Matrix } from "@guildofweavers/galois";
+import { FiniteField } from "@guildofweavers/galois";
 import { AirObject as IAirObject, ConstraintSpecs } from "@guildofweavers/air-script";
 import { ProofContext, VerificationContext } from "./contexts";
 import { InputRegisterSpecs, ReadonlyRegisterSpecs } from './registers';
@@ -188,31 +188,5 @@ function validateSecretInputs(inputs: bigint[][], traceLength: number, expectedI
                 throw new TypeError(`Secret input ${i} is invalid: value '${input[j]}' is not a BigInt`);
             }
         }
-    }
-}
-
-function validateInitValues(values: bigint[], stateWidth: number) {
-    if (!values) throw new TypeError('Initial values are undefined');
-    if (!Array.isArray(values)) throw new TypeError('Initial values parameter must be an array');
-    if (values.length !== stateWidth) {
-        throw new Error(`Initial values array must contain exactly ${stateWidth} elements`);
-    }
-
-    for (let i = 0; i < stateWidth; i++) {
-        if (typeof values[i] !== 'bigint') {
-            throw new TypeError(`Initial value ${i} is invalid: value '${values[i]}' is not a BigInt`);
-        }
-    }
-}
-
-function validateExtendedTrace(trace: Matrix, stateWidth: number, domainSize: number) {
-    if (!trace) throw new TypeError('Extended trace is undefined');
-    if (!trace.rowCount || !trace.colCount) throw new TypeError('Evaluation trace parameter must be a matrix'); // TODO: improve
-    if (trace.rowCount !== stateWidth) {
-        throw new Error(`Extended trace matrix must contain exactly ${stateWidth} rows`);
-    }
-
-    if (trace.colCount !== domainSize) {
-        throw new Error(`Extended trace matrix must contain exactly ${domainSize} columns`);
     }
 }

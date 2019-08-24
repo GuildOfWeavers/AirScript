@@ -130,30 +130,4 @@ function validateSecretInputs(inputs, traceLength, expectedInputCount) {
         }
     }
 }
-function validateInitValues(values, stateWidth) {
-    if (!values)
-        throw new TypeError('Initial values are undefined');
-    if (!Array.isArray(values))
-        throw new TypeError('Initial values parameter must be an array');
-    if (values.length !== stateWidth) {
-        throw new Error(`Initial values array must contain exactly ${stateWidth} elements`);
-    }
-    for (let i = 0; i < stateWidth; i++) {
-        if (typeof values[i] !== 'bigint') {
-            throw new TypeError(`Initial value ${i} is invalid: value '${values[i]}' is not a BigInt`);
-        }
-    }
-}
-function validateExtendedTrace(trace, stateWidth, domainSize) {
-    if (!trace)
-        throw new TypeError('Extended trace is undefined');
-    if (!trace.rowCount || !trace.colCount)
-        throw new TypeError('Evaluation trace parameter must be a matrix'); // TODO: improve
-    if (trace.rowCount !== stateWidth) {
-        throw new Error(`Extended trace matrix must contain exactly ${stateWidth} rows`);
-    }
-    if (trace.colCount !== domainSize) {
-        throw new Error(`Extended trace matrix must contain exactly ${domainSize} columns`);
-    }
-}
 //# sourceMappingURL=AirObject.js.map

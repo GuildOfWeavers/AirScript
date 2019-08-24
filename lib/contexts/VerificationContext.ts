@@ -25,8 +25,6 @@ export class VerificationContext implements IVerificationContext {
         this.traceLength = air.steps;
         this.extensionFactor = extensionFactor;
 
-        // TODO: validate inputs
-
         const evaluationDomainSize = this.traceLength * extensionFactor;
         this.rootOfUnity = this.field.getRootOfUnity(evaluationDomainSize);
 
