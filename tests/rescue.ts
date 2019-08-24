@@ -78,29 +78,40 @@ define Rescue over prime field (2^64 - 21 * 2^30 + 1) {
     }
 }`;
 
+const extensionFactor = 16;
 const air = parseScript(script);
 console.log(`degree: ${air.maxConstraintDegree}`);
 
 const gStart = Date.now();
-const pContext = air.createContext([], []);
+const pContext = air.createContext([], [], extensionFactor);
 
 let start = Date.now();
-const trace = air.generateExecutionTrace([42n, 0n], pContext);
+const trace = pContext.generateExecutionTrace([42n, 0n]);
 console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
+start = Date.now();
 const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
-const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
+console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
 
 start = Date.now();
-const qEvaluations = air.evaluateExtendedTrace(pEvaluations, pContext);
+const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
+console.log(`Extended execution trace in ${Date.now() - start} ms`);
+
+start = Date.now();
+const cEvaluations = pContext.evaluateTracePolynomials(pPolys);
 console.log(`Constraints evaluated in ${Date.now() - start} ms`);
+
+start = Date.now();
+const qPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
+const qEvaluations = air.field.evalPolysAtRoots(qPolys, pContext.evaluationDomain);
+console.log(`Extended constraints in ${Date.now() - start} ms`);
 console.log(`Total time: ${Date.now() - gStart} ms`);
 
-const vContext = air.createContext([]);
+const vContext = air.createContext([], extensionFactor);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
 const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2)];
-const nValues = [pEvaluations.getValue(0, 10), pEvaluations.getValue(1, 10)];
-const qValues = air.evaluateConstraintsAt(x, rValues, nValues, [], vContext);
+const nValues = [pEvaluations.getValue(0, 18), pEvaluations.getValue(1, 18)];
+const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, []);
 
 console.log(qEvaluations.getValue(0, 2) === qValues[0]);

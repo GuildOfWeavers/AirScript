@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils_1 = require("./utils");
 const StaticExpression_1 = require("./expressions/StaticExpression");
+const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
 class ScriptSpecs {

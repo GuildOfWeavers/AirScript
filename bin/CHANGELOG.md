@@ -1,5 +1,9 @@
 # Release History
 
+### v0.4.0 - August 14, 2019
+
+* Major refactoring of proof and verification contexts (breaking)
+
 ### v0.3.3 - August 14, 2019
 
 * Minor updates to `ScriptOptions` interface

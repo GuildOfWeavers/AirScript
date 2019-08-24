@@ -1,26 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
-import { validateVariableName, Dimensions } from './utils';
-import { ScriptSpecs } from './ScriptSpecs';
-import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './AirObject';
-import { Expression } from './expressions/Expression';
-
+const utils_1 = require("../utils");
+const Expression_1 = require("../expressions/Expression");
 // CLASS DEFINITION
 // ================================================================================================
-export class ExecutionContext {
-
-    readonly staticConstants        : Map<string, Expression>;
-    readonly localVariables         : Map<string, Expression>[];
-    readonly subroutines            : Map<string, string>;
-    readonly mutableRegisterCount   : number;
-    readonly staticRegisters        : ReadonlyRegisterSpecs[];
-    readonly secretRegisters        : InputRegisterSpecs[];
-    readonly publicRegisters        : InputRegisterSpecs[];
-    readonly canAccessFutureState   : boolean;
-
+class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(specs: ScriptSpecs, canAccessFutureState: boolean) {
+    constructor(specs, canAccessFutureState) {
         this.subroutines = new Map();
         this.localVariables = [new Map()];
         this.staticConstants = specs.staticConstants;
@@ -30,80 +19,67 @@ export class ExecutionContext {
         this.publicRegisters = specs.publicRegisters;
         this.canAccessFutureState = canAccessFutureState;
     }
-
     // VARIABLES
     // --------------------------------------------------------------------------------------------
-    setVariableAssignment(variable: string, expression: Expression): { code: string, dimensions: Dimensions } {
+    setVariableAssignment(variable, expression) {
         if (this.staticConstants.has(variable)) {
             throw new Error(`Value of static constant '${variable}' cannot be changed`);
         }
-        
         // get the last frame from the local variable stack
         const localVariables = this.localVariables[this.localVariables.length - 1];
-
         const refCode = `$${variable}`;
         const sExpression = localVariables.get(variable);
         if (sExpression) {
             if (!sExpression.isSameDimensions(expression)) {
                 throw new Error(`Dimensions of variable '${variable}' cannot be changed`);
             }
-
             if (sExpression.degree !== expression.degree) {
-                const refExpression = new Expression(refCode, expression.dimensions, expression.degree);
+                const refExpression = new Expression_1.Expression(refCode, expression.dimensions, expression.degree);
                 localVariables.set(variable, refExpression);
             }
-
             return {
-                code        : refCode,
-                dimensions  : expression.dimensions
+                code: refCode,
+                dimensions: expression.dimensions
             };
         }
         else {
-            validateVariableName(variable, expression.dimensions);
-            const refExpression = new Expression(refCode, expression.dimensions, expression.degree);
+            utils_1.validateVariableName(variable, expression.dimensions);
+            const refExpression = new Expression_1.Expression(refCode, expression.dimensions, expression.degree);
             localVariables.set(variable, refExpression);
-
             return {
-                code        : `let ${refCode}`,
-                dimensions  : expression.dimensions
+                code: `let ${refCode}`,
+                dimensions: expression.dimensions
             };
         }
     }
-
-    getVariableReference(variable: string): Expression {
+    getVariableReference(variable) {
         // get the last frame from the local variable stack
         const localVariables = this.localVariables[this.localVariables.length - 1];
-
         if (localVariables.has(variable)) {
-            return localVariables.get(variable)!;
+            return localVariables.get(variable);
         }
         else if (this.staticConstants.has(variable)) {
-            return this.staticConstants.get(variable)!;
+            return this.staticConstants.get(variable);
         }
         else {
             throw new Error(`Variable '${variable}' is not defined`);
         }
     }
-
     createNewVariableFrame() {
         this.localVariables.push(new Map());
     }
-
     destroyVariableFrame() {
         if (this.localVariables.length === 1) {
             throw new Error('Cannot destroy last variable frame');
         }
         this.localVariables.pop();
     }
-
     // REGISTERS
     // --------------------------------------------------------------------------------------------
-    getRegisterReference(register: string): Expression {
+    getRegisterReference(register) {
         const name = register.slice(1, 2);
         const index = Number.parseInt(register.slice(2), 10);
-        
         const errorMessage = `Invalid register reference ${register}`;
-
         if (name === 'r') {
             if (index >= this.mutableRegisterCount) {
                 throw new Error(`${errorMessage}: register index must be smaller than ${this.mutableRegisterCount}`);
@@ -135,14 +111,11 @@ export class ExecutionContext {
                 throw new Error(`${errorMessage}: register index must be smaller than ${publicRegisterCount}`);
             }
         }
-
-        return new Expression(`${name}[${index}]`, [0, 0], 1n);
+        return new Expression_1.Expression(`${name}[${index}]`, [0, 0], 1n);
     }
-
-    isBinaryRegister(register: string): boolean {
+    isBinaryRegister(register) {
         const name = register.slice(1, 2);
         const index = Number.parseInt(register.slice(2), 10);
-        
         if (name === 'k') {
             return this.staticRegisters[index].binary;
         }
@@ -156,23 +129,20 @@ export class ExecutionContext {
             throw new Error(`Register ${register} cannot be restricted to binary values`);
         }
     }
-
     // SUBROUTINES
     // --------------------------------------------------------------------------------------------
-    addSubroutine(code: string): string {
+    addSubroutine(code) {
         const subName = `sub${this.subroutines.size}`;
         const subParams = this.getSubroutineParameters().join(', ');
         const subFunction = `function ${subName}(${subParams}) {\n${code}}\n`;
         this.subroutines.set(subName, subFunction);
         return subName;
     }
-
-    callSubroutine(subName: string, outParamName: string): string {
+    callSubroutine(subName, outParamName) {
         const subParams = this.getSubroutineParameters();
         subParams[subParams.length - 1] = outParamName;
         return `${subName}(${subParams.join(', ')});\n`;
     }
-
     getSubroutineParameters() {
         if (this.canAccessFutureState) {
             return ['r', 'n', 'k', 's', 'p', 'out'];
@@ -182,3 +152,5 @@ export class ExecutionContext {
         }
     }
 }
+exports.ExecutionContext = ExecutionContext;
+//# sourceMappingURL=ExecutionContext.js.map

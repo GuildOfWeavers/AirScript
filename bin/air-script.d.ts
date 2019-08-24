@@ -8,17 +8,21 @@ declare module '@guildofweavers/air-script' {
     // INTERFACES
     // --------------------------------------------------------------------------------------------
     export interface StarkLimits {
-        maxSteps                : number;
-        maxMutableRegisters     : number;
-        maxReadonlyRegisters    : number;
-        maxConstraintCount      : number;
-        maxConstraintDegree     : number;
-        maxExtensionFactor      : number;
-    }
 
-    export interface ScriptOptions {
-        extensionFactor         : number;
-        wasmOptions             : Partial<WasmOptions> | boolean;
+        /** Maximum number of steps in an execution trace; defaults to 2^20 */
+        maxSteps: number;
+
+        /** Maximum number of mutable registers; defaults to 64 */
+        maxMutableRegisters: number;
+
+        /** Maximum number of all readonly registers; defaults to 64 */
+        maxReadonlyRegisters: number;
+
+        /** Maximum number of transition constraints; defaults to 1024 */
+        maxConstraintCount: number;
+
+        /** Highest allowed degree of transition constraints; defaults to 16 */
+        maxConstraintDegree: number;
     }
 
     export interface AirObject {
@@ -30,19 +34,21 @@ declare module '@guildofweavers/air-script' {
         readonly secretInputCount       : number;
         readonly constraints            : ConstraintSpecs[];
         readonly maxConstraintDegree    : number;
-        readonly extensionFactor        : number;
 
-        createContext(publicInputs: bigint[][]): VerificationContext;
-        createContext(publicInputs: bigint[][], secretInputs: bigint[][]): ProofContext;
+        /** Creates verification context for the provided public inputs */
+        createContext(publicInputs: bigint[][], extensionFactor: number): VerificationContext;
 
-        generateExecutionTrace(initValues: bigint[], ctx: ProofContext): Matrix;
-        evaluateExtendedTrace(extendedTrace: Matrix, ctx: ProofContext): Matrix;
-        evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[], ctx: VerificationContext): bigint[];
+        /** Creates proof context for the provided public and secret inputs */
+        createContext(publicInputs: bigint[][], secretInputs: bigint[][], extensionFactor: number): ProofContext;
     }
 
     export class AirScriptError {
         readonly errors: any[];
         constructor(errors: any[]);
+    }
+
+    export interface ConstraintSpecs {
+        degree  : number;
     }
 
     // CONTEXTS
@@ -52,38 +58,41 @@ declare module '@guildofweavers/air-script' {
         readonly traceLength        : number;
         readonly extensionFactor    : number;
         readonly rootOfUnity        : bigint;
-        readonly executionDomain?   : Vector;
-        readonly evaluationDomain?  : Vector;
-    }
-
-    export interface VerificationContext extends EvaluationContext {
         readonly stateWidth         : number;
         readonly constraintCount    : number;
         readonly secretInputCount   : number;
         readonly publicInputCount   : number;
-        readonly kRegisters         : ReadonlyRegister[];
-        readonly pRegisters         : ReadonlyRegister[];
     }
 
-    export interface ProofContext extends VerificationContext {
-        readonly sRegisters         : ReadonlyRegister[];
-        readonly sEvaluations       : Vector[];
-        readonly executionDomain    : Vector;
-        readonly evaluationDomain   : Vector;
+    export interface VerificationContext extends EvaluationContext {
+        /**
+         * Evaluates transition constraints at the specified point
+         * @param x Point in the evaluation domain at which to evaluate constraints
+         * @param rValues Values of mutable registers at the current step
+         * @param nValues Values of mutable registers at the next step
+         * @param sValues Values of secret registers at the current step
+         */
+        evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[]): bigint[];
     }
 
-    export interface ReadonlyRegister {
-        getTraceValue(step: number): bigint;
-        getEvaluation(position: number): bigint;
-        getEvaluationAt(x: bigint): bigint;
-        getAllEvaluations(): Vector;
-    }
+    export interface ProofContext extends EvaluationContext {
+        /** Domain of the execution trace */
+        readonly executionDomain: Vector;
 
-    export interface ConstraintSpecs {
-        degree  : number;
+        /** Domain of the low-degree extended execution trace */
+        readonly evaluationDomain: Vector;
+
+        /** Domain of the low-degree extended composition polynomial */
+        readonly compositionDomain: Vector;
+
+        generateExecutionTrace(initValues: bigint[]): Matrix;
+        evaluateTracePolynomials(polynomials: Matrix): Matrix;
+
+        getSecretRegisterTraces(): Vector[];
     }
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
-    export function parseScript(script: string, limits?: Partial<StarkLimits>, options?: Partial<ScriptOptions>): AirObject;
+    export function parseScript(script: string, limits?: Partial<StarkLimits>, useWasm?: boolean): AirObject;
+    export function parseScript(script: string, limits?: Partial<StarkLimits>, wasmOptions?: Partial<WasmOptions>): AirObject;
 }

@@ -2,11 +2,11 @@
 // ================================================================================================
 import { StarkLimits } from '@guildofweavers/air-script';
 import { FiniteField } from '@guildofweavers/galois';
-import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './AirObject';
+import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './registers';
 import { ReadonlyRegisterGroup, ConstantDeclaration } from './visitor';
-import { isPowerOf2, isMatrix, isVector } from './utils';
 import { Expression } from './expressions/Expression';
 import { StaticExpression } from './expressions/StaticExpression';
+import { isPowerOf2, isMatrix, isVector } from './utils';
 
 // CLASS DEFINITION
 // ================================================================================================

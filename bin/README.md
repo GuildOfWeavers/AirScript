@@ -327,11 +327,11 @@ Binary registers can be used as selectors in [conditional expressions](#Conditio
 To annotate your scripts with comments, use `//`. Anything following `//` until the end of the line will not be processed by the parser. Currently, this is the only style of comments supported.
 
 # API
-This module exposes a single `parseScript()` method. The method has the following signature:
-```TypeScript
-parseScript(script: string, limits?: StarkLimits, options?: ScriptOptions): AirObject;
-```
-where `script` is the text of the script, `limits` is an optional object that specifies limits for the script, and `options` is an object containing config options for the generated `AirObject`.
+This module exposes a single `parseScript()` method:
+
+* **parseScript**(script: `string`, limits?: `StarkLimits`, useWasm?: `boolean`): `AirObject`
+* **parseScript**(script: `string`, limits?: `StarkLimits`, wasmOptions?: `WasmOptions`): `AirObject`
+
 
 `StarkLimits` object can include any of the following properties:
 
@@ -342,14 +342,12 @@ where `script` is the text of the script, `limits` is an optional object that sp
 | maxReadonlyRegisters | Maximum number of readonly registers; the default is 64. |
 | maxConstraintCount   | Maximum number of transition constraints; the default is 1024. |
 | maxConstraintDegree  | Maximum degree of transition constraints; the default is 16. |
-| maxExtensionFactor   | Maximum extension factor; the default is 32. |
 
-`ScriptOptions` object may include any of the following properties:
+`wasmOptions` object may include any of the following properties:
 
-| Property        | Description |
-| --------------- | ----------- |
-| extensionFactor | Value for the factor by which the execution trace is stretched; defaults to the smallest degree of 2 which is greater than the maximum [constraint degree](#Constraint-degree) defined for the STARK. |
-| wasmOptions     | Config options for WASM-optimized fields. This can also be a `boolean`, in which case `false` will disable optimization, and `true` will use default config options. |
+| Property  | Description |
+| ----------| ----------- |
+| memory    | A WebAssembly `Memory` object which will be passed to the underlying `FiniteField` object. |
 
 ### AirObject
 If parsing of the script is successful, the `parseScript()` method returns an `AirObject` with the following properties:
@@ -367,20 +365,11 @@ If parsing of the script is successful, the `parseScript()` method returns an `A
 
 `AirObject` also exposes the following methods:
 
-* **createContext**(publicInputs: `bigint[][]`): `VerificationContext`<br />
-  Creates a `VerificationContext` object for the computation.
+* **createContext**(publicInputs: `bigint[][]`, extensionFactor: `number`): `VerificationContext`<br />
+  Creates a `VerificationContext` object for the computation. This object can be used to evaluate transition constraints at at a single point.
 
-* **createContext**(publicInputs: `bigint[][]`, secretInputs: `bigint[][]`): `ProofContext`<br />
-  Creates a `ProofContext` object for the computation.
-
-* **generateExecutionTrace**(initValues: `bigint[]`, ctx: `ProofContext`): `bigint[][]`<br />
-  Generates an execution trace for the computation by applying transition function to the specified initial values.
-
-* **evaluateExtendedTrace**(extendedTrace: `bigint[][]`, ctx: `ProofContext`): `bigint[][]`<br />
-  Evaluates transition constraints for the entire extended execution trace.
-        
-* **evaluateConstraintsAt**(x: `bigint`, rValues: `bigint[]`, nValues: `bigint[]`, sValues: `bigint[]`, ctx: `VerificationContext`): `bigint[]`<br />
-  Evaluates constraints at a single point of the extended execution trace.
+* **createContext**(publicInputs: `bigint[][]`, secretInputs: `bigint[][]`, extensionFactor: `number`): `ProofContext`<br />
+  Creates a `ProofContext` object for the computation. This object can be used to generate execution traces and evaluate transition constraints.
 
 If parsing of the script fails, the `parseScript()` method throws an `AirScriptError` which contains a list of errors (under `.errors` property) that caused the failure.
 

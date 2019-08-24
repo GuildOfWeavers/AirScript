@@ -1,77 +1,63 @@
 // IMPORTS
 // ================================================================================================
 import { FiniteField, Vector } from "@guildofweavers/galois";
-import { ReadonlyRegister, EvaluationContext } from "@guildofweavers/air-script";
+import { ReadonlyRegister, ReadonlyRegisterEvaluator } from "./index";
+import { ProofContext, VerificationContext } from "../contexts";
 
 // CLASS DEFINITION
 // ================================================================================================
 export class RepeatRegister implements ReadonlyRegister {
 
     readonly field              : FiniteField;
-    readonly cycleCount         : bigint;
-    readonly poly               : Vector;
-    readonly extensionFactor    : number;
-    readonly domainSize         : number;
-    readonly evaluations?       : Vector;
+    readonly evaluations        : Vector;
+    readonly compositionFactor  : number;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(values: bigint[], ctx: EvaluationContext) {
+    constructor(values: bigint[], ctx: ProofContext) {
 
         this.field = ctx.field;
-        this.extensionFactor = ctx.extensionFactor;
 
         // make sure the length of values is at least 4; this is needed for FFT interpolation
         if (values.length === 2) {
             values = values.concat(values);
         }
-        this.cycleCount = BigInt(ctx.traceLength / values.length);
+
+        // determine composition factor
+        const domainSize = ctx.compositionDomain.length;
+        this.compositionFactor = domainSize / ctx.traceLength;
+
+        // build the polynomial describing cyclic values
+        const skip = domainSize / values.length;
         const ys = this.field.newVectorFrom(values);
+        const xs = this.field.pluckVector(ctx.compositionDomain, skip, ys.length);
+        const poly = this.field.interpolateRoots(xs, ys);
 
-        if (ctx.evaluationDomain) {
-            this.domainSize = ctx.evaluationDomain.length;
-            
-            const skip = this.domainSize / values.length;
-            const xs = this.field.pluckVector(ctx.evaluationDomain, skip, ys.length);
-            this.poly = this.field.interpolateRoots(xs, ys);
-
-            const length2 = values.length * this.extensionFactor;
-            const skip2 = this.domainSize / length2;
-            const xs2 = this.field.pluckVector(ctx.evaluationDomain, skip2, length2);
-            this.evaluations = this.field.evalPolyAtRoots(this.poly, xs2);
-        }
-        else {
-            const g = this.field.exp(ctx.rootOfUnity, BigInt(this.extensionFactor) * this.cycleCount);
-            const xs = this.field.getPowerSeries(g, ys.length);
-            this.poly = this.field.interpolateRoots(xs, ys);
-            this.domainSize = this.extensionFactor * ctx.traceLength;
-        }
+        // evaluate the polynomial over a subset of composition domain
+        const length2 = values.length * this.compositionFactor;
+        const skip2 = domainSize / length2;
+        const xs2 = this.field.pluckVector(ctx.compositionDomain, skip2, length2);
+        this.evaluations = this.field.evalPolyAtRoots(poly, xs2);
     }
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
     getTraceValue(step: number): bigint {
-        const values = this.evaluations!;
-        const position = step * this.extensionFactor;
+        const values = this.evaluations;
+        const position = step * this.compositionFactor;
         return values.getValue(position % values.length);
     }
 
     getEvaluation(position: number): bigint {
-        const values = this.evaluations!;
+        const values = this.evaluations;
         return values.getValue(position % values.length);
     }
 
-    getEvaluationAt(x: bigint): bigint {
-        const xp = this.field.exp(x, this.cycleCount);
-        return this.field.evalPolyAt(this.poly, xp);
-    }
-
-    getAllEvaluations(): Vector {
-        if (!this.evaluations) throw new Error('Register evaluations are undefined');
+    getAllEvaluations(evaluationDomain: Vector): Vector {
         
         // figure out how many times the evaluations vector needs to be doubled to reach domain size
         let i = 0, length = this.evaluations.length;
-        while (length < this.domainSize) {
+        while (length < evaluationDomain.length) {
             length = length << 1;
             i++;
         }
@@ -83,5 +69,31 @@ export class RepeatRegister implements ReadonlyRegister {
         else {
             return this.evaluations;
         }        
+    }
+
+    // STATIC FUNCTIONS
+    // --------------------------------------------------------------------------------------------
+    static buildEvaluator(values: bigint[], ctx: VerificationContext): ReadonlyRegisterEvaluator {
+        const field = ctx.field;
+
+        // make sure the length of values is at least 4; this is needed for FFT interpolation
+        if (values.length === 2) {
+            values = values.concat(values);
+        }
+
+        // determine number of cycles over the execution trace
+        const cycleCount = BigInt(ctx.traceLength / values.length);
+
+        // build the polynomial describing cyclic values
+        const g = field.exp(ctx.rootOfUnity, BigInt(ctx.extensionFactor) * cycleCount);
+        const ys = field.newVectorFrom(values);
+        const xs = field.getPowerSeries(g, ys.length);
+        const poly = field.interpolateRoots(xs, ys);
+
+        // build and return the evaluator function
+        return function(x) {
+            const xp = field.exp(x, cycleCount);
+            return field.evalPolyAt(poly, xp);
+        }
     }
 }

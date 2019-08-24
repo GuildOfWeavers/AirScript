@@ -5,7 +5,7 @@ const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
 const ScriptSpecs_1 = require("./ScriptSpecs");
-const ExecutionContext_1 = require("./ExecutionContext");
+const contexts_1 = require("./contexts");
 const Expression_1 = require("./expressions/Expression");
 const StaticExpression_1 = require("./expressions/StaticExpression");
 const utils_1 = require("./utils");
@@ -213,7 +213,7 @@ class AirVisitor extends BaseCstVisitor {
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx, specs) {
-        const exc = new ExecutionContext_1.ExecutionContext(specs, false);
+        const exc = new contexts_1.ExecutionContext(specs, false);
         const statements = this.visit(ctx.statements, exc);
         if (statements.outputSize !== exc.mutableRegisterCount) {
             if (exc.mutableRegisterCount === 1) {
@@ -234,7 +234,7 @@ class AirVisitor extends BaseCstVisitor {
         };
     }
     transitionConstraints(ctx, specs) {
-        const exc = new ExecutionContext_1.ExecutionContext(specs, true);
+        const exc = new contexts_1.ExecutionContext(specs, true);
         const statements = this.visit(ctx.statements, exc);
         if (statements.outputSize !== specs.constraintCount) {
             if (specs.constraintCount === 1) {

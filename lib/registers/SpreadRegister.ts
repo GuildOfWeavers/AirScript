@@ -1,57 +1,82 @@
 // IMPORTS
 // ================================================================================================
-import { FiniteField, Polynom, Vector } from "@guildofweavers/galois";
-import { ReadonlyRegister, EvaluationContext } from "@guildofweavers/air-script";
+import { FiniteField, Vector } from "@guildofweavers/galois";
+import { ReadonlyRegister, ReadonlyRegisterEvaluator } from "./index";
+import { ProofContext, VerificationContext } from "../contexts";
 
 // CLASS DEFINITION
 // ================================================================================================
 export class SpreadRegister implements ReadonlyRegister {
 
     readonly field              : FiniteField;
-    readonly poly               : Polynom;
-    readonly extensionFactor    : number;
-    readonly allEvaluations?    : Vector;
+    readonly poly               : Vector;
+    readonly evaluations        : Vector;
+    readonly compositionFactor  : number;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(values: bigint[], ctx: EvaluationContext) {
+    constructor(values: bigint[], ctx: ProofContext) {
 
         this.field = ctx.field;
-        this.extensionFactor = ctx.extensionFactor;
+        
+        // create trace mask
+        const traceValues = buildTraceMask(values, ctx.traceLength);
 
-        const cycleLength = ctx.traceLength / values.length;
-        let start = 0, traceValues = new Array<bigint>(ctx.traceLength);
-        for (let i = 0; i < values.length; i++, start += cycleLength) {
-            traceValues.fill(values[i], start, start + cycleLength);
-        }
-
+        // build the polynomial describing spread values
         const trace = this.field.newVectorFrom(traceValues);
-        this.poly = this.field.interpolateRoots(ctx.executionDomain!, trace);
+        this.poly = this.field.interpolateRoots(ctx.executionDomain, trace);
 
-        if (ctx.evaluationDomain) {
-            this.allEvaluations = this.field.evalPolyAtRoots(this.poly, ctx.evaluationDomain);
-        }
+        // evaluate the polynomial over composition domain
+        this.compositionFactor = ctx.compositionDomain.length / ctx.traceLength;
+        this.evaluations = this.field.evalPolyAtRoots(this.poly, ctx.compositionDomain);
     }
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
     getTraceValue(step: number): bigint {
-        const values = this.allEvaluations!;
-        const position = step * this.extensionFactor!;
+        const values = this.evaluations!;
+        const position = step * this.compositionFactor!;
         return values.getValue(position % values.length);
     }
 
     getEvaluation(position: number): bigint {
-        const values = this.allEvaluations!;
+        const values = this.evaluations!;
         return values.getValue(position % values.length);
     }
 
-    getEvaluationAt(x: bigint): bigint {
-        return this.field.evalPolyAt(this.poly, x);
+    getAllEvaluations(evaluationDomain: Vector): Vector {
+        return this.field.evalPolyAtRoots(this.poly, evaluationDomain);
     }
 
-    getAllEvaluations(): Vector {
-        if (!this.allEvaluations) throw new Error('Register evaluations are undefined');
-        return this.allEvaluations;
+    // STATIC FUNCTIONS
+    // --------------------------------------------------------------------------------------------
+    static buildEvaluator(values: bigint[], ctx: VerificationContext): ReadonlyRegisterEvaluator {
+        const field = ctx.field;
+
+        // create trace mask
+        const traceValues = buildTraceMask(values, ctx.traceLength);
+
+        // build the polynomial describing spread values
+        const trace = field.newVectorFrom(traceValues);
+        const poly = field.interpolateRoots(ctx.executionDomain!, trace);
+
+        // build and return the evaluator function
+        return function(x) {
+            return field.evalPolyAt(poly, x);
+        }
     }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+function buildTraceMask(values: bigint[], traceLength: number): bigint[] {
+    const traceValues = new Array<bigint>(traceLength)
+    const stretchLength = traceLength / values.length;
+
+    let start = 0;
+    for (let i = 0; i < values.length; i++, start += stretchLength) {
+        traceValues.fill(values[i], start, start + stretchLength);
+    }
+
+    return traceValues;
 }
