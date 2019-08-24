@@ -76,13 +76,19 @@ declare module '@guildofweavers/air-script' {
     }
 
     export interface ProofContext extends EvaluationContext {
-        readonly executionDomain    : Vector;
-        readonly evaluationDomain   : Vector;
-        readonly compositionDomain  : Vector;
+        /** Domain of the execution trace */
+        readonly executionDomain: Vector;
 
-        getSecretRegisterTraces(): Vector[];
+        /** Domain of the low-degree extended execution trace */
+        readonly evaluationDomain: Vector;
+
+        /** Domain of the low-degree extended composition polynomial */
+        readonly compositionDomain: Vector;
+
         generateExecutionTrace(initValues: bigint[]): Matrix;
         evaluateTracePolynomials(polynomials: Matrix): Matrix;
+
+        getSecretRegisterTraces(): Vector[];
     }
 
     // PUBLIC FUNCTIONS
