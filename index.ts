@@ -40,7 +40,6 @@ export function parseScript(script: string, limits?: Partial<StarkLimits>, wasmO
     try {
         const airConfig: AirConfig = visitor.visit(cst, { limits, wasmOptions });
         const air = new AirObject(airConfig);
-        //validateExtensionFactor(air.extensionFactor, air.maxConstraintDegree, limits.maxExtensionFactor!);
         return air;
     }
     catch (error) {

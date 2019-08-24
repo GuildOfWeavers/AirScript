@@ -34,7 +34,6 @@ function parseScript(script, limits, wasmOptions) {
     try {
         const airConfig = visitor_1.visitor.visit(cst, { limits, wasmOptions });
         const air = new AirObject_1.AirObject(airConfig);
-        //validateExtensionFactor(air.extensionFactor, air.maxConstraintDegree, limits.maxExtensionFactor!);
         return air;
     }
     catch (error) {
