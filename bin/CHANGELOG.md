@@ -1,6 +1,10 @@
 # Release History
 
-### v0.4.0 - August 14, 2019
+### v0.4.1 - August 29, 2019
+
+* Bugfix in composition domain generation
+
+### v0.4.0 - August 24, 2019
 
 * Major refactoring of proof and verification contexts (breaking)
 

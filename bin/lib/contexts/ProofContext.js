@@ -16,9 +16,11 @@ class ProofContext {
         this.rootOfUnity = this.field.getRootOfUnity(evaluationDomainSize);
         this.evaluationDomain = this.field.getPowerSeries(this.rootOfUnity, evaluationDomainSize);
         // build execution and composition domains by plucking values from evaluation domain
-        this.executionDomain = this.field.pluckVector(this.evaluationDomain, extensionFactor, this.traceLength);
+        const eSkip = extensionFactor;
+        this.executionDomain = this.field.pluckVector(this.evaluationDomain, eSkip, this.traceLength);
+        const cSkip = extensionFactor / this.compositionFactor;
         const compositionDomainLength = this.traceLength * this.compositionFactor;
-        this.compositionDomain = this.field.pluckVector(this.evaluationDomain, this.compositionFactor, compositionDomainLength);
+        this.compositionDomain = this.field.pluckVector(this.evaluationDomain, cSkip, compositionDomainLength);
         // build readonly registers
         this.kRegisters = registers_1.buildReadonlyRegisters(this.air.staticRegisters, this);
         this.pRegisters = registers_1.buildInputRegisters(pInputs, this.air.publicInputs, false, this);
