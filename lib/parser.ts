@@ -248,6 +248,9 @@ class AirParser extends CstParser {
         this.OR2([
             { ALT: () => {
                 this.SUBRULE1(this.statementBlock,  { LABEL: 'tBlock' });
+            }},
+            { ALT: () => {
+                this.SUBRULE2(this.whenStatement,   { LABEL: 'tBlock' });
             }}
         ]);
         this.CONSUME1(RCurly);
@@ -255,7 +258,10 @@ class AirParser extends CstParser {
         this.CONSUME2(LCurly);
         this.OR3([
             { ALT: () => {
-                this.SUBRULE2(this.statementBlock,  { LABEL: 'fBlock' });
+                this.SUBRULE3(this.statementBlock,  { LABEL: 'fBlock' });
+            }},
+            { ALT: () => {
+                this.SUBRULE4(this.whenStatement,   { LABEL: 'fBlock' });
             }}
         ]);
         this.CONSUME2(RCurly);

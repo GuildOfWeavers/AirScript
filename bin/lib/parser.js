@@ -226,6 +226,9 @@ class AirParser extends chevrotain_1.CstParser {
             this.OR2([
                 { ALT: () => {
                         this.SUBRULE1(this.statementBlock, { LABEL: 'tBlock' });
+                    } },
+                { ALT: () => {
+                        this.SUBRULE2(this.whenStatement, { LABEL: 'tBlock' });
                     } }
             ]);
             this.CONSUME1(lexer_1.RCurly);
@@ -233,7 +236,10 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME2(lexer_1.LCurly);
             this.OR3([
                 { ALT: () => {
-                        this.SUBRULE2(this.statementBlock, { LABEL: 'fBlock' });
+                        this.SUBRULE3(this.statementBlock, { LABEL: 'fBlock' });
+                    } },
+                { ALT: () => {
+                        this.SUBRULE4(this.whenStatement, { LABEL: 'fBlock' });
                     } }
             ]);
             this.CONSUME2(lexer_1.RCurly);

@@ -167,11 +167,11 @@ class Expression {
         return new Expression(code, dimensions, degree);
     }
 }
+exports.Expression = Expression;
 // STATIC EXPRESSIONS
 // --------------------------------------------------------------------------------------------
 Expression.one = new Expression('f.one', [0, 0], 0n);
 Expression.zero = new Expression('f.zero', [0, 0], 0n);
-exports.Expression = Expression;
 // HELPER FUNCTIONS
 // ================================================================================================
 function maxDegree(d1, d2) {

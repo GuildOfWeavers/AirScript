@@ -1,5 +1,9 @@
 # Release History
 
+### v0.4.2 - September 5, 2019
+
+* Enabled nested `when` statements
+
 ### v0.4.1 - August 29, 2019
 
 * Bugfix in composition domain generation
