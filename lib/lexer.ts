@@ -31,12 +31,14 @@ export const Of          = createToken({ name: "Of",          pattern: /of/,    
 export const Degree      = createToken({ name: "Degree",      pattern: /degree/,        longer_alt: Identifier });
 
 export const For         = createToken({ name: "For",         pattern: /for/,           longer_alt: Identifier });
+export const Each        = createToken({ name: "Each",        pattern: /each/,          longer_alt: Identifier });
 export const Do          = createToken({ name: "Do",          pattern: /do/,            longer_alt: Identifier });
 export const With        = createToken({ name: "With",        pattern: /with/,          longer_alt: Identifier });
 export const Nothing     = createToken({ name: "Nothing",     pattern: /nothing/,       longer_alt: Identifier });
 export const Out         = createToken({ name: "Out",         pattern: /out/,           longer_alt: Identifier });
 export const When        = createToken({ name: "When",        pattern: /when/,          longer_alt: Identifier });
 export const Else        = createToken({ name: "Else",        pattern: /else/,          longer_alt: Identifier });
+export const Init        = createToken({ name: "Init",        pattern: /init/,          longer_alt: Identifier });
 
 export const Using       = createToken({ name: "Using",       pattern: /using/,         longer_alt: Identifier });
 export const Readonly    = createToken({ name: "Readonly",    pattern: /readonly/,      longer_alt: Identifier });
