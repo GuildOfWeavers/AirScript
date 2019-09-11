@@ -319,12 +319,12 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     whenStatement(ctx, exc) {
         const registerName = ctx.condition[0].image;
+        const registerRef = exc.getRegisterReference(registerName);
         // make sure the condition register holds only binary values
         if (!exc.isBinaryRegister(registerName)) {
             throw new Error(`when...else statement condition must be based on a binary register`);
         }
-        // create expressions for k and for (1 - k)
-        const registerRef = exc.getRegisterReference(registerName);
+        // create expressions for (1 - k)
         const oneMinusReg = Expression_1.Expression.one.sub(registerRef);
         // build subroutines for true and false conditions
         exc.createNewVariableFrame();
