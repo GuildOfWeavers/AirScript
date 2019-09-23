@@ -9,6 +9,7 @@ const contexts_1 = require("./contexts");
 const expressions_1 = require("./expressions");
 const expressions = require("./expressions");
 const utils_1 = require("./utils");
+const generator_1 = require("./generator");
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser_1.parser.getBaseCstVisitorConstructor();
@@ -41,17 +42,25 @@ class AirVisitor extends BaseCstVisitor {
             readonlyRegisters = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
         }
         specs.setReadonlyRegisterCounts(readonlyRegisters);
+        // instantiate code generator
+        const generator = new generator_1.CodeGenerator(specs);
         // build transition function
         validateTransitionFunction(ctx.transitionFunction);
-        const tFunction = this.visit(ctx.transitionFunction, specs);
+        const tFunctionBody = this.visit(ctx.transitionFunction, specs);
+        const tFunction = generator.generateTransitionFunction(tFunctionBody);
         // build transition constraint evaluator
         validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraints = this.visit(ctx.transitionConstraints, specs);
+        const tConstraintsBody = this.visit(ctx.transitionConstraints, specs);
+        const tConstraints = generator.generateConstraintEvaluator(tConstraintsBody);
+        // validate constraint valuator degrees
         const constraintSpecs = new Array(specs.constraintCount);
         for (let i = 0; i < constraintSpecs.length; i++) {
-            constraintSpecs[i] = { degree: tConstraints.degrees[i] };
+            let degree = typeof tConstraintsBody.outExpression.degree === 'bigint'
+                ? tConstraintsBody.outExpression.degree
+                : tConstraintsBody.outExpression.degree[i];
+            constraintSpecs[i] = { degree: specs.validateConstraintDegree(degree) };
         }
-        // build and return stark config
+        // build and return AIR config
         return {
             name: starkName,
             field: field,
@@ -61,8 +70,8 @@ class AirVisitor extends BaseCstVisitor {
             publicInputs: readonlyRegisters.publicRegisters,
             staticRegisters: readonlyRegisters.staticRegisters,
             constraints: constraintSpecs,
-            transitionFunction: tFunction.buildFunction(field.jsField, specs.constantBindings),
-            constraintEvaluator: tConstraints.buildEvaluator(field.jsField, specs.constantBindings)
+            transitionFunction: tFunction,
+            constraintEvaluator: tConstraints
         };
     }
     // FINITE FIELD
@@ -215,69 +224,26 @@ class AirVisitor extends BaseCstVisitor {
     transitionFunction(ctx, specs) {
         const exc = new contexts_1.ExecutionContext(specs, false);
         const statements = this.visit(ctx.statements, exc);
-        if (statements.dimensions[0] !== exc.mutableRegisterCount) {
-            if (exc.mutableRegisterCount === 1) {
-                throw new Error(`Transition function must evaluate to exactly 1 value`);
-            }
-            else {
-                throw new Error(`Transition function must evaluate to a vector of exactly ${exc.mutableRegisterCount} values`);
-            }
-        }
-        // generate code that can build a transition function
-        let functionBuilderCode = `'use strict';\n\n`;
-        for (let subCode of exc.subroutines.values()) {
-            functionBuilderCode += `${subCode}\n`;
-        }
-        functionBuilderCode += `return function (r, k, s, p, out) {\n${statements.toAssignment('out')}}`;
-        return {
-            buildFunction: new Function('f', 'g', functionBuilderCode)
-        };
+        return statements;
     }
     transitionConstraints(ctx, specs) {
         const exc = new contexts_1.ExecutionContext(specs, true);
         const statements = this.visit(ctx.statements, exc);
-        if (statements.dimensions[0] !== specs.constraintCount) {
-            if (specs.constraintCount === 1) {
-                throw new Error(`Transition constraints must evaluate to exactly 1 value`);
-            }
-            else {
-                throw new Error(`Transition constraints must evaluate to a vector of exactly ${specs.constraintCount} values`);
-            }
-        }
-        // generate code that can build a constraint evaluator
-        let evaluatorBuilderCode = `'use strict';\n\n`;
-        for (let subCode of exc.subroutines.values()) {
-            evaluatorBuilderCode += `${subCode}\n`;
-        }
-        evaluatorBuilderCode += `return function (r, n, k, s, p, out) {\n${statements.toAssignment('out')}}`;
-        // convert bigint degrees to numbers
-        const degrees = [];
-        for (let degree of statements.degree) {
-            degrees.push(specs.validateConstraintDegree(degree));
-        }
-        return {
-            buildEvaluator: new Function('f', 'g', evaluatorBuilderCode),
-            degrees: degrees
-        };
+        return statements;
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx, exc) {
-        const statements = [];
+        let statements;
         if (ctx.statements) {
-            ctx.statements.forEach((stmt, i) => {
-                let statement = this.visit(stmt, exc);
-                let expression = statement.expression;
-                let variable = exc.setVariableAssignment(statement.variable, expression);
-                statements.push({ variable: variable.toCode(), expression }); // TODO
-            });
+            statements = ctx.statements.map((stmt) => this.visit(stmt, exc));
         }
         const out = this.visit(ctx.outStatement, exc);
         return new expressions_1.StatementBlock(out, statements);
     }
     statement(ctx, exc) {
-        const variable = ctx.variableName[0].image;
         const expression = this.visit(ctx.expression, exc);
+        const variable = exc.setVariableAssignment(ctx.variableName[0].image, expression);
         return { variable, expression };
     }
     outStatement(ctx, exc) {

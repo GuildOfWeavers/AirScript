@@ -92,7 +92,7 @@ export class BinaryOperation extends Expression {
 
         const rhsValue = (rhs as LiteralExpression).value as bigint;
         const degree = getDegree(lhs, rhsValue, mulDegree);
-        return new BinaryOperation(OperationType.div, lhs, rhs, lhs.dimensions, degree);
+        return new BinaryOperation(OperationType.exp, lhs, rhs, lhs.dimensions, degree);
     }
 
     static prod(lhs: Expression, rhs: Expression): BinaryOperation {
@@ -134,7 +134,7 @@ export class BinaryOperation extends Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toCode(): string {
-        const opFunction = getOpFunction(OperationType.add, this.lhs, this.rhs);
+        const opFunction = getOpFunction(this.operation, this.lhs, this.rhs);
         return `f.${opFunction}(${this.lhs.toCode()}, ${this.rhs.toCode()})`;
     }
 }

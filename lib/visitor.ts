@@ -12,6 +12,7 @@ import { ReadonlyValuePattern, ReadonlyRegisterSpecs, InputRegisterSpecs } from 
 import { Expression, StatementBlock, Statement } from './expressions';
 import * as expressions from './expressions';
 import { Dimensions, validateVariableName } from './utils';
+import { CodeGenerator } from './generator';
 
 // INTERFACES
 // ================================================================================================
@@ -33,15 +34,6 @@ export interface ReadonlyRegisterGroup {
     staticRegisters : ReadonlyRegisterSpecs[];
     secretRegisters : InputRegisterSpecs[];
     publicRegisters : InputRegisterSpecs[];
-}
-
-export interface TransitionFunctionInfo {
-    buildFunction(f: FiniteField, g: any): TransitionFunction;
-}
-
-export interface TransitionConstraints {
-    buildEvaluator(f: FiniteField, g: any): ConstraintEvaluator;
-    degrees: number[];
 }
 
 // MODULE VARIABLES
@@ -84,19 +76,29 @@ class AirVisitor extends BaseCstVisitor {
         }
         specs.setReadonlyRegisterCounts(readonlyRegisters);
 
+        // instantiate code generator
+        const generator = new CodeGenerator(specs);
+
         // build transition function
         validateTransitionFunction(ctx.transitionFunction);
-        const tFunction: TransitionFunctionInfo = this.visit(ctx.transitionFunction, specs);
+        const tFunctionBody: StatementBlock = this.visit(ctx.transitionFunction, specs);
+        const tFunction = generator.generateTransitionFunction(tFunctionBody);
 
         // build transition constraint evaluator
         validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraints: TransitionConstraints = this.visit(ctx.transitionConstraints, specs);
+        const tConstraintsBody: StatementBlock = this.visit(ctx.transitionConstraints, specs);
+        const tConstraints = generator.generateConstraintEvaluator(tConstraintsBody);
+
+        // validate constraint valuator degrees
         const constraintSpecs = new Array<ConstraintSpecs>(specs.constraintCount);
         for (let i = 0; i < constraintSpecs.length; i++) {
-            constraintSpecs[i] = { degree: tConstraints.degrees[i] };
+            let degree = typeof tConstraintsBody.outExpression.degree === 'bigint'
+                ? tConstraintsBody.outExpression.degree
+                : tConstraintsBody.outExpression.degree[i] as bigint;
+            constraintSpecs[i] = { degree: specs.validateConstraintDegree(degree) };
         }
 
-        // build and return stark config
+        // build and return AIR config
         return {
             name                : starkName,
             field               : field,
@@ -106,8 +108,8 @@ class AirVisitor extends BaseCstVisitor {
             publicInputs        : readonlyRegisters.publicRegisters,
             staticRegisters     : readonlyRegisters.staticRegisters,
             constraints         : constraintSpecs,
-            transitionFunction  : tFunction.buildFunction(field.jsField, specs.constantBindings),
-            constraintEvaluator : tConstraints.buildEvaluator(field.jsField, specs.constantBindings)
+            transitionFunction  : tFunction,
+            constraintEvaluator : tConstraints
         };
     }
 
@@ -278,84 +280,32 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, specs: ScriptSpecs): TransitionFunctionInfo {
+    transitionFunction(ctx: any, specs: ScriptSpecs): StatementBlock {
         const exc = new ExecutionContext(specs, false);
         const statements: StatementBlock = this.visit(ctx.statements, exc);
-        if (statements.dimensions[0] !== exc.mutableRegisterCount) {
-            if (exc.mutableRegisterCount === 1) {
-                throw new Error(`Transition function must evaluate to exactly 1 value`);
-            }
-            else {
-                throw new Error(`Transition function must evaluate to a vector of exactly ${exc.mutableRegisterCount} values`);
-            }
-        }
-
-        // generate code that can build a transition function
-        let functionBuilderCode = `'use strict';\n\n`;
-        for (let subCode of exc.subroutines.values()) {
-            functionBuilderCode += `${subCode}\n`;
-        }
-        functionBuilderCode += `return function (r, k, s, p, out) {\n${statements.toAssignment('out')}}`;
-
-        return {
-            buildFunction: new Function('f', 'g', functionBuilderCode) as any
-        };
+        return statements;
     }
 
-    transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionConstraints {
+    transitionConstraints(ctx: any, specs: ScriptSpecs): StatementBlock {
         const exc = new ExecutionContext(specs, true);
         const statements: StatementBlock = this.visit(ctx.statements, exc);
-        if (statements.dimensions[0] !== specs.constraintCount) {
-            if (specs.constraintCount === 1) {
-                throw new Error(`Transition constraints must evaluate to exactly 1 value`);
-            }
-            else {
-                throw new Error(`Transition constraints must evaluate to a vector of exactly ${specs.constraintCount} values`);
-            }
-        }
-
-        // generate code that can build a constraint evaluator
-        let evaluatorBuilderCode = `'use strict';\n\n`;
-        for (let subCode of exc.subroutines.values()) {
-            evaluatorBuilderCode += `${subCode}\n`;
-        }
-        evaluatorBuilderCode += `return function (r, n, k, s, p, out) {\n${statements.toAssignment('out')}}`;
-
-        // convert bigint degrees to numbers
-        const degrees: number[] = [];
-        for (let degree of (statements.degree as bigint[])) {
-            degrees.push(specs.validateConstraintDegree(degree));
-        }
-
-        return {
-            buildEvaluator  : new Function('f', 'g', evaluatorBuilderCode) as any,
-            degrees         : degrees
-        };
+        return statements;
     }
 
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx: any, exc: ExecutionContext): StatementBlock {
-
-        const statements: Statement[] = [];
-        
+        let statements: Statement[] | undefined;
         if (ctx.statements) {
-            ctx.statements.forEach((stmt: any, i: number) => {
-                let statement: Statement = this.visit(stmt, exc);
-                let expression = statement.expression;
-                let variable = exc.setVariableAssignment(statement.variable, expression);
-                statements.push({ variable: variable.toCode(), expression }); // TODO
-            });
+            statements = ctx.statements.map((stmt: any) => this.visit(stmt, exc));
         }
-        
         const out: Expression = this.visit(ctx.outStatement, exc);
-
         return new StatementBlock(out, statements);
     }
 
     statement(ctx: any, exc: ExecutionContext): Statement {
-        const variable = ctx.variableName[0].image;
         const expression = this.visit(ctx.expression, exc);
+        const variable = exc.setVariableAssignment(ctx.variableName[0].image, expression);
         return { variable, expression };
     }
 

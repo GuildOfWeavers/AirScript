@@ -10,7 +10,7 @@ import { Expression, VariableReference, RegisterReference } from '../expressions
 export class ExecutionContext {
 
     readonly staticConstants        : Map<string, Expression>;
-    readonly localVariables         : Map<string, Expression>[];
+    readonly localVariables         : Map<string, VariableReference>[];
     readonly subroutines            : Map<string, string>;
     readonly mutableRegisterCount   : number;
     readonly staticRegisters        : ReadonlyRegisterSpecs[];
@@ -33,7 +33,7 @@ export class ExecutionContext {
 
     // VARIABLES
     // --------------------------------------------------------------------------------------------
-    setVariableAssignment(variable: string, expression: Expression): Expression {
+    setVariableAssignment(variable: string, expression: Expression): VariableReference {
         if (this.staticConstants.has(variable)) {
             throw new Error(`Value of static constant '${variable}' cannot be changed`);
         }

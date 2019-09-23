@@ -68,7 +68,7 @@ class BinaryOperation extends Expression_1.Expression {
         }
         const rhsValue = rhs.value;
         const degree = degree_1.getDegree(lhs, rhsValue, degree_1.mulDegree);
-        return new BinaryOperation(4 /* div */, lhs, rhs, lhs.dimensions, degree);
+        return new BinaryOperation(5 /* exp */, lhs, rhs, lhs.dimensions, degree);
     }
     static prod(lhs, rhs) {
         const d1 = lhs.dimensions;
@@ -106,7 +106,7 @@ class BinaryOperation extends Expression_1.Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toCode() {
-        const opFunction = getOpFunction(1 /* add */, this.lhs, this.rhs);
+        const opFunction = getOpFunction(this.operation, this.lhs, this.rhs);
         return `f.${opFunction}(${this.lhs.toCode()}, ${this.rhs.toCode()})`;
     }
 }
