@@ -263,6 +263,14 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.Ellipsis);
             this.CONSUME(lexer_1.Identifier, { LABEL: 'vectorName' });
         });
+        this.vectorRangeSelector = this.RULE('vectorRangeSelector', () => {
+            this.CONSUME(lexer_1.Identifier, { LABEL: 'vectorName' });
+            this.CONSUME(lexer_1.LSquare);
+            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'rangeStart' });
+            this.CONSUME(lexer_1.DoubleDot);
+            this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'rangeEnd' });
+            this.CONSUME(lexer_1.RSquare);
+        });
         this.matrix = this.RULE('matrix', () => {
             this.CONSUME(lexer_1.LSquare);
             this.AT_LEAST_ONE_SEP({
@@ -308,7 +316,7 @@ class AirParser extends chevrotain_1.CstParser {
         this.atomicExpression = this.RULE('atomicExpression', () => {
             this.OR([
                 { ALT: () => this.SUBRULE(this.parenExpression) },
-                { ALT: () => this.SUBRULE(this.conditionalExpression) },
+                { ALT: () => this.SUBRULE(this.vectorRangeSelector) },
                 { ALT: () => this.CONSUME(lexer_1.Identifier) },
                 { ALT: () => this.CONSUME(lexer_1.MutableRegister) },
                 { ALT: () => this.CONSUME(lexer_1.StaticRegister) },
@@ -321,23 +329,6 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.LParen);
             this.SUBRULE(this.expression);
             this.CONSUME(lexer_1.RParen);
-        });
-        this.conditionalExpression = this.RULE('conditionalExpression', () => {
-            this.OR([
-                { ALT: () => {
-                        this.CONSUME(lexer_1.StaticRegister, { LABEL: 'register' });
-                    } },
-                { ALT: () => {
-                        this.CONSUME(lexer_1.SecretRegister, { LABEL: 'register' });
-                    } },
-                { ALT: () => {
-                        this.CONSUME(lexer_1.PublicRegister, { LABEL: 'register' });
-                    } }
-            ]);
-            this.CONSUME(lexer_1.QMark);
-            this.SUBRULE1(this.expression, { LABEL: 'tExpression' });
-            this.CONSUME(lexer_1.Pipe);
-            this.SUBRULE2(this.expression, { LABEL: 'fExpression' });
         });
         // LITERAL EXPRESSIONS
         // --------------------------------------------------------------------------------------------

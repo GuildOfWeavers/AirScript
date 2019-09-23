@@ -1,31 +1,39 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
-const Expression_1 = require("./Expression");
+import { Expression, ExpressionDegree } from './Expression';
+import { Dimensions } from '../utils';
+
+// INTERFACES
+// ================================================================================================
+export type ExpressionValue = bigint | bigint[] | bigint[][];
+
 // CLASS DEFINITION
 // ================================================================================================
-class StaticExpression extends Expression_1.Expression {
+export class LiteralExpression extends Expression {
+
+    readonly value: ExpressionValue;
+
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(value, name) {
-        let code, dimensions, degree;
+    constructor(value: ExpressionValue | string, name?: string) {
+        let dimensions: Dimensions, degree: ExpressionDegree;
+
         // if the value was passed in as a string literal, convert it to bigint
         if (typeof value === 'string') {
             value = BigInt(value);
         }
+
         if (typeof value === 'bigint') {
             // value is a scalar
-            code = `${value}n`;
             dimensions = [0, 0];
             degree = 0n;
         }
         else {
-            if (!name)
-                throw new Error(`missing name for a non-scalar static expression`);
+            if (!name) throw new Error(`missing name for a non-scalar literal expression`);
+
             // value is a vector or a matrix
-            code = `g.${name}`;
             const rowCount = value.length;
+
             if (typeof value[0] === 'bigint') {
                 // value is a vector
                 dimensions = [rowCount, 0];
@@ -33,15 +41,25 @@ class StaticExpression extends Expression_1.Expression {
             }
             else {
                 // value is a matrix
-                const colCount = value[0].length;
+                const colCount = (value[0] as bigint[]).length;
                 dimensions = [rowCount, colCount];
                 const colDegrees = new Array(colCount).fill(0n);
                 degree = new Array(rowCount).fill(colDegrees);
             }
         }
-        super(code, dimensions, degree);
+
+        super(dimensions, degree);
         this.value = value;
     }
+
+    // PUBLIC MEMBERS
+    // --------------------------------------------------------------------------------------------
+    toCode(): string {
+        if (typeof this.value === 'bigint') {
+            return `${this.value}n`;
+        }
+        else {
+            return `g.${name}`;
+        }
+    }
 }
-exports.StaticExpression = StaticExpression;
-//# sourceMappingURL=StaticExpression.js.map

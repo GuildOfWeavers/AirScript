@@ -80,6 +80,8 @@ export const Ampersand  = createToken({ name: 'Ampersand',  pattern: /&/        
 export const QMark      = createToken({ name: 'QMark',      pattern: /\?/       });
 export const EMark      = createToken({ name: 'EMark',      pattern: /!/        });
 
+export const DoubleDot  = createToken({ name: 'DoubleDot',  pattern: /\.\./, longer_alt: Ellipsis });
+
 // WHITESPACE AND COMMENTS
 // ================================================================================================
 export const WhiteSpace = createToken({
@@ -104,7 +106,7 @@ export const allTokens = [
 
     Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 
-    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, Pipe,
+    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, DoubleDot, Pipe,
     Tilde, Ampersand, QMark, EMark,
 
     Identifier,

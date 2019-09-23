@@ -9,23 +9,12 @@ import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ExecutionContext } from './contexts';
 import { ReadonlyValuePattern, ReadonlyRegisterSpecs, InputRegisterSpecs } from './registers';
-import { Expression } from './expressions/Expression';
-import { StaticExpression } from './expressions/StaticExpression';
-import { Dimensions, isScalar, isVector, isMatrix, validateVariableName } from './utils';
+import { Expression, StatementBlock, Statement } from './expressions';
+import * as expressions from './expressions';
+import { Dimensions, validateVariableName } from './utils';
 
 // INTERFACES
 // ================================================================================================
-export interface StatementBlock {
-    code            : string;
-    outputSize      : number;
-    outputDegrees   : bigint[];
-}
-
-export interface Statement {
-    variable        : string;
-    expression      : Expression;
-}
-
 export interface ConstantDeclaration {
     name            : string;
     value           : bigint | bigint [] | bigint[][];
@@ -292,7 +281,7 @@ class AirVisitor extends BaseCstVisitor {
     transitionFunction(ctx: any, specs: ScriptSpecs): TransitionFunctionInfo {
         const exc = new ExecutionContext(specs, false);
         const statements: StatementBlock = this.visit(ctx.statements, exc);
-        if (statements.outputSize !== exc.mutableRegisterCount) {
+        if (statements.dimensions[0] !== exc.mutableRegisterCount) {
             if (exc.mutableRegisterCount === 1) {
                 throw new Error(`Transition function must evaluate to exactly 1 value`);
             }
@@ -306,7 +295,7 @@ class AirVisitor extends BaseCstVisitor {
         for (let subCode of exc.subroutines.values()) {
             functionBuilderCode += `${subCode}\n`;
         }
-        functionBuilderCode += `return function (r, k, s, p, out) {\n${statements.code}}`;
+        functionBuilderCode += `return function (r, k, s, p, out) {\n${statements.toAssignment('out')}}`;
 
         return {
             buildFunction: new Function('f', 'g', functionBuilderCode) as any
@@ -316,7 +305,7 @@ class AirVisitor extends BaseCstVisitor {
     transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionConstraints {
         const exc = new ExecutionContext(specs, true);
         const statements: StatementBlock = this.visit(ctx.statements, exc);
-        if (statements.outputSize !== specs.constraintCount) {
+        if (statements.dimensions[0] !== specs.constraintCount) {
             if (specs.constraintCount === 1) {
                 throw new Error(`Transition constraints must evaluate to exactly 1 value`);
             }
@@ -330,11 +319,11 @@ class AirVisitor extends BaseCstVisitor {
         for (let subCode of exc.subroutines.values()) {
             evaluatorBuilderCode += `${subCode}\n`;
         }
-        evaluatorBuilderCode += `return function (r, n, k, s, p, out) {\n${statements.code}}`;
+        evaluatorBuilderCode += `return function (r, n, k, s, p, out) {\n${statements.toAssignment('out')}}`;
 
         // convert bigint degrees to numbers
         const degrees: number[] = [];
-        for (let degree of statements.outputDegrees) {
+        for (let degree of (statements.degree as bigint[])) {
             degrees.push(specs.validateConstraintDegree(degree));
         }
 
@@ -348,22 +337,20 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx: any, exc: ExecutionContext): StatementBlock {
 
-        let code = '';
+        const statements: Statement[] = [];
+        
         if (ctx.statements) {
-            for (let i = 0; i < ctx.statements.length; i++) {
-                let statement: Statement = this.visit(ctx.statements[i], exc);
+            ctx.statements.forEach((stmt: any, i: number) => {
+                let statement: Statement = this.visit(stmt, exc);
                 let expression = statement.expression;
                 let variable = exc.setVariableAssignment(statement.variable, expression);
-                code += `${variable.code} = ${expression.code};\n`;
-            }
+                statements.push({ variable: variable.toCode(), expression }); // TODO
+            });
         }
-
-        const out: Expression = this.visit(ctx.outStatement, exc);
-        code += out.code;
-
-        const outputDegrees = out.degree as bigint[];
         
-        return { code, outputSize: out.dimensions[0], outputDegrees };
+        const out: Expression = this.visit(ctx.outStatement, exc);
+
+        return new StatementBlock(out, statements);
     }
 
     statement(ctx: any, exc: ExecutionContext): Statement {
@@ -373,43 +360,20 @@ class AirVisitor extends BaseCstVisitor {
     }
 
     outStatement(ctx: any, exc: ExecutionContext): Expression {
-        let code = '', dimensions: Dimensions, degree: bigint[];
         if (ctx.expression) {
-            const expression: Expression = this.visit(ctx.expression, exc);
-            if (expression.isScalar) {
-                code = `out[0] = ${expression.code};\n`;
-                dimensions = [1, 0];
-                degree = [expression.degree as bigint];
-            }
-            else if (expression.isVector) {
-                dimensions = expression.dimensions;
-                code = `let _out = ${expression.code};\n`;
-                for (let i = 0; i < dimensions[0]; i++) {
-                    code += `out[${i}] = _out.getValue(${i});\n`;
-                }
-                degree = expression.degree as bigint[];
-            }
-            else {
-                throw new Error('Out statement must evaluate either to a scalar or to a vector');
-            }
+            return this.visit(ctx.expression, exc);
+        }
+        else if (ctx.vector) {
+            return this.visit(ctx.vector, exc);
         }
         else {
-            // out statement was defined as a vector
-            const expression: Expression = this.visit(ctx.vector, exc);
-            dimensions = expression.dimensions;
-            code = `let _out = ${expression.code};\n`;
-            for (let i = 0; i < dimensions[0]; i++) {
-                code += `out[${i}] = _out.getValue(${i});\n`;
-            }
-            degree = expression.degree as bigint[];
+            throw new Error(''); // TODO
         }
-
-        return new Expression(code, dimensions, degree);
     }
 
     // WHEN STATEMENT
     // --------------------------------------------------------------------------------------------
-    whenStatement(ctx: any, exc: ExecutionContext): StatementBlock {
+    whenStatement(ctx: any, exc: ExecutionContext): Expression {
         const registerName: string = ctx.condition[0].image;
         const registerRef = exc.getRegisterReference(registerName);
 
@@ -417,9 +381,6 @@ class AirVisitor extends BaseCstVisitor {
         if (!exc.isBinaryRegister(registerName)) {
             throw new Error(`when...else statement condition must be based on a binary register`);
         }
-
-        // create expressions for (1 - k)
-        const oneMinusReg = Expression.one.sub(registerRef);
 
         // build subroutines for true and false conditions
         exc.createNewVariableFrame();
@@ -430,119 +391,37 @@ class AirVisitor extends BaseCstVisitor {
         const fBlock: StatementBlock = this.visit(ctx.fBlock, exc);
         exc.destroyVariableFrame();
 
-        // make sure the output vectors of both subroutines are the same length
-        const outputSize = tBlock.outputSize;
-        if (outputSize !== fBlock.outputSize) {
-            throw new Error(`when...else statement branches must evaluate to values of same dimensions`);
-        }
-        const resultDim: Dimensions = [outputSize, 0];
-
-        // add both subroutines to statement context
-        const tSubroutine = exc.addSubroutine(tBlock.code);
-        const fSubroutine = exc.addSubroutine(fBlock.code);
-
-        // compute expressions for true and false branches
-        const tExpression = new Expression('f.newVectorFrom(tOut)', resultDim, tBlock.outputDegrees);
-        const fExpression = new Expression('f.newVectorFrom(fOut)', resultDim, fBlock.outputDegrees);
-
-        const tBranch = tExpression.mul(registerRef);
-        const fBranch = fExpression.mul(oneMinusReg);
-        
-        // generate code for the main function
-        let code = `let tOut = new Array(${outputSize}), fOut = new Array(${outputSize});\n`;
-        code += exc.callSubroutine(tSubroutine, 'tOut');
-        code += exc.callSubroutine(fSubroutine, 'fOut');
-        code += `tOut = ${tBranch.code}.values;\n`;
-        code += `fOut = ${fBranch.code}.values;\n`;
-        for (let i = 0; i < outputSize; i++) {
-            code += `out[${i}] = f.add(tOut[${i}], fOut[${i}]);\n`;
-        }
-        
-        // compute out expression to get the degree of the output
-        const outExpression = tBranch.add(fBranch);
-        const outputDegrees = outExpression.degree as bigint[];
-
-        return { code, outputSize, outputDegrees };
+        return new expressions.WhenExpression(registerRef, tBlock, fBlock);
     }
 
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------
     vector(ctx: any, exc: ExecutionContext): Expression {
-
-        const dimensions: Dimensions = [ctx.elements.length, 0], degree: bigint[] = [];
-        let code = `f.newVectorFrom([`;
-        for (let i = 0; i < ctx.elements.length; i++) {
-            let element: Expression = this.visit(ctx.elements[i], exc);
-            if (!isScalar(element.dimensions)) {
-                if (isVector(element.dimensions) && element.destructured) {
-                    dimensions[0] += (element.dimensions[0] - 1);
-                    for (let cd of element.degree as bigint[]) {
-                        degree.push(cd);
-                    }
-                }
-                else {
-                    throw new Error('Vector elements must be scalars');
-                }
-            }
-            else {
-                degree.push(element.degree as bigint);
-            }
-            code += `${element.code}, `;
-        }
-        code = code.slice(0, -2) + '])';
-
-        return new Expression(code, dimensions, degree);
+        const elements = ctx.elements.map((e: any) => this.visit(e, exc));
+        return new expressions.CreateVector(elements);
     }
 
     vectorDestructuring(ctx: any, exc: ExecutionContext): Expression {
         const variableName = ctx.vectorName[0].image;
         const element = exc.getVariableReference(variableName);
-        if (isScalar(element.dimensions)) {
-            throw new Error(`Cannot expand scalar variable '${variableName}'`);
-        }
-        else if (isMatrix(element.dimensions)) {
-            throw new Error(`Cannot expand matrix variable '${variableName}'`);
-        }
+        return new expressions.DestructureVector(element);
+    }
 
-        return new Expression(`...${element.code}.values`, element.dimensions, element.degree, true);
+    vectorRangeSelector(ctx: any, exc: ExecutionContext): Expression {
+        const variableName = ctx.vectorName[0].image;
+        const rangeStart = Number.parseInt(ctx.rangeStart[0].image, 10);
+        const rangeEnd = Number.parseInt(ctx.rangeEnd[0].image, 10);
+        const element = exc.getVariableReference(variableName);
+        return new expressions.SliceVector(element, rangeStart, rangeEnd);
     }
 
     matrix(ctx: any, exc: ExecutionContext): Expression {
-
-        const degree: bigint[][] = [];
-        const rowCount = ctx.rows.length;
-        let colCount = 0;
-
-        let code = `f.newMatrixFrom([`;
-        for (let i = 0; i < rowCount; i++) {
-            let row: Expression = this.visit(ctx.rows[i], exc);
-            if (colCount === 0) {
-                colCount = row.dimensions[0];
-            }
-            else if (colCount !== row.dimensions[0]) {
-                throw new Error('All matrix rows must have the same number of columns');
-            }
-            code += `${row.code}, `;
-            degree.push(row.degree as bigint[]);
-        }
-        code = code.slice(0, -2) + '])';
-
-        return new Expression(code, [rowCount, colCount], degree);
+        const elements = ctx.rows.map((r: any) => this.visit(r, exc));
+        return new expressions.CreateMatrix(elements);
     }
 
-    matrixRow(ctx: any, exc: ExecutionContext): Expression {
-
-        const dimensions: Dimensions = [ctx.elements.length, 0], degree: bigint[] = [];
-        let code = `[`;
-        for (let i = 0; i < ctx.elements.length; i++) {
-            let element: Expression = this.visit(ctx.elements[i], exc);
-            if (!isScalar(element.dimensions)) throw new Error('Matrix elements must be scalars');
-            code += `${element.code}, `;
-            degree.push(element.degree as bigint);
-        }
-        code = code.slice(0, -2) + ']';
-
-        return new Expression(code, dimensions, degree);
+    matrixRow(ctx: any, exc: ExecutionContext): Expression[] {
+        return ctx.elements.map((e: any) => this.visit(e, exc));
     }
 
     // EXPRESSIONS
@@ -559,10 +438,10 @@ class AirVisitor extends BaseCstVisitor {
                 let rhs: Expression = this.visit(rhsOperand, exc);
                 let opToken = ctx.AddOp[i];
                 if (tokenMatcher(opToken, Plus)) {
-                    result = result.add(rhs);
+                    result = expressions.BinaryOperation.add(result, rhs);
                 }
                 else if (tokenMatcher(opToken, Minus)) {
-                    result = result.sub(rhs);
+                    result = expressions.BinaryOperation.sub(result, rhs);
                 }
                 else {
                     throw new Error(`Invalid operator '${opToken.image}'`);
@@ -581,13 +460,13 @@ class AirVisitor extends BaseCstVisitor {
                 let rhs: Expression = this.visit(rhsOperand, exc);
                 let opToken = ctx.MulOp[i];
                 if (tokenMatcher(opToken, Star)) {
-                    result = result.mul(rhs);
+                    result = expressions.BinaryOperation.mul(result, rhs);
                 }
                 else if (tokenMatcher(opToken, Slash)) {
-                    result = result.div(rhs);
+                    result = expressions.BinaryOperation.div(result, rhs);
                 }
                 else if (tokenMatcher(opToken, Pound)) {
-                    result = result.prod(rhs);
+                    result = expressions.BinaryOperation.prod(result, rhs);
                 }
                 else {
                     throw new Error(`Invalid operator '${opToken.image}'`);
@@ -604,7 +483,7 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
                 let rhs: Expression = this.visit(rhsOperand, exc);
-                result = result.exp(rhs);
+                result = expressions.BinaryOperation.exp(result, rhs);
             });
         }
 
@@ -615,8 +494,8 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.parenExpression) {
             return this.visit(ctx.parenExpression, exc);
         }
-        else if (ctx.conditionalExpression) {
-            return this.visit(ctx.conditionalExpression, exc);
+        else if (ctx.vectorRangeSelector) {
+            return this.visit(ctx.vectorRangeSelector, exc);
         }
         else if (ctx.Identifier) {
             const variable = ctx.Identifier[0].image;
@@ -640,7 +519,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         else if (ctx.IntegerLiteral) {
             const value: string = ctx.IntegerLiteral[0].image;
-            return new StaticExpression(value);
+            return new expressions.LiteralExpression(value);
         }
         else {
             throw new Error('Invalid expression syntax');
@@ -651,28 +530,6 @@ class AirVisitor extends BaseCstVisitor {
         return this.visit(ctx.expression, exc);
     }
 
-    conditionalExpression(ctx: any, exc: ExecutionContext): Expression {
-        const registerName = ctx.register[0].image;
-        
-        if (!exc.isBinaryRegister(registerName)) {
-            throw new Error('Conditional expression can be based only on binary registers');
-        }
-        
-        // create expressions for k and for (1 - k)
-        const registerRef = exc.getRegisterReference(registerName);
-        const oneMinusReg = Expression.one.sub(registerRef);
-
-        // get expressions for true and false options
-        const tExpression: Expression = this.visit(ctx.tExpression, exc);
-        const fExpression: Expression = this.visit(ctx.fExpression, exc);
-
-        if (!tExpression.isSameDimensions(fExpression)) {
-            throw new Error('Conditional expression branches must evaluate to values of same dimensions');
-        }
-
-        // compute tExpression * k + fExpression * (1 - k)
-        return tExpression.mul(registerRef).add(fExpression.mul(oneMinusReg));
-    }
 
     // LITERAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------

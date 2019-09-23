@@ -5,7 +5,7 @@ import {
     allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
     ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Out, 
     MutableRegister, StaticRegister, SecretRegister, PublicRegister, LSquare, RSquare, Comma, Using,
-    Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, QMark, Pipe, Binary, When, Else
+    Readonly, Repeat, Spread, Ellipsis, DoubleDot, Colon, Semicolon, QMark, Pipe, Binary, When, Else
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -289,6 +289,15 @@ class AirParser extends CstParser {
         this.CONSUME(Identifier, { LABEL: 'vectorName' });
     });
 
+    private vectorRangeSelector = this.RULE('vectorRangeSelector', () => {
+        this.CONSUME(Identifier,      { LABEL: 'vectorName' });
+        this.CONSUME(LSquare);
+        this.CONSUME1(IntegerLiteral, { LABEL: 'rangeStart' });
+        this.CONSUME(DoubleDot);
+        this.CONSUME2(IntegerLiteral, { LABEL: 'rangeEnd' });
+        this.CONSUME(RSquare);
+    });
+
     private matrix = this.RULE('matrix', () => {
         this.CONSUME(LSquare);
         this.AT_LEAST_ONE_SEP({
@@ -340,7 +349,7 @@ class AirParser extends CstParser {
     private atomicExpression = this.RULE('atomicExpression', () => {
         this.OR([
             { ALT: () => this.SUBRULE(this.parenExpression)         },
-            { ALT: () => this.SUBRULE(this.conditionalExpression)   },
+            { ALT: () => this.SUBRULE(this.vectorRangeSelector)     },
             { ALT: () => this.CONSUME(Identifier)                   },
             { ALT: () => this.CONSUME(MutableRegister)              },
             { ALT: () => this.CONSUME(StaticRegister)               },
@@ -354,24 +363,6 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.SUBRULE(this.expression);
         this.CONSUME(RParen);
-    });
-
-    private conditionalExpression = this.RULE('conditionalExpression', () => {
-        this.OR([
-            { ALT: () => {
-                this.CONSUME(StaticRegister,   { LABEL: 'register'   });
-            }},
-            { ALT: () => {
-                this.CONSUME(SecretRegister,   { LABEL: 'register'   });
-            }},
-            { ALT: () => {
-                this.CONSUME(PublicRegister,   { LABEL: 'register'   });
-            }}
-        ]);
-        this.CONSUME(QMark);
-        this.SUBRULE1(this.expression, { LABEL: 'tExpression' });
-        this.CONSUME(Pipe);
-        this.SUBRULE2(this.expression, { LABEL: 'fExpression' });
     });
 
     // LITERAL EXPRESSIONS

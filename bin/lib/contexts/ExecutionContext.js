@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const utils_1 = require("../utils");
-const Expression_1 = require("../expressions/Expression");
+const expressions_1 = require("../expressions");
 // CLASS DEFINITION
 // ================================================================================================
 class ExecutionContext {
@@ -28,29 +28,22 @@ class ExecutionContext {
         // get the last frame from the local variable stack
         const localVariables = this.localVariables[this.localVariables.length - 1];
         const refCode = `$${variable}`;
-        const sExpression = localVariables.get(variable);
+        let sExpression = localVariables.get(variable);
         if (sExpression) {
             if (!sExpression.isSameDimensions(expression)) {
                 throw new Error(`Dimensions of variable '${variable}' cannot be changed`);
             }
             if (sExpression.degree !== expression.degree) {
-                const refExpression = new Expression_1.Expression(refCode, expression.dimensions, expression.degree);
-                localVariables.set(variable, refExpression);
+                sExpression = new expressions_1.VariableReference(refCode, expression.dimensions, expression.degree);
+                localVariables.set(variable, sExpression);
             }
-            return {
-                code: refCode,
-                dimensions: expression.dimensions
-            };
         }
         else {
             utils_1.validateVariableName(variable, expression.dimensions);
-            const refExpression = new Expression_1.Expression(refCode, expression.dimensions, expression.degree);
-            localVariables.set(variable, refExpression);
-            return {
-                code: `let ${refCode}`,
-                dimensions: expression.dimensions
-            };
+            sExpression = new expressions_1.VariableReference(refCode, expression.dimensions, expression.degree);
+            localVariables.set(variable, sExpression);
         }
+        return sExpression;
     }
     getVariableReference(variable) {
         // get the last frame from the local variable stack
@@ -111,7 +104,7 @@ class ExecutionContext {
                 throw new Error(`${errorMessage}: register index must be smaller than ${publicRegisterCount}`);
             }
         }
-        return new Expression_1.Expression(`${name}[${index}]`, [0, 0], 1n);
+        return new expressions_1.RegisterReference(`${name}[${index}]`);
     }
     isBinaryRegister(register) {
         const name = register.slice(1, 2);

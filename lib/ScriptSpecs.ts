@@ -4,8 +4,7 @@ import { StarkLimits } from '@guildofweavers/air-script';
 import { FiniteField } from '@guildofweavers/galois';
 import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './registers';
 import { ReadonlyRegisterGroup, ConstantDeclaration } from './visitor';
-import { Expression } from './expressions/Expression';
-import { StaticExpression } from './expressions/StaticExpression';
+import { Expression, LiteralExpression } from './expressions';
 import { isPowerOf2, isMatrix, isVector } from './utils';
 
 // CLASS DEFINITION
@@ -67,7 +66,7 @@ export class ScriptSpecs {
             if (this.staticConstants.has(constant.name)) {
                 throw new Error(`Static constant '${constant.name}' is defined more than once`);
             }
-            let constExpression = new StaticExpression(constant.value, constant.name);
+            let constExpression = new LiteralExpression(constant.value, constant.name);
             this.staticConstants.set(constant.name, constExpression);
             if (isMatrix(constant.dimensions)) {
                 this.constantBindings[constant.name] = this.field.newMatrixFrom(constant.value as bigint[][]);

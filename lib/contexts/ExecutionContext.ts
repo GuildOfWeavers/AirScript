@@ -1,9 +1,9 @@
 // IMPORTS
 // ================================================================================================
-import { validateVariableName, Dimensions } from '../utils';
+import { validateVariableName } from '../utils';
 import { ScriptSpecs } from '../ScriptSpecs';
 import { ReadonlyRegisterSpecs, InputRegisterSpecs } from '../registers';
-import { Expression } from '../expressions/Expression';
+import { Expression, VariableReference, RegisterReference } from '../expressions';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -33,7 +33,7 @@ export class ExecutionContext {
 
     // VARIABLES
     // --------------------------------------------------------------------------------------------
-    setVariableAssignment(variable: string, expression: Expression): { code: string, dimensions: Dimensions } {
+    setVariableAssignment(variable: string, expression: Expression): Expression {
         if (this.staticConstants.has(variable)) {
             throw new Error(`Value of static constant '${variable}' cannot be changed`);
         }
@@ -42,32 +42,24 @@ export class ExecutionContext {
         const localVariables = this.localVariables[this.localVariables.length - 1];
 
         const refCode = `$${variable}`;
-        const sExpression = localVariables.get(variable);
+        let sExpression = localVariables.get(variable);
         if (sExpression) {
             if (!sExpression.isSameDimensions(expression)) {
                 throw new Error(`Dimensions of variable '${variable}' cannot be changed`);
             }
 
             if (sExpression.degree !== expression.degree) {
-                const refExpression = new Expression(refCode, expression.dimensions, expression.degree);
-                localVariables.set(variable, refExpression);
+                sExpression = new VariableReference(refCode, expression.dimensions, expression.degree);
+                localVariables.set(variable, sExpression);
             }
-
-            return {
-                code        : refCode,
-                dimensions  : expression.dimensions
-            };
         }
         else {
             validateVariableName(variable, expression.dimensions);
-            const refExpression = new Expression(refCode, expression.dimensions, expression.degree);
-            localVariables.set(variable, refExpression);
-
-            return {
-                code        : `let ${refCode}`,
-                dimensions  : expression.dimensions
-            };
+            sExpression = new VariableReference(refCode, expression.dimensions, expression.degree);
+            localVariables.set(variable, sExpression);
         }
+
+        return sExpression;
     }
 
     getVariableReference(variable: string): Expression {
@@ -136,7 +128,7 @@ export class ExecutionContext {
             }
         }
 
-        return new Expression(`${name}[${index}]`, [0, 0], 1n);
+        return new RegisterReference(`${name}[${index}]`);
     }
 
     isBinaryRegister(register: string): boolean {
