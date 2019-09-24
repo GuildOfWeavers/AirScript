@@ -188,7 +188,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         this.statement = this.RULE('statement', () => {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'variableName' });
-            this.CONSUME(lexer_1.Colon);
+            this.CONSUME(lexer_1.AssignOp);
             this.OR([
                 { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
                 { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
@@ -201,7 +201,9 @@ class AirParser extends chevrotain_1.CstParser {
                 { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
                 { ALT: () => this.SUBRULE(this.vector, { LABEL: 'vector' }) }
             ]);
-            this.CONSUME(lexer_1.Semicolon);
+            this.OPTION(() => {
+                this.CONSUME(lexer_1.Semicolon);
+            });
         });
         // WHEN STATEMENT
         // --------------------------------------------------------------------------------------------

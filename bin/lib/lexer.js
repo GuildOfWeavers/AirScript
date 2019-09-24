@@ -52,6 +52,7 @@ exports.Star = chevrotain_1.createToken({ name: "Star", pattern: /\*/, categorie
 exports.Slash = chevrotain_1.createToken({ name: "Slash", pattern: /\//, categories: exports.MulOp });
 exports.Pound = chevrotain_1.createToken({ name: "Pound", pattern: /#/, categories: exports.MulOp });
 exports.ExpOp = chevrotain_1.createToken({ name: "ExpOp", pattern: /\^/ });
+exports.AssignOp = chevrotain_1.createToken({ name: "AssignOp", pattern: /<-/ });
 // SYMBOLS
 // ================================================================================================
 exports.LCurly = chevrotain_1.createToken({ name: "LCurly", pattern: /{/ });
@@ -88,7 +89,7 @@ exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.In, exports.Steps, exports.Enforce, exports.Constraints, exports.Of,
     exports.Degree, exports.For, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Spread, exports.Using, exports.Readonly, exports.Import, exports.From, exports.As,
-    exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
+    exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp, exports.AssignOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon, exports.Ellipsis, exports.DoubleDot, exports.Pipe,
     exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,

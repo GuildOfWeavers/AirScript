@@ -3,7 +3,7 @@
 import { CstParser } from "chevrotain";
 import {
     allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
-    ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints,
+    ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, AssignOp,
     MutableRegister, StaticRegister, SecretRegister, PublicRegister, LSquare, RSquare, Comma, Using,
     Readonly, Repeat, Spread, Ellipsis, DoubleDot, Colon, Semicolon, Binary, When, Else
 } from './lexer';
@@ -208,7 +208,7 @@ class AirParser extends CstParser {
 
     private statement = this.RULE('statement', () => {
         this.CONSUME(Identifier, { LABEL: 'variableName' });
-        this.CONSUME(Colon);
+        this.CONSUME(AssignOp);
         this.OR([
             { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
             { ALT: () => this.SUBRULE(this.vector,      { LABEL: 'expression' }) },
@@ -222,7 +222,9 @@ class AirParser extends CstParser {
             { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
             { ALT: () => this.SUBRULE(this.vector,      { LABEL: 'vector'     }) }
         ]);
-        this.CONSUME(Semicolon);
+        this.OPTION(() => {
+            this.CONSUME(Semicolon);
+        })
     });
 
     // WHEN STATEMENT
