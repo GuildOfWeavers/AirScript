@@ -2,40 +2,52 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 // PUBLIC FUNCTIONS
 // ================================================================================================
-function getDegree(lhs, rhsDegree, op) {
-    if (lhs.isScalar) {
-        return op(lhs.degree, rhsDegree);
+function maxDegree(d1, d2) {
+    if (typeof d1 === 'bigint') {
+        if (typeof d2 !== 'bigint')
+            throw new Error('cannot infer max degree');
+        return (d1 > d2 ? d1 : d2);
     }
-    else if (lhs.isVector) {
-        return vectorDegree(op, lhs.degree, rhsDegree);
-    }
-    else if (lhs.isMatrix) {
-        return matrixDegree(op, lhs.degree, rhsDegree);
+    else if (typeof d1[0] === 'bigint') {
+        return vectorDegree((a, b) => (a > b ? a : b), d1, d2);
     }
     else {
-        throw new Error(''); // TODO
+        return matrixDegree((a, b) => (a > b ? a : b), d1, d2);
     }
 }
-exports.getDegree = getDegree;
-function maxDegree(d1, d2) {
-    if (d1 > d2)
-        return d1;
-    else
-        return d2;
-}
 exports.maxDegree = maxDegree;
-function addDegree(d1, d2) {
-    return d1 + d2;
+function sumDegree(d1, d2) {
+    if (typeof d1 === 'bigint') {
+        if (typeof d2 !== 'bigint')
+            throw new Error('cannot infer sum degree');
+        return d1 + d2;
+    }
+    else if (typeof d1[0] === 'bigint') {
+        return vectorDegree((a, b) => (a + b), d1, d2);
+    }
+    else {
+        return matrixDegree((a, b) => (a + b), d1, d2);
+    }
 }
-exports.addDegree = addDegree;
+exports.sumDegree = sumDegree;
 function mulDegree(d1, d2) {
-    return d1 * d2;
+    if (typeof d1 === 'bigint') {
+        if (typeof d2 !== 'bigint')
+            throw new Error('cannot infer mul degree');
+        return d1 * d2;
+    }
+    else if (typeof d1[0] === 'bigint') {
+        return vectorDegree((a, b) => (a * b), d1, d2);
+    }
+    else {
+        return matrixDegree((a, b) => (a * b), d1, d2);
+    }
 }
 exports.mulDegree = mulDegree;
 function linearCombinationDegree(d1, d2) {
     let result = 0n;
     for (let i = 0; i < d1.length; i++) {
-        let d = addDegree(d1[i], d2[i]);
+        let d = d1[i] + d2[i];
         if (d > result) {
             result = d;
         }
@@ -61,7 +73,7 @@ function matrixMatrixProductDegree(d1, d2) {
         for (let j = 0; j < p; j++) {
             let s = 0n;
             for (let k = 0; k < m; k++) {
-                let d = addDegree(d1[i][k], d2[k][j]);
+                let d = d1[i][k] + d2[k][j];
                 if (d > s) {
                     s = d;
                 }
@@ -94,4 +106,4 @@ function matrixDegree(op, d1, d2) {
     }
     return result;
 }
-//# sourceMappingURL=degree.js.map
+//# sourceMappingURL=degreeUtils.js.map

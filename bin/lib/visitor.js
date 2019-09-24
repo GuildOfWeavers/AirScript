@@ -55,9 +55,9 @@ class AirVisitor extends BaseCstVisitor {
         // validate constraint valuator degrees
         const constraintSpecs = new Array(specs.constraintCount);
         for (let i = 0; i < constraintSpecs.length; i++) {
-            let degree = typeof tConstraintsBody.outExpression.degree === 'bigint'
-                ? tConstraintsBody.outExpression.degree
-                : tConstraintsBody.outExpression.degree[i];
+            let degree = typeof tConstraintsBody.degree === 'bigint'
+                ? tConstraintsBody.degree
+                : tConstraintsBody.degree[i];
             constraintSpecs[i] = { degree: specs.validateConstraintDegree(degree) };
         }
         // build and return AIR config

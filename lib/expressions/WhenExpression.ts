@@ -1,8 +1,15 @@
 // IMPORTS
 // ================================================================================================
 import { Expression } from './Expression';
-import { getDegree, addDegree } from './operations/degree';
 import { StatementBlock } from './StatementBlock';
+import { BinaryOperation } from './operations/BinaryOperation';
+import { VariableReference } from './VariableReference';
+import { RegisterReference } from './RegisterReference';
+import { sumDegree, maxDegree } from './degreeUtils';
+
+// MODULE VARIABLES
+// ================================================================================================
+const ONE = new VariableReference('f.one', [0, 0], 0n);
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -19,9 +26,9 @@ export class WhenExpression extends Expression {
             throw new Error(`when...else statement branches must evaluate to values of same dimensions`);
         }
 
-        const tDegree = getDegree(tBlock, condition.degree, addDegree);
-        const fDegree = getDegree(fBlock, condition.degree, addDegree);
-        const degree = tDegree; // TODO: maxDegree(tDegree, fDegree);
+        const tDegree = sumDegree(tBlock.degree, condition.degree);
+        const fDegree = sumDegree(fBlock.degree, condition.degree);
+        const degree = maxDegree(tDegree, fDegree);
 
         super(tBlock.dimensions, degree);
         this.condition = condition;
@@ -32,13 +39,34 @@ export class WhenExpression extends Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toAssignment(target: string): string {
-        const cVar = 'tCondition';
+        const tVal = 'tVal', fVal = 'fVal';
 
+        // evaluate when and else branches
+        let code = '';
+        code += `let ${tVal}, ${fVal};\n`;
+        code += `${this.tBlock.toAssignment(tVal)}\n`;
+        const tValRef = new VariableReference(tVal, this.tBlock.dimensions, this.tBlock.degree);
+        code += `${this.fBlock.toAssignment(fVal)}\n`;
+        const fValRef = new VariableReference(fVal, this.fBlock.dimensions, this.tBlock.degree);
 
-        const tVar = 'tVar', fVar = 'fVar';
-        const tCode = `${this.tBlock.toAssignment(tVar)}\n`;
-        const fCode = `${this.fBlock.toAssignment(fVar)}\n`;
-        return `${tCode}\n${fCode}`;
+        // build expressions for when and else modifiers
+        let tMod: Expression;
+        if (this.condition instanceof RegisterReference) {
+            tMod = this.condition;
+        }
+        else {
+            code += `${this.condition.toAssignment('let tCon')};\n`;
+            tMod = new VariableReference('tCon', this.condition.dimensions, this.condition.degree);
+        }
+        const fMod = BinaryOperation.sub(ONE, tMod);
+
+        // compute the result
+        const e1 = BinaryOperation.mul(tValRef, tMod);
+        const e2 = BinaryOperation.mul(fValRef, fMod);
+        const e3 = BinaryOperation.add(e1, e2);
+        code += `${e3.toAssignment(target)};\n`;
+
+        return `{\n${code}}`;
     }
 
     toCode(): string {

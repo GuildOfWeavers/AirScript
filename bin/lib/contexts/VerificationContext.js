@@ -52,8 +52,7 @@ class VerificationContext {
             pValues[i] = this.pRegisters[i](x);
         }
         // populate qValues with constraint evaluations
-        const qValues = new Array(this.constraintCount);
-        this.air.evaluateConstraints(rValues, nValues, kValues, sValues, pValues, qValues);
+        const qValues = this.air.evaluateConstraints(rValues, nValues, kValues, sValues, pValues);
         return qValues;
     }
 }

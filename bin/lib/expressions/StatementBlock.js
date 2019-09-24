@@ -3,8 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const Expression_1 = require("./Expression");
-const VariableReference_1 = require("./VariableReference");
-const CreateVector_1 = require("./vectors/CreateVector");
 // CLASS DEFINITION
 // ================================================================================================
 class StatementBlock extends Expression_1.Expression {
@@ -27,7 +25,7 @@ class StatementBlock extends Expression_1.Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toAssignment(target) {
-        let code = '{\n';
+        let code = '';
         // declare block variables
         if (this.localVariables.size > 0) {
             const variables = [];
@@ -43,27 +41,9 @@ class StatementBlock extends Expression_1.Expression {
             }
         }
         // build code for the terminating expression
-        if (this.outExpression.isScalar) {
-            code += `${this.outExpression.toAssignment(target)};\n`;
-        }
-        else if (this.outExpression.isVector) {
-            if (this.outExpression instanceof VariableReference_1.VariableReference) {
-                code += `${this.outExpression.toAssignment('_out')};\n`;
-                for (let i = 0; i < this.outExpression.dimensions[0]; i++) {
-                    code += `${target}[${i}] = ${this.outExpression.varRef}[${i}];\n`;
-                }
-            }
-            else if (this.outExpression instanceof CreateVector_1.CreateVector) {
-                for (let i = 0; i < this.outExpression.dimensions[0]; i++) {
-                    code += this.outExpression.elements[i].toAssignment(`${target}[${i}]`) + ';\n';
-                }
-            }
-        }
-        else {
-            throw new Error(''); // TODO
-        }
-        code += '}';
-        return code;
+        code += `${this.outExpression.toAssignment(target)};\n`;
+        // return statement block
+        return `{\n${code}}`;
     }
     toCode() {
         throw new Error('statement block cannot be converted to pure code');

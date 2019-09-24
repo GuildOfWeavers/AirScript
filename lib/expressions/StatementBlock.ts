@@ -40,7 +40,7 @@ export class StatementBlock extends Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toAssignment(target: string): string {
-        let code = '{\n';
+        let code = '';
 
         // declare block variables
         if (this.localVariables.size > 0) {
@@ -59,28 +59,10 @@ export class StatementBlock extends Expression {
         }
 
         // build code for the terminating expression
-        if (this.outExpression.isScalar) {
-            code += `${this.outExpression.toAssignment(target)};\n`;
-        }
-        else if (this.outExpression.isVector) {
-            if (this.outExpression instanceof VariableReference) {
-                code += `${this.outExpression.toAssignment('_out')};\n`;
-                for (let i = 0; i < this.outExpression.dimensions[0]; i++) {
-                    code += `${target}[${i}] = ${this.outExpression.varRef}[${i}];\n`;
-                }
-            }
-            else if (this.outExpression instanceof CreateVector) {
-                for (let i = 0; i < this.outExpression.dimensions[0]; i++) {
-                    code += this.outExpression.elements[i].toAssignment(`${target}[${i}]`) + ';\n';
-                }
-            }
-        }
-        else {
-            throw new Error(''); // TODO
-        }
+        code += `${this.outExpression.toAssignment(target)};\n`;
 
-        code += '}';
-        return code;
+        // return statement block
+        return `{\n${code}}`;
     }
 
     toCode(): string {

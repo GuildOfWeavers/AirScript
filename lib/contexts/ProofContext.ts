@@ -81,8 +81,7 @@ export class ProofContext implements IProofContext {
     generateExecutionTrace(initValues: bigint[]): Matrix {
 
         const steps = this.traceLength - 1;
-        const rValues = new Array<bigint>(this.stateWidth);
-        const nValues = new Array<bigint>(this.stateWidth);
+        
         const sValues = new Array<bigint>(this.sRegisters.length);
         const pValues = new Array<bigint>(this.pRegisters.length);
         const kValues = new Array<bigint>(this.kRegisters.length);
@@ -91,6 +90,8 @@ export class ProofContext implements IProofContext {
         validateInitValues(initValues, this.stateWidth);
 
         // initialize rValues and set first state of execution trace to initValues
+        let nValues: bigint[];
+        let rValues = new Array<bigint>(this.stateWidth);
         const traceValues = new Array<bigint[]>(this.stateWidth);
         for (let register = 0; register < traceValues.length; register++) {
             traceValues[register] = new Array<bigint>(this.traceLength);
@@ -116,12 +117,13 @@ export class ProofContext implements IProofContext {
             }
 
             // populate nValues with the next computation state
-            this.air.applyTransition(rValues, kValues, sValues, pValues, nValues);
+            nValues = this.air.applyTransition(rValues, kValues, sValues, pValues);
 
             // copy nValues to execution trace and update rValues for the next iteration
             step++;
             for (let register = 0; register < nValues.length; register++) {
-                traceValues[register][step] = rValues[register] = nValues[register];
+                traceValues[register][step] = nValues[register];
+                rValues = nValues;
             }
         }
 
@@ -152,9 +154,9 @@ export class ProofContext implements IProofContext {
         const sValues = new Array<bigint>(this.sRegisters.length);
         const pValues = new Array<bigint>(this.pRegisters.length);
         const kValues = new Array<bigint>(this.kRegisters.length);
-        const qValues = new Array<bigint>(constraintCount);
 
         // evaluate constraints for each position of the extended trace
+        let qValues: bigint[]
         for (let position = 0; position < domainSize; position++) {
 
             // set values for mutable registers for current and next steps
@@ -181,7 +183,7 @@ export class ProofContext implements IProofContext {
             }
 
             // populate qValues with results of constraint evaluations
-            this.air.evaluateConstraints(rValues, nValues, kValues, sValues, pValues, qValues);
+            qValues = this.air.evaluateConstraints(rValues, nValues, kValues, sValues, pValues);
 
             // copy evaluations to the result, and also check that constraints evaluate to 0
             // at multiples of the extensions factor

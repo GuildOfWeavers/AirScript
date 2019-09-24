@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree } from "../Expression";
+import { ExpressionDegree } from "./Expression";
 
 // INTERFACES
 // ================================================================================================
@@ -10,38 +10,49 @@ export interface DegreeOp {
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function getDegree(lhs: Expression, rhsDegree: ExpressionDegree, op: DegreeOp): ExpressionDegree {
-    if (lhs.isScalar) {
-        return op(lhs.degree as bigint, rhsDegree as bigint);
+export function maxDegree(d1: ExpressionDegree, d2: ExpressionDegree): ExpressionDegree {
+    if (typeof d1 === 'bigint') {
+        if (typeof d2 !== 'bigint') throw new Error('cannot infer max degree');
+        return (d1 > d2 ? d1 : d2);
     }
-    else if (lhs.isVector) {
-        return vectorDegree(op, lhs.degree as bigint[], rhsDegree as bigint | bigint[]);
-    }
-    else if (lhs.isMatrix) {
-        return matrixDegree(op, lhs.degree as bigint[][], rhsDegree as bigint | bigint[][]);
+    else if (typeof d1[0] === 'bigint') {
+        return vectorDegree((a, b) => (a > b ? a : b), d1 as bigint[], d2 as bigint | bigint[]);
     }
     else {
-        throw new Error(''); // TODO
+        return matrixDegree((a, b) => (a > b ? a : b), d1 as bigint[][], d2 as bigint | bigint[][]);
     }
 }
 
-export function maxDegree(d1: bigint, d2: bigint): bigint {
-    if (d1 > d2) return d1;
-    else return d2;
+export function sumDegree(d1: ExpressionDegree, d2: ExpressionDegree): ExpressionDegree {
+    if (typeof d1 === 'bigint') {
+        if (typeof d2 !== 'bigint') throw new Error('cannot infer sum degree');
+        return d1 + d2;
+    }
+    else if (typeof d1[0] === 'bigint') {
+        return vectorDegree((a, b) => (a + b), d1 as bigint[], d2 as bigint | bigint[]);
+    }
+    else {
+        return matrixDegree((a, b) => (a + b), d1 as bigint[][], d2 as bigint | bigint[][]);
+    }
 }
 
-export function addDegree(d1: bigint, d2: bigint): bigint {
-    return d1 + d2;
-}
-
-export function mulDegree(d1: bigint, d2: bigint): bigint {
-    return d1 * d2;
+export function mulDegree(d1: ExpressionDegree, d2: ExpressionDegree): ExpressionDegree {
+    if (typeof d1 === 'bigint') {
+        if (typeof d2 !== 'bigint') throw new Error('cannot infer mul degree');
+        return d1 * d2;
+    }
+    else if (typeof d1[0] === 'bigint') {
+        return vectorDegree((a, b) => (a * b), d1 as bigint[], d2 as bigint | bigint[]);
+    }
+    else {
+        return matrixDegree((a, b) => (a * b), d1 as bigint[][], d2 as bigint | bigint[][]);
+    }
 }
 
 export function linearCombinationDegree(d1: bigint[], d2: bigint[]): bigint {
     let result = 0n;
     for (let i = 0; i < d1.length; i++) {
-        let d = addDegree(d1[i], d2[i]);
+        let d = d1[i] + d2[i];
         if (d > result) { result = d; }
     }
     return result;
@@ -66,7 +77,7 @@ export function matrixMatrixProductDegree(d1: bigint[][], d2: bigint[][]): bigin
         for (let j = 0; j < p; j++) {
             let s = 0n;
             for (let k = 0; k < m; k++) {
-                let d = addDegree(d1[i][k], d2[k][j]);
+                let d = d1[i][k] + d2[k][j];
                 if (d > s) { s = d };
             }
             row[j] = s;

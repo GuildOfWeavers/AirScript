@@ -77,9 +77,7 @@ export class VerificationContext implements IVerificationContext {
         }
 
         // populate qValues with constraint evaluations
-        const qValues = new Array<bigint>(this.constraintCount);
-        this.air.evaluateConstraints(rValues, nValues, kValues, sValues, pValues, qValues);
-
+        const qValues = this.air.evaluateConstraints(rValues, nValues, kValues, sValues, pValues);
         return qValues;
     }
 }

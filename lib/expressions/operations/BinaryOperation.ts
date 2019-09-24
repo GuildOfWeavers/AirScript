@@ -4,9 +4,8 @@ import { Expression, ExpressionDegree } from "../Expression";
 import { LiteralExpression } from "../LiteralExpression";
 import { Dimensions } from "../../utils";
 import {
-    getDegree, maxDegree, addDegree, mulDegree, linearCombinationDegree, matrixVectorProductDegree,
-    matrixMatrixProductDegree
-} from './degree';
+    maxDegree, sumDegree, mulDegree, linearCombinationDegree, matrixVectorProductDegree, matrixMatrixProductDegree
+} from '../degreeUtils';
 
 // INTERFACES
 // ================================================================================================
@@ -39,7 +38,7 @@ export class BinaryOperation extends Expression {
             throw new Error(`cannot add {${lhs.dimensions}} value to {${rhs.dimensions}} value`);
         }
 
-        const degree = getDegree(lhs, rhs.degree, maxDegree);
+        const degree = maxDegree(lhs.degree, rhs.degree);
         return new BinaryOperation(OperationType.add, lhs, rhs, lhs.dimensions, degree);
     }
 
@@ -51,7 +50,7 @@ export class BinaryOperation extends Expression {
             throw new Error(`cannot subtract {${rhs.dimensions}} value from {${lhs.dimensions}} value`);
         }
 
-        const degree = getDegree(lhs, rhs.degree, maxDegree);
+        const degree = maxDegree(lhs.degree, rhs.degree, );
         return new BinaryOperation(OperationType.sub, lhs, rhs, lhs.dimensions, degree);
     }
 
@@ -63,7 +62,7 @@ export class BinaryOperation extends Expression {
             throw new Error(`cannot multiply {${lhs.dimensions}} value by {${rhs.dimensions}} value`);
         }
 
-        const degree = getDegree(lhs, rhs.degree, addDegree);
+        const degree = sumDegree(lhs.degree, rhs.degree);
         return new BinaryOperation(OperationType.mul, lhs, rhs, lhs.dimensions, degree);
     }
 
@@ -75,7 +74,7 @@ export class BinaryOperation extends Expression {
             throw new Error(`cannot divide {${lhs.dimensions}} value by {${rhs.dimensions}} value`);
         }
 
-        const degree = getDegree(lhs, rhs.degree, addDegree);  // TODO: incorrect
+        const degree = sumDegree(lhs.degree, rhs.degree);  // TODO: incorrect
         return new BinaryOperation(OperationType.div, lhs, rhs, lhs.dimensions, degree);
     }
 
@@ -91,7 +90,7 @@ export class BinaryOperation extends Expression {
         }
 
         const rhsValue = (rhs as LiteralExpression).value as bigint;
-        const degree = getDegree(lhs, rhsValue, mulDegree);
+        const degree = mulDegree(lhs.degree, rhsValue);
         return new BinaryOperation(OperationType.exp, lhs, rhs, lhs.dimensions, degree);
     }
 

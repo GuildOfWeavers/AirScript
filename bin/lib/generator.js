@@ -15,17 +15,21 @@ class CodeGenerator {
     // --------------------------------------------------------------------------------------------
     generateTransitionFunction(statements) {
         this.validateTransitionStatements(statements);
-        const outTarget = statements.isScalar ? 'out[0]' : 'out';
+        let code = 'let result;\n';
+        code += `${statements.toAssignment('result')}\n`;
+        code += (statements.isScalar ? 'return [result];\n' : 'return result.values;\n');
         let functionBuilderCode = `'use strict';\n\n`;
-        functionBuilderCode += `return function (r, k, s, p, out) {${statements.toAssignment(outTarget)}}`;
+        functionBuilderCode += `return function (r, k, s, p) {\n${code}}`;
         const buildFunction = new Function('f', 'g', functionBuilderCode);
         return buildFunction(this.field, this.constantBindings);
     }
     generateConstraintEvaluator(statements) {
         this.validateConstraintStatements(statements);
-        const outTarget = statements.isScalar ? 'out[0]' : 'out';
+        let code = 'let result;\n';
+        code += `${statements.toAssignment('result')}\n`;
+        code += (statements.isScalar ? 'return [result];\n' : 'return result.values;\n');
         let evaluatorBuilderCode = `'use strict';\n\n`;
-        evaluatorBuilderCode += `return function (r, n, k, s, p, out) {${statements.toAssignment(outTarget)}}`;
+        evaluatorBuilderCode += `return function (r, n, k, s, p) {\n${code}}`;
         const buildEvaluator = new Function('f', 'g', evaluatorBuilderCode);
         return buildEvaluator(this.field, this.constantBindings);
     }

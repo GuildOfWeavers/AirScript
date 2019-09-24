@@ -50,14 +50,14 @@ class ProofContext {
     }
     generateExecutionTrace(initValues) {
         const steps = this.traceLength - 1;
-        const rValues = new Array(this.stateWidth);
-        const nValues = new Array(this.stateWidth);
         const sValues = new Array(this.sRegisters.length);
         const pValues = new Array(this.pRegisters.length);
         const kValues = new Array(this.kRegisters.length);
         // make sure all initial values are valid
         validateInitValues(initValues, this.stateWidth);
         // initialize rValues and set first state of execution trace to initValues
+        let nValues;
+        let rValues = new Array(this.stateWidth);
         const traceValues = new Array(this.stateWidth);
         for (let register = 0; register < traceValues.length; register++) {
             traceValues[register] = new Array(this.traceLength);
@@ -79,11 +79,12 @@ class ProofContext {
                 pValues[i] = this.pRegisters[i].getTraceValue(step);
             }
             // populate nValues with the next computation state
-            this.air.applyTransition(rValues, kValues, sValues, pValues, nValues);
+            nValues = this.air.applyTransition(rValues, kValues, sValues, pValues);
             // copy nValues to execution trace and update rValues for the next iteration
             step++;
             for (let register = 0; register < nValues.length; register++) {
-                traceValues[register][step] = rValues[register] = nValues[register];
+                traceValues[register][step] = nValues[register];
+                rValues = nValues;
             }
         }
         return this.field.newMatrixFrom(traceValues);
@@ -107,8 +108,8 @@ class ProofContext {
         const sValues = new Array(this.sRegisters.length);
         const pValues = new Array(this.pRegisters.length);
         const kValues = new Array(this.kRegisters.length);
-        const qValues = new Array(constraintCount);
         // evaluate constraints for each position of the extended trace
+        let qValues;
         for (let position = 0; position < domainSize; position++) {
             // set values for mutable registers for current and next steps
             for (let register = 0; register < this.stateWidth; register++) {
@@ -129,7 +130,7 @@ class ProofContext {
                 pValues[i] = this.pRegisters[i].getEvaluation(position);
             }
             // populate qValues with results of constraint evaluations
-            this.air.evaluateConstraints(rValues, nValues, kValues, sValues, pValues, qValues);
+            qValues = this.air.evaluateConstraints(rValues, nValues, kValues, sValues, pValues);
             // copy evaluations to the result, and also check that constraints evaluate to 0
             // at multiples of the extensions factor
             if (position % extensionFactor === 0 && position < nfSteps) {

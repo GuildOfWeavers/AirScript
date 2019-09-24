@@ -27,9 +27,9 @@ export interface TransitionFunction {
      * @param k Array with values of static registers at the current step
      * @param s Array with values of secret inputs at the current step
      * @param p Array with values of public inputs at the current step
-     * @param out Array to hold values of mutable registers for the next step
+     * @returns Array to hold values of mutable registers for the next step
      */
-    (r: bigint[], k: bigint[], s: bigint[], p: bigint[], out: bigint[]): void;
+    (r: bigint[], k: bigint[], s: bigint[], p: bigint[]): bigint[];
 }
 
 export interface ConstraintEvaluator {
@@ -39,9 +39,9 @@ export interface ConstraintEvaluator {
      * @param k Array with values of static registers at the current step
      * @param s Array with values of secret inputs at the current step
      * @param p Array with values of public inputs at the current step
-     * @param out Array to hold values of constraint evaluated at the current step
+     * @readonly Array to hold values of constraint evaluated at the current step
      */
-    (r: bigint[], n: bigint[], k: bigint[], s: bigint[], p: bigint[], out: bigint[]): void;
+    (r: bigint[], n: bigint[], k: bigint[], s: bigint[], p: bigint[]): bigint[];
 }
 
 // CLASS DEFINITION
