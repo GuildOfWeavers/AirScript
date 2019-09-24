@@ -7,11 +7,10 @@ const errors_1 = require("./errors");
 // LITERALS, REGISTERS, and IDENTIFIERS
 // ================================================================================================
 exports.IntegerLiteral = chevrotain_1.createToken({ name: "IntegerLiteral", pattern: /0|[1-9]\d*/ });
-exports.MutableRegister = chevrotain_1.createToken({ name: "MutableRegister", pattern: /\$[rn]\d{1,2}/ });
-exports.StaticRegister = chevrotain_1.createToken({ name: "StaticRegister", pattern: /\$k\d{1,2}/ });
-exports.SecretRegister = chevrotain_1.createToken({ name: "SecretRegister", pattern: /\$s\d{1,2}/ });
-exports.PublicRegister = chevrotain_1.createToken({ name: "PublicRegister", pattern: /\$p\d{1,2}/ });
 exports.Identifier = chevrotain_1.createToken({ name: "Identifier", pattern: /[a-zA-Z]\w*/ });
+exports.RegisterRef = chevrotain_1.createToken({ name: "RegisterRef", pattern: chevrotain_1.Lexer.NA });
+exports.MutableRegister = chevrotain_1.createToken({ name: "MutableRegister", pattern: /\$[rn]\d{1,2}/, categories: exports.RegisterRef });
+exports.ReadonlyRegister = chevrotain_1.createToken({ name: "ReadonlyRegister", pattern: /\$[kps]\d{1,2}/, categories: exports.RegisterRef });
 // KEYWORDS
 // ================================================================================================
 exports.Define = chevrotain_1.createToken({ name: "Define", pattern: /define/, longer_alt: exports.Identifier });
@@ -90,10 +89,10 @@ exports.allTokens = [
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.In, exports.Steps, exports.Enforce, exports.Constraints, exports.Of,
     exports.Degree, exports.For, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Spread, exports.Using, exports.Readonly, exports.Import, exports.From, exports.As,
     exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp, exports.AssignOp,
-    exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon, exports.Ellipsis, exports.DoubleDot, exports.Pipe,
-    exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
+    exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon, exports.Ellipsis, exports.DoubleDot,
+    exports.Pipe, exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,
-    exports.MutableRegister, exports.StaticRegister, exports.SecretRegister, exports.PublicRegister,
+    exports.MutableRegister, exports.ReadonlyRegister, exports.RegisterRef,
     exports.IntegerLiteral
 ];
 // EXPORT LEXER INSTANCE

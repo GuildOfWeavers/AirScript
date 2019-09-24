@@ -4,8 +4,8 @@ import { CstParser } from "chevrotain";
 import {
     allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
     ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, AssignOp,
-    MutableRegister, StaticRegister, SecretRegister, PublicRegister, LSquare, RSquare, Comma, Using,
-    Readonly, Repeat, Spread, Ellipsis, DoubleDot, Colon, Semicolon, Binary, When, Else
+    ReadonlyRegister, LSquare, RSquare, Comma, Using,
+    Readonly, Repeat, Spread, Ellipsis, DoubleDot, Colon, Semicolon, Binary, When, Else, RegisterRef
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -109,65 +109,28 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private readonlyRegisters = this.RULE('readonlyRegisters', () => {
         this.CONSUME(LCurly);
-        this.AT_LEAST_ONE(() => {
-            this.OR([
-                { ALT: () => {
-                    this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'staticRegisters' })
-                }},
-                { ALT: () => {
-                    this.SUBRULE(this.secretRegisterDefinition, { LABEL: 'secretRegisters' })
-                }},
-                { ALT: () => {
-                    this.SUBRULE(this.publicRegisterDefinition, { LABEL: 'publicRegisters' })
-                }}
-            ]);
-        });
+        this.AT_LEAST_ONE(() => this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registers' }));
         this.CONSUME(RCurly);
     });
 
-    private staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
-        this.CONSUME1(StaticRegister, { LABEL: 'name' });
+    private readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
+        this.CONSUME1(ReadonlyRegister,        { LABEL: 'name' });
         this.CONSUME(Colon);
-        this.OR([
-            { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
-            { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
+        this.OR1([
+            { ALT: () => this.CONSUME2(Repeat, { LABEL: 'pattern' }) },
+            { ALT: () => this.CONSUME2(Spread, { LABEL: 'pattern' }) }
         ]);
         this.OPTION(() => {
-            this.CONSUME(Binary,         { LABEL: 'binary' });
+            this.CONSUME(Binary,               { LABEL: 'binary' });
         });
-        this.SUBRULE(this.literalVector, { LABEL: 'values' });
-        this.CONSUME(Semicolon);
-    });
-
-    private secretRegisterDefinition = this.RULE('secretRegisterDefinition', () => {
-        this.CONSUME1(SecretRegister, { LABEL: 'name' });
-        this.CONSUME(Colon);
-        this.OR([
-            { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
-            { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
-        ]);
-        this.OPTION(() => {
-            this.CONSUME(Binary,         { LABEL: 'binary' });
-        });
-        this.CONSUME(LSquare);
-        this.CONSUME(Ellipsis);
-        this.CONSUME(RSquare);
-        this.CONSUME(Semicolon);
-    });
-
-    private publicRegisterDefinition = this.RULE('publicRegisterDefinition', () => {
-        this.CONSUME1(PublicRegister, { LABEL: 'name' });
-        this.CONSUME(Colon);
-        this.OR([
-            { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
-            { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
-        ]);
-        this.OPTION(() => {
-            this.CONSUME(Binary,         { LABEL: 'binary' });
-        });
-        this.CONSUME(LSquare);
-        this.CONSUME(Ellipsis);
-        this.CONSUME(RSquare);
+        this.OR2([
+            { ALT: () => {
+                this.CONSUME(LSquare);
+                this.CONSUME(Ellipsis);
+                this.CONSUME(RSquare);
+            }},
+            { ALT: () => this.SUBRULE(this.literalVector, { LABEL: 'values' })}
+        ]);        
         this.CONSUME(Semicolon);
     });
 
@@ -218,24 +181,14 @@ class AirParser extends CstParser {
     private whenExpression = this.RULE('whenExpression', () => {
         this.CONSUME(When);
         this.CONSUME(LParen);
-        this.OR1([
-            { ALT: () => {
-                this.CONSUME(StaticRegister,        { LABEL: 'condition'   });
-            }},
-            { ALT: () => {
-                this.CONSUME(SecretRegister,        { LABEL: 'condition'   });
-            }},
-            { ALT: () => {
-                this.CONSUME(PublicRegister,        { LABEL: 'condition'   });
-            }}
-        ]);
+        this.CONSUME(RegisterRef,           { LABEL: 'condition' });
         this.CONSUME(RParen);
         this.CONSUME1(LCurly);
-        this.SUBRULE1(this.statementBlock,  { LABEL: 'tBlock' });
+        this.SUBRULE1(this.statementBlock,  { LABEL: 'tBlock'   });
         this.CONSUME1(RCurly);
         this.CONSUME(Else);
         this.CONSUME2(LCurly);
-        this.SUBRULE2(this.statementBlock,  { LABEL: 'fBlock' });
+        this.SUBRULE2(this.statementBlock,  { LABEL: 'fBlock'   });
         this.CONSUME2(RCurly);
     });
 
@@ -331,12 +284,9 @@ class AirParser extends CstParser {
             }},
             { ALT: () => this.SUBRULE(this.vector,          { LABEL: 'expression' })},
             { ALT: () => this.SUBRULE(this.whenExpression,  { LABEL: 'expression' })},
-            { ALT: () => this.CONSUME(Identifier) },
-            { ALT: () => this.CONSUME(MutableRegister,      { LABEL: 'register'   })},
-            { ALT: () => this.CONSUME(StaticRegister,       { LABEL: 'register'   })},
-            { ALT: () => this.CONSUME(SecretRegister,       { LABEL: 'register'   })},
-            { ALT: () => this.CONSUME(PublicRegister,       { LABEL: 'register'   })},
-            { ALT: () => this.CONSUME(IntegerLiteral) }
+            { ALT: () => this.CONSUME(Identifier,           { LABEL: 'variable'   })},
+            { ALT: () => this.CONSUME(RegisterRef,          { LABEL: 'register'   })},
+            { ALT: () => this.CONSUME(IntegerLiteral,       { LABEL: 'literal'    })}
         ]);
     });
 

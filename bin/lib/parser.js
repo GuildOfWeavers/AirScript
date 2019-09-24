@@ -96,62 +96,27 @@ class AirParser extends chevrotain_1.CstParser {
         // --------------------------------------------------------------------------------------------
         this.readonlyRegisters = this.RULE('readonlyRegisters', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.AT_LEAST_ONE(() => {
-                this.OR([
-                    { ALT: () => {
-                            this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'staticRegisters' });
-                        } },
-                    { ALT: () => {
-                            this.SUBRULE(this.secretRegisterDefinition, { LABEL: 'secretRegisters' });
-                        } },
-                    { ALT: () => {
-                            this.SUBRULE(this.publicRegisterDefinition, { LABEL: 'publicRegisters' });
-                        } }
-                ]);
-            });
+            this.AT_LEAST_ONE(() => this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registers' }));
             this.CONSUME(lexer_1.RCurly);
         });
-        this.staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
-            this.CONSUME1(lexer_1.StaticRegister, { LABEL: 'name' });
+        this.readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
+            this.CONSUME1(lexer_1.ReadonlyRegister, { LABEL: 'name' });
             this.CONSUME(lexer_1.Colon);
-            this.OR([
-                { ALT: () => { this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }); } },
-                { ALT: () => { this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }); } }
+            this.OR1([
+                { ALT: () => this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }) },
+                { ALT: () => this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }) }
             ]);
             this.OPTION(() => {
                 this.CONSUME(lexer_1.Binary, { LABEL: 'binary' });
             });
-            this.SUBRULE(this.literalVector, { LABEL: 'values' });
-            this.CONSUME(lexer_1.Semicolon);
-        });
-        this.secretRegisterDefinition = this.RULE('secretRegisterDefinition', () => {
-            this.CONSUME1(lexer_1.SecretRegister, { LABEL: 'name' });
-            this.CONSUME(lexer_1.Colon);
-            this.OR([
-                { ALT: () => { this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }); } },
-                { ALT: () => { this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }); } }
+            this.OR2([
+                { ALT: () => {
+                        this.CONSUME(lexer_1.LSquare);
+                        this.CONSUME(lexer_1.Ellipsis);
+                        this.CONSUME(lexer_1.RSquare);
+                    } },
+                { ALT: () => this.SUBRULE(this.literalVector, { LABEL: 'values' }) }
             ]);
-            this.OPTION(() => {
-                this.CONSUME(lexer_1.Binary, { LABEL: 'binary' });
-            });
-            this.CONSUME(lexer_1.LSquare);
-            this.CONSUME(lexer_1.Ellipsis);
-            this.CONSUME(lexer_1.RSquare);
-            this.CONSUME(lexer_1.Semicolon);
-        });
-        this.publicRegisterDefinition = this.RULE('publicRegisterDefinition', () => {
-            this.CONSUME1(lexer_1.PublicRegister, { LABEL: 'name' });
-            this.CONSUME(lexer_1.Colon);
-            this.OR([
-                { ALT: () => { this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }); } },
-                { ALT: () => { this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }); } }
-            ]);
-            this.OPTION(() => {
-                this.CONSUME(lexer_1.Binary, { LABEL: 'binary' });
-            });
-            this.CONSUME(lexer_1.LSquare);
-            this.CONSUME(lexer_1.Ellipsis);
-            this.CONSUME(lexer_1.RSquare);
             this.CONSUME(lexer_1.Semicolon);
         });
         // TRANSITION FUNCTION AND CONSTRAINTS
@@ -197,17 +162,7 @@ class AirParser extends chevrotain_1.CstParser {
         this.whenExpression = this.RULE('whenExpression', () => {
             this.CONSUME(lexer_1.When);
             this.CONSUME(lexer_1.LParen);
-            this.OR1([
-                { ALT: () => {
-                        this.CONSUME(lexer_1.StaticRegister, { LABEL: 'condition' });
-                    } },
-                { ALT: () => {
-                        this.CONSUME(lexer_1.SecretRegister, { LABEL: 'condition' });
-                    } },
-                { ALT: () => {
-                        this.CONSUME(lexer_1.PublicRegister, { LABEL: 'condition' });
-                    } }
-            ]);
+            this.CONSUME(lexer_1.RegisterRef, { LABEL: 'condition' });
             this.CONSUME(lexer_1.RParen);
             this.CONSUME1(lexer_1.LCurly);
             this.SUBRULE1(this.statementBlock, { LABEL: 'tBlock' });
@@ -301,12 +256,9 @@ class AirParser extends chevrotain_1.CstParser {
                     } },
                 { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
                 { ALT: () => this.SUBRULE(this.whenExpression, { LABEL: 'expression' }) },
-                { ALT: () => this.CONSUME(lexer_1.Identifier) },
-                { ALT: () => this.CONSUME(lexer_1.MutableRegister, { LABEL: 'register' }) },
-                { ALT: () => this.CONSUME(lexer_1.StaticRegister, { LABEL: 'register' }) },
-                { ALT: () => this.CONSUME(lexer_1.SecretRegister, { LABEL: 'register' }) },
-                { ALT: () => this.CONSUME(lexer_1.PublicRegister, { LABEL: 'register' }) },
-                { ALT: () => this.CONSUME(lexer_1.IntegerLiteral) }
+                { ALT: () => this.CONSUME(lexer_1.Identifier, { LABEL: 'variable' }) },
+                { ALT: () => this.CONSUME(lexer_1.RegisterRef, { LABEL: 'register' }) },
+                { ALT: () => this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'literal' }) }
             ]);
         });
         // LITERAL EXPRESSIONS

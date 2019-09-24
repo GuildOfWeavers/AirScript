@@ -6,11 +6,11 @@ import { lexerErrorMessageProvider } from "./errors";
 // LITERALS, REGISTERS, and IDENTIFIERS
 // ================================================================================================
 export const IntegerLiteral     = createToken({ name: "IntegerLiteral",   pattern: /0|[1-9]\d*/    })
-export const MutableRegister    = createToken({ name: "MutableRegister",  pattern: /\$[rn]\d{1,2}/ });
-export const StaticRegister     = createToken({ name: "StaticRegister",   pattern: /\$k\d{1,2}/    });
-export const SecretRegister     = createToken({ name: "SecretRegister",   pattern: /\$s\d{1,2}/    });
-export const PublicRegister     = createToken({ name: "PublicRegister",   pattern: /\$p\d{1,2}/    });
 export const Identifier         = createToken({ name: "Identifier",       pattern: /[a-zA-Z]\w*/   });
+
+export const RegisterRef        = createToken({ name: "RegisterRef",      pattern: Lexer.NA });
+export const MutableRegister    = createToken({ name: "MutableRegister",  pattern: /\$[rn]\d{1,2}/,  categories: RegisterRef });
+export const ReadonlyRegister   = createToken({ name: "ReadonlyRegister", pattern: /\$[kps]\d{1,2}/, categories: RegisterRef });
 
 // KEYWORDS
 // ================================================================================================
@@ -107,12 +107,12 @@ export const allTokens = [
 
     Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp, AssignOp,
 
-    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, DoubleDot, Pipe,
-    Tilde, Ampersand, QMark, EMark,
+    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, DoubleDot,
+    Pipe, Tilde, Ampersand, QMark, EMark,
 
     Identifier,
 
-    MutableRegister, StaticRegister, SecretRegister, PublicRegister,
+    MutableRegister, ReadonlyRegister, RegisterRef,
 
     IntegerLiteral
 ];

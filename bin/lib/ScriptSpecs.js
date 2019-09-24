@@ -117,11 +117,8 @@ function validateReadonlyRegisterCounts(registers, readonlyRegisterCount) {
     const totalRegisterCount = registers.staticRegisters.length
         + registers.secretRegisters.length
         + registers.publicRegisters.length;
-    if (totalRegisterCount > readonlyRegisterCount) {
-        throw new Error(`Too many readonly register definitions: ${readonlyRegisterCount} registers expected`);
-    }
-    else if (totalRegisterCount < readonlyRegisterCount) {
-        throw new Error(`Missing readonly register definitions: ${readonlyRegisterCount} registers expected`);
+    if (totalRegisterCount !== readonlyRegisterCount) {
+        throw new Error(`expected ${readonlyRegisterCount} readonly registers, but ${totalRegisterCount} defined`);
     }
 }
 function validateConstraintCount(constraintCount, limits) {
