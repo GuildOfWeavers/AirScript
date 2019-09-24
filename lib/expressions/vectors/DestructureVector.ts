@@ -29,4 +29,8 @@ export class DestructureVector extends Expression {
     toCode(): string {
         return `...${this.source.toCode()}.values`;
     }
+
+    toAssignment(target: string): string {
+        throw new Error('cannot assign a destructured value');
+    }
 }

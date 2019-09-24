@@ -52,7 +52,9 @@ class AirParser extends chevrotain_1.CstParser {
         this.fieldDeclaration = this.RULE('fieldDeclaration', () => {
             this.CONSUME(lexer_1.Prime);
             this.CONSUME(lexer_1.Field);
-            this.SUBRULE(this.literalParenExpression, { LABEL: 'modulus' });
+            this.CONSUME(lexer_1.LParen);
+            this.SUBRULE(this.literalExpression, { LABEL: 'modulus' });
+            this.CONSUME(lexer_1.RParen);
         });
         // STATIC CONSTANTS
         // --------------------------------------------------------------------------------------------
@@ -60,7 +62,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'constantName' });
             this.CONSUME(lexer_1.Colon);
             this.OR([
-                { ALT: () => this.SUBRULE(this.literalAddExpression, { LABEL: 'value' }) },
+                { ALT: () => this.SUBRULE(this.literalExpression, { LABEL: 'value' }) },
                 { ALT: () => this.SUBRULE(this.literalVector, { LABEL: 'vector' }) },
                 { ALT: () => this.SUBRULE(this.literalMatrix, { LABEL: 'matrix' }) }
             ]);
@@ -184,26 +186,25 @@ class AirParser extends chevrotain_1.CstParser {
             this.MANY(() => {
                 this.SUBRULE(this.statement, { LABEL: 'statements' });
             });
-            this.SUBRULE(this.outStatement);
+            this.SUBRULE(this.expression, { LABEL: 'expression' });
+            this.OPTION(() => {
+                this.CONSUME(lexer_1.Semicolon);
+            });
         });
         this.statement = this.RULE('statement', () => {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'variableName' });
             this.CONSUME(lexer_1.AssignOp);
             this.OR([
-                { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
-                { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
-                { ALT: () => this.SUBRULE(this.matrix, { LABEL: 'expression' }) }
+                {
+                    GATE: this.BACKTRACK(this.matrix),
+                    ALT: () => this.SUBRULE(this.matrix, { LABEL: 'expression' })
+                },
+                {
+                    GATE: this.BACKTRACK(this.expression),
+                    ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' })
+                }
             ]);
             this.CONSUME(lexer_1.Semicolon);
-        });
-        this.outStatement = this.RULE('outStatement', () => {
-            this.OR([
-                { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
-                { ALT: () => this.SUBRULE(this.vector, { LABEL: 'vector' }) }
-            ]);
-            this.OPTION(() => {
-                this.CONSUME(lexer_1.Semicolon);
-            });
         });
         // WHEN STATEMENT
         // --------------------------------------------------------------------------------------------
@@ -261,15 +262,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         this.vectorDestructuring = this.RULE('vectorDestructuring', () => {
             this.CONSUME(lexer_1.Ellipsis);
-            this.CONSUME(lexer_1.Identifier, { LABEL: 'vectorName' });
-        });
-        this.vectorRangeSelector = this.RULE('vectorRangeSelector', () => {
-            this.CONSUME(lexer_1.Identifier, { LABEL: 'vectorName' });
-            this.CONSUME(lexer_1.LSquare);
-            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'rangeStart' });
-            this.CONSUME(lexer_1.DoubleDot);
-            this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'rangeEnd' });
-            this.CONSUME(lexer_1.RSquare);
+            this.SUBRULE(this.expression, { LABEL: 'vector' });
         });
         this.matrix = this.RULE('matrix', () => {
             this.CONSUME(lexer_1.LSquare);
@@ -290,82 +283,91 @@ class AirParser extends chevrotain_1.CstParser {
         // EXPRESSIONS
         // --------------------------------------------------------------------------------------------
         this.expression = this.RULE('expression', () => {
-            this.SUBRULE(this.addExpression);
-        });
-        this.addExpression = this.RULE('addExpression', () => {
-            this.SUBRULE(this.mulExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.mulExpression, { LABEL: 'lhs' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.AddOp);
                 this.SUBRULE2(this.mulExpression, { LABEL: 'rhs' });
             });
         });
         this.mulExpression = this.RULE('mulExpression', () => {
-            this.SUBRULE(this.expExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.expExpression, { LABEL: 'lhs' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.MulOp);
                 this.SUBRULE2(this.expExpression, { LABEL: 'rhs' });
             });
         });
         this.expExpression = this.RULE('expExpression', () => {
-            this.SUBRULE(this.atomicExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.vectorExpression, { LABEL: 'base' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.ExpOp);
-                this.SUBRULE2(this.atomicExpression, { LABEL: 'rhs' });
+                this.SUBRULE2(this.atomicExpression, { LABEL: 'exponent' });
+            });
+        });
+        this.vectorExpression = this.RULE('vectorExpression', () => {
+            this.SUBRULE(this.atomicExpression, { LABEL: 'expression' });
+            this.OPTION(() => {
+                this.CONSUME(lexer_1.LSquare);
+                this.OR([
+                    { ALT: () => {
+                            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'rangeStart' });
+                            this.CONSUME(lexer_1.DoubleDot);
+                            this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'rangeEnd' });
+                        } },
+                    { ALT: () => {
+                            this.CONSUME3(lexer_1.IntegerLiteral, { LABEL: 'index' });
+                        } }
+                ]);
+                this.CONSUME(lexer_1.RSquare);
             });
         });
         this.atomicExpression = this.RULE('atomicExpression', () => {
             this.OR([
-                { ALT: () => this.SUBRULE(this.parenExpression) },
-                { ALT: () => this.SUBRULE(this.vectorRangeSelector) },
+                { ALT: () => {
+                        this.CONSUME(lexer_1.LParen);
+                        this.SUBRULE(this.expression, { LABEL: 'expression' });
+                        this.CONSUME(lexer_1.RParen);
+                    } },
+                { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
                 { ALT: () => this.CONSUME(lexer_1.Identifier) },
-                { ALT: () => this.CONSUME(lexer_1.MutableRegister) },
-                { ALT: () => this.CONSUME(lexer_1.StaticRegister) },
-                { ALT: () => this.CONSUME(lexer_1.SecretRegister) },
-                { ALT: () => this.CONSUME(lexer_1.PublicRegister) },
+                { ALT: () => this.CONSUME(lexer_1.MutableRegister, { LABEL: 'register' }) },
+                { ALT: () => this.CONSUME(lexer_1.StaticRegister, { LABEL: 'register' }) },
+                { ALT: () => this.CONSUME(lexer_1.SecretRegister, { LABEL: 'register' }) },
+                { ALT: () => this.CONSUME(lexer_1.PublicRegister, { LABEL: 'register' }) },
                 { ALT: () => this.CONSUME(lexer_1.IntegerLiteral) }
             ]);
-        });
-        this.parenExpression = this.RULE('parenExpression', () => {
-            this.CONSUME(lexer_1.LParen);
-            this.SUBRULE(this.expression);
-            this.CONSUME(lexer_1.RParen);
         });
         // LITERAL EXPRESSIONS
         // --------------------------------------------------------------------------------------------
         this.literalExpression = this.RULE('literalExpression', () => {
-            this.SUBRULE(this.literalAddExpression);
-        });
-        this.literalAddExpression = this.RULE('literalAddExpression', () => {
-            this.SUBRULE(this.literalMulExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.literalMulExpression, { LABEL: 'lhs' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.AddOp);
                 this.SUBRULE2(this.literalMulExpression, { LABEL: 'rhs' });
             });
         });
         this.literalMulExpression = this.RULE('literalMulExpression', () => {
-            this.SUBRULE(this.literalExpExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.literalExpExpression, { LABEL: 'lhs' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.MulOp);
                 this.SUBRULE2(this.literalExpExpression, { LABEL: 'rhs' });
             });
         });
         this.literalExpExpression = this.RULE('literalExpExpression', () => {
-            this.SUBRULE(this.literalAtomicExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.literalAtomicExpression, { LABEL: 'base' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.ExpOp);
-                this.SUBRULE2(this.literalAtomicExpression, { LABEL: 'rhs' });
+                this.SUBRULE2(this.literalAtomicExpression, { LABEL: 'exponent' });
             });
         });
         this.literalAtomicExpression = this.RULE('literalAtomicExpression', () => {
             this.OR([
-                { ALT: () => this.SUBRULE(this.literalParenExpression) },
-                { ALT: () => this.CONSUME(lexer_1.IntegerLiteral) },
+                { ALT: () => {
+                        this.CONSUME(lexer_1.LParen);
+                        this.SUBRULE(this.literalExpression, { LABEL: 'expression' });
+                        this.CONSUME(lexer_1.RParen);
+                    } },
+                { ALT: () => this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'literal' }) }
             ]);
-        });
-        this.literalParenExpression = this.RULE('literalParenExpression', () => {
-            this.CONSUME(lexer_1.LParen);
-            this.SUBRULE(this.literalExpression);
-            this.CONSUME(lexer_1.RParen);
         });
         this.performSelfAnalysis();
     }

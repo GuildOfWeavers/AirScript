@@ -27,6 +27,9 @@ class DestructureVector extends Expression_1.Expression {
     toCode() {
         return `...${this.source.toCode()}.values`;
     }
+    toAssignment(target) {
+        throw new Error('cannot assign a destructured value');
+    }
 }
 exports.DestructureVector = DestructureVector;
 //# sourceMappingURL=DestructureVector.js.map

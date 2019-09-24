@@ -60,7 +60,9 @@ class AirParser extends CstParser {
     private fieldDeclaration = this.RULE('fieldDeclaration', () => {
         this.CONSUME(Prime);
         this.CONSUME(Field);
-        this.SUBRULE(this.literalParenExpression, { LABEL: 'modulus' });
+        this.CONSUME(LParen);
+        this.SUBRULE(this.literalExpression, { LABEL: 'modulus' });
+        this.CONSUME(RParen);
     });
 
     // STATIC CONSTANTS
@@ -69,9 +71,9 @@ class AirParser extends CstParser {
         this.CONSUME(Identifier, { LABEL: 'constantName' });
         this.CONSUME(Colon);
         this.OR([
-            { ALT: () => this.SUBRULE(this.literalAddExpression, { LABEL: 'value'  }) },
-            { ALT: () => this.SUBRULE(this.literalVector,        { LABEL: 'vector' }) },
-            { ALT: () => this.SUBRULE(this.literalMatrix,        { LABEL: 'matrix' }) }
+            { ALT: () => this.SUBRULE(this.literalExpression, { LABEL: 'value'  }) },
+            { ALT: () => this.SUBRULE(this.literalVector,     { LABEL: 'vector' }) },
+            { ALT: () => this.SUBRULE(this.literalMatrix,     { LABEL: 'matrix' }) }
         ]);
         this.CONSUME(Semicolon);
     });
@@ -201,30 +203,28 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     public statementBlock = this.RULE('statementBlock', () => {
         this.MANY(() => {
-            this.SUBRULE(this.statement, { LABEL: 'statements'})
+            this.SUBRULE(this.statement, { LABEL: 'statements' });
         });
-        this.SUBRULE(this.outStatement);
+        this.SUBRULE(this.expression,    { LABEL: 'expression' });
+        this.OPTION(() => {
+            this.CONSUME(Semicolon);
+        });
     });
 
     private statement = this.RULE('statement', () => {
-        this.CONSUME(Identifier, { LABEL: 'variableName' });
+        this.CONSUME(Identifier,                          { LABEL: 'variableName' });
         this.CONSUME(AssignOp);
         this.OR([
-            { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
-            { ALT: () => this.SUBRULE(this.vector,      { LABEL: 'expression' }) },
-            { ALT: () => this.SUBRULE(this.matrix,      { LABEL: 'expression' }) }
+            {
+                GATE: this.BACKTRACK(this.matrix),
+                ALT : () => this.SUBRULE(this.matrix,     { LABEL: 'expression' })
+            },
+            {
+                GATE: this.BACKTRACK(this.expression),
+                ALT : () => this.SUBRULE(this.expression, { LABEL: 'expression' }) 
+            }
         ]);
         this.CONSUME(Semicolon);
-    });
-
-    private outStatement = this.RULE('outStatement', () => {
-        this.OR([
-            { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
-            { ALT: () => this.SUBRULE(this.vector,      { LABEL: 'vector'     }) }
-        ]);
-        this.OPTION(() => {
-            this.CONSUME(Semicolon);
-        })
     });
 
     // WHEN STATEMENT
@@ -286,16 +286,7 @@ class AirParser extends CstParser {
 
     private vectorDestructuring = this.RULE('vectorDestructuring', () => {
         this.CONSUME(Ellipsis);
-        this.CONSUME(Identifier, { LABEL: 'vectorName' });
-    });
-
-    private vectorRangeSelector = this.RULE('vectorRangeSelector', () => {
-        this.CONSUME(Identifier,      { LABEL: 'vectorName' });
-        this.CONSUME(LSquare);
-        this.CONSUME1(IntegerLiteral, { LABEL: 'rangeStart' });
-        this.CONSUME(DoubleDot);
-        this.CONSUME2(IntegerLiteral, { LABEL: 'rangeEnd' });
-        this.CONSUME(RSquare);
+        this.SUBRULE(this.expression, { LABEL: 'vector' });
     });
 
     private matrix = this.RULE('matrix', () => {
@@ -319,60 +310,68 @@ class AirParser extends CstParser {
     // EXPRESSIONS
     // --------------------------------------------------------------------------------------------
     private expression = this.RULE('expression', () => {
-        this.SUBRULE(this.addExpression);
-    });
-
-    private addExpression = this.RULE('addExpression', () => {
-        this.SUBRULE(this.mulExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.mulExpression,     { LABEL: 'lhs' });
         this.MANY(() => {
             this.CONSUME(AddOp);
-            this.SUBRULE2(this.mulExpression, { LABEL: 'rhs'});
+            this.SUBRULE2(this.mulExpression, { LABEL: 'rhs' });
         });
     });
 
     private mulExpression = this.RULE('mulExpression', () => {
-        this.SUBRULE(this.expExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.expExpression,     { LABEL: 'lhs' });
         this.MANY(() => {
             this.CONSUME(MulOp);
-            this.SUBRULE2(this.expExpression, { LABEL: 'rhs'});
+            this.SUBRULE2(this.expExpression, { LABEL: 'rhs' });
         });
     });
 
     private expExpression = this.RULE('expExpression', () => {
-        this.SUBRULE(this.atomicExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.vectorExpression,     { LABEL: 'base' });
         this.MANY(() => {
             this.CONSUME(ExpOp);
-            this.SUBRULE2(this.atomicExpression, { LABEL: 'rhs' });  
+            this.SUBRULE2(this.atomicExpression, { LABEL: 'exponent' });  
+        });
+    });
+
+    private vectorExpression = this.RULE('vectorExpression', () => {
+        this.SUBRULE(this.atomicExpression,         { LABEL: 'expression' });
+        this.OPTION(() => {
+            this.CONSUME(LSquare);
+            this.OR([
+                { ALT: () => {
+                    this.CONSUME1(IntegerLiteral,   { LABEL: 'rangeStart' });
+                    this.CONSUME(DoubleDot);
+                    this.CONSUME2(IntegerLiteral,   { LABEL: 'rangeEnd'   });
+                }},
+                { ALT: () => {
+                    this.CONSUME3(IntegerLiteral,   { LABEL: 'index'      });
+                }}
+            ]);
+            this.CONSUME(RSquare);
         });
     });
 
     private atomicExpression = this.RULE('atomicExpression', () => {
         this.OR([
-            { ALT: () => this.SUBRULE(this.parenExpression)         },
-            { ALT: () => this.SUBRULE(this.vectorRangeSelector)     },
-            { ALT: () => this.CONSUME(Identifier)                   },
-            { ALT: () => this.CONSUME(MutableRegister)              },
-            { ALT: () => this.CONSUME(StaticRegister)               },
-            { ALT: () => this.CONSUME(SecretRegister)               },
-            { ALT: () => this.CONSUME(PublicRegister)               },
-            { ALT: () => this.CONSUME(IntegerLiteral)               }
+            { ALT: () => {
+                this.CONSUME(LParen);
+                this.SUBRULE(this.expression,                   { LABEL: 'expression' });
+                this.CONSUME(RParen);
+            }},
+            { ALT: () => this.SUBRULE(this.vector,              { LABEL: 'expression' })},
+            { ALT: () => this.CONSUME(Identifier) },
+            { ALT: () => this.CONSUME(MutableRegister,          { LABEL: 'register'   })},
+            { ALT: () => this.CONSUME(StaticRegister,           { LABEL: 'register'   })},
+            { ALT: () => this.CONSUME(SecretRegister,           { LABEL: 'register'   })},
+            { ALT: () => this.CONSUME(PublicRegister,           { LABEL: 'register'   })},
+            { ALT: () => this.CONSUME(IntegerLiteral) }
         ]);
-    });
-
-    private parenExpression = this.RULE('parenExpression', () => {
-        this.CONSUME(LParen);
-        this.SUBRULE(this.expression);
-        this.CONSUME(RParen);
     });
 
     // LITERAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------
     private literalExpression = this.RULE('literalExpression', () => {
-        this.SUBRULE(this.literalAddExpression);
-    });
-
-    private literalAddExpression = this.RULE('literalAddExpression', () => {
-        this.SUBRULE(this.literalMulExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.literalMulExpression,     { LABEL: 'lhs' });
         this.MANY(() => {
             this.CONSUME(AddOp);
             this.SUBRULE2(this.literalMulExpression, { LABEL: 'rhs'});
@@ -380,7 +379,7 @@ class AirParser extends CstParser {
     });
 
     private literalMulExpression = this.RULE('literalMulExpression', () => {
-        this.SUBRULE(this.literalExpExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.literalExpExpression,     { LABEL: 'lhs' });
         this.MANY(() => {
             this.CONSUME(MulOp);
             this.SUBRULE2(this.literalExpExpression, { LABEL: 'rhs'});
@@ -388,24 +387,22 @@ class AirParser extends CstParser {
     });
 
     private literalExpExpression = this.RULE('literalExpExpression', () => {
-        this.SUBRULE(this.literalAtomicExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.literalAtomicExpression,     { LABEL: 'base' });
         this.MANY(() => {
             this.CONSUME(ExpOp);
-            this.SUBRULE2(this.literalAtomicExpression, { LABEL: 'rhs' });  
+            this.SUBRULE2(this.literalAtomicExpression, { LABEL: 'exponent' });  
         });
     });
 
     private literalAtomicExpression = this.RULE('literalAtomicExpression', () => {
         this.OR([
-            { ALT: () => this.SUBRULE(this.literalParenExpression) },
-            { ALT: () => this.CONSUME(IntegerLiteral) },
+            { ALT: () => {
+                this.CONSUME(LParen);
+                this.SUBRULE(this.literalExpression,  { LABEL: 'expression' });
+                this.CONSUME(RParen);        
+            }},
+            { ALT: () => this.CONSUME(IntegerLiteral, { LABEL: 'literal' })}
         ]);
-    });
-
-    private literalParenExpression = this.RULE('literalParenExpression', () => {
-        this.CONSUME(LParen);
-        this.SUBRULE(this.literalExpression);
-        this.CONSUME(RParen);
     });
 }
 

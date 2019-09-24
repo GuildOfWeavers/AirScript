@@ -238,24 +238,13 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.statements) {
             statements = ctx.statements.map((stmt) => this.visit(stmt, exc));
         }
-        const out = this.visit(ctx.outStatement, exc);
+        const out = this.visit(ctx.expression, exc);
         return new expressions_1.StatementBlock(out, statements);
     }
     statement(ctx, exc) {
         const expression = this.visit(ctx.expression, exc);
         const variable = exc.setVariableAssignment(ctx.variableName[0].image, expression);
         return { variable, expression };
-    }
-    outStatement(ctx, exc) {
-        if (ctx.expression) {
-            return this.visit(ctx.expression, exc);
-        }
-        else if (ctx.vector) {
-            return this.visit(ctx.vector, exc);
-        }
-        else {
-            throw new Error(''); // TODO
-        }
     }
     // WHEN STATEMENT
     // --------------------------------------------------------------------------------------------
@@ -282,16 +271,8 @@ class AirVisitor extends BaseCstVisitor {
         return new expressions.CreateVector(elements);
     }
     vectorDestructuring(ctx, exc) {
-        const variableName = ctx.vectorName[0].image;
-        const element = exc.getVariableReference(variableName);
-        return new expressions.DestructureVector(element);
-    }
-    vectorRangeSelector(ctx, exc) {
-        const variableName = ctx.vectorName[0].image;
-        const rangeStart = Number.parseInt(ctx.rangeStart[0].image, 10);
-        const rangeEnd = Number.parseInt(ctx.rangeEnd[0].image, 10);
-        const element = exc.getVariableReference(variableName);
-        return new expressions.SliceVector(element, rangeStart, rangeEnd);
+        const vector = this.visit(ctx.vector, exc);
+        return new expressions.DestructureVector(vector);
     }
     matrix(ctx, exc) {
         const elements = ctx.rows.map((r) => this.visit(r, exc));
@@ -303,9 +284,6 @@ class AirVisitor extends BaseCstVisitor {
     // EXPRESSIONS
     // --------------------------------------------------------------------------------------------
     expression(ctx, exc) {
-        return this.visit(ctx.addExpression, exc);
-    }
-    addExpression(ctx, exc) {
         let result = this.visit(ctx.lhs, exc);
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand, i) => {
@@ -347,40 +325,38 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
     expExpression(ctx, exc) {
-        let result = this.visit(ctx.lhs, exc);
-        if (ctx.rhs) {
-            ctx.rhs.forEach((rhsOperand, i) => {
-                let rhs = this.visit(rhsOperand, exc);
-                result = expressions.BinaryOperation.exp(result, rhs);
+        let result = this.visit(ctx.base, exc);
+        if (ctx.exponent) {
+            ctx.exponent.forEach((expOperand, i) => {
+                let exponent = this.visit(expOperand, exc);
+                result = expressions.BinaryOperation.exp(result, exponent);
             });
         }
         return result;
     }
-    atomicExpression(ctx, exc) {
-        if (ctx.parenExpression) {
-            return this.visit(ctx.parenExpression, exc);
+    vectorExpression(ctx, exc) {
+        let result = this.visit(ctx.expression, exc);
+        if (ctx.rangeStart) {
+            const rangeStart = Number.parseInt(ctx.rangeStart[0].image, 10);
+            const rangeEnd = Number.parseInt(ctx.rangeEnd[0].image, 10);
+            result = new expressions.SliceVector(result, rangeStart, rangeEnd);
         }
-        else if (ctx.vectorRangeSelector) {
-            return this.visit(ctx.vectorRangeSelector, exc);
+        else if (ctx.index) {
+            const index = Number.parseInt(ctx.index[0].image, 10);
+            result = new expressions.ExtractVectorElement(result, index);
+        }
+        return result;
+    }
+    atomicExpression(ctx, exc) {
+        if (ctx.expression) {
+            return this.visit(ctx.expression, exc);
         }
         else if (ctx.Identifier) {
             const variable = ctx.Identifier[0].image;
             return exc.getVariableReference(variable);
         }
-        else if (ctx.MutableRegister) {
-            const register = ctx.MutableRegister[0].image;
-            return exc.getRegisterReference(register);
-        }
-        else if (ctx.StaticRegister) {
-            const register = ctx.StaticRegister[0].image;
-            return exc.getRegisterReference(register);
-        }
-        else if (ctx.SecretRegister) {
-            const register = ctx.SecretRegister[0].image;
-            return exc.getRegisterReference(register);
-        }
-        else if (ctx.PublicRegister) {
-            const register = ctx.PublicRegister[0].image;
+        else if (ctx.register) {
+            const register = ctx.register[0].image;
             return exc.getRegisterReference(register);
         }
         else if (ctx.IntegerLiteral) {
@@ -391,15 +367,9 @@ class AirVisitor extends BaseCstVisitor {
             throw new Error('Invalid expression syntax');
         }
     }
-    parenExpression(ctx, exc) {
-        return this.visit(ctx.expression, exc);
-    }
     // LITERAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------
     literalExpression(ctx) {
-        return this.visit(ctx.literalAddExpression);
-    }
-    literalAddExpression(ctx) {
         let result = this.visit(ctx.lhs);
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand, i) => {
@@ -435,28 +405,22 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
     literalExpExpression(ctx) {
-        let result = this.visit(ctx.lhs);
-        if (ctx.rhs) {
-            ctx.rhs.forEach((rhsOperand) => {
-                let rhsValue = this.visit(rhsOperand);
-                result = result ** rhsValue;
+        let result = this.visit(ctx.base);
+        if (ctx.exponent) {
+            ctx.exponent.forEach((expOperand) => {
+                let expValue = this.visit(expOperand);
+                result = result ** expValue;
             });
         }
         return result;
     }
     literalAtomicExpression(ctx) {
-        if (ctx.literalParenExpression) {
-            return this.visit(ctx.literalParenExpression);
-        }
-        else if (ctx.IntegerLiteral) {
-            return BigInt(ctx.IntegerLiteral[0].image);
-        }
-        else {
+        if (ctx.expression)
+            return this.visit(ctx.expression);
+        else if (ctx.literal)
+            return BigInt(ctx.literal[0].image);
+        else
             throw new Error('Invalid expression syntax');
-        }
-    }
-    literalParenExpression(ctx) {
-        return this.visit(ctx.literalExpression);
     }
 }
 // EXPORT VISITOR INSTANCE
