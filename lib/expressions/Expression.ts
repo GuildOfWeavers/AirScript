@@ -27,7 +27,7 @@ export abstract class Expression {
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     toAssignment(target: string): string {
-        return `${target} = ${this.toCode()}`;
+        return `${target} = ${this.toCode()};\n`;
     }
 
     // DIMENSION METHODS AND ACCESSORS

@@ -44,9 +44,9 @@ export class WhenExpression extends Expression {
         // evaluate when and else branches
         let code = '';
         code += `let ${tVal}, ${fVal};\n`;
-        code += `${this.tBlock.toAssignment(tVal)}\n`;
+        code += `${this.tBlock.toAssignment(tVal)}`;
         const tValRef = new VariableReference(tVal, this.tBlock.dimensions, this.tBlock.degree);
-        code += `${this.fBlock.toAssignment(fVal)}\n`;
+        code += `${this.fBlock.toAssignment(fVal)}`;
         const fValRef = new VariableReference(fVal, this.fBlock.dimensions, this.tBlock.degree);
 
         // build expressions for when and else modifiers
@@ -55,7 +55,7 @@ export class WhenExpression extends Expression {
             tMod = this.condition;
         }
         else {
-            code += `${this.condition.toAssignment('let tCon')};\n`;
+            code += `${this.condition.toAssignment('let tCon')}`;
             tMod = new VariableReference('tCon', this.condition.dimensions, this.condition.degree);
         }
         const fMod = BinaryOperation.sub(ONE, tMod);
@@ -64,9 +64,9 @@ export class WhenExpression extends Expression {
         const e1 = BinaryOperation.mul(tValRef, tMod);
         const e2 = BinaryOperation.mul(fValRef, fMod);
         const e3 = BinaryOperation.add(e1, e2);
-        code += `${e3.toAssignment(target)};\n`;
+        code += `${e3.toAssignment(target)}`;
 
-        return `{\n${code}}`;
+        return `{\n${code}}\n`;
     }
 
     toCode(): string {

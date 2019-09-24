@@ -158,26 +158,12 @@ class AirParser extends chevrotain_1.CstParser {
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.OR([
-                { ALT: () => {
-                        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
-                    } },
-                { ALT: () => {
-                        this.SUBRULE(this.whenStatement, { LABEL: 'statements' });
-                    } }
-            ]);
+            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.OR([
-                { ALT: () => {
-                        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
-                    } },
-                { ALT: () => {
-                        this.SUBRULE(this.whenStatement, { LABEL: 'statements' });
-                    } }
-            ]);
+            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
             this.CONSUME(lexer_1.RCurly);
         });
         // STATEMENTS
@@ -206,9 +192,9 @@ class AirParser extends chevrotain_1.CstParser {
             ]);
             this.CONSUME(lexer_1.Semicolon);
         });
-        // WHEN STATEMENT
+        // WHEN...ELSE EXPRESSION
         // --------------------------------------------------------------------------------------------
-        this.whenStatement = this.RULE('whenStatement', () => {
+        this.whenExpression = this.RULE('whenExpression', () => {
             this.CONSUME(lexer_1.When);
             this.CONSUME(lexer_1.LParen);
             this.OR1([
@@ -224,25 +210,11 @@ class AirParser extends chevrotain_1.CstParser {
             ]);
             this.CONSUME(lexer_1.RParen);
             this.CONSUME1(lexer_1.LCurly);
-            this.OR2([
-                { ALT: () => {
-                        this.SUBRULE1(this.statementBlock, { LABEL: 'tBlock' });
-                    } },
-                { ALT: () => {
-                        this.SUBRULE2(this.whenStatement, { LABEL: 'tBlock' });
-                    } }
-            ]);
+            this.SUBRULE1(this.statementBlock, { LABEL: 'tBlock' });
             this.CONSUME1(lexer_1.RCurly);
             this.CONSUME(lexer_1.Else);
             this.CONSUME2(lexer_1.LCurly);
-            this.OR3([
-                { ALT: () => {
-                        this.SUBRULE3(this.statementBlock, { LABEL: 'fBlock' });
-                    } },
-                { ALT: () => {
-                        this.SUBRULE4(this.whenStatement, { LABEL: 'fBlock' });
-                    } }
-            ]);
+            this.SUBRULE2(this.statementBlock, { LABEL: 'fBlock' });
             this.CONSUME2(lexer_1.RCurly);
         });
         // VECTORS AND MATRIXES
@@ -328,6 +300,7 @@ class AirParser extends chevrotain_1.CstParser {
                         this.CONSUME(lexer_1.RParen);
                     } },
                 { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
+                { ALT: () => this.SUBRULE(this.whenExpression, { LABEL: 'expression' }) },
                 { ALT: () => this.CONSUME(lexer_1.Identifier) },
                 { ALT: () => this.CONSUME(lexer_1.MutableRegister, { LABEL: 'register' }) },
                 { ALT: () => this.CONSUME(lexer_1.StaticRegister, { LABEL: 'register' }) },

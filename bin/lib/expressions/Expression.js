@@ -12,7 +12,7 @@ class Expression {
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     toAssignment(target) {
-        return `${target} = ${this.toCode()}`;
+        return `${target} = ${this.toCode()};\n`;
     }
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------

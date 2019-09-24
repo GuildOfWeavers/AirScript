@@ -37,13 +37,13 @@ class StatementBlock extends Expression_1.Expression {
         // build code for variable assignments
         if (this.statements) {
             for (let { variable, expression } of this.statements) {
-                code += `${expression.toAssignment(variable.varRef)};\n`;
+                code += `${expression.toAssignment(variable.varRef)}`;
             }
         }
         // build code for the terminating expression
-        code += `${this.outExpression.toAssignment(target)};\n`;
+        code += `${this.outExpression.toAssignment(target)}`;
         // return statement block
-        return `{\n${code}}`;
+        return `{\n${code}}\n`;
     }
     toCode() {
         throw new Error('statement block cannot be converted to pure code');

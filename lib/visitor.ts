@@ -309,15 +309,15 @@ class AirVisitor extends BaseCstVisitor {
         return { variable, expression };
     }
 
-    // WHEN STATEMENT
+    // WHEN...ELSE EXPRESSION
     // --------------------------------------------------------------------------------------------
-    whenStatement(ctx: any, exc: ExecutionContext): Expression {
+    whenExpression(ctx: any, exc: ExecutionContext): Expression {
         const registerName: string = ctx.condition[0].image;
         const registerRef = exc.getRegisterReference(registerName);
 
         // make sure the condition register holds only binary values
         if (!exc.isBinaryRegister(registerName)) {
-            throw new Error(`when...else statement condition must be based on a binary register`);
+            throw new Error(`when...else expression condition must be based on a binary register`);
         }
 
         // build subroutines for true and false conditions

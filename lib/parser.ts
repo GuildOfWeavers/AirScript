@@ -175,27 +175,13 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private transitionFunction = this.RULE('transitionFunction', () => {
         this.CONSUME(LCurly);
-        this.OR([
-            { ALT: () => {
-                this.SUBRULE(this.statementBlock,   { LABEL: 'statements' });
-            }},
-            { ALT: () => {
-                this.SUBRULE(this.whenStatement,    { LABEL: 'statements' });
-            }}
-        ]);
+        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
         this.CONSUME(RCurly);
     });
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
         this.CONSUME(LCurly);
-        this.OR([
-            { ALT: () => {
-                this.SUBRULE(this.statementBlock,   { LABEL: 'statements' });
-            }},
-            { ALT: () => {
-                this.SUBRULE(this.whenStatement,    { LABEL: 'statements' });
-            }}
-        ]);
+        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
         this.CONSUME(RCurly);
     });
 
@@ -227,9 +213,9 @@ class AirParser extends CstParser {
         this.CONSUME(Semicolon);
     });
 
-    // WHEN STATEMENT
+    // WHEN...ELSE EXPRESSION
     // --------------------------------------------------------------------------------------------
-    private whenStatement = this.RULE('whenStatement', () => {
+    private whenExpression = this.RULE('whenExpression', () => {
         this.CONSUME(When);
         this.CONSUME(LParen);
         this.OR1([
@@ -245,27 +231,12 @@ class AirParser extends CstParser {
         ]);
         this.CONSUME(RParen);
         this.CONSUME1(LCurly);
-        this.OR2([
-            { ALT: () => {
-                this.SUBRULE1(this.statementBlock,  { LABEL: 'tBlock' });
-            }},
-            { ALT: () => {
-                this.SUBRULE2(this.whenStatement,   { LABEL: 'tBlock' });
-            }}
-        ]);
+        this.SUBRULE1(this.statementBlock,  { LABEL: 'tBlock' });
         this.CONSUME1(RCurly);
         this.CONSUME(Else);
         this.CONSUME2(LCurly);
-        this.OR3([
-            { ALT: () => {
-                this.SUBRULE3(this.statementBlock,  { LABEL: 'fBlock' });
-            }},
-            { ALT: () => {
-                this.SUBRULE4(this.whenStatement,   { LABEL: 'fBlock' });
-            }}
-        ]);
+        this.SUBRULE2(this.statementBlock,  { LABEL: 'fBlock' });
         this.CONSUME2(RCurly);
-
     });
 
     // VECTORS AND MATRIXES
@@ -355,15 +326,16 @@ class AirParser extends CstParser {
         this.OR([
             { ALT: () => {
                 this.CONSUME(LParen);
-                this.SUBRULE(this.expression,                   { LABEL: 'expression' });
+                this.SUBRULE(this.expression,               { LABEL: 'expression' });
                 this.CONSUME(RParen);
             }},
-            { ALT: () => this.SUBRULE(this.vector,              { LABEL: 'expression' })},
+            { ALT: () => this.SUBRULE(this.vector,          { LABEL: 'expression' })},
+            { ALT: () => this.SUBRULE(this.whenExpression,  { LABEL: 'expression' })},
             { ALT: () => this.CONSUME(Identifier) },
-            { ALT: () => this.CONSUME(MutableRegister,          { LABEL: 'register'   })},
-            { ALT: () => this.CONSUME(StaticRegister,           { LABEL: 'register'   })},
-            { ALT: () => this.CONSUME(SecretRegister,           { LABEL: 'register'   })},
-            { ALT: () => this.CONSUME(PublicRegister,           { LABEL: 'register'   })},
+            { ALT: () => this.CONSUME(MutableRegister,      { LABEL: 'register'   })},
+            { ALT: () => this.CONSUME(StaticRegister,       { LABEL: 'register'   })},
+            { ALT: () => this.CONSUME(SecretRegister,       { LABEL: 'register'   })},
+            { ALT: () => this.CONSUME(PublicRegister,       { LABEL: 'register'   })},
             { ALT: () => this.CONSUME(IntegerLiteral) }
         ]);
     });

@@ -29,7 +29,7 @@ export class CodeGenerator {
         this.validateTransitionStatements(statements);
 
         let code = 'let result;\n'
-        code += `${statements.toAssignment('result')}\n`;
+        code += `${statements.toAssignment('result')}`;
         code += (statements.isScalar ? 'return [result];\n' : 'return result.values;\n')
 
         let functionBuilderCode = `'use strict';\n\n`;
@@ -43,7 +43,7 @@ export class CodeGenerator {
         this.validateConstraintStatements(statements);
 
         let code = 'let result;\n'
-        code += `${statements.toAssignment('result')}\n`;
+        code += `${statements.toAssignment('result')}`;
         code += (statements.isScalar ? 'return [result];\n' : 'return result.values;\n')
         
         let evaluatorBuilderCode = `'use strict';\n\n`;
