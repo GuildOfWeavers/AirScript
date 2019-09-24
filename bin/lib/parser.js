@@ -197,8 +197,6 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.Semicolon);
         });
         this.outStatement = this.RULE('outStatement', () => {
-            this.CONSUME(lexer_1.Out);
-            this.CONSUME(lexer_1.Colon);
             this.OR([
                 { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
                 { ALT: () => this.SUBRULE(this.vector, { LABEL: 'vector' }) }

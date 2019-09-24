@@ -32,7 +32,6 @@ exports.Each = chevrotain_1.createToken({ name: "Each", pattern: /each/, longer_
 exports.Do = chevrotain_1.createToken({ name: "Do", pattern: /do/, longer_alt: exports.Identifier });
 exports.With = chevrotain_1.createToken({ name: "With", pattern: /with/, longer_alt: exports.Identifier });
 exports.Nothing = chevrotain_1.createToken({ name: "Nothing", pattern: /nothing/, longer_alt: exports.Identifier });
-exports.Out = chevrotain_1.createToken({ name: "Out", pattern: /out/, longer_alt: exports.Identifier });
 exports.When = chevrotain_1.createToken({ name: "When", pattern: /when/, longer_alt: exports.Identifier });
 exports.Else = chevrotain_1.createToken({ name: "Else", pattern: /else/, longer_alt: exports.Identifier });
 exports.Init = chevrotain_1.createToken({ name: "Init", pattern: /init/, longer_alt: exports.Identifier });
@@ -88,7 +87,7 @@ exports.Comment = chevrotain_1.createToken({
 exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.In, exports.Steps, exports.Enforce, exports.Constraints, exports.Of,
-    exports.Degree, exports.For, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Out, exports.Repeat, exports.Spread, exports.Using, exports.Readonly, exports.Import, exports.From, exports.As,
+    exports.Degree, exports.For, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Spread, exports.Using, exports.Readonly, exports.Import, exports.From, exports.As,
     exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon, exports.Ellipsis, exports.DoubleDot, exports.Pipe,
     exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,

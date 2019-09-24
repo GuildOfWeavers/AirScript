@@ -3,9 +3,9 @@
 import { CstParser } from "chevrotain";
 import {
     allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
-    ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Out, 
+    ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints,
     MutableRegister, StaticRegister, SecretRegister, PublicRegister, LSquare, RSquare, Comma, Using,
-    Readonly, Repeat, Spread, Ellipsis, DoubleDot, Colon, Semicolon, QMark, Pipe, Binary, When, Else
+    Readonly, Repeat, Spread, Ellipsis, DoubleDot, Colon, Semicolon, Binary, When, Else
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -218,8 +218,6 @@ class AirParser extends CstParser {
     });
 
     private outStatement = this.RULE('outStatement', () => {
-        this.CONSUME(Out);
-        this.CONSUME(Colon);
         this.OR([
             { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
             { ALT: () => this.SUBRULE(this.vector,      { LABEL: 'vector'     }) }
