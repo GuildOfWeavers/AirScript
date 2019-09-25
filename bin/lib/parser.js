@@ -106,9 +106,7 @@ class AirParser extends chevrotain_1.CstParser {
                 { ALT: () => this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }) },
                 { ALT: () => this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }) }
             ]);
-            this.OPTION(() => {
-                this.CONSUME(lexer_1.Binary, { LABEL: 'binary' });
-            });
+            this.OPTION(() => this.CONSUME(lexer_1.Binary, { LABEL: 'binary' }));
             this.OR2([
                 { ALT: () => {
                         this.CONSUME(lexer_1.LSquare);
@@ -250,7 +248,13 @@ class AirParser extends chevrotain_1.CstParser {
             });
         });
         this.atomicExpression = this.RULE('atomicExpression', () => {
-            this.OR([
+            this.OPTION(() => {
+                this.OR1([
+                    { ALT: () => this.CONSUME(lexer_1.Minus, { LABEL: 'neg' }) },
+                    { ALT: () => this.CONSUME(lexer_1.Slash, { LABEL: 'inv' }) }
+                ]);
+            });
+            this.OR2([
                 { ALT: () => {
                         this.CONSUME(lexer_1.LParen);
                         this.SUBRULE(this.expression, { LABEL: 'expression' });
@@ -288,13 +292,21 @@ class AirParser extends chevrotain_1.CstParser {
             });
         });
         this.literalAtomicExpression = this.RULE('literalAtomicExpression', () => {
-            this.OR([
+            this.OPTION(() => {
+                this.OR1([
+                    { ALT: () => this.CONSUME(lexer_1.Minus, { LABEL: 'neg' }) },
+                    { ALT: () => this.CONSUME(lexer_1.Slash, { LABEL: 'inv' }) }
+                ]);
+            });
+            this.OR2([
                 { ALT: () => {
                         this.CONSUME(lexer_1.LParen);
                         this.SUBRULE(this.literalExpression, { LABEL: 'expression' });
                         this.CONSUME(lexer_1.RParen);
                     } },
-                { ALT: () => this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'literal' }) }
+                { ALT: () => {
+                        this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'literal' });
+                    } }
             ]);
         });
         this.performSelfAnalysis();

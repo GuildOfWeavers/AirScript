@@ -331,20 +331,28 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
     atomicExpression(ctx, exc) {
+        let result;
         if (ctx.expression) {
-            return this.visit(ctx.expression, exc);
+            result = this.visit(ctx.expression, exc);
         }
         else if (ctx.symbol) {
             const symbol = ctx.symbol[0].image;
-            return exc.getSymbolReference(symbol);
+            result = exc.getSymbolReference(symbol);
         }
         else if (ctx.literal) {
             const value = ctx.literal[0].image;
-            return new expressions.LiteralExpression(value);
+            result = new expressions.LiteralExpression(value);
         }
         else {
             throw new Error('Invalid expression syntax');
         }
+        if (ctx.neg) {
+            result = expressions.UnaryOperation.neg(result);
+        }
+        if (ctx.inv) {
+            result = expressions.UnaryOperation.inv(result);
+        }
+        return result;
     }
     // LITERAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------
@@ -393,13 +401,24 @@ class AirVisitor extends BaseCstVisitor {
         }
         return result;
     }
-    literalAtomicExpression(ctx) {
-        if (ctx.expression)
-            return this.visit(ctx.expression);
-        else if (ctx.literal)
-            return BigInt(ctx.literal[0].image);
-        else
+    literalAtomicExpression(ctx, field) {
+        let result;
+        if (ctx.expression) {
+            result = this.visit(ctx.expression, field);
+        }
+        else if (ctx.literal) {
+            result = BigInt(ctx.literal[0].image);
+        }
+        else {
             throw new Error('Invalid expression syntax');
+        }
+        if (ctx.neg) {
+            result = field ? field.neg(result) : (-result);
+        }
+        if (ctx.inv) {
+            result = field ? field.inv(result) : (1n / result);
+        }
+        return result;
     }
 }
 // EXPORT VISITOR INSTANCE

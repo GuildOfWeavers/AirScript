@@ -50,7 +50,7 @@ export class BinaryOperation extends Expression {
             throw new Error(`cannot subtract {${rhs.dimensions}} value from {${lhs.dimensions}} value`);
         }
 
-        const degree = maxDegree(lhs.degree, rhs.degree, );
+        const degree = maxDegree(lhs.degree, rhs.degree);
         return new BinaryOperation(OperationType.sub, lhs, rhs, lhs.dimensions, degree);
     }
 

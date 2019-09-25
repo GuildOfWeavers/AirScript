@@ -5,7 +5,7 @@ import {
     allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
     ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, AssignOp, When, Else,
     RegisterRef, ReadonlyRegister, LSquare, RSquare, Comma, Using, DoubleDot, Colon, Semicolon,
-    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank
+    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -120,9 +120,7 @@ class AirParser extends CstParser {
             { ALT: () => this.CONSUME2(Repeat,   { LABEL: 'pattern' }) },
             { ALT: () => this.CONSUME2(Spread,   { LABEL: 'pattern' }) }
         ]);
-        this.OPTION(() => {
-            this.CONSUME(Binary,                 { LABEL: 'binary' });
-        });
+        this.OPTION(() => this.CONSUME(Binary,   { LABEL: 'binary'  }) );
         this.OR2([
             { ALT: () => {
                 this.CONSUME(LSquare);
@@ -278,7 +276,13 @@ class AirParser extends CstParser {
     });
 
     private atomicExpression = this.RULE('atomicExpression', () => {
-        this.OR([
+        this.OPTION(() => {
+            this.OR1([
+                { ALT: () => this.CONSUME(Minus,     { LABEL: 'neg' })},
+                { ALT: () => this.CONSUME(Slash,     { LABEL: 'inv' })}
+            ])
+        });
+        this.OR2([
             { ALT: () => {
                 this.CONSUME(LParen);
                 this.SUBRULE(this.expression,               { LABEL: 'expression' });
@@ -320,13 +324,21 @@ class AirParser extends CstParser {
     });
 
     private literalAtomicExpression = this.RULE('literalAtomicExpression', () => {
-        this.OR([
+        this.OPTION(() => {
+            this.OR1([
+                { ALT: () => this.CONSUME(Minus,     { LABEL: 'neg' })},
+                { ALT: () => this.CONSUME(Slash,     { LABEL: 'inv' })}
+            ])
+        });
+        this.OR2([
             { ALT: () => {
                 this.CONSUME(LParen);
-                this.SUBRULE(this.literalExpression,  { LABEL: 'expression' });
+                this.SUBRULE(this.literalExpression, { LABEL: 'expression' });
                 this.CONSUME(RParen);        
             }},
-            { ALT: () => this.CONSUME(IntegerLiteral, { LABEL: 'literal' })}
+            { ALT: () => {
+                this.CONSUME(IntegerLiteral,         { LABEL: 'literal' });
+            }}
         ]);
     });
 }

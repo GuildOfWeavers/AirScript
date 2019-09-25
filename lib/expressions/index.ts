@@ -2,6 +2,7 @@ export { Expression } from './Expression';
 export { LiteralExpression } from './LiteralExpression';
 export { SymbolReference } from './SymbolReference';
 export { BinaryOperation } from './operations/BinaryOperation';
+export { UnaryOperation } from './operations/UnaryOperation';
 export { CreateVector } from './vectors/CreateVector';
 export { DestructureVector } from './vectors/DestructureVector';
 export { ExtractVectorElement } from './vectors/ExtractElement';

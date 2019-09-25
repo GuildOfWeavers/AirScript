@@ -404,20 +404,31 @@ class AirVisitor extends BaseCstVisitor {
     }
 
     atomicExpression(ctx: any, exc: ExecutionContext): Expression {
+        let result: Expression;
         if (ctx.expression) {
-            return this.visit(ctx.expression, exc);
+            result = this.visit(ctx.expression, exc);
         }
         else if (ctx.symbol) {
             const symbol: string = ctx.symbol[0].image;
-            return exc.getSymbolReference(symbol);
+            result = exc.getSymbolReference(symbol);
         }
         else if (ctx.literal) {
             const value: string = ctx.literal[0].image;
-            return new expressions.LiteralExpression(value);
+            result = new expressions.LiteralExpression(value);
         }
         else {
             throw new Error('Invalid expression syntax');
         }
+
+        if (ctx.neg) {
+            result = expressions.UnaryOperation.neg(result);
+        }
+
+        if (ctx.inv) {
+            result = expressions.UnaryOperation.inv(result);
+        }
+
+        return result;
     }
 
     // LITERAL EXPRESSIONS
@@ -472,10 +483,27 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
 
-    literalAtomicExpression(ctx: any): bigint {
-        if (ctx.expression)     return this.visit(ctx.expression);
-        else if (ctx.literal)   return BigInt(ctx.literal[0].image);
-        else                    throw new Error('Invalid expression syntax');
+    literalAtomicExpression(ctx: any, field?: FiniteField): bigint {
+        let result: bigint;
+        if (ctx.expression) {
+            result = this.visit(ctx.expression, field);
+        }
+        else if (ctx.literal) {
+            result = BigInt(ctx.literal[0].image);
+        }
+        else {
+            throw new Error('Invalid expression syntax');
+        }
+
+        if (ctx.neg) {
+            result = field ? field.neg(result) : (-result);
+        }
+
+        if (ctx.inv) {
+            result = field ? field.inv(result) : (1n / result);
+        }
+
+        return result;
     }
 }
 
