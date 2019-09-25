@@ -19,6 +19,21 @@ class ExecutionContext {
         this.publicRegisters = specs.publicRegisters;
         this.canAccessFutureState = canAccessFutureState;
     }
+    // SYMBOLIC REFERENCES
+    // --------------------------------------------------------------------------------------------
+    getSymbolReference(symbol) {
+        if (symbol.startsWith('$')) {
+            if (symbol.length > 2) {
+                return this.getRegisterReference(symbol);
+            }
+            else {
+                return this.getRegisterBankReference(symbol);
+            }
+        }
+        else {
+            return this.getVariableReference(symbol);
+        }
+    }
     // VARIABLES
     // --------------------------------------------------------------------------------------------
     setVariableAssignment(variable, expression) {
@@ -34,13 +49,13 @@ class ExecutionContext {
                 throw new Error(`Dimensions of variable '${variable}' cannot be changed`);
             }
             if (sExpression.degree !== expression.degree) {
-                sExpression = new expressions_1.VariableReference(refCode, expression.dimensions, expression.degree);
+                sExpression = new expressions_1.SymbolReference(refCode, expression.dimensions, expression.degree);
                 localVariables.set(variable, sExpression);
             }
         }
         else {
             utils_1.validateVariableName(variable, expression.dimensions);
-            sExpression = new expressions_1.VariableReference(refCode, expression.dimensions, expression.degree);
+            sExpression = new expressions_1.SymbolReference(refCode, expression.dimensions, expression.degree);
             localVariables.set(variable, sExpression);
         }
         return sExpression;
@@ -69,80 +84,51 @@ class ExecutionContext {
     }
     // REGISTERS
     // --------------------------------------------------------------------------------------------
-    getRegisterReference(register) {
-        const name = register.slice(1, 2);
-        const index = Number.parseInt(register.slice(2), 10);
-        const errorMessage = `Invalid register reference ${register}`;
-        if (name === 'r') {
-            if (index >= this.mutableRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${this.mutableRegisterCount}`);
-            }
-        }
-        else if (name === 'n') {
-            if (!this.canAccessFutureState) {
-                throw new Error(`${errorMessage}: transition function cannot reference future register states`);
-            }
-            else if (index >= this.mutableRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${this.mutableRegisterCount}`);
-            }
-        }
-        else if (name === 'k') {
-            let staticRegisterCount = this.staticRegisters.length;
-            if (index >= staticRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${staticRegisterCount}`);
-            }
-        }
-        else if (name === 's') {
-            let secretRegisterCount = this.secretRegisters.length;
-            if (index >= secretRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${secretRegisterCount}`);
-            }
-        }
-        else if (name === 'p') {
-            let publicRegisterCount = this.publicRegisters.length;
-            if (index >= publicRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${publicRegisterCount}`);
-            }
-        }
-        return new expressions_1.RegisterReference(`${name}[${index}]`);
-    }
     isBinaryRegister(register) {
-        const name = register.slice(1, 2);
+        const bankName = register.slice(1, 2);
         const index = Number.parseInt(register.slice(2), 10);
-        if (name === 'k') {
+        if (bankName === 'k')
             return this.staticRegisters[index].binary;
-        }
-        else if (name === 's') {
+        else if (bankName === 's')
             return this.secretRegisters[index].binary;
-        }
-        else if (name === 'p') {
+        else if (bankName === 'p')
             return this.publicRegisters[index].binary;
-        }
-        else {
-            throw new Error(`Register ${register} cannot be restricted to binary values`);
-        }
+        else
+            throw new Error(`register ${register} cannot be restricted to binary values`);
     }
-    // SUBROUTINES
-    // --------------------------------------------------------------------------------------------
-    addSubroutine(code) {
-        const subName = `sub${this.subroutines.size}`;
-        const subParams = this.getSubroutineParameters().join(', ');
-        const subFunction = `function ${subName}(${subParams}) {\n${code}}\n`;
-        this.subroutines.set(subName, subFunction);
-        return subName;
-    }
-    callSubroutine(subName, outParamName) {
-        const subParams = this.getSubroutineParameters();
-        subParams[subParams.length - 1] = outParamName;
-        return `${subName}(${subParams.join(', ')});\n`;
-    }
-    getSubroutineParameters() {
-        if (this.canAccessFutureState) {
-            return ['r', 'n', 'k', 's', 'p', 'out'];
+    getRegisterReference(reference) {
+        const bankName = reference.slice(1, 2);
+        const index = Number.parseInt(reference.slice(2), 10);
+        const bankLength = this.getRegisterBankLength(bankName);
+        if (index >= bankLength) {
+            throw new Error(`invalid register reference ${reference}: register index must be smaller than ${bankLength}`);
         }
-        else {
-            return ['r', 'k', 's', 'p', 'out'];
+        else if (bankName === 'n' && !this.canAccessFutureState) {
+            throw new Error(`invalid register reference ${reference}: transition function cannot reference future register states`);
         }
+        return new expressions_1.SymbolReference(`${bankName}[${index}]`, [0, 0], 1n);
+    }
+    getRegisterBankReference(reference) {
+        const bankName = reference.slice(1, 2);
+        if (bankName === 'n' && !this.canAccessFutureState) {
+            throw new Error(`invalid register reference ${reference}: transition function cannot reference future register states`);
+        }
+        const bankLength = this.getRegisterBankLength(bankName);
+        return new expressions_1.SymbolReference(bankName, [bankLength, 0], new Array(bankLength).fill(1n));
+    }
+    getRegisterBankLength(bankName) {
+        if (bankName === 'r')
+            return this.mutableRegisterCount;
+        else if (bankName === 'n')
+            return this.mutableRegisterCount;
+        else if (bankName === 'k')
+            return this.staticRegisters.length;
+        else if (bankName === 's')
+            return this.secretRegisters.length;
+        else if (bankName === 'p')
+            return this.publicRegisters.length;
+        else
+            throw new Error(`register bank name $${bankName} is invalid`);
     }
 }
 exports.ExecutionContext = ExecutionContext;

@@ -3,14 +3,14 @@
 import { validateVariableName } from '../utils';
 import { ScriptSpecs } from '../ScriptSpecs';
 import { ReadonlyRegisterSpecs, InputRegisterSpecs } from '../registers';
-import { Expression, VariableReference, RegisterReference } from '../expressions';
+import { Expression, SymbolReference } from '../expressions';
 
 // CLASS DEFINITION
 // ================================================================================================
 export class ExecutionContext {
 
     readonly staticConstants        : Map<string, Expression>;
-    readonly localVariables         : Map<string, VariableReference>[];
+    readonly localVariables         : Map<string, SymbolReference>[];
     readonly subroutines            : Map<string, string>;
     readonly mutableRegisterCount   : number;
     readonly staticRegisters        : ReadonlyRegisterSpecs[];
@@ -31,9 +31,26 @@ export class ExecutionContext {
         this.canAccessFutureState = canAccessFutureState;
     }
 
+    // SYMBOLIC REFERENCES
+    // --------------------------------------------------------------------------------------------
+    getSymbolReference(symbol: string): Expression {
+        if (symbol.startsWith('$')) {
+            if (symbol.length > 2) {
+                return this.getRegisterReference(symbol);
+            }
+            else {
+                return this.getRegisterBankReference(symbol);
+            }
+        }
+        else {
+            return this.getVariableReference(symbol);
+        }
+    }
+
+
     // VARIABLES
     // --------------------------------------------------------------------------------------------
-    setVariableAssignment(variable: string, expression: Expression): VariableReference {
+    setVariableAssignment(variable: string, expression: Expression): SymbolReference {
         if (this.staticConstants.has(variable)) {
             throw new Error(`Value of static constant '${variable}' cannot be changed`);
         }
@@ -49,20 +66,20 @@ export class ExecutionContext {
             }
 
             if (sExpression.degree !== expression.degree) {
-                sExpression = new VariableReference(refCode, expression.dimensions, expression.degree);
+                sExpression = new SymbolReference(refCode, expression.dimensions, expression.degree);
                 localVariables.set(variable, sExpression);
             }
         }
         else {
             validateVariableName(variable, expression.dimensions);
-            sExpression = new VariableReference(refCode, expression.dimensions, expression.degree);
+            sExpression = new SymbolReference(refCode, expression.dimensions, expression.degree);
             localVariables.set(variable, sExpression);
         }
 
         return sExpression;
     }
 
-    getVariableReference(variable: string): Expression {
+    private getVariableReference(variable: string): Expression {
         // get the last frame from the local variable stack
         const localVariables = this.localVariables[this.localVariables.length - 1];
 
@@ -90,87 +107,48 @@ export class ExecutionContext {
 
     // REGISTERS
     // --------------------------------------------------------------------------------------------
-    getRegisterReference(register: string): Expression {
-        const name = register.slice(1, 2);
-        const index = Number.parseInt(register.slice(2), 10);
-        
-        const errorMessage = `Invalid register reference ${register}`;
-
-        if (name === 'r') {
-            if (index >= this.mutableRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${this.mutableRegisterCount}`);
-            }
-        }
-        else if (name === 'n') {
-            if (!this.canAccessFutureState) {
-                throw new Error(`${errorMessage}: transition function cannot reference future register states`);
-            }
-            else if (index >= this.mutableRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${this.mutableRegisterCount}`);
-            }
-        }
-        else if (name === 'k') {
-            let staticRegisterCount = this.staticRegisters.length;
-            if (index >= staticRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${staticRegisterCount}`);
-            }
-        }
-        else if (name === 's') {
-            let secretRegisterCount = this.secretRegisters.length;
-            if (index >= secretRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${secretRegisterCount}`);
-            }
-        }
-        else if (name === 'p') {
-            let publicRegisterCount = this.publicRegisters.length;
-            if (index >= publicRegisterCount) {
-                throw new Error(`${errorMessage}: register index must be smaller than ${publicRegisterCount}`);
-            }
-        }
-
-        return new RegisterReference(`${name}[${index}]`);
-    }
-
     isBinaryRegister(register: string): boolean {
-        const name = register.slice(1, 2);
+        const bankName = register.slice(1, 2);
         const index = Number.parseInt(register.slice(2), 10);
+
+        if (bankName === 'k')       return this.staticRegisters[index].binary;
+        else if (bankName === 's')  return this.secretRegisters[index].binary;
+        else if (bankName === 'p')  return this.publicRegisters[index].binary;
+        else throw new Error(`register ${register} cannot be restricted to binary values`);
+    }
+
+    private getRegisterReference(reference: string): Expression {
+        const bankName = reference.slice(1, 2);
+        const index = Number.parseInt(reference.slice(2), 10);
         
-        if (name === 'k') {
-            return this.staticRegisters[index].binary;
+        const bankLength = this.getRegisterBankLength(bankName);
+        if (index >= bankLength) {
+            throw new Error(`invalid register reference ${reference}: register index must be smaller than ${bankLength}`);
         }
-        else if (name === 's') {
-            return this.secretRegisters[index].binary;
+        else if (bankName === 'n' && !this.canAccessFutureState) {
+            throw new Error(`invalid register reference ${reference}: transition function cannot reference future register states`);
         }
-        else if (name === 'p') {
-            return this.publicRegisters[index].binary;
-        }
-        else {
-            throw new Error(`Register ${register} cannot be restricted to binary values`);
-        }
+
+        return new SymbolReference(`${bankName}[${index}]`, [0, 0], 1n);
     }
 
-    // SUBROUTINES
-    // --------------------------------------------------------------------------------------------
-    addSubroutine(code: string): string {
-        const subName = `sub${this.subroutines.size}`;
-        const subParams = this.getSubroutineParameters().join(', ');
-        const subFunction = `function ${subName}(${subParams}) {\n${code}}\n`;
-        this.subroutines.set(subName, subFunction);
-        return subName;
+    private getRegisterBankReference(reference: string): Expression {
+        const bankName = reference.slice(1, 2);
+
+        if (bankName === 'n' && !this.canAccessFutureState) {
+            throw new Error(`invalid register reference ${reference}: transition function cannot reference future register states`);
+        }
+
+        const bankLength = this.getRegisterBankLength(bankName);
+        return new SymbolReference(bankName, [bankLength, 0], new Array(bankLength).fill(1n));
     }
 
-    callSubroutine(subName: string, outParamName: string): string {
-        const subParams = this.getSubroutineParameters();
-        subParams[subParams.length - 1] = outParamName;
-        return `${subName}(${subParams.join(', ')});\n`;
-    }
-
-    getSubroutineParameters() {
-        if (this.canAccessFutureState) {
-            return ['r', 'n', 'k', 's', 'p', 'out'];
-        }
-        else {
-            return ['r', 'k', 's', 'p', 'out'];
-        }
+    private getRegisterBankLength(bankName: string): number {
+        if (bankName === 'r')       return this.mutableRegisterCount;
+        else if (bankName === 'n')  return this.mutableRegisterCount;
+        else if (bankName === 'k')  return this.staticRegisters.length;
+        else if (bankName === 's')  return this.secretRegisters.length;
+        else if (bankName === 'p')  return this.publicRegisters.length;
+        else throw new Error(`register bank name $${bankName} is invalid`);
     }
 }

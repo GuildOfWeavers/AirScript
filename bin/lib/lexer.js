@@ -11,6 +11,7 @@ exports.Identifier = chevrotain_1.createToken({ name: "Identifier", pattern: /[a
 exports.RegisterRef = chevrotain_1.createToken({ name: "RegisterRef", pattern: chevrotain_1.Lexer.NA });
 exports.MutableRegister = chevrotain_1.createToken({ name: "MutableRegister", pattern: /\$[rn]\d{1,2}/, categories: exports.RegisterRef });
 exports.ReadonlyRegister = chevrotain_1.createToken({ name: "ReadonlyRegister", pattern: /\$[kps]\d{1,2}/, categories: exports.RegisterRef });
+exports.RegisterBank = chevrotain_1.createToken({ name: "RegisterBank", pattern: /\$[rnkps]/ });
 // KEYWORDS
 // ================================================================================================
 exports.Define = chevrotain_1.createToken({ name: "Define", pattern: /define/, longer_alt: exports.Identifier });
@@ -92,7 +93,7 @@ exports.allTokens = [
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon, exports.Ellipsis, exports.DoubleDot,
     exports.Pipe, exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,
-    exports.MutableRegister, exports.ReadonlyRegister, exports.RegisterRef,
+    exports.MutableRegister, exports.ReadonlyRegister, exports.RegisterRef, exports.RegisterBank,
     exports.IntegerLiteral
 ];
 // EXPORT LEXER INSTANCE

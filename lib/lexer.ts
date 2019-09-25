@@ -11,6 +11,7 @@ export const Identifier         = createToken({ name: "Identifier",       patter
 export const RegisterRef        = createToken({ name: "RegisterRef",      pattern: Lexer.NA });
 export const MutableRegister    = createToken({ name: "MutableRegister",  pattern: /\$[rn]\d{1,2}/,  categories: RegisterRef });
 export const ReadonlyRegister   = createToken({ name: "ReadonlyRegister", pattern: /\$[kps]\d{1,2}/, categories: RegisterRef });
+export const RegisterBank       = createToken({ name: "RegisterBank",     pattern: /\$[rnkps]/ });
 
 // KEYWORDS
 // ================================================================================================
@@ -112,7 +113,7 @@ export const allTokens = [
 
     Identifier,
 
-    MutableRegister, ReadonlyRegister, RegisterRef,
+    MutableRegister, ReadonlyRegister, RegisterRef, RegisterBank,
 
     IntegerLiteral
 ];

@@ -11,7 +11,8 @@ export type ExpressionValue = bigint | bigint[] | bigint[][];
 // ================================================================================================
 export class LiteralExpression extends Expression {
 
-    readonly value: ExpressionValue;
+    readonly value      : ExpressionValue;
+    readonly valueName? : string;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -50,6 +51,7 @@ export class LiteralExpression extends Expression {
 
         super(dimensions, degree);
         this.value = value;
+        this.valueName = name;
     }
 
     // PUBLIC MEMBERS
@@ -59,7 +61,7 @@ export class LiteralExpression extends Expression {
             return `${this.value}n`;
         }
         else {
-            return `g.${name}`;
+            return `g.${this.valueName}`;
         }
     }
 }

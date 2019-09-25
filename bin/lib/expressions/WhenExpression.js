@@ -4,12 +4,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // ================================================================================================
 const Expression_1 = require("./Expression");
 const BinaryOperation_1 = require("./operations/BinaryOperation");
-const VariableReference_1 = require("./VariableReference");
-const RegisterReference_1 = require("./RegisterReference");
+const SymbolReference_1 = require("./SymbolReference");
 const degreeUtils_1 = require("./degreeUtils");
 // MODULE VARIABLES
 // ================================================================================================
-const ONE = new VariableReference_1.VariableReference('f.one', [0, 0], 0n);
+const ONE = new SymbolReference_1.SymbolReference('f.one', [0, 0], 0n);
 // CLASS DEFINITION
 // ================================================================================================
 class WhenExpression extends Expression_1.Expression {
@@ -35,17 +34,17 @@ class WhenExpression extends Expression_1.Expression {
         let code = '';
         code += `let ${tVal}, ${fVal};\n`;
         code += `${this.tBlock.toAssignment(tVal)}`;
-        const tValRef = new VariableReference_1.VariableReference(tVal, this.tBlock.dimensions, this.tBlock.degree);
+        const tValRef = new SymbolReference_1.SymbolReference(tVal, this.tBlock.dimensions, this.tBlock.degree);
         code += `${this.fBlock.toAssignment(fVal)}`;
-        const fValRef = new VariableReference_1.VariableReference(fVal, this.fBlock.dimensions, this.tBlock.degree);
+        const fValRef = new SymbolReference_1.SymbolReference(fVal, this.fBlock.dimensions, this.tBlock.degree);
         // build expressions for when and else modifiers
         let tMod;
-        if (this.condition instanceof RegisterReference_1.RegisterReference) {
+        if (this.condition instanceof SymbolReference_1.SymbolReference) {
             tMod = this.condition;
         }
         else {
             code += `${this.condition.toAssignment('let tCon')}`;
-            tMod = new VariableReference_1.VariableReference('tCon', this.condition.dimensions, this.condition.degree);
+            tMod = new SymbolReference_1.SymbolReference('tCon', this.condition.dimensions, this.condition.degree);
         }
         const fMod = BinaryOperation_1.BinaryOperation.sub(ONE, tMod);
         // compute the result

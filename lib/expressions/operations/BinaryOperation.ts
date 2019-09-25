@@ -111,7 +111,7 @@ export class BinaryOperation extends Expression {
                 throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
             }
             dimensions = [d1[0], 0];
-            degree = matrixVectorProductDegree(lhs.degree as bigint[][], lhs.degree as bigint[]);
+            degree = matrixVectorProductDegree(lhs.degree as bigint[][], rhs.degree as bigint[]);
         }
         else if (lhs.isMatrix && rhs.isMatrix) {
             if (d1[1] !== d2[0]) {

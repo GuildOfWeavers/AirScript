@@ -293,7 +293,7 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     whenExpression(ctx: any, exc: ExecutionContext): Expression {
         const registerName: string = ctx.condition[0].image;
-        const registerRef = exc.getRegisterReference(registerName);
+        const registerRef = exc.getSymbolReference(registerName);
 
         // make sure the condition register holds only binary values
         if (!exc.isBinaryRegister(registerName)) {
@@ -407,13 +407,9 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.expression) {
             return this.visit(ctx.expression, exc);
         }
-        else if (ctx.variable) {
-            const variable = ctx.variable[0].image;
-            return exc.getVariableReference(variable);
-        }
-        else if (ctx.register) {
-            const register = ctx.register[0].image;
-            return exc.getRegisterReference(register);
+        else if (ctx.symbol) {
+            const symbol: string = ctx.symbol[0].image;
+            return exc.getSymbolReference(symbol);
         }
         else if (ctx.literal) {
             const value: string = ctx.literal[0].image;

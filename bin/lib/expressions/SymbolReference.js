@@ -1,23 +1,22 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
-import { Expression } from './Expression';
-
+const Expression_1 = require("./Expression");
 // CLASS DEFINITION
 // ================================================================================================
-export class RegisterReference extends Expression {
-
-    readonly regRef: string;
-
+class SymbolReference extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(regRef: string) {
-        super([0, 0], 1n);
-        this.regRef = regRef;
+    constructor(symRef, dimensions, degree) {
+        super(dimensions, degree);
+        this.symRef = symRef;
     }
-
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode(): string {
-        return `${this.regRef}`;
+    toCode() {
+        return `${this.symRef}`;
     }
 }
+exports.SymbolReference = SymbolReference;
+//# sourceMappingURL=SymbolReference.js.map

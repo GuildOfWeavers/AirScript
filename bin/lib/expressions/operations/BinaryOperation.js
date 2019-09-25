@@ -86,7 +86,7 @@ class BinaryOperation extends Expression_1.Expression {
                 throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
             }
             dimensions = [d1[0], 0];
-            degree = degreeUtils_1.matrixVectorProductDegree(lhs.degree, lhs.degree);
+            degree = degreeUtils_1.matrixVectorProductDegree(lhs.degree, rhs.degree);
         }
         else if (lhs.isMatrix && rhs.isMatrix) {
             if (d1[1] !== d2[0]) {

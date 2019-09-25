@@ -5,20 +5,20 @@ import { Dimensions } from '../utils';
 
 // CLASS DEFINITION
 // ================================================================================================
-export class VariableReference extends Expression {
+export class SymbolReference extends Expression {
 
-    readonly varRef: string;
+    readonly symRef: string;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(varRef: string, dimensions: Dimensions, degree: ExpressionDegree) {
+    constructor(symRef: string, dimensions: Dimensions, degree: ExpressionDegree) {
         super(dimensions, degree);
-        this.varRef = varRef;
+        this.symRef = symRef;
     }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toCode(): string {
-        return `${this.varRef}`;
+        return `${this.symRef}`;
     }
 }

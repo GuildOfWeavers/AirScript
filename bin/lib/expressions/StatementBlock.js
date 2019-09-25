@@ -18,7 +18,7 @@ class StatementBlock extends Expression_1.Expression {
         this.localVariables = new Set();
         if (statements) {
             for (let { variable } of statements) {
-                this.localVariables.add(variable.varRef);
+                this.localVariables.add(variable.symRef);
             }
         }
     }
@@ -37,7 +37,7 @@ class StatementBlock extends Expression_1.Expression {
         // build code for variable assignments
         if (this.statements) {
             for (let { variable, expression } of this.statements) {
-                code += `${expression.toAssignment(variable.varRef)}`;
+                code += `${expression.toAssignment(variable.symRef)}`;
             }
         }
         // build code for the terminating expression

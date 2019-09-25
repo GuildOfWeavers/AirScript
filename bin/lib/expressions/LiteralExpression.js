@@ -39,6 +39,7 @@ class LiteralExpression extends Expression_1.Expression {
         }
         super(dimensions, degree);
         this.value = value;
+        this.valueName = name;
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
@@ -47,7 +48,7 @@ class LiteralExpression extends Expression_1.Expression {
             return `${this.value}n`;
         }
         else {
-            return `g.${name}`;
+            return `g.${this.valueName}`;
         }
     }
 }

@@ -3,9 +3,9 @@
 import { CstParser } from "chevrotain";
 import {
     allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
-    ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, AssignOp,
-    ReadonlyRegister, LSquare, RSquare, Comma, Using,
-    Readonly, Repeat, Spread, Ellipsis, DoubleDot, Colon, Semicolon, Binary, When, Else, RegisterRef
+    ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, AssignOp, When, Else,
+    RegisterRef, ReadonlyRegister, LSquare, RSquare, Comma, Using, DoubleDot, Colon, Semicolon,
+    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -114,14 +114,14 @@ class AirParser extends CstParser {
     });
 
     private readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
-        this.CONSUME1(ReadonlyRegister,        { LABEL: 'name' });
+        this.CONSUME1(ReadonlyRegister,          { LABEL: 'name' });
         this.CONSUME(Colon);
         this.OR1([
-            { ALT: () => this.CONSUME2(Repeat, { LABEL: 'pattern' }) },
-            { ALT: () => this.CONSUME2(Spread, { LABEL: 'pattern' }) }
+            { ALT: () => this.CONSUME2(Repeat,   { LABEL: 'pattern' }) },
+            { ALT: () => this.CONSUME2(Spread,   { LABEL: 'pattern' }) }
         ]);
         this.OPTION(() => {
-            this.CONSUME(Binary,               { LABEL: 'binary' });
+            this.CONSUME(Binary,                 { LABEL: 'binary' });
         });
         this.OR2([
             { ALT: () => {
@@ -129,7 +129,9 @@ class AirParser extends CstParser {
                 this.CONSUME(Ellipsis);
                 this.CONSUME(RSquare);
             }},
-            { ALT: () => this.SUBRULE(this.literalVector, { LABEL: 'values' })}
+            { ALT: () => {
+                this.SUBRULE(this.literalVector, { LABEL: 'values' });
+            }}
         ]);        
         this.CONSUME(Semicolon);
     });
@@ -284,8 +286,9 @@ class AirParser extends CstParser {
             }},
             { ALT: () => this.SUBRULE(this.vector,          { LABEL: 'expression' })},
             { ALT: () => this.SUBRULE(this.whenExpression,  { LABEL: 'expression' })},
-            { ALT: () => this.CONSUME(Identifier,           { LABEL: 'variable'   })},
-            { ALT: () => this.CONSUME(RegisterRef,          { LABEL: 'register'   })},
+            { ALT: () => this.CONSUME(Identifier,           { LABEL: 'symbol'     })},
+            { ALT: () => this.CONSUME(RegisterRef,          { LABEL: 'symbol'     })},
+            { ALT: () => this.CONSUME(RegisterBank,         { LABEL: 'symbol'     })},
             { ALT: () => this.CONSUME(IntegerLiteral,       { LABEL: 'literal'    })}
         ]);
     });

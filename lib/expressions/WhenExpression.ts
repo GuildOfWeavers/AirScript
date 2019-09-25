@@ -3,13 +3,12 @@
 import { Expression } from './Expression';
 import { StatementBlock } from './StatementBlock';
 import { BinaryOperation } from './operations/BinaryOperation';
-import { VariableReference } from './VariableReference';
-import { RegisterReference } from './RegisterReference';
+import { SymbolReference } from './SymbolReference';
 import { sumDegree, maxDegree } from './degreeUtils';
 
 // MODULE VARIABLES
 // ================================================================================================
-const ONE = new VariableReference('f.one', [0, 0], 0n);
+const ONE = new SymbolReference('f.one', [0, 0], 0n);
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -45,18 +44,18 @@ export class WhenExpression extends Expression {
         let code = '';
         code += `let ${tVal}, ${fVal};\n`;
         code += `${this.tBlock.toAssignment(tVal)}`;
-        const tValRef = new VariableReference(tVal, this.tBlock.dimensions, this.tBlock.degree);
+        const tValRef = new SymbolReference(tVal, this.tBlock.dimensions, this.tBlock.degree);
         code += `${this.fBlock.toAssignment(fVal)}`;
-        const fValRef = new VariableReference(fVal, this.fBlock.dimensions, this.tBlock.degree);
+        const fValRef = new SymbolReference(fVal, this.fBlock.dimensions, this.tBlock.degree);
 
         // build expressions for when and else modifiers
         let tMod: Expression;
-        if (this.condition instanceof RegisterReference) {
+        if (this.condition instanceof SymbolReference) {
             tMod = this.condition;
         }
         else {
             code += `${this.condition.toAssignment('let tCon')}`;
-            tMod = new VariableReference('tCon', this.condition.dimensions, this.condition.degree);
+            tMod = new SymbolReference('tCon', this.condition.dimensions, this.condition.degree);
         }
         const fMod = BinaryOperation.sub(ONE, tMod);
 

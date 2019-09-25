@@ -1,13 +1,12 @@
 // IMPORTS
 // ================================================================================================
 import { Expression } from './Expression';
-import { VariableReference } from './VariableReference';
-import { CreateVector } from './vectors/CreateVector';
+import { SymbolReference } from './SymbolReference';
 
 // INTERFACES
 // ================================================================================================
 export interface Statement {
-    variable        : VariableReference;
+    variable        : SymbolReference;
     expression      : Expression;
 }
 
@@ -32,7 +31,7 @@ export class StatementBlock extends Expression {
 
         if (statements) {
             for (let { variable } of statements) {
-                this.localVariables.add(variable.varRef);
+                this.localVariables.add(variable.symRef);
             }
         }
     }
@@ -54,7 +53,7 @@ export class StatementBlock extends Expression {
         // build code for variable assignments
         if (this.statements) {
             for (let { variable, expression } of this.statements) {
-                code += `${expression.toAssignment(variable.varRef)}`;
+                code += `${expression.toAssignment(variable.symRef)}`;
             }
         }
 

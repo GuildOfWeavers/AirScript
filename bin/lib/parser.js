@@ -115,7 +115,9 @@ class AirParser extends chevrotain_1.CstParser {
                         this.CONSUME(lexer_1.Ellipsis);
                         this.CONSUME(lexer_1.RSquare);
                     } },
-                { ALT: () => this.SUBRULE(this.literalVector, { LABEL: 'values' }) }
+                { ALT: () => {
+                        this.SUBRULE(this.literalVector, { LABEL: 'values' });
+                    } }
             ]);
             this.CONSUME(lexer_1.Semicolon);
         });
@@ -256,8 +258,9 @@ class AirParser extends chevrotain_1.CstParser {
                     } },
                 { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
                 { ALT: () => this.SUBRULE(this.whenExpression, { LABEL: 'expression' }) },
-                { ALT: () => this.CONSUME(lexer_1.Identifier, { LABEL: 'variable' }) },
-                { ALT: () => this.CONSUME(lexer_1.RegisterRef, { LABEL: 'register' }) },
+                { ALT: () => this.CONSUME(lexer_1.Identifier, { LABEL: 'symbol' }) },
+                { ALT: () => this.CONSUME(lexer_1.RegisterRef, { LABEL: 'symbol' }) },
+                { ALT: () => this.CONSUME(lexer_1.RegisterBank, { LABEL: 'symbol' }) },
                 { ALT: () => this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'literal' }) }
             ]);
         });
