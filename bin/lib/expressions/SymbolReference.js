@@ -8,14 +8,28 @@ const Expression_1 = require("./Expression");
 class SymbolReference extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(symRef, dimensions, degree) {
+    constructor(symbol, dimensions, degree) {
         super(dimensions, degree);
-        this.symRef = symRef;
+        this.symbol = symbol;
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
+    get isRegisterBank() {
+        return (this.symbol.length === 1);
+    }
+    get isRegister() {
+        return (this.symbol.length > 1 && !this.symbol.startsWith('$'));
+    }
+    get isVariable() {
+        return (this.symbol.startsWith('$'));
+    }
     toCode() {
-        return `${this.symRef}`;
+        if (this.isRegisterBank) {
+            return `f.newVectorFrom(${this.symbol})`;
+        }
+        else {
+            return `${this.symbol}`;
+        }
     }
 }
 exports.SymbolReference = SymbolReference;

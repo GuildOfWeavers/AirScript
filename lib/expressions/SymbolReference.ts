@@ -7,18 +7,35 @@ import { Dimensions } from '../utils';
 // ================================================================================================
 export class SymbolReference extends Expression {
 
-    readonly symRef: string;
+    readonly symbol: string;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(symRef: string, dimensions: Dimensions, degree: ExpressionDegree) {
+    constructor(symbol: string, dimensions: Dimensions, degree: ExpressionDegree) {
         super(dimensions, degree);
-        this.symRef = symRef;
+        this.symbol = symbol;
     }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
+    get isRegisterBank(): boolean {
+        return (this.symbol.length === 1);
+    }
+
+    get isRegister(): boolean {
+        return (this.symbol.length > 1 && !this.symbol.startsWith('$'));
+    }
+
+    get isVariable(): boolean {
+        return (this.symbol.startsWith('$'));
+    }
+
     toCode(): string {
-        return `${this.symRef}`;
+        if (this.isRegisterBank) {
+            return `f.newVectorFrom(${this.symbol})`;
+        }
+        else {
+            return `${this.symbol}`;
+        }
     }
 }

@@ -43,16 +43,21 @@ export class ExecutionContext {
             }
         }
         else {
-            return this.getVariableReference(symbol);
+            const ref = this.getVariableReference(symbol);
+            if (!ref) {
+                throw new Error(`variable '${symbol}' is not defined`);
+            }
+            else {
+                return ref;
+            }
         }
     }
-
 
     // VARIABLES
     // --------------------------------------------------------------------------------------------
     setVariableAssignment(variable: string, expression: Expression): SymbolReference {
         if (this.staticConstants.has(variable)) {
-            throw new Error(`Value of static constant '${variable}' cannot be changed`);
+            throw new Error(`value of static constant '${variable}' cannot be changed`);
         }
         
         // get the last frame from the local variable stack
@@ -62,7 +67,7 @@ export class ExecutionContext {
         let sExpression = localVariables.get(variable);
         if (sExpression) {
             if (!sExpression.isSameDimensions(expression)) {
-                throw new Error(`Dimensions of variable '${variable}' cannot be changed`);
+                throw new Error(`dimensions of variable '${variable}' cannot be changed`);
             }
 
             if (sExpression.degree !== expression.degree) {
@@ -71,6 +76,10 @@ export class ExecutionContext {
             }
         }
         else {
+            if (this.getVariableReference(variable)) {
+                throw new Error(`value of variable '${variable}' cannot be changed out of scope`);
+            }
+
             validateVariableName(variable, expression.dimensions);
             sExpression = new SymbolReference(refCode, expression.dimensions, expression.degree);
             localVariables.set(variable, sExpression);
@@ -79,18 +88,19 @@ export class ExecutionContext {
         return sExpression;
     }
 
-    private getVariableReference(variable: string): Expression {
-        // get the last frame from the local variable stack
-        const localVariables = this.localVariables[this.localVariables.length - 1];
-
-        if (localVariables.has(variable)) {
-            return localVariables.get(variable)!;
-        }
-        else if (this.staticConstants.has(variable)) {
+    private getVariableReference(variable: string): Expression | undefined {
+        if (this.staticConstants.has(variable)) {
+            // check for variable in global constants
             return this.staticConstants.get(variable)!;
         }
         else {
-            throw new Error(`Variable '${variable}' is not defined`);
+            // search for the variable in the local variable stack
+            for (let i = this.localVariables.length - 1; i >= 0; i--) {
+                let scope = this.localVariables[i];
+                if (scope.has(variable)) {
+                    return scope.get(variable)!;
+                }
+            }
         }
     }
 

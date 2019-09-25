@@ -1,6 +1,8 @@
 // IMPORTS
 // ================================================================================================
 import { Expression } from "../Expression";
+import { SymbolReference } from "../SymbolReference";
+import { SliceVector } from "./SliceVector";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -27,7 +29,15 @@ export class DestructureVector extends Expression {
     }
 
     toCode(): string {
-        return `...${this.source.toCode()}.values`;
+        if (this.source instanceof SymbolReference && this.source.isRegisterBank) {
+            return `...${this.source.symbol}`;
+        }
+        else if (this.source instanceof SliceVector) {
+            return `...${this.source.toCode(true)}`;
+        }
+        else {
+            return `...${this.source.toCode()}.values`;
+        }
     }
 
     toAssignment(target: string): string {

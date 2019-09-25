@@ -1,6 +1,8 @@
 // IMPORTS
 // ================================================================================================
 import { Expression } from "../Expression";
+import { SymbolReference } from "../SymbolReference";
+import { SliceVector } from "./SliceVector";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -28,6 +30,14 @@ export class ExtractVectorElement extends Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toCode(): string {
-        return `${this.source.toCode()}.values[${this.index}]`;
+        if (this.source instanceof SymbolReference && this.source.isRegisterBank) {
+            return `${this.source.symbol}[${this.index}]`;
+        }
+        else if (this.source instanceof SliceVector) {
+            return `${this.source.toCode(true)}[${this.index}]`;
+        }
+        else {
+            return `${this.source.toCode()}.values[${this.index}]`;
+        }
     }
 }
