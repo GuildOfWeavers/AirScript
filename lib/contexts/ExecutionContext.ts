@@ -1,9 +1,9 @@
 // IMPORTS
 // ================================================================================================
-import { validateVariableName } from '../utils';
 import { ScriptSpecs } from '../ScriptSpecs';
+import { validateVariableName, Dimensions } from '../utils';
 import { ReadonlyRegisterSpecs, InputRegisterSpecs } from '../registers';
-import { Expression, SymbolReference } from '../expressions';
+import { Expression, SymbolReference, SubroutineCall } from '../expressions';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -16,11 +16,11 @@ export class ExecutionContext {
     readonly staticRegisters        : ReadonlyRegisterSpecs[];
     readonly secretRegisters        : InputRegisterSpecs[];
     readonly publicRegisters        : InputRegisterSpecs[];
-    readonly canAccessFutureState   : boolean;
+    readonly tFunctionDegree?       : bigint[];
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(specs: ScriptSpecs, canAccessFutureState: boolean) {
+    constructor(specs: ScriptSpecs) {
         this.subroutines = new Map();
         this.localVariables = [new Map()];
         this.staticConstants = specs.staticConstants;
@@ -28,7 +28,14 @@ export class ExecutionContext {
         this.staticRegisters = specs.staticRegisters;
         this.secretRegisters = specs.secretRegisters;
         this.publicRegisters = specs.publicRegisters;
-        this.canAccessFutureState = canAccessFutureState;
+        this.tFunctionDegree = specs.tFunctionDegree;
+    }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get canAccessFutureState(): boolean {
+        // if transition function degree has been set, we are in transition constraints
+        return (this.tFunctionDegree !== undefined);
     }
 
     // SYMBOLIC REFERENCES
@@ -160,5 +167,15 @@ export class ExecutionContext {
         else if (bankName === 's')  return this.secretRegisters.length;
         else if (bankName === 'p')  return this.publicRegisters.length;
         else throw new Error(`register bank name $${bankName} is invalid`);
+    }
+
+    // SUBROUTINES
+    // --------------------------------------------------------------------------------------------
+    getTransitionFunctionCall(): SubroutineCall {
+        if (!this.canAccessFutureState) {
+            throw new Error(`transition function cannot call itself recursively`);
+        }
+        const dimensions: Dimensions = [this.mutableRegisterCount, 0];
+        return new SubroutineCall('transition', ['r', 'k', 's', 'p'], dimensions, this.tFunctionDegree!);
     }
 }

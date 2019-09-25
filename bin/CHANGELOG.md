@@ -1,5 +1,14 @@
 # Release History
 
+### v0.5 - XXX
+
+* Added support for unary operators (additive and multiplicative inverses)
+* Changed assignment operator from `:` to `<-`
+* Added support for vector slicing and element extraction
+* Added support for inline vector definitions
+* Allowed direct references to register banks
+* Enabled invoking transition function from transition constraints
+
 ### v0.4.2 - September 5, 2019
 
 * Enabled nested `when` statements

@@ -192,6 +192,15 @@ class AirParser extends CstParser {
         this.CONSUME2(RCurly);
     });
 
+    // TRANSITION CALL EXPRESSION
+    // --------------------------------------------------------------------------------------------
+    private transitionCall = this.RULE('transitionCall', () => {
+        this.CONSUME(Transition);
+        this.CONSUME(LParen);
+        this.CONSUME(RegisterBank,  { LABEL: 'registers' });
+        this.CONSUME(RParen);
+    });
+
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------
     private vector = this.RULE('vector', () => {
@@ -290,6 +299,7 @@ class AirParser extends CstParser {
             }},
             { ALT: () => this.SUBRULE(this.vector,          { LABEL: 'expression' })},
             { ALT: () => this.SUBRULE(this.whenExpression,  { LABEL: 'expression' })},
+            { ALT: () => this.SUBRULE(this.transitionCall,  { LABEL: 'expression' })},
             { ALT: () => this.CONSUME(Identifier,           { LABEL: 'symbol'     })},
             { ALT: () => this.CONSUME(RegisterRef,          { LABEL: 'symbol'     })},
             { ALT: () => this.CONSUME(RegisterBank,         { LABEL: 'symbol'     })},

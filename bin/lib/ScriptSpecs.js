@@ -53,19 +53,46 @@ class ScriptSpecs {
             }
         }
     }
-    // VALIDATORS
-    // --------------------------------------------------------------------------------------------
-    validateConstraintDegree(constraintDegree) {
-        if (constraintDegree > this.limits.maxConstraintDegree) {
-            throw new Error(`Degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
+    setTransitionFunctionDegree(tFunctionBody) {
+        if (this.mutableRegisterCount === 1) {
+            if (!tFunctionBody.isScalar && (!tFunctionBody.isVector || tFunctionBody.dimensions[0] !== 1)) {
+                throw new Error(`transition function must evaluate to scalar or to a vector of exactly 1 value`);
+            }
         }
-        else if (constraintDegree < 0n) {
-            throw new Error('Degree of transition constraints must be positive');
+        else {
+            if (!tFunctionBody.isVector || tFunctionBody.dimensions[0] !== this.mutableRegisterCount) {
+                throw new Error(`transition function must evaluate to a vector of exactly ${this.mutableRegisterCount} values`);
+            }
         }
-        else if (constraintDegree === 0n) {
-            throw new Error('Degree of transition constraints cannot be 0');
+        this.tFunctionDegree = tFunctionBody.isScalar
+            ? [tFunctionBody.degree]
+            : tFunctionBody.degree;
+    }
+    setTransitionConstraintsDegree(tConstraintsBody) {
+        if (this.constraintCount === 1) {
+            if (!tConstraintsBody.isScalar && (!tConstraintsBody.isVector || tConstraintsBody.dimensions[0] !== 1)) {
+                throw new Error(`Transition constraints must evaluate to scalar or to a vector of exactly 1 value`);
+            }
         }
-        return Number.parseInt(constraintDegree);
+        else {
+            if (!tConstraintsBody.isVector || tConstraintsBody.dimensions[0] !== this.constraintCount) {
+                throw new Error(`Transition constraints must evaluate to a vector of exactly ${this.constraintCount} values`);
+            }
+        }
+        this.tConstraintsDegree = tConstraintsBody.isScalar
+            ? [tConstraintsBody.degree]
+            : tConstraintsBody.degree;
+        for (let degree of this.tConstraintsDegree) {
+            if (degree > this.limits.maxConstraintDegree) {
+                throw new Error(`degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
+            }
+            else if (degree < 0n) {
+                throw new Error('degree of transition constraints must be positive');
+            }
+            else if (degree === 0n) {
+                throw new Error('degree of transition constraints cannot be 0');
+            }
+        }
     }
 }
 exports.ScriptSpecs = ScriptSpecs;

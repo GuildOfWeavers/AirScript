@@ -5,7 +5,7 @@ import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galo
 import { tokenMatcher } from 'chevrotain';
 import { AirConfig } from './AirObject';
 import { parser } from './parser';
-import { Plus, Star, Slash, Pound, Minus } from './lexer';
+import { Plus, Star, Slash, Pound, Minus, Degree } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ExecutionContext } from './contexts';
 import { ReadonlyValuePattern, ReadonlyRegisterSpecs, InputRegisterSpecs } from './registers';
@@ -77,27 +77,23 @@ class AirVisitor extends BaseCstVisitor {
         }
         specs.setReadonlyRegisterCounts(readonlyRegisters);
 
-        // instantiate code generator
-        const generator = new CodeGenerator(specs);
-
-        // build transition function
+        // parse transition function and transition constraints
         validateTransitionFunction(ctx.transitionFunction);
         const tFunctionBody: StatementBlock = this.visit(ctx.transitionFunction, specs);
-        const tFunction = generator.generateTransitionFunction(tFunctionBody);
-
-        // build transition constraint evaluator
+        specs.setTransitionFunctionDegree(tFunctionBody);
+        
         validateTransitionConstraints(ctx.transitionConstraints);
         const tConstraintsBody: StatementBlock = this.visit(ctx.transitionConstraints, specs);
-        const tConstraints = generator.generateConstraintEvaluator(tConstraintsBody);
+        specs.setTransitionConstraintsDegree(tConstraintsBody);
+        const constraintSpecs = specs.tConstraintsDegree.map( degree => {
+            return {
+                degree: Number.parseInt(degree as any)
+            } as ConstraintSpecs;
+        });
 
-        // validate constraint valuator degrees
-        const constraintSpecs = new Array<ConstraintSpecs>(specs.constraintCount);
-        for (let i = 0; i < constraintSpecs.length; i++) {
-            let degree = typeof tConstraintsBody.degree === 'bigint'
-                ? tConstraintsBody.degree
-                : tConstraintsBody.degree[i] as bigint;
-            constraintSpecs[i] = { degree: specs.validateConstraintDegree(degree) };
-        }
+        // generate executable code for transition function and constraint evaluator
+        const generator = new CodeGenerator(specs);
+        const tModule = generator.generateJsModule(tFunctionBody, tConstraintsBody);
 
         // build and return AIR config
         return {
@@ -109,8 +105,8 @@ class AirVisitor extends BaseCstVisitor {
             publicInputs        : readonlyRegisters.publicRegisters,
             staticRegisters     : readonlyRegisters.staticRegisters,
             constraints         : constraintSpecs,
-            transitionFunction  : tFunction,
-            constraintEvaluator : tConstraints
+            transitionFunction  : tModule.transition,
+            constraintEvaluator : tModule.evaluate
         };
     }
 
@@ -261,13 +257,13 @@ class AirVisitor extends BaseCstVisitor {
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx: any, specs: ScriptSpecs): StatementBlock {
-        const exc = new ExecutionContext(specs, false);
+        const exc = new ExecutionContext(specs);
         const statements: StatementBlock = this.visit(ctx.statements, exc);
         return statements;
     }
 
     transitionConstraints(ctx: any, specs: ScriptSpecs): StatementBlock {
-        const exc = new ExecutionContext(specs, true);
+        const exc = new ExecutionContext(specs);
         const statements: StatementBlock = this.visit(ctx.statements, exc);
         return statements;
     }
@@ -310,6 +306,16 @@ class AirVisitor extends BaseCstVisitor {
         exc.destroyVariableFrame();
 
         return new expressions.WhenExpression(registerRef, tBlock, fBlock);
+    }
+
+    // TRANSITION CALL EXPRESSION
+    // --------------------------------------------------------------------------------------------
+    transitionCall(ctx: any, exc: ExecutionContext): Expression {
+        const registers = ctx.registers[0].image;
+        if (registers !== '$r') {
+            throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
+        }
+        return exc.getTransitionFunctionCall();
     }
 
     // VECTORS AND MATRIXES

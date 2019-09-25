@@ -42,24 +42,21 @@ class AirVisitor extends BaseCstVisitor {
             readonlyRegisters = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
         }
         specs.setReadonlyRegisterCounts(readonlyRegisters);
-        // instantiate code generator
-        const generator = new generator_1.CodeGenerator(specs);
-        // build transition function
+        // parse transition function and transition constraints
         validateTransitionFunction(ctx.transitionFunction);
         const tFunctionBody = this.visit(ctx.transitionFunction, specs);
-        const tFunction = generator.generateTransitionFunction(tFunctionBody);
-        // build transition constraint evaluator
+        specs.setTransitionFunctionDegree(tFunctionBody);
         validateTransitionConstraints(ctx.transitionConstraints);
         const tConstraintsBody = this.visit(ctx.transitionConstraints, specs);
-        const tConstraints = generator.generateConstraintEvaluator(tConstraintsBody);
-        // validate constraint valuator degrees
-        const constraintSpecs = new Array(specs.constraintCount);
-        for (let i = 0; i < constraintSpecs.length; i++) {
-            let degree = typeof tConstraintsBody.degree === 'bigint'
-                ? tConstraintsBody.degree
-                : tConstraintsBody.degree[i];
-            constraintSpecs[i] = { degree: specs.validateConstraintDegree(degree) };
-        }
+        specs.setTransitionConstraintsDegree(tConstraintsBody);
+        const constraintSpecs = specs.tConstraintsDegree.map(degree => {
+            return {
+                degree: Number.parseInt(degree)
+            };
+        });
+        // generate executable code for transition function and constraint evaluator
+        const generator = new generator_1.CodeGenerator(specs);
+        const tModule = generator.generateJsModule(tFunctionBody, tConstraintsBody);
         // build and return AIR config
         return {
             name: starkName,
@@ -70,8 +67,8 @@ class AirVisitor extends BaseCstVisitor {
             publicInputs: readonlyRegisters.publicRegisters,
             staticRegisters: readonlyRegisters.staticRegisters,
             constraints: constraintSpecs,
-            transitionFunction: tFunction,
-            constraintEvaluator: tConstraints
+            transitionFunction: tModule.transition,
+            constraintEvaluator: tModule.evaluate
         };
     }
     // FINITE FIELD
@@ -205,12 +202,12 @@ class AirVisitor extends BaseCstVisitor {
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx, specs) {
-        const exc = new contexts_1.ExecutionContext(specs, false);
+        const exc = new contexts_1.ExecutionContext(specs);
         const statements = this.visit(ctx.statements, exc);
         return statements;
     }
     transitionConstraints(ctx, specs) {
-        const exc = new contexts_1.ExecutionContext(specs, true);
+        const exc = new contexts_1.ExecutionContext(specs);
         const statements = this.visit(ctx.statements, exc);
         return statements;
     }
@@ -246,6 +243,15 @@ class AirVisitor extends BaseCstVisitor {
         const fBlock = this.visit(ctx.fBlock, exc);
         exc.destroyVariableFrame();
         return new expressions.WhenExpression(registerRef, tBlock, fBlock);
+    }
+    // TRANSITION CALL EXPRESSION
+    // --------------------------------------------------------------------------------------------
+    transitionCall(ctx, exc) {
+        const registers = ctx.registers[0].image;
+        if (registers !== '$r') {
+            throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
+        }
+        return exc.getTransitionFunctionCall();
     }
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------

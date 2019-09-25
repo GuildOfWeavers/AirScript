@@ -1,4 +1,4 @@
-export { Expression } from './Expression';
+export { Expression, ExpressionDegree } from './Expression';
 export { LiteralExpression } from './LiteralExpression';
 export { SymbolReference } from './SymbolReference';
 export { BinaryOperation } from './operations/BinaryOperation';
@@ -10,3 +10,4 @@ export { SliceVector } from './vectors/SliceVector';
 export { CreateMatrix } from './matrixes/CreateMatrix';
 export { StatementBlock, Statement } from './StatementBlock';
 export { WhenExpression } from './WhenExpression';
+export { SubroutineCall } from './SubroutineCall';

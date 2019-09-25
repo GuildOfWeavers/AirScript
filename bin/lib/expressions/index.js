@@ -24,4 +24,6 @@ var StatementBlock_1 = require("./StatementBlock");
 exports.StatementBlock = StatementBlock_1.StatementBlock;
 var WhenExpression_1 = require("./WhenExpression");
 exports.WhenExpression = WhenExpression_1.WhenExpression;
+var SubroutineCall_1 = require("./SubroutineCall");
+exports.SubroutineCall = SubroutineCall_1.SubroutineCall;
 //# sourceMappingURL=index.js.map

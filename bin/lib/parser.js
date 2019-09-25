@@ -172,6 +172,14 @@ class AirParser extends chevrotain_1.CstParser {
             this.SUBRULE2(this.statementBlock, { LABEL: 'fBlock' });
             this.CONSUME2(lexer_1.RCurly);
         });
+        // TRANSITION CALL EXPRESSION
+        // --------------------------------------------------------------------------------------------
+        this.transitionCall = this.RULE('transitionCall', () => {
+            this.CONSUME(lexer_1.Transition);
+            this.CONSUME(lexer_1.LParen);
+            this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
+            this.CONSUME(lexer_1.RParen);
+        });
         // VECTORS AND MATRIXES
         // --------------------------------------------------------------------------------------------
         this.vector = this.RULE('vector', () => {
@@ -262,6 +270,7 @@ class AirParser extends chevrotain_1.CstParser {
                     } },
                 { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
                 { ALT: () => this.SUBRULE(this.whenExpression, { LABEL: 'expression' }) },
+                { ALT: () => this.SUBRULE(this.transitionCall, { LABEL: 'expression' }) },
                 { ALT: () => this.CONSUME(lexer_1.Identifier, { LABEL: 'symbol' }) },
                 { ALT: () => this.CONSUME(lexer_1.RegisterRef, { LABEL: 'symbol' }) },
                 { ALT: () => this.CONSUME(lexer_1.RegisterBank, { LABEL: 'symbol' }) },

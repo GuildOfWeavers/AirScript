@@ -5,6 +5,13 @@ import { StatementBlock } from "./expressions";
 import { ScriptSpecs } from "./ScriptSpecs";
 import { TransitionFunction, ConstraintEvaluator } from "./AirObject";
 
+// INTERFACES
+// ================================================================================================
+export interface AirModule {
+    transition  : TransitionFunction;
+    evaluate    : ConstraintEvaluator;
+}
+
 // CLASS DEFINITION
 // ================================================================================================
 export class CodeGenerator {
@@ -25,59 +32,26 @@ export class CodeGenerator {
 
     // CODE GENERATORS
     // --------------------------------------------------------------------------------------------
-    generateTransitionFunction(statements: StatementBlock): TransitionFunction {
-        this.validateTransitionStatements(statements);
+    generateJsModule(tFunctionBody: StatementBlock, tConstraintsBody: StatementBlock): AirModule {
 
-        let code = 'let result;\n'
-        code += `${statements.toAssignment('result')}`;
-        code += (statements.isScalar ? 'return [result];\n' : 'return result.values;\n')
+        // build transition function
+        let tFunctionCode = 'let result;\n'
+        tFunctionCode += `${tFunctionBody.toAssignment('result')}`;
+        tFunctionCode += (tFunctionBody.isScalar ? 'return [result];\n' : 'return result.values;\n');
+        tFunctionCode = `function transition (r, k, s, p) {\n${tFunctionCode}}`;
 
-        let functionBuilderCode = `'use strict';\n\n`;
-        functionBuilderCode += `return function (r, k, s, p) {\n${code}}`;
-        const buildFunction = new Function('f', 'g', functionBuilderCode);
+        // build constraint evaluator
+        let tEvaluatorCode = 'let result;\n'
+        tEvaluatorCode += `${tConstraintsBody.toAssignment('result')}`;
+        tEvaluatorCode += (tConstraintsBody.isScalar ? 'return [result];\n' : 'return result.values;\n');
+        tEvaluatorCode = `function evaluate (r, n, k, s, p) {\n${tEvaluatorCode}}`;
 
-        return buildFunction(this.field, this.constantBindings);
-    }
+        // build and return the module
+        let moduleCode = `'use strict';\n\n`;
+        moduleCode += `${tFunctionCode}\n\n${tEvaluatorCode}\n\n`;
+        moduleCode += `return { transition, evaluate };`
+        const moduleBuilder = new Function('f', 'g', moduleCode);
 
-    generateConstraintEvaluator(statements: StatementBlock): ConstraintEvaluator {
-        this.validateConstraintStatements(statements);
-
-        let code = 'let result;\n'
-        code += `${statements.toAssignment('result')}`;
-        code += (statements.isScalar ? 'return [result];\n' : 'return result.values;\n')
-        
-        let evaluatorBuilderCode = `'use strict';\n\n`;
-        evaluatorBuilderCode += `return function (r, n, k, s, p) {\n${code}}`;
-        const buildEvaluator = new Function('f', 'g', evaluatorBuilderCode);
-
-        return buildEvaluator(this.field, this.constantBindings);
-    }
-
-    // VALIDATORS
-    // --------------------------------------------------------------------------------------------
-    private validateTransitionStatements(statements: StatementBlock): void {
-        if (this.mutableRegisterCount === 1) {
-            if (!statements.isScalar && (!statements.isVector || statements.dimensions[0] !== 1)) {
-                throw new Error(`Transition function must evaluate to scalar or to a vector of exactly 1 value`);
-            }
-        }
-        else {
-            if (!statements.isVector || statements.dimensions[0] !== this.mutableRegisterCount) {
-                throw new Error(`Transition function must evaluate to a vector of exactly ${this.mutableRegisterCount} values`);
-            }
-        }
-    }
-
-    private validateConstraintStatements(statements: StatementBlock): void {
-        if (this.constraintCount === 1) {
-            if (!statements.isScalar && (!statements.isVector || statements.dimensions[0] !== 1)) {
-                throw new Error(`Transition constraints must evaluate to scalar or to a vector of exactly 1 value`);
-            }
-        }
-        else {
-            if (!statements.isVector || statements.dimensions[0] !== this.constraintCount) {
-                throw new Error(`Transition constraints must evaluate to a vector of exactly ${this.constraintCount} values`);
-            }
-        }
+        return moduleBuilder(this.field, this.constantBindings);
     }
 }

@@ -1,7 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-// IMPORTS
-// ================================================================================================
 const utils_1 = require("../utils");
 const expressions_1 = require("../expressions");
 // CLASS DEFINITION
@@ -9,7 +7,7 @@ const expressions_1 = require("../expressions");
 class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(specs, canAccessFutureState) {
+    constructor(specs) {
         this.subroutines = new Map();
         this.localVariables = [new Map()];
         this.staticConstants = specs.staticConstants;
@@ -17,7 +15,13 @@ class ExecutionContext {
         this.staticRegisters = specs.staticRegisters;
         this.secretRegisters = specs.secretRegisters;
         this.publicRegisters = specs.publicRegisters;
-        this.canAccessFutureState = canAccessFutureState;
+        this.tFunctionDegree = specs.tFunctionDegree;
+    }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get canAccessFutureState() {
+        // if transition function degree has been set, we are in transition constraints
+        return (this.tFunctionDegree !== undefined);
     }
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
@@ -140,6 +144,15 @@ class ExecutionContext {
             return this.publicRegisters.length;
         else
             throw new Error(`register bank name $${bankName} is invalid`);
+    }
+    // SUBROUTINES
+    // --------------------------------------------------------------------------------------------
+    getTransitionFunctionCall() {
+        if (!this.canAccessFutureState) {
+            throw new Error(`transition function cannot call itself recursively`);
+        }
+        const dimensions = [this.mutableRegisterCount, 0];
+        return new expressions_1.SubroutineCall('transition', ['r', 'k', 's', 'p'], dimensions, this.tFunctionDegree);
     }
 }
 exports.ExecutionContext = ExecutionContext;
