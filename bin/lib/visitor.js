@@ -30,7 +30,7 @@ class AirVisitor extends BaseCstVisitor {
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
         if (ctx.staticConstants) {
-            specs.setStaticConstants(ctx.staticConstants.map((element) => this.visit(element)));
+            specs.setStaticConstants(ctx.staticConstants.map((element) => this.visit(element, field)));
         }
         // build readonly registers
         let readonlyRegisters;
@@ -82,20 +82,20 @@ class AirVisitor extends BaseCstVisitor {
     }
     // STATIC CONSTANTS
     // --------------------------------------------------------------------------------------------
-    constantDeclaration(ctx) {
+    constantDeclaration(ctx, field) {
         const name = ctx.constantName[0].image;
         let value;
         let dimensions;
         if (ctx.value) {
-            value = this.visit(ctx.value);
+            value = this.visit(ctx.value, field);
             dimensions = [0, 0];
         }
         else if (ctx.vector) {
-            value = this.visit(ctx.vector);
+            value = this.visit(ctx.vector, field);
             dimensions = [value.length, 0];
         }
         else if (ctx.matrix) {
-            value = this.visit(ctx.matrix);
+            value = this.visit(ctx.matrix, field);
             dimensions = [value.length, value[0].length];
         }
         else {
@@ -104,20 +104,20 @@ class AirVisitor extends BaseCstVisitor {
         utils_1.validateVariableName(name, dimensions);
         return { name, value, dimensions };
     }
-    literalVector(ctx) {
+    literalVector(ctx, field) {
         const vector = new Array(ctx.elements.length);
         for (let i = 0; i < ctx.elements.length; i++) {
-            let element = this.visit(ctx.elements[i]);
+            let element = this.visit(ctx.elements[i], field);
             vector[i] = element;
         }
         return vector;
     }
-    literalMatrix(ctx) {
+    literalMatrix(ctx, field) {
         let colCount = 0;
         const rowCount = ctx.rows.length;
         const matrix = new Array(rowCount);
         for (let i = 0; i < rowCount; i++) {
-            let row = this.visit(ctx.rows[i]);
+            let row = this.visit(ctx.rows[i], field);
             if (colCount === 0) {
                 colCount = row.length;
             }
@@ -128,10 +128,10 @@ class AirVisitor extends BaseCstVisitor {
         }
         return matrix;
     }
-    literalMatrixRow(ctx) {
+    literalMatrixRow(ctx, field) {
         const row = new Array(ctx.elements.length);
         for (let i = 0; i < ctx.elements.length; i++) {
-            let element = this.visit(ctx.elements[i]);
+            let element = this.visit(ctx.elements[i], field);
             row[i] = element;
         }
         return row;
@@ -348,33 +348,33 @@ class AirVisitor extends BaseCstVisitor {
     }
     // LITERAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------
-    literalExpression(ctx) {
-        let result = this.visit(ctx.lhs);
+    literalExpression(ctx, field) {
+        let result = this.visit(ctx.lhs, field);
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand, i) => {
-                let rhsValue = this.visit(rhsOperand);
+                let rhsValue = this.visit(rhsOperand, field);
                 let operator = ctx.AddOp[i];
                 if (chevrotain_1.tokenMatcher(operator, lexer_1.Plus)) {
-                    result = result + rhsValue;
+                    result = field ? field.add(result, rhsValue) : (result + rhsValue);
                 }
                 else if (chevrotain_1.tokenMatcher(operator, lexer_1.Minus)) {
-                    result = result - rhsValue;
+                    result = field ? field.sub(result, rhsValue) : (result - rhsValue);
                 }
             });
         }
         return result;
     }
-    literalMulExpression(ctx) {
-        let result = this.visit(ctx.lhs);
+    literalMulExpression(ctx, field) {
+        let result = this.visit(ctx.lhs, field);
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand, i) => {
-                let rhsValue = this.visit(rhsOperand);
+                let rhsValue = this.visit(rhsOperand, field);
                 let operator = ctx.MulOp[i];
                 if (chevrotain_1.tokenMatcher(operator, lexer_1.Star)) {
-                    result = result * rhsValue;
+                    result = field ? field.mul(result, rhsValue) : (result * rhsValue);
                 }
                 else if (chevrotain_1.tokenMatcher(operator, lexer_1.Slash)) {
-                    result = result / rhsValue;
+                    result = field ? field.div(result, rhsValue) : (result / rhsValue);
                 }
                 else if (chevrotain_1.tokenMatcher(operator, lexer_1.Pound)) {
                     throw new Error('Matrix multiplication is supported for literal expressions');
@@ -383,12 +383,12 @@ class AirVisitor extends BaseCstVisitor {
         }
         return result;
     }
-    literalExpExpression(ctx) {
-        let result = this.visit(ctx.base);
+    literalExpExpression(ctx, field) {
+        let result = this.visit(ctx.base, field);
         if (ctx.exponent) {
             ctx.exponent.forEach((expOperand) => {
-                let expValue = this.visit(expOperand);
-                result = result ** expValue;
+                let expValue = this.visit(expOperand, field);
+                result = field ? field.exp(result, expValue) : (result ** expValue);
             });
         }
         return result;

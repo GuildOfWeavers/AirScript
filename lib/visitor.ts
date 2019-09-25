@@ -63,7 +63,7 @@ class AirVisitor extends BaseCstVisitor {
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
         if (ctx.staticConstants) {
-            specs.setStaticConstants(ctx.staticConstants.map((element: any) => this.visit(element)));
+            specs.setStaticConstants(ctx.staticConstants.map((element: any) => this.visit(element, field)));
         }
 
         // build readonly registers
@@ -123,20 +123,20 @@ class AirVisitor extends BaseCstVisitor {
 
     // STATIC CONSTANTS
     // --------------------------------------------------------------------------------------------
-    constantDeclaration(ctx: any): ConstantDeclaration {
+    constantDeclaration(ctx: any, field?: FiniteField): ConstantDeclaration {
         const name = ctx.constantName[0].image;
         let value: any;
         let dimensions: Dimensions;
         if (ctx.value) {
-            value = this.visit(ctx.value);
+            value = this.visit(ctx.value, field);
             dimensions = [0, 0];
         }
         else if (ctx.vector) {
-            value = this.visit(ctx.vector);
+            value = this.visit(ctx.vector, field);
             dimensions = [value.length, 0];
         }
         else if (ctx.matrix) {
-            value = this.visit(ctx.matrix);
+            value = this.visit(ctx.matrix, field);
             dimensions = [value.length, value[0].length];
         }
         else {
@@ -147,23 +147,23 @@ class AirVisitor extends BaseCstVisitor {
         return { name, value, dimensions };
     }
 
-    literalVector(ctx: any) {
+    literalVector(ctx: any, field?: FiniteField) {
         const vector = new Array<bigint>(ctx.elements.length);
         for (let i = 0; i < ctx.elements.length; i++) {
-            let element: bigint = this.visit(ctx.elements[i]);
+            let element: bigint = this.visit(ctx.elements[i], field);
             vector[i] = element;
         }
         return vector;
     }
 
-    literalMatrix(ctx: any) {
+    literalMatrix(ctx: any, field?: FiniteField) {
 
         let colCount = 0;
         const rowCount = ctx.rows.length;
         const matrix = new Array<bigint[]>(rowCount);
         
         for (let i = 0; i < rowCount; i++) {
-            let row: bigint[] = this.visit(ctx.rows[i]);
+            let row: bigint[] = this.visit(ctx.rows[i], field);
             if (colCount === 0) {
                 colCount = row.length;
             }
@@ -175,10 +175,10 @@ class AirVisitor extends BaseCstVisitor {
         return matrix;
     }
 
-    literalMatrixRow(ctx: any) {
+    literalMatrixRow(ctx: any, field?: FiniteField) {
         const row = new Array<bigint>(ctx.elements.length);
         for (let i = 0; i < ctx.elements.length; i++) {
-            let element = this.visit(ctx.elements[i]);
+            let element = this.visit(ctx.elements[i], field);
             row[i] = element;
         }
         return row;
@@ -422,36 +422,36 @@ class AirVisitor extends BaseCstVisitor {
 
     // LITERAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------
-    literalExpression(ctx: any): bigint {
-        let result: bigint = this.visit(ctx.lhs);
+    literalExpression(ctx: any, field?: FiniteField): bigint {
+        let result: bigint = this.visit(ctx.lhs, field);
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
-                let rhsValue: bigint = this.visit(rhsOperand)
+                let rhsValue: bigint = this.visit(rhsOperand, field);
                 let operator = ctx.AddOp[i];
 
                 if (tokenMatcher(operator, Plus)) {
-                    result = result + rhsValue;
+                    result = field ? field.add(result, rhsValue) : (result + rhsValue);
                 }
                 else if (tokenMatcher(operator, Minus)) {
-                    result = result - rhsValue;
+                    result = field ? field.sub(result, rhsValue) : (result - rhsValue);
                 }
             });
         }
         return result;
     }
 
-    literalMulExpression(ctx: any): bigint {
-        let result: bigint = this.visit(ctx.lhs);
+    literalMulExpression(ctx: any, field?: FiniteField): bigint {
+        let result: bigint = this.visit(ctx.lhs, field);
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
-                let rhsValue: bigint = this.visit(rhsOperand)
+                let rhsValue: bigint = this.visit(rhsOperand, field);
                 let operator = ctx.MulOp[i];
 
                 if (tokenMatcher(operator, Star)) {
-                    result = result * rhsValue;
+                    result = field ? field.mul(result, rhsValue) : (result * rhsValue);
                 }
                 else if (tokenMatcher(operator, Slash)) {
-                    result = result / rhsValue;
+                    result = field ? field.div(result, rhsValue) : (result / rhsValue);
                 }
                 else if (tokenMatcher(operator, Pound)) {
                     throw new Error('Matrix multiplication is supported for literal expressions')
@@ -461,12 +461,12 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
 
-    literalExpExpression(ctx: any): bigint {
-        let result: bigint = this.visit(ctx.base);
+    literalExpExpression(ctx: any, field?: FiniteField): bigint {
+        let result: bigint = this.visit(ctx.base, field);
         if (ctx.exponent) {
             ctx.exponent.forEach((expOperand: any) => {
-                let expValue: bigint = this.visit(expOperand);
-                result = result ** expValue;
+                let expValue: bigint = this.visit(expOperand, field);
+                result = field ? field.exp(result, expValue) : (result ** expValue);
             });
         }
         return result;
