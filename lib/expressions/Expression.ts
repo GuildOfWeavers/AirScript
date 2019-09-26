@@ -6,6 +6,10 @@ import { Dimensions } from "../utils";
 // ================================================================================================
 export type ExpressionDegree = bigint | bigint[] | bigint[][];
 
+export interface JsCodeOptions {
+    vectorAsArray?: boolean;
+}
+
 // CLASS DEFINITION
 // ================================================================================================
 export abstract class Expression {
@@ -22,13 +26,7 @@ export abstract class Expression {
 
     // ABSTRACT METHODS
     // --------------------------------------------------------------------------------------------
-    abstract toCode(): string;
-
-    // PUBLIC METHODS
-    // --------------------------------------------------------------------------------------------
-    toAssignment(target: string): string {
-        return `${target} = ${this.toCode()};\n`;
-    }
+    abstract toJsCode(assignTo?: string, options?: JsCodeOptions): string;
 
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------

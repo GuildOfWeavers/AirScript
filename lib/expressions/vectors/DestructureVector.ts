@@ -1,8 +1,6 @@
 // IMPORTS
 // ================================================================================================
 import { Expression } from "../Expression";
-import { SymbolReference } from "../SymbolReference";
-import { SliceVector } from "./SliceVector";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -28,19 +26,8 @@ export class DestructureVector extends Expression {
         return true;
     }
 
-    toCode(): string {
-        if (this.source instanceof SymbolReference && this.source.isRegisterBank) {
-            return `...${this.source.symbol}`;
-        }
-        else if (this.source instanceof SliceVector) {
-            return `...${this.source.toCode(true)}`;
-        }
-        else {
-            return `...${this.source.toCode()}.values`;
-        }
-    }
-
-    toAssignment(target: string): string {
-        throw new Error('cannot assign a destructured value');
+    toJsCode(assignTo?: string): string {
+        if (assignTo) throw new Error('cannot assign a destructured value');
+        return `...${this.source.toJsCode(undefined, { vectorAsArray: true })}`;
     }
 }

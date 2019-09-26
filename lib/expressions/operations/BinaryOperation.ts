@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree } from "../Expression";
+import { Expression, ExpressionDegree, JsCodeOptions } from "../Expression";
 import { LiteralExpression } from "../LiteralExpression";
 import { Dimensions } from "../../utils";
 import {
@@ -132,9 +132,18 @@ export class BinaryOperation extends Expression {
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode(): string {
+    toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
         const opFunction = getOpFunction(this.operation, this.lhs, this.rhs);
-        return `f.${opFunction}(${this.lhs.toCode()}, ${this.rhs.toCode()})`;
+        let code = `f.${opFunction}(${this.lhs.toJsCode()}, ${this.rhs.toJsCode()})`;
+        
+        if (this.isVector && options.vectorAsArray) {
+            code = `${code}.values`;
+        }
+
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
+        }
+        return code;
     }
 }
 

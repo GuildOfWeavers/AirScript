@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression } from "../Expression";
+import { Expression, JsCodeOptions } from "../Expression";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -31,7 +31,16 @@ export class CreateVector extends Expression {
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode(): string {
-        return `f.newVectorFrom([${this.elements.map(e => e.toCode()).join(', ')}])`;
+    toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
+        let code = `[${this.elements.map(e => e.toJsCode()).join(', ')}]`;
+        
+        if (!options.vectorAsArray) {
+            code = `f.newVectorFrom(${code})`
+        }
+
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
+        }
+        return code;
     }
 }

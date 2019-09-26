@@ -3,8 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const Expression_1 = require("../Expression");
-const SymbolReference_1 = require("../SymbolReference");
-const SliceVector_1 = require("./SliceVector");
 // CLASS DEFINITION
 // ================================================================================================
 class DestructureVector extends Expression_1.Expression {
@@ -26,19 +24,10 @@ class DestructureVector extends Expression_1.Expression {
     get isList() {
         return true;
     }
-    toCode() {
-        if (this.source instanceof SymbolReference_1.SymbolReference && this.source.isRegisterBank) {
-            return `...${this.source.symbol}`;
-        }
-        else if (this.source instanceof SliceVector_1.SliceVector) {
-            return `...${this.source.toCode(true)}`;
-        }
-        else {
-            return `...${this.source.toCode()}.values`;
-        }
-    }
-    toAssignment(target) {
-        throw new Error('cannot assign a destructured value');
+    toJsCode(assignTo) {
+        if (assignTo)
+            throw new Error('cannot assign a destructured value');
+        return `...${this.source.toJsCode(undefined, { vectorAsArray: true })}`;
     }
 }
 exports.DestructureVector = DestructureVector;

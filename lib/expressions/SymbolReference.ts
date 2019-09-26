@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree } from './Expression';
+import { Expression, ExpressionDegree, JsCodeOptions } from './Expression';
 import { Dimensions } from '../utils';
 
 // CLASS DEFINITION
@@ -30,12 +30,21 @@ export class SymbolReference extends Expression {
         return (this.symbol.startsWith('$'));
     }
 
-    toCode(): string {
+    toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
+        let code = this.symbol;
+
         if (this.isRegisterBank) {
-            return `f.newVectorFrom(${this.symbol})`;
+            if (!options.vectorAsArray) {
+                code = `f.newVectorFrom(${code})`
+            }
         }
-        else {
-            return `${this.symbol}`;
+        else if (this.isVector && options.vectorAsArray) {
+            code = `${code}.values`;
         }
+
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
+        }
+        return code;
     }
 }

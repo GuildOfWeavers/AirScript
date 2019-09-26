@@ -26,8 +26,15 @@ class CreateVector extends Expression_1.Expression {
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode() {
-        return `f.newVectorFrom([${this.elements.map(e => e.toCode()).join(', ')}])`;
+    toJsCode(assignTo, options = {}) {
+        let code = `[${this.elements.map(e => e.toJsCode()).join(', ')}]`;
+        if (!options.vectorAsArray) {
+            code = `f.newVectorFrom(${code})`;
+        }
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
+        }
+        return code;
     }
 }
 exports.CreateVector = CreateVector;

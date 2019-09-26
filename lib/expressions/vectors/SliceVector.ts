@@ -1,7 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression } from "../Expression";
-import { SymbolReference } from "../SymbolReference";
+import { Expression, JsCodeOptions } from "../Expression";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -35,15 +34,19 @@ export class SliceVector extends Expression {
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode(skipWrapping = false): string {
-        let code = '';
-        if (this.source instanceof SymbolReference && this.source.isRegisterBank) {
-            code = `${this.source.symbol}.slice(${this.start}, ${this.end + 1})`;
+    toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
+
+        let code = this.source.toJsCode(undefined, { vectorAsArray: true });
+        if (options.vectorAsArray) {
+            code = `${code}.slice(${this.start}, ${this.end + 1})`;
         }
         else {
-            code = `${this.source.toCode()}.values.slice(${this.start}, ${this.end + 1})`;
+            code = `f.newVectorFrom(${code}.slice(${this.start}, ${this.end + 1}))`;
         }
 
-        return (skipWrapping ? code : `f.newVectorFrom(${code})`);
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
+        }
+        return code;
     }
 }

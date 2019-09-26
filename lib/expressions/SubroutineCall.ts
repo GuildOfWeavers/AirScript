@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree } from './Expression';
+import { Expression, ExpressionDegree, JsCodeOptions } from './Expression';
 import { Dimensions, isVector } from '../utils';
 
 // CLASS DEFINITION
@@ -21,8 +21,16 @@ export class SubroutineCall extends Expression {
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode(skipWrapping = false): string {
-        const code = `${this.subroutine}(${this.parameters.join(', ')})`;
-        return (skipWrapping ? code : `f.newVectorFrom(${code})`);
+    toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
+        let code = `${this.subroutine}(${this.parameters.join(', ')})`;
+        
+        if (!options.vectorAsArray) {
+            code = `f.newVectorFrom(${code})`;
+        }
+        
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
+        }
+        return code;
     }
 }

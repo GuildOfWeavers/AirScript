@@ -28,14 +28,16 @@ class WhenExpression extends Expression_1.Expression {
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toAssignment(target) {
+    toJsCode(assignTo, options = {}) {
+        if (!assignTo)
+            throw new Error('when..else expression cannot be converted to pure code');
         const tVal = 'tVal', fVal = 'fVal';
         // evaluate when and else branches
         let code = '';
         code += `let ${tVal}, ${fVal};\n`;
-        code += `${this.tBlock.toAssignment(tVal)}`;
+        code += `${this.tBlock.toJsCode(tVal)}`;
         const tValRef = new SymbolReference_1.SymbolReference(tVal, this.tBlock.dimensions, this.tBlock.degree);
-        code += `${this.fBlock.toAssignment(fVal)}`;
+        code += `${this.fBlock.toJsCode(fVal)}`;
         const fValRef = new SymbolReference_1.SymbolReference(fVal, this.fBlock.dimensions, this.tBlock.degree);
         // build expressions for when and else modifiers
         let tMod;
@@ -43,7 +45,7 @@ class WhenExpression extends Expression_1.Expression {
             tMod = this.condition;
         }
         else {
-            code += `${this.condition.toAssignment('let tCon')}`;
+            code += `${this.condition.toJsCode('let tCon')}`;
             tMod = new SymbolReference_1.SymbolReference('tCon', this.condition.dimensions, this.condition.degree);
         }
         const fMod = BinaryOperation_1.BinaryOperation.sub(ONE, tMod);
@@ -51,11 +53,8 @@ class WhenExpression extends Expression_1.Expression {
         const e1 = BinaryOperation_1.BinaryOperation.mul(tValRef, tMod);
         const e2 = BinaryOperation_1.BinaryOperation.mul(fValRef, fMod);
         const e3 = BinaryOperation_1.BinaryOperation.add(e1, e2);
-        code += `${e3.toAssignment(target)}`;
+        code += `${e3.toJsCode(assignTo, options)}`;
         return `{\n${code}}\n`;
-    }
-    toCode() {
-        throw new Error('when..else expression cannot be converted to pure code');
     }
 }
 exports.WhenExpression = WhenExpression;

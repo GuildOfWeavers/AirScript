@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree } from "../Expression";
+import { Expression, ExpressionDegree, JsCodeOptions } from "../Expression";
 import { Dimensions } from "../../utils";
 
 // INTERFACES
@@ -42,9 +42,18 @@ export class UnaryOperation extends Expression {
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode(): string {
+    toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
         const opFunction = getOpFunction(this.operation, this.operand);
-        return `f.${opFunction}(${this.operand.toCode()})`;
+        let code = `f.${opFunction}(${this.operand.toJsCode()})`;
+
+        if (this.isVector && options.vectorAsArray) {
+            code = `${code}.values`;
+        }
+
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
+        }
+        return code;
     }
 }
 

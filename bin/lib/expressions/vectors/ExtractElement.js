@@ -3,8 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const Expression_1 = require("../Expression");
-const SymbolReference_1 = require("../SymbolReference");
-const SliceVector_1 = require("./SliceVector");
 // CLASS DEFINITION
 // ================================================================================================
 class ExtractVectorElement extends Expression_1.Expression {
@@ -25,16 +23,12 @@ class ExtractVectorElement extends Expression_1.Expression {
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode() {
-        if (this.source instanceof SymbolReference_1.SymbolReference && this.source.isRegisterBank) {
-            return `${this.source.symbol}[${this.index}]`;
+    toJsCode(assignTo) {
+        let code = `${this.source.toJsCode(undefined, { vectorAsArray: true })}[${this.index}]`;
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
         }
-        else if (this.source instanceof SliceVector_1.SliceVector) {
-            return `${this.source.toCode(true)}[${this.index}]`;
-        }
-        else {
-            return `${this.source.toCode()}.values[${this.index}]`;
-        }
+        return code;
     }
 }
 exports.ExtractVectorElement = ExtractVectorElement;

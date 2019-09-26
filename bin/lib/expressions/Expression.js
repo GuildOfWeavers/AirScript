@@ -9,11 +9,6 @@ class Expression {
         this.dimensions = dimensions;
         this.degree = degree;
     }
-    // PUBLIC METHODS
-    // --------------------------------------------------------------------------------------------
-    toAssignment(target) {
-        return `${target} = ${this.toCode()};\n`;
-    }
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------
     get isScalar() {

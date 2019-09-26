@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const Expression_1 = require("../Expression");
-const SymbolReference_1 = require("../SymbolReference");
 // CLASS DEFINITION
 // ================================================================================================
 class SliceVector extends Expression_1.Expression {
@@ -29,15 +28,18 @@ class SliceVector extends Expression_1.Expression {
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode(skipWrapping = false) {
-        let code = '';
-        if (this.source instanceof SymbolReference_1.SymbolReference && this.source.isRegisterBank) {
-            code = `${this.source.symbol}.slice(${this.start}, ${this.end + 1})`;
+    toJsCode(assignTo, options = {}) {
+        let code = this.source.toJsCode(undefined, { vectorAsArray: true });
+        if (options.vectorAsArray) {
+            code = `${code}.slice(${this.start}, ${this.end + 1})`;
         }
         else {
-            code = `${this.source.toCode()}.values.slice(${this.start}, ${this.end + 1})`;
+            code = `f.newVectorFrom(${code}.slice(${this.start}, ${this.end + 1}))`;
         }
-        return (skipWrapping ? code : `f.newVectorFrom(${code})`);
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
+        }
+        return code;
     }
 }
 exports.SliceVector = SliceVector;

@@ -105,9 +105,16 @@ class BinaryOperation extends Expression_1.Expression {
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode() {
+    toJsCode(assignTo, options = {}) {
         const opFunction = getOpFunction(this.operation, this.lhs, this.rhs);
-        return `f.${opFunction}(${this.lhs.toCode()}, ${this.rhs.toCode()})`;
+        let code = `f.${opFunction}(${this.lhs.toJsCode()}, ${this.rhs.toJsCode()})`;
+        if (this.isVector && options.vectorAsArray) {
+            code = `${code}.values`;
+        }
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
+        }
+        return code;
     }
 }
 exports.BinaryOperation = BinaryOperation;

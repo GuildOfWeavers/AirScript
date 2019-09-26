@@ -36,14 +36,14 @@ export class CodeGenerator {
 
         // build transition function
         let tFunctionCode = 'let result;\n'
-        tFunctionCode += `${tFunctionBody.toAssignment('result')}`;
-        tFunctionCode += (tFunctionBody.isScalar ? 'return [result];\n' : 'return result.values;\n');
+        tFunctionCode += `${tFunctionBody.toJsCode('result', { vectorAsArray: true })}`;
+        tFunctionCode += (tFunctionBody.isScalar ? 'return [result];\n' : 'return result;\n');
         tFunctionCode = `function transition (r, k, s, p) {\n${tFunctionCode}}`;
 
         // build constraint evaluator
         let tEvaluatorCode = 'let result;\n'
-        tEvaluatorCode += `${tConstraintsBody.toAssignment('result')}`;
-        tEvaluatorCode += (tConstraintsBody.isScalar ? 'return [result];\n' : 'return result.values;\n');
+        tEvaluatorCode += `${tConstraintsBody.toJsCode('result', { vectorAsArray: true })}`;
+        tEvaluatorCode += (tConstraintsBody.isScalar ? 'return [result];\n' : 'return result;\n');
         tEvaluatorCode = `function evaluate (r, n, k, s, p) {\n${tEvaluatorCode}}`;
 
         // build and return the module

@@ -23,13 +23,20 @@ class SymbolReference extends Expression_1.Expression {
     get isVariable() {
         return (this.symbol.startsWith('$'));
     }
-    toCode() {
+    toJsCode(assignTo, options = {}) {
+        let code = this.symbol;
         if (this.isRegisterBank) {
-            return `f.newVectorFrom(${this.symbol})`;
+            if (!options.vectorAsArray) {
+                code = `f.newVectorFrom(${code})`;
+            }
         }
-        else {
-            return `${this.symbol}`;
+        else if (this.isVector && options.vectorAsArray) {
+            code = `${code}.values`;
         }
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
+        }
+        return code;
     }
 }
 exports.SymbolReference = SymbolReference;

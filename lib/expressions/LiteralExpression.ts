@@ -56,12 +56,11 @@ export class LiteralExpression extends Expression {
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode(): string {
-        if (typeof this.value === 'bigint') {
-            return `${this.value}n`;
+    toJsCode(assignTo?: string): string {
+        let code = (typeof this.value === 'bigint') ? `${this.value}n` : `g.${this.valueName}`;
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
         }
-        else {
-            return `g.${this.valueName}`;
-        }
+        return code;
     }
 }

@@ -18,9 +18,15 @@ class SubroutineCall extends Expression_1.Expression {
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode(skipWrapping = false) {
-        const code = `${this.subroutine}(${this.parameters.join(', ')})`;
-        return (skipWrapping ? code : `f.newVectorFrom(${code})`);
+    toJsCode(assignTo, options = {}) {
+        let code = `${this.subroutine}(${this.parameters.join(', ')})`;
+        if (!options.vectorAsArray) {
+            code = `f.newVectorFrom(${code})`;
+        }
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
+        }
+        return code;
     }
 }
 exports.SubroutineCall = SubroutineCall;

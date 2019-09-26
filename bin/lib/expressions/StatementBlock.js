@@ -24,8 +24,10 @@ class StatementBlock extends Expression_1.Expression {
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toAssignment(target) {
-        let code = '';
+    toJsCode(assignTo, options = {}) {
+        if (!assignTo)
+            throw new Error('statement block cannot be converted to pure code');
+        let code = ``;
         // declare block variables
         if (this.localVariables.size > 0) {
             const variables = [];
@@ -37,16 +39,13 @@ class StatementBlock extends Expression_1.Expression {
         // build code for variable assignments
         if (this.statements) {
             for (let { variable, expression } of this.statements) {
-                code += `${expression.toAssignment(variable)}`;
+                code += `${expression.toJsCode(variable)}`;
             }
         }
         // build code for the terminating expression
-        code += `${this.outExpression.toAssignment(target)}`;
+        code += `${this.outExpression.toJsCode(assignTo, options)}`;
         // return statement block
         return `{\n${code}}\n`;
-    }
-    toCode() {
-        throw new Error('statement block cannot be converted to pure code');
     }
 }
 exports.StatementBlock = StatementBlock;

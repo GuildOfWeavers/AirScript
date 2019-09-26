@@ -43,13 +43,12 @@ class LiteralExpression extends Expression_1.Expression {
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode() {
-        if (typeof this.value === 'bigint') {
-            return `${this.value}n`;
+    toJsCode(assignTo) {
+        let code = (typeof this.value === 'bigint') ? `${this.value}n` : `g.${this.valueName}`;
+        if (assignTo) {
+            code = `${assignTo} = ${code};\n`;
         }
-        else {
-            return `g.${this.valueName}`;
-        }
+        return code;
     }
 }
 exports.LiteralExpression = LiteralExpression;

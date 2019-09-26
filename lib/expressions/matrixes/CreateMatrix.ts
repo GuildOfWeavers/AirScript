@@ -43,8 +43,9 @@ export class CreateMatrix extends Expression {
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toCode(): string {
-        const rows = this.elements.map(r => `[${r.map(e => e.toCode()).join(', ')}]`);
-        return `f.newMatrixFrom([${rows.join(', ')}])`;
+    toJsCode(assignTo?: string): string {
+        if (!assignTo) throw new Error('matrix instantiation cannot be converted to pure code');
+        const rows = this.elements.map(r => `[${r.map(e => e.toJsCode()).join(', ')}]`);
+        return `${assignTo} = f.newMatrixFrom([${rows.join(', ')}])`;
     }
 }
