@@ -14,17 +14,17 @@ const ONE = new SymbolReference_1.SymbolReference('f.one', [0, 0], 0n);
 class WhenExpression extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(condition, tBlock, fBlock) {
-        if (!tBlock.isSameDimensions(fBlock)) {
+    constructor(condition, tBranch, fBranch) {
+        if (!tBranch.isSameDimensions(fBranch)) {
             throw new Error(`when...else statement branches must evaluate to values of same dimensions`);
         }
-        const tDegree = utils_1.sumDegree(tBlock.degree, condition.degree);
-        const fDegree = utils_1.sumDegree(fBlock.degree, condition.degree);
+        const tDegree = utils_1.sumDegree(tBranch.degree, condition.degree);
+        const fDegree = utils_1.sumDegree(fBranch.degree, condition.degree);
         const degree = utils_1.maxDegree(tDegree, fDegree);
-        super(tBlock.dimensions, degree);
+        super(tBranch.dimensions, degree);
         this.condition = condition;
-        this.tBlock = tBlock;
-        this.fBlock = fBlock;
+        this.tBranch = tBranch;
+        this.fBranch = fBranch;
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
@@ -35,10 +35,10 @@ class WhenExpression extends Expression_1.Expression {
         // evaluate when and else branches
         let code = '';
         code += `let ${tVal}, ${fVal};\n`;
-        code += `${this.tBlock.toJsCode(tVal)}`;
-        const tValRef = new SymbolReference_1.SymbolReference(tVal, this.tBlock.dimensions, this.tBlock.degree);
-        code += `${this.fBlock.toJsCode(fVal)}`;
-        const fValRef = new SymbolReference_1.SymbolReference(fVal, this.fBlock.dimensions, this.tBlock.degree);
+        code += `${this.tBranch.toJsCode(tVal)}`;
+        const tValRef = new SymbolReference_1.SymbolReference(tVal, this.tBranch.dimensions, this.tBranch.degree);
+        code += `${this.fBranch.toJsCode(fVal)}`;
+        const fValRef = new SymbolReference_1.SymbolReference(fVal, this.fBranch.dimensions, this.tBranch.degree);
         // build expressions for when and else modifiers
         let tMod;
         if (this.condition instanceof SymbolReference_1.SymbolReference) {

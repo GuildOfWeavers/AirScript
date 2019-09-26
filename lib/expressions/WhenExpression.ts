@@ -1,7 +1,6 @@
 // IMPORTS
 // ================================================================================================
 import { Expression, JsCodeOptions } from './Expression';
-import { StatementBlock } from './StatementBlock';
 import { BinaryOperation } from './operations/BinaryOperation';
 import { SymbolReference } from './SymbolReference';
 import { sumDegree, maxDegree } from './utils';
@@ -15,24 +14,24 @@ const ONE = new SymbolReference('f.one', [0, 0], 0n);
 export class WhenExpression extends Expression {
 
     readonly condition  : Expression;
-    readonly tBlock     : StatementBlock;
-    readonly fBlock     : StatementBlock;
+    readonly tBranch    : Expression;
+    readonly fBranch     : Expression;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(condition: Expression, tBlock: StatementBlock, fBlock: StatementBlock) {
-        if (!tBlock.isSameDimensions(fBlock)) {
+    constructor(condition: Expression, tBranch: Expression, fBranch: Expression) {
+        if (!tBranch.isSameDimensions(fBranch)) {
             throw new Error(`when...else statement branches must evaluate to values of same dimensions`);
         }
 
-        const tDegree = sumDegree(tBlock.degree, condition.degree);
-        const fDegree = sumDegree(fBlock.degree, condition.degree);
+        const tDegree = sumDegree(tBranch.degree, condition.degree);
+        const fDegree = sumDegree(fBranch.degree, condition.degree);
         const degree = maxDegree(tDegree, fDegree);
 
-        super(tBlock.dimensions, degree);
+        super(tBranch.dimensions, degree);
         this.condition = condition;
-        this.tBlock = tBlock;
-        this.fBlock = fBlock;
+        this.tBranch = tBranch;
+        this.fBranch = fBranch;
     }
 
     // PUBLIC MEMBERS
@@ -45,10 +44,10 @@ export class WhenExpression extends Expression {
         // evaluate when and else branches
         let code = '';
         code += `let ${tVal}, ${fVal};\n`;
-        code += `${this.tBlock.toJsCode(tVal)}`;
-        const tValRef = new SymbolReference(tVal, this.tBlock.dimensions, this.tBlock.degree);
-        code += `${this.fBlock.toJsCode(fVal)}`;
-        const fValRef = new SymbolReference(fVal, this.fBlock.dimensions, this.tBlock.degree);
+        code += `${this.tBranch.toJsCode(tVal)}`;
+        const tValRef = new SymbolReference(tVal, this.tBranch.dimensions, this.tBranch.degree);
+        code += `${this.fBranch.toJsCode(fVal)}`;
+        const fValRef = new SymbolReference(fVal, this.fBranch.dimensions, this.tBranch.degree);
 
         // build expressions for when and else modifiers
         let tMod: Expression;

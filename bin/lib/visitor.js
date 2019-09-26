@@ -229,20 +229,24 @@ class AirVisitor extends BaseCstVisitor {
     // WHEN...ELSE EXPRESSION
     // --------------------------------------------------------------------------------------------
     whenExpression(ctx, exc) {
-        const registerName = ctx.condition[0].image;
+        const condition = this.visit(ctx.condition, exc);
+        // build subroutines for true and false conditions
+        exc.createNewVariableFrame();
+        const tBlock = this.visit(ctx.tExpression, exc);
+        exc.destroyVariableFrame();
+        exc.createNewVariableFrame();
+        const fBlock = this.visit(ctx.fExpression, exc);
+        exc.destroyVariableFrame();
+        return new expressions.WhenExpression(condition, tBlock, fBlock);
+    }
+    whenCondition(ctx, exc) {
+        const registerName = ctx.register[0].image;
         const registerRef = exc.getSymbolReference(registerName);
         // make sure the condition register holds only binary values
         if (!exc.isBinaryRegister(registerName)) {
             throw new Error(`when...else expression condition must be based on a binary register`);
         }
-        // build subroutines for true and false conditions
-        exc.createNewVariableFrame();
-        const tBlock = this.visit(ctx.tBlock, exc);
-        exc.destroyVariableFrame();
-        exc.createNewVariableFrame();
-        const fBlock = this.visit(ctx.fBlock, exc);
-        exc.destroyVariableFrame();
-        return new expressions.WhenExpression(registerRef, tBlock, fBlock);
+        return registerRef;
     }
     // TRANSITION CALL EXPRESSION
     // --------------------------------------------------------------------------------------------
