@@ -5,7 +5,7 @@ import { LiteralExpression } from "../LiteralExpression";
 import { Dimensions } from "../../utils";
 import {
     maxDegree, sumDegree, mulDegree, linearCombinationDegree, matrixVectorProductDegree, matrixMatrixProductDegree
-} from '../degreeUtils';
+} from '../utils';
 
 // INTERFACES
 // ================================================================================================

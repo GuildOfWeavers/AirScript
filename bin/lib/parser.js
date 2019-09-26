@@ -197,7 +197,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         this.vectorDestructuring = this.RULE('vectorDestructuring', () => {
             this.CONSUME(lexer_1.Ellipsis);
-            this.SUBRULE(this.expression, { LABEL: 'vector' });
+            this.SUBRULE(this.vectorExpression, { LABEL: 'vector' });
         });
         this.matrix = this.RULE('matrix', () => {
             this.CONSUME(lexer_1.LSquare);

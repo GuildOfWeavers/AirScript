@@ -106,4 +106,4 @@ function matrixDegree(op, d1, d2) {
     }
     return result;
 }
-//# sourceMappingURL=degreeUtils.js.map
+//# sourceMappingURL=utils.js.map

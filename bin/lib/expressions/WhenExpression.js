@@ -5,7 +5,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Expression_1 = require("./Expression");
 const BinaryOperation_1 = require("./operations/BinaryOperation");
 const SymbolReference_1 = require("./SymbolReference");
-const degreeUtils_1 = require("./degreeUtils");
+const utils_1 = require("./utils");
 // MODULE VARIABLES
 // ================================================================================================
 const ONE = new SymbolReference_1.SymbolReference('f.one', [0, 0], 0n);
@@ -18,9 +18,9 @@ class WhenExpression extends Expression_1.Expression {
         if (!tBlock.isSameDimensions(fBlock)) {
             throw new Error(`when...else statement branches must evaluate to values of same dimensions`);
         }
-        const tDegree = degreeUtils_1.sumDegree(tBlock.degree, condition.degree);
-        const fDegree = degreeUtils_1.sumDegree(fBlock.degree, condition.degree);
-        const degree = degreeUtils_1.maxDegree(tDegree, fDegree);
+        const tDegree = utils_1.sumDegree(tBlock.degree, condition.degree);
+        const fDegree = utils_1.sumDegree(fBlock.degree, condition.degree);
+        const degree = utils_1.maxDegree(tDegree, fDegree);
         super(tBlock.dimensions, degree);
         this.condition = condition;
         this.tBlock = tBlock;

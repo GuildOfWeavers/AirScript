@@ -4,7 +4,7 @@ import { Expression, JsCodeOptions } from './Expression';
 import { StatementBlock } from './StatementBlock';
 import { BinaryOperation } from './operations/BinaryOperation';
 import { SymbolReference } from './SymbolReference';
-import { sumDegree, maxDegree } from './degreeUtils';
+import { sumDegree, maxDegree } from './utils';
 
 // MODULE VARIABLES
 // ================================================================================================

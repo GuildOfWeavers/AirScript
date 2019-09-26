@@ -219,7 +219,7 @@ class AirParser extends CstParser {
 
     private vectorDestructuring = this.RULE('vectorDestructuring', () => {
         this.CONSUME(Ellipsis);
-        this.SUBRULE(this.expression, { LABEL: 'vector' });
+        this.SUBRULE(this.vectorExpression, { LABEL: 'vector' });
     });
 
     private matrix = this.RULE('matrix', () => {
