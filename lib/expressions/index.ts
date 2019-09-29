@@ -11,3 +11,4 @@ export { CreateMatrix } from './matrixes/CreateMatrix';
 export { StatementBlock, Statement } from './StatementBlock';
 export { WhenExpression } from './WhenExpression';
 export { SubroutineCall } from './SubroutineCall';
+export { TransitionBlock, TransitionSegment } from './TransitionBlock';

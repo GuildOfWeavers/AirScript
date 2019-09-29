@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { FiniteField } from "@guildofweavers/galois";
-import { StatementBlock } from "./expressions";
+import { Expression, TransitionBlock } from "./expressions";
 import { ScriptSpecs } from "./ScriptSpecs";
 import { TransitionFunction, ConstraintEvaluator } from "./AirObject";
 
@@ -32,13 +32,10 @@ export class CodeGenerator {
 
     // CODE GENERATORS
     // --------------------------------------------------------------------------------------------
-    generateJsModule(tFunctionBody: StatementBlock, tConstraintsBody: StatementBlock): AirModule {
+    generateJsModule(tFunctionBody: TransitionBlock, tConstraintsBody: Expression): AirModule {
 
         // build transition function
-        let tFunctionCode = 'let result;\n'
-        tFunctionCode += `${tFunctionBody.toJsCode('result', { vectorAsArray: true })}`;
-        tFunctionCode += (tFunctionBody.isScalar ? 'return [result];\n' : 'return result;\n');
-        tFunctionCode = `function transition (r, k, s, p) {\n${tFunctionCode}}`;
+        const tFunctionCode = `function transition (r, k, s, p) {\n${tFunctionBody.toJsCode()}}`;
 
         // build constraint evaluator
         let tEvaluatorCode = 'let result;\n'

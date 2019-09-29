@@ -15,10 +15,7 @@ class CodeGenerator {
     // --------------------------------------------------------------------------------------------
     generateJsModule(tFunctionBody, tConstraintsBody) {
         // build transition function
-        let tFunctionCode = 'let result;\n';
-        tFunctionCode += `${tFunctionBody.toJsCode('result', { vectorAsArray: true })}`;
-        tFunctionCode += (tFunctionBody.isScalar ? 'return [result];\n' : 'return result;\n');
-        tFunctionCode = `function transition (r, k, s, p) {\n${tFunctionCode}}`;
+        const tFunctionCode = `function transition (r, k, s, p) {\n${tFunctionBody.toJsCode()}}`;
         // build constraint evaluator
         let tEvaluatorCode = 'let result;\n';
         tEvaluatorCode += `${tConstraintsBody.toJsCode('result', { vectorAsArray: true })}`;

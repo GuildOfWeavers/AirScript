@@ -5,11 +5,11 @@ import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galo
 import { tokenMatcher } from 'chevrotain';
 import { AirConfig } from './AirObject';
 import { parser } from './parser';
-import { Plus, Star, Slash, Pound, Minus, Degree } from './lexer';
+import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ExecutionContext } from './contexts';
 import { ReadonlyValuePattern, ReadonlyRegisterSpecs, InputRegisterSpecs } from './registers';
-import { Expression, StatementBlock, Statement } from './expressions';
+import { Expression, TransitionBlock, TransitionSegment, StatementBlock, Statement } from './expressions';
 import * as expressions from './expressions';
 import { Dimensions, validateVariableName } from './utils';
 import { CodeGenerator } from './generator';
@@ -58,7 +58,7 @@ class AirVisitor extends BaseCstVisitor {
         // build script specs
         const specs = new ScriptSpecs(config.limits);
         specs.setField(field);
-        specs.setSteps(this.visit(ctx.steps));
+        specs.setSteps(64n);    // TODO
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
@@ -79,7 +79,7 @@ class AirVisitor extends BaseCstVisitor {
 
         // parse transition function and transition constraints
         validateTransitionFunction(ctx.transitionFunction);
-        const tFunctionBody: StatementBlock = this.visit(ctx.transitionFunction, specs);
+        const tFunctionBody: TransitionBlock = this.visit(ctx.transitionFunction, specs);
         specs.setTransitionFunctionDegree(tFunctionBody);
         
         validateTransitionConstraints(ctx.transitionConstraints);
@@ -256,16 +256,29 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, specs: ScriptSpecs): StatementBlock {
+    transitionFunction(ctx: any, specs: ScriptSpecs): Expression {
         const exc = new ExecutionContext(specs);
-        const statements: StatementBlock = this.visit(ctx.statements, exc);
-        return statements;
+        const segments: TransitionSegment[] = ctx.segments.map((segment: any) => this.visit(segment, exc));
+        const block = new TransitionBlock(segments);
+        return block;
     }
 
     transitionConstraints(ctx: any, specs: ScriptSpecs): StatementBlock {
         const exc = new ExecutionContext(specs);
         const statements: StatementBlock = this.visit(ctx.statements, exc);
         return statements;
+    }
+
+    // SEGMENTS
+    // --------------------------------------------------------------------------------------------
+    transitionSegment(ctx: any, exc: ExecutionContext): TransitionSegment {
+        const intervals: [number, number][] = [];
+        ctx.ranges.forEach((range: any) => {
+            let interval: [number, number] = this.visit(range);
+            intervals.push(interval);
+        });
+        const statements: StatementBlock = this.visit(ctx.statements, exc);
+        return { intervals, statements };
     }
 
     // STATEMENTS
@@ -516,6 +529,12 @@ class AirVisitor extends BaseCstVisitor {
         }
 
         return result;
+    }
+
+    literalRangeExpression(ctx: any): [number, number] {
+        let start = Number.parseInt(ctx.start[0].image, 10);
+        let end = ctx.end ? Number.parseInt(ctx.end[0].image, 10) : start;
+        return [start, end];
     }
 }
 

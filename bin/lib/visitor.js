@@ -25,7 +25,7 @@ class AirVisitor extends BaseCstVisitor {
         // build script specs
         const specs = new ScriptSpecs_1.ScriptSpecs(config.limits);
         specs.setField(field);
-        specs.setSteps(this.visit(ctx.steps));
+        specs.setSteps(64n); // TODO
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
@@ -203,13 +203,25 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx, specs) {
         const exc = new contexts_1.ExecutionContext(specs);
-        const statements = this.visit(ctx.statements, exc);
-        return statements;
+        const segments = ctx.segments.map((segment) => this.visit(segment, exc));
+        const block = new expressions_1.TransitionBlock(segments);
+        return block;
     }
     transitionConstraints(ctx, specs) {
         const exc = new contexts_1.ExecutionContext(specs);
         const statements = this.visit(ctx.statements, exc);
         return statements;
+    }
+    // SEGMENTS
+    // --------------------------------------------------------------------------------------------
+    transitionSegment(ctx, exc) {
+        const intervals = [];
+        ctx.ranges.forEach((range) => {
+            let interval = this.visit(range);
+            intervals.push(interval);
+        });
+        const statements = this.visit(ctx.statements, exc);
+        return { intervals, statements };
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
@@ -429,6 +441,11 @@ class AirVisitor extends BaseCstVisitor {
             result = field ? field.inv(result) : (1n / result);
         }
         return result;
+    }
+    literalRangeExpression(ctx) {
+        let start = Number.parseInt(ctx.start[0].image, 10);
+        let end = ctx.end ? Number.parseInt(ctx.end[0].image, 10) : start;
+        return [start, end];
     }
 }
 // EXPORT VISITOR INSTANCE

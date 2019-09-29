@@ -42,8 +42,7 @@ export class WhenExpression extends Expression {
         const tVal = 'tVal', fVal = 'fVal';
 
         // evaluate when and else branches
-        let code = '';
-        code += `let ${tVal}, ${fVal};\n`;
+        let code = `let ${tVal}, ${fVal};\n`;
         code += `${this.tBranch.toJsCode(tVal)}`;
         const tValRef = new SymbolReference(tVal, this.tBranch.dimensions, this.tBranch.degree);
         code += `${this.fBranch.toJsCode(fVal)}`;

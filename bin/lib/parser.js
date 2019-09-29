@@ -23,22 +23,19 @@ class AirParser extends chevrotain_1.CstParser {
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Transition);
-                            this.SUBRULE2(this.literalExpression, { LABEL: 'mutableRegisterCount' });
+                            this.SUBRULE1(this.literalExpression, { LABEL: 'mutableRegisterCount' });
                             this.CONSUME1(lexer_1.Registers);
-                            this.CONSUME(lexer_1.In);
-                            this.SUBRULE3(this.literalExpression, { LABEL: 'steps' });
-                            this.CONSUME(lexer_1.Steps);
                             this.SUBRULE(this.transitionFunction, { LABEL: 'transitionFunction' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Enforce);
-                            this.SUBRULE4(this.literalExpression, { LABEL: 'constraintCount' });
+                            this.SUBRULE2(this.literalExpression, { LABEL: 'constraintCount' });
                             this.CONSUME(lexer_1.Constraints);
                             this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Using);
-                            this.SUBRULE6(this.literalExpression, { LABEL: 'readonlyRegisterCount' });
+                            this.SUBRULE3(this.literalExpression, { LABEL: 'readonlyRegisterCount' });
                             this.CONSUME(lexer_1.Readonly);
                             this.CONSUME2(lexer_1.Registers);
                             this.SUBRULE(this.readonlyRegisters, { LABEL: 'readonlyRegisters' });
@@ -122,9 +119,27 @@ class AirParser extends chevrotain_1.CstParser {
         // TRANSITION FUNCTION AND CONSTRAINTS
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
-            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+            this.CONSUME(lexer_1.LCurly);
+            this.AT_LEAST_ONE(() => {
+                this.SUBRULE(this.transitionSegment, { LABEL: 'segments' });
+            });
+            this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
+            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+        });
+        // SEGMENTS
+        // --------------------------------------------------------------------------------------------
+        this.transitionSegment = this.RULE('transitionSegment', () => {
+            this.CONSUME(lexer_1.For);
+            this.CONSUME(lexer_1.Steps);
+            this.CONSUME(lexer_1.LSquare);
+            this.AT_LEAST_ONE_SEP({
+                SEP: lexer_1.Comma,
+                DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
+            });
+            this.CONSUME(lexer_1.RSquare);
+            this.CONSUME(lexer_1.Do);
             this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
         });
         // STATEMENTS
@@ -333,6 +348,13 @@ class AirParser extends chevrotain_1.CstParser {
                         this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'literal' });
                     } }
             ]);
+        });
+        this.literalRangeExpression = this.RULE('literalRangeExpression', () => {
+            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'start' });
+            this.OPTION(() => {
+                this.CONSUME(lexer_1.DoubleDot);
+                this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'end' });
+            });
         });
         this.performSelfAnalysis();
     }
