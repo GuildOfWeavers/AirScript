@@ -13,23 +13,9 @@ const extensionFactor = 0;
 // ================================================================================================
 const applyTransition = function () { return []; };
 const evaluateConstraints = function () { return []; };
-// OBJECT GENERATOR
-// ================================================================================================
-function createContext(pInputs, sInputs, initValues) {
-    if (pInputs && sInputs && initValues) {
-        return createProofObject(pInputs, sInputs, initValues);
-    }
-    else if (pInputs) {
-        return createVerificationObject(pInputs);
-    }
-    else {
-        throw new Error('TODO');
-    }
-}
-exports.createContext = createContext;
 // PROOF OBJECT GENERATOR
 // ================================================================================================
-function createProofObject(pInputs, sInputs, initValues) {
+function initProof(pInputs, sInputs, initValues) {
     // calculate trace length and validate inputs
     const traceLength = getTraceLength(initValues);
     validateInputRegisterValues(pInputs, traceLength, 'public');
@@ -166,9 +152,6 @@ function createProofObject(pInputs, sInputs, initValues) {
         }
         return f.newMatrixFrom(evaluations);
     }
-    function getSecretRegisterTraces() {
-        return sRegisterTraces; // TODO: put into context object
-    }
     // REGISTER BUILDERS
     // --------------------------------------------------------------------------------------------
     function buildReadonlyRegisterEvaluators(specs, isSecret) {
@@ -245,13 +228,13 @@ function createProofObject(pInputs, sInputs, initValues) {
         compositionDomain: compositionDomain,
         generateExecutionTrace: generateExecutionTrace,
         evaluateTracePolynomials: evaluateTracePolynomials,
-        getSecretRegisterTraces: getSecretRegisterTraces
+        secretRegisterTraces: sRegisterTraces
     };
 }
-exports.createProofObject = createProofObject;
+exports.initProof = initProof;
 // VERIFICATION OBJECT GENERATOR
 // ================================================================================================
-function createVerificationObject(pInputs) {
+function initVerification(pInputs) {
     const traceLength = baseCycleLength; // TODO
     validateInputRegisterValues(pInputs, traceLength, 'public');
     const evaluationDomainSize = traceLength * extensionFactor;
@@ -347,7 +330,7 @@ function createVerificationObject(pInputs) {
         evaluateConstraintsAt: evaluateConstraintsAt
     };
 }
-exports.createVerificationObject = createVerificationObject;
+exports.initVerification = initVerification;
 // HELPER FUNCTIONS
 // ================================================================================================
 function getTraceLength(values) {

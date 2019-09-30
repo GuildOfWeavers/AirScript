@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { AirObject, StarkLimits, ScriptOptions } from '@guildofweavers/air-script';
+import { AirModule, StarkLimits, ScriptOptions } from '@guildofweavers/air-script';
 import { lexer } from './lib/lexer';
 import { parser } from './lib/parser';
 import { visitor } from './lib/visitor';
@@ -21,7 +21,7 @@ const DEFAULT_LIMITS: StarkLimits = {
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function parseScript(script: string, options: ScriptOptions = {}): AirObject {
+export function parseScript(script: string, options: ScriptOptions = {}): AirModule {
     // apply default limits
     const limits = {...DEFAULT_LIMITS, ...options.limits };
     const wasmOptions = options.wasmOptions;

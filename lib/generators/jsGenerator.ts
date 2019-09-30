@@ -1,12 +1,12 @@
 // IMPORTS
 // ================================================================================================
-import { AirObject, ReadonlyRegisterSpecs } from "@guildofweavers/air-script";
+import { AirModule, ReadonlyRegisterSpecs } from "@guildofweavers/air-script";
 import { ScriptSpecs } from "../ScriptSpecs";
 import * as jsTemplate from '../templates/JsModuleTemplate';
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function generateJsModule(specs: ScriptSpecs, extensionFactor: number): AirObject {
+export function generateJsModule(specs: ScriptSpecs, extensionFactor: number): AirModule {
 
     let code = `'use strict';\n\n`;
 
@@ -37,7 +37,8 @@ export function generateJsModule(specs: ScriptSpecs, extensionFactor: number): A
     code += `publicInputCount: ${specs.publicRegisters.length},\n`;
     code += `secretInputCount: ${specs.secretRegisters.length},\n`;
     code += `maxConstraintDegree: ${specs.maxTransitionConstraintDegree},\n`;
-    code += `createContext\n`;
+    code += `initProof,\n`;
+    code += `initVerification\n`;
     code += '};';
 
     // create and execute module builder function

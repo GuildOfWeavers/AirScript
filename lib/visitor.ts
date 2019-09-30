@@ -240,6 +240,7 @@ class AirVisitor extends BaseCstVisitor {
     }
 
     transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionExpression {
+        // TODO: reconcile control variables
         const exc = new ExecutionContext(specs);
         const segments: TransitionSegment[] = ctx.segments.map((segment: any) => this.visit(segment, exc));
         const block = new TransitionExpression(segments);

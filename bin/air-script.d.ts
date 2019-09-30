@@ -9,7 +9,7 @@ declare module '@guildofweavers/air-script' {
     // --------------------------------------------------------------------------------------------
     export interface ScriptOptions {
         limits?         : Partial<StarkLimits>;
-        wasmOptions?    : Partial<WasmOptions>;
+        wasmOptions?    : Partial<WasmOptions>; // TODO: add boolean?
         extensionFactor?: number;
     }
 
@@ -31,7 +31,7 @@ declare module '@guildofweavers/air-script' {
         maxConstraintDegree: number;
     }
 
-    export interface AirObject {
+    export interface AirModule {
 
         readonly name                   : string;
         readonly field                  : FiniteField;
@@ -41,11 +41,11 @@ declare module '@guildofweavers/air-script' {
         readonly constraints            : ConstraintSpecs[];
         readonly maxConstraintDegree    : number;
 
-        /** Creates verification context for the provided public inputs */
-        createContext(publicInputs: bigint[][]): VerificationContext;
+        /** Creates proof object for the provided public inputs, secret inputs, and init values */
+        initProof(publicInputs: bigint[][], secretInputs: bigint[][], initValues: bigint[]): ProofObject;
 
-        /** Creates proof context for the provided public and secret inputs */
-        createContext(publicInputs: bigint[][], secretInputs: bigint[][], initValues: bigint[]): ProofContext;
+        /** Creates verification object for the provided public inputs */
+        initVerification(publicInputs: bigint[][]): VerificationObject;
     }
 
     export class AirScriptError {
@@ -70,7 +70,7 @@ declare module '@guildofweavers/air-script' {
         readonly publicInputCount   : number;
     }
 
-    export interface VerificationContext extends EvaluationContext {
+    export interface VerificationObject extends EvaluationContext {
         /**
          * Evaluates transition constraints at the specified point
          * @param x Point in the evaluation domain at which to evaluate constraints
@@ -81,7 +81,7 @@ declare module '@guildofweavers/air-script' {
         evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[]): bigint[];
     }
 
-    export interface ProofContext extends EvaluationContext {
+    export interface ProofObject extends EvaluationContext {
         /** Domain of the execution trace */
         readonly executionDomain: Vector;
 
@@ -91,15 +91,16 @@ declare module '@guildofweavers/air-script' {
         /** Domain of the low-degree extended composition polynomial */
         readonly compositionDomain: Vector;
 
+        /** Values of secret registers evaluated over execution domain */
+        readonly secretRegisterTraces: Vector[];
+
         generateExecutionTrace(): Matrix;
         evaluateTracePolynomials(polynomials: Matrix): Matrix;
-
-        getSecretRegisterTraces(): Vector[];
     }
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
-    export function parseScript(script: string, options?: ScriptOptions): AirObject;
+    export function parseScript(script: string, options?: ScriptOptions): AirModule;
 
     // INTERNAL INTERFACES
     // --------------------------------------------------------------------------------------------

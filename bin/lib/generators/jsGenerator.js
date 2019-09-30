@@ -28,7 +28,8 @@ function generateJsModule(specs, extensionFactor) {
     code += `publicInputCount: ${specs.publicRegisters.length},\n`;
     code += `secretInputCount: ${specs.secretRegisters.length},\n`;
     code += `maxConstraintDegree: ${specs.maxTransitionConstraintDegree},\n`;
-    code += `createContext\n`;
+    code += `initProof,\n`;
+    code += `initVerification\n`;
     code += '};';
     // create and execute module builder function
     const moduleBuilder = new Function('f', 'g', 'registerSpecs', 'constraints', code);

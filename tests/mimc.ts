@@ -30,7 +30,7 @@ const air = parseScript(script, { extensionFactor });
 console.log(`degree: ${air.maxConstraintDegree}`);
 
 const gStart = Date.now();
-const pContext = air.createContext([], [], [3n]);
+const pContext = air.initProof([], [], [3n]);
 
 let start = Date.now();
 const trace = pContext.generateExecutionTrace();
@@ -54,7 +54,7 @@ const qEvaluations = air.field.evalPolysAtRoots(qPolys, pContext.evaluationDomai
 console.log(`Extended constraints in ${Date.now() - start} ms`);
 console.log(`Total time: ${Date.now() - gStart} ms`);
 
-const vContext = air.createContext([]);
+const vContext = air.initVerification([]);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
 const rValues = [pEvaluations.getValue(0, 2)];

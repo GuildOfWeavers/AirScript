@@ -131,7 +131,7 @@ const air = parseScript(script, { extensionFactor });
 console.log(`degree: ${air.maxConstraintDegree}`);
 
 const gStart = Date.now();
-const pContext = air.createContext([[0n, 1n, 0n, 1n]], [[1n, 2n, 3n, 4n]], [42n, 0n, 43n, 0n]);
+const pContext = air.initProof([[0n, 1n, 0n, 1n]], [[1n, 2n, 3n, 4n]], [42n, 0n, 43n, 0n]);
 
 let start = Date.now();
 const trace = pContext.generateExecutionTrace();
@@ -149,7 +149,7 @@ start = Date.now();
 const cEvaluations = pContext.evaluateTracePolynomials(pPolys);
 console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 
-const sEvaluations = pContext.getSecretRegisterTraces()[0];
+const sEvaluations = pContext.secretRegisterTraces[0];
 
 start = Date.now();
 const qPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
@@ -157,7 +157,7 @@ const qEvaluations = air.field.evalPolysAtRoots(qPolys, pContext.evaluationDomai
 console.log(`Extended constraints in ${Date.now() - start} ms`);
 console.log(`Total time: ${Date.now() - gStart} ms`);
 
-const vContext = air.createContext([[0n, 1n, 0n, 1n]]);
+const vContext = air.initVerification([[0n, 1n, 0n, 1n]]);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
 const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2)];

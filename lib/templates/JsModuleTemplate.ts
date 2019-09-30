@@ -1,7 +1,7 @@
 // INTERFACE IMPORTS
 // ================================================================================================
 import {
-    ProofContext, VerificationContext, ConstraintSpecs, ReadonlyRegisterSpecs, InputRegisterSpecs,
+    ProofObject, VerificationObject, ConstraintSpecs, ReadonlyRegisterSpecs, InputRegisterSpecs,
     ReadonlyRegisterEvaluator, FiniteField, Matrix, Vector, TransitionFunction, ConstraintEvaluator
 } from "@guildofweavers/air-script";
 
@@ -32,23 +32,9 @@ const extensionFactor = 0;
 const applyTransition: TransitionFunction = function () { return []; }
 const evaluateConstraints: ConstraintEvaluator = function () { return []; }
 
-// OBJECT GENERATOR
-// ================================================================================================
-export function createContext(pInputs: bigint[][], sInputs?: bigint[][], initValues?: bigint[]): ProofContext | VerificationContext {
-    if (pInputs && sInputs && initValues) {
-        return createProofObject(pInputs, sInputs, initValues);
-    }
-    else if (pInputs) {
-        return createVerificationObject(pInputs);
-    }
-    else {
-        throw new Error('TODO');
-    }
-}
-
 // PROOF OBJECT GENERATOR
 // ================================================================================================
-export function createProofObject(pInputs: bigint[][], sInputs: bigint[][], initValues: bigint[]): ProofContext {
+export function initProof(pInputs: bigint[][], sInputs: bigint[][], initValues: bigint[]): ProofObject {
 
     // calculate trace length and validate inputs
     const traceLength = getTraceLength(initValues);
@@ -218,10 +204,6 @@ export function createProofObject(pInputs: bigint[][], sInputs: bigint[][], init
         return f.newMatrixFrom(evaluations);
     }
 
-    function getSecretRegisterTraces(): Vector[] {
-        return sRegisterTraces; // TODO: put into context object
-    }
-
     // REGISTER BUILDERS
     // --------------------------------------------------------------------------------------------
     function buildReadonlyRegisterEvaluators(specs: ReadonlyRegisterSpecs[], isSecret: boolean): ReadonlyRegisterEvaluator<number>[] {
@@ -304,13 +286,13 @@ export function createProofObject(pInputs: bigint[][], sInputs: bigint[][], init
         compositionDomain           : compositionDomain,
         generateExecutionTrace      : generateExecutionTrace,
         evaluateTracePolynomials    : evaluateTracePolynomials,
-        getSecretRegisterTraces     : getSecretRegisterTraces
+        secretRegisterTraces        : sRegisterTraces
     };
 }
 
 // VERIFICATION OBJECT GENERATOR
 // ================================================================================================
-export function createVerificationObject(pInputs: bigint[][]): VerificationContext {
+export function initVerification(pInputs: bigint[][]): VerificationObject {
     
     const traceLength = baseCycleLength;  // TODO
     validateInputRegisterValues(pInputs, traceLength, 'public');
