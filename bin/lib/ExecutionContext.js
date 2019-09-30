@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils_1 = require("../utils");
-const expressions_1 = require("../expressions");
+const utils_1 = require("./utils");
+const expressions_1 = require("./expressions");
 // CLASS DEFINITION
 // ================================================================================================
 class ExecutionContext {
@@ -15,7 +15,9 @@ class ExecutionContext {
         this.staticRegisters = specs.staticRegisters;
         this.secretRegisters = specs.secretRegisters;
         this.publicRegisters = specs.publicRegisters;
-        this.tFunctionDegree = specs.tFunctionDegree;
+        if (specs.transitionFunction) {
+            this.tFunctionDegree = specs.transitionFunctionDegree;
+        }
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------

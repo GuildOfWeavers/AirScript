@@ -7,18 +7,45 @@ const utils_1 = require("./utils");
 class ScriptSpecs {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(limits) {
+    constructor(name, field, limits) {
+        this.name = name;
+        this.field = field;
         this.limits = limits;
         this.staticConstants = new Map();
         this.constantBindings = {};
     }
+    // PUBLIC ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get transitionFunctionDegree() {
+        return this.transitionFunction.isScalar
+            ? [this.transitionFunction.degree]
+            : this.transitionFunction.degree;
+    }
+    get transitionConstraintsDegree() {
+        return this.transitionConstraints.isScalar
+            ? [this.transitionConstraints.degree]
+            : this.transitionConstraints.degree;
+    }
+    get transitionConstraintsSpecs() {
+        return this.transitionConstraintsDegree.map(degree => {
+            return {
+                degree: Number.parseInt(degree)
+            };
+        });
+    }
+    get maxTransitionConstraintDegree() {
+        let result = 0;
+        for (let degree of this.transitionConstraintsDegree) {
+            if (degree > result) {
+                result = Number.parseInt(degree);
+            }
+        }
+        return result;
+    }
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
-    setField(value) {
-        this.field = value;
-    }
-    setSteps(value) {
-        this.steps = validateSteps(value, this.limits);
+    setTraceLength(value) {
+        this.traceLength = validateTraceLength(value, this.limits);
     }
     setMutableRegisterCount(value) {
         this.mutableRegisterCount = validateMutableRegisterCount(value, this.limits);
@@ -53,7 +80,7 @@ class ScriptSpecs {
             }
         }
     }
-    setTransitionFunctionDegree(tFunctionBody) {
+    setTransitionFunction(tFunctionBody) {
         if (this.mutableRegisterCount === 1) {
             if (!tFunctionBody.isScalar && (!tFunctionBody.isVector || tFunctionBody.dimensions[0] !== 1)) {
                 throw new Error(`transition function must evaluate to scalar or to a vector of exactly 1 value`);
@@ -64,11 +91,9 @@ class ScriptSpecs {
                 throw new Error(`transition function must evaluate to a vector of exactly ${this.mutableRegisterCount} values`);
             }
         }
-        this.tFunctionDegree = tFunctionBody.isScalar
-            ? [tFunctionBody.degree]
-            : tFunctionBody.degree;
+        this.transitionFunction = tFunctionBody;
     }
-    setTransitionConstraintsDegree(tConstraintsBody) {
+    setTransitionConstraints(tConstraintsBody) {
         if (this.constraintCount === 1) {
             if (!tConstraintsBody.isScalar && (!tConstraintsBody.isVector || tConstraintsBody.dimensions[0] !== 1)) {
                 throw new Error(`Transition constraints must evaluate to scalar or to a vector of exactly 1 value`);
@@ -79,10 +104,8 @@ class ScriptSpecs {
                 throw new Error(`Transition constraints must evaluate to a vector of exactly ${this.constraintCount} values`);
             }
         }
-        this.tConstraintsDegree = tConstraintsBody.isScalar
-            ? [tConstraintsBody.degree]
-            : tConstraintsBody.degree;
-        for (let degree of this.tConstraintsDegree) {
+        this.transitionConstraints = tConstraintsBody;
+        for (let degree of this.transitionConstraintsDegree) {
             if (degree > this.limits.maxConstraintDegree) {
                 throw new Error(`degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
             }
@@ -98,7 +121,7 @@ class ScriptSpecs {
 exports.ScriptSpecs = ScriptSpecs;
 // HELPER FUNCTIONS
 // ================================================================================================
-function validateSteps(steps, limits) {
+function validateTraceLength(steps, limits) {
     if (steps > limits.maxSteps) {
         throw new Error(`Number of steps cannot exceed ${limits.maxSteps}`);
     }

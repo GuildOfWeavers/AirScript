@@ -1,59 +1,60 @@
 // INTERFACE IMPORTS
 // ================================================================================================
-import { ProofContext, VerificationContext, ConstraintSpecs } from "@guildofweavers/air-script";
-import { FiniteField, Matrix, Vector } from "@guildofweavers/galois";
+import {
+    ProofContext, VerificationContext, ConstraintSpecs, ReadonlyRegisterSpecs, InputRegisterSpecs,
+    ReadonlyRegisterEvaluator, FiniteField, Matrix, Vector, TransitionFunction, ConstraintEvaluator
+} from "@guildofweavers/air-script";
 
 // INTERFACES
 // ================================================================================================
-export type ReadonlyRegisterEvaluator<T extends bigint | number> = (x: T) => bigint;
-
-export type ReadonlyValuePattern = 'repeat' | 'spread';
-
-export interface InputRegisterSpecs {
-    pattern : ReadonlyValuePattern;
-    binary  : boolean;
+export interface RegisterSpecs {
+    k: ReadonlyRegisterSpecs[],
+    s: InputRegisterSpecs[],
+    p: InputRegisterSpecs[],
+    c: ReadonlyRegisterSpecs[]
 }
 
-export interface ReadonlyRegisterSpecs {
-    pattern : ReadonlyValuePattern;
-    binary  : boolean;
-    values  : bigint[];
-}
-
-// MODULE VARIABLES
+// MODULE VARIABLE PLACEHOLDERS
 // ================================================================================================
-const g                 : any = {};
-const f                 : FiniteField = undefined as any;
-const stateWidth        : number = 0;
+const f: FiniteField = undefined as any;
+const stateWidth = 0;
+const baseCycleLength = 0;
 
-const registerSpecs = {
-    k: [] as ReadonlyRegisterSpecs[],
-    s: [] as InputRegisterSpecs[],
-    p: [] as InputRegisterSpecs[],
-    c: [] as ReadonlyRegisterSpecs[]
-};
+const registerSpecs: RegisterSpecs = { k: [], s: [], p: [], c: [] };
 
-const constraints       : ConstraintSpecs[] = [];
+const constraints: ConstraintSpecs[] = [];
 
-const compositionFactor : number = 0;
-const extensionFactor   : number = 0;
+const compositionFactor = 0;
+const extensionFactor = 0;
 
 // GENERATED FUNCTION PLACEHOLDERS
 // ================================================================================================
-function applyTransition(r: bigint[], k: bigint[], s: bigint[], p: bigint[], c: bigint[]): bigint[] {
-    return [];
-}
+const applyTransition: TransitionFunction = function () { return []; }
+const evaluateConstraints: ConstraintEvaluator = function () { return []; }
 
-function evaluateConstraints(r: bigint[], n: bigint[], k: bigint[], s: bigint[], p: bigint[], c: bigint[]): bigint[] {
-    return [];
+// OBJECT GENERATOR
+// ================================================================================================
+export function createContext(pInputs: bigint[][], sInputs?: bigint[][], initValues?: bigint[]): ProofContext | VerificationContext {
+    if (pInputs && sInputs && initValues) {
+        return createProofObject(pInputs, sInputs, initValues);
+    }
+    else if (pInputs) {
+        return createVerificationObject(pInputs);
+    }
+    else {
+        throw new Error('TODO');
+    }
 }
 
 // PROOF OBJECT GENERATOR
 // ================================================================================================
-export function createProofContext(initValues: bigint[], pInputs: bigint[][], sInputs: bigint[][]): ProofContext {
+export function createProofObject(pInputs: bigint[][], sInputs: bigint[][], initValues: bigint[]): ProofContext {
 
-    const traceLength = 0;  // TODO
-    
+    // calculate trace length and validate inputs
+    const traceLength = getTraceLength(initValues);
+    validateInputRegisterValues(pInputs, traceLength, 'public');
+    validateInputRegisterValues(sInputs, traceLength, 'secret');
+
     // build evaluation domain
     const evaluationDomainSize = traceLength * extensionFactor;
     const rootOfUnity = f.getRootOfUnity(evaluationDomainSize);
@@ -85,9 +86,6 @@ export function createProofContext(initValues: bigint[], pInputs: bigint[][], sI
         const pValues = new Array<bigint>(pRegisters.length);
         const kValues = new Array<bigint>(kRegisters.length);
         const cValues = new Array<bigint>(cRegisters.length);
-
-        // make sure all initial values are valid
-        validateInitValues(initValues, stateWidth);
 
         // initialize rValues and set first state of execution trace to initValues
         let nValues: bigint[];
@@ -144,7 +142,7 @@ export function createProofContext(initValues: bigint[], pInputs: bigint[][], sI
         const constraintCount = constraints.length;
 
         // make sure trace polynomials are valid
-        validateTracePolynomials(polynomials, stateWidth, traceLength);
+        validateTracePolynomials(polynomials, traceLength);
 
         // evaluate transition polynomials over composition domain
         const tEvaluations = f.evalPolysAtRoots(polynomials, compositionDomain);
@@ -284,7 +282,7 @@ export function createProofContext(initValues: bigint[], pInputs: bigint[][], sI
         const regSpecs = new Array<ReadonlyRegisterSpecs>(inputs.length);
         for (let i = 0; i < inputs.length; i++) {
             let binary = specs[i].binary;
-            if (binary) { validateBinaryValues(inputs[i], f, isSecret, i); }
+            if (binary) { validateBinaryValues(inputs[i], isSecret, i); }
             regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern, binary };
         }
         return buildReadonlyRegisterEvaluators(regSpecs, isSecret);
@@ -312,9 +310,10 @@ export function createProofContext(initValues: bigint[], pInputs: bigint[][], sI
 
 // VERIFICATION OBJECT GENERATOR
 // ================================================================================================
-export function createVerificationContext(pInputs: bigint[][]): VerificationContext {
+export function createVerificationObject(pInputs: bigint[][]): VerificationContext {
     
-    const traceLength = 0;  // TODO
+    const traceLength = baseCycleLength;  // TODO
+    validateInputRegisterValues(pInputs, traceLength, 'public');
         
     const evaluationDomainSize = traceLength * extensionFactor;
     const rootOfUnity = f.getRootOfUnity(evaluationDomainSize);
@@ -401,7 +400,7 @@ export function createVerificationContext(pInputs: bigint[][]): VerificationCont
         const regSpecs = new Array<ReadonlyRegisterSpecs>(inputs.length);
         for (let i = 0; i < inputs.length; i++) {
             let binary = specs[i].binary;
-            if (binary) { validateBinaryValues(inputs[i], f, isSecret, i); }
+            if (binary) { validateBinaryValues(inputs[i], isSecret, i); }
             regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern, binary };
         }
         return buildReadonlyRegisterEvaluators(regSpecs);
@@ -424,7 +423,7 @@ export function createVerificationContext(pInputs: bigint[][]): VerificationCont
 
 // HELPER FUNCTIONS
 // ================================================================================================
-export function validateInitValues(values: bigint[], stateWidth: number) {
+export function getTraceLength(values: bigint[]): number {
     if (!values) throw new TypeError('Initial values are undefined');
     if (!Array.isArray(values)) throw new TypeError('Initial values parameter must be an array');
     if (values.length !== stateWidth) {
@@ -436,9 +435,39 @@ export function validateInitValues(values: bigint[], stateWidth: number) {
             throw new TypeError(`Initial value ${i} is invalid: value '${values[i]}' is not a BigInt`);
         }
     }
+
+    // TODO: calculate actual trace length
+    return baseCycleLength;
 }
 
-export function validateTracePolynomials(trace: Matrix, stateWidth: number, traceLength: number) {
+export function validateInputRegisterValues(inputs: bigint[][], traceLength: number, type: 'public' | 'secret'): void {
+    if (!inputs) throw new TypeError(`${type} inputs are undefined`);
+    if (!Array.isArray(inputs)) throw new TypeError(`${type} inputs parameter must be an array`);
+
+    const expectedInputCount = type === 'public' ? registerSpecs.p.length : registerSpecs.s.length;
+    if (inputs.length !== expectedInputCount) {
+        throw new Error(`${type} inputs array must contain exactly ${expectedInputCount} elements`);
+    }
+
+    for (let i = 0; i < expectedInputCount; i++) {
+        let input = inputs[i];
+        if (!Array.isArray(input)) {
+            throw new TypeError(`${type} input ${i} is invalid: an input must contain an array of values`);
+        }
+
+        if (traceLength % input.length !== 0) {
+            throw new Error(`${type} input ${i} is invalid: number of values must be a divisor of ${traceLength}`);
+        }
+
+        for (let j = 0; j < input.length; j++) {
+            if (typeof input[j] !== 'bigint') {
+                throw new TypeError(`${type} input ${i} is invalid: value '${input[j]}' is not a BigInt`);
+            }
+        }
+    }
+}
+
+export function validateTracePolynomials(trace: Matrix, traceLength: number): void {
     if (!trace) throw new TypeError('Trace polynomials is undefined');
     if (!trace.rowCount || !trace.colCount) { // TODO: improve type checking
         throw new TypeError('Trace polynomials must be provided as a matrix of coefficients');
@@ -464,9 +493,9 @@ export function buildTraceMask(values: bigint[], traceLength: number): bigint[] 
     return traceValues;
 }
 
-export function validateBinaryValues(values: bigint[], field: FiniteField, isSecret: boolean, i: number): void {
+export function validateBinaryValues(values: bigint[], isSecret: boolean, i: number): void {
     for (let value of values) {
-        if (value !== field.zero && value !== field.one) {
+        if (value !== f.zero && value !== f.one) {
             let registerName = isSecret ? `$s${i}` : `$p${i}`;
             throw new Error(`Invalid definition for readonly register ${registerName}: the register can contain only binary values`);
         }

@@ -1,10 +1,8 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits } from '@guildofweavers/air-script';
-import { FiniteField } from '@guildofweavers/galois';
-import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './registers';
+import { StarkLimits, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField } from '@guildofweavers/air-script';
 import { ReadonlyRegisterGroup, ConstantDeclaration } from './visitor';
-import { Expression, LiteralExpression } from './expressions';
+import { Expression, LiteralExpression, TransitionExpression } from './expressions';
 import { isPowerOf2, isMatrix, isVector } from './utils';
 
 // CLASS DEFINITION
@@ -13,57 +11,89 @@ export class ScriptSpecs {
 
     private readonly limits : StarkLimits;
 
-    field!                  : FiniteField;
-    steps!                  : number;
-    mutableRegisterCount!   : number;
-    readonlyRegisterCount!  : number;
-    staticRegisters!        : ReadonlyRegisterSpecs[];
-    secretRegisters!        : InputRegisterSpecs[];
-    publicRegisters!        : InputRegisterSpecs[];
-    constraintCount!        : number;
-    staticConstants!        : Map<string, Expression>;
-    tFunctionDegree!        : bigint[];
-    tConstraintsDegree!     : bigint[];
-    constantBindings        : any;
+    readonly name               : string;
+    readonly field              : FiniteField;
+
+    readonly staticConstants    : Map<string, Expression>;
+    readonly constantBindings   : any;
+
+    traceLength!                : number;
+    mutableRegisterCount!       : number;
+    readonlyRegisterCount!      : number;
+    staticRegisters!            : ReadonlyRegisterSpecs[];
+    secretRegisters!            : InputRegisterSpecs[];
+    publicRegisters!            : InputRegisterSpecs[];
+    constraintCount!            : number;
+    
+    transitionFunction!         : TransitionExpression;
+    transitionConstraints!      : TransitionExpression;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(limits: StarkLimits) {
+    constructor(name: string, field: FiniteField, limits: StarkLimits) {
+        this.name = name;
+        this.field = field;
         this.limits = limits;
         this.staticConstants = new Map();
         this.constantBindings = {};
     }
 
+    // PUBLIC ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get transitionFunctionDegree(): bigint[] {
+        return this.transitionFunction.isScalar 
+            ? [this.transitionFunction.degree as bigint]
+            : this.transitionFunction.degree as bigint[];
+    }
+
+    get transitionConstraintsDegree(): bigint[] {
+        return this.transitionConstraints.isScalar 
+            ? [this.transitionConstraints.degree as bigint]
+            : this.transitionConstraints.degree as bigint[];
+    }
+
+    get transitionConstraintsSpecs(): ConstraintSpecs[] {
+        return this.transitionConstraintsDegree.map( degree => {
+            return {
+                degree: Number.parseInt(degree as any)
+            } as ConstraintSpecs;
+        });
+    }
+
+    get maxTransitionConstraintDegree(): number {
+        let result = 0;
+        for (let degree of this.transitionConstraintsDegree) {
+            if (degree > result) { result = Number.parseInt(degree as any); }
+        }
+        return result;
+    }
+
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
-    setField(value: FiniteField) {
-        this.field = value;
+    setTraceLength(value: bigint): void {
+        this.traceLength = validateTraceLength(value, this.limits);
     }
 
-    setSteps(value: bigint) {
-        this.steps = validateSteps(value, this.limits);
-    }
-
-    setMutableRegisterCount(value: bigint) {
+    setMutableRegisterCount(value: bigint): void {
         this.mutableRegisterCount = validateMutableRegisterCount(value, this.limits);
     }
 
-    setReadonlyRegisterCount(value: bigint) {
+    setReadonlyRegisterCount(value: bigint): void {
         this.readonlyRegisterCount = validateReadonlyRegisterCount(value, this.limits);
     }
 
-    setReadonlyRegisterCounts(registers: ReadonlyRegisterGroup) {
+    setReadonlyRegisterCounts(registers: ReadonlyRegisterGroup): void {
         validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
         this.staticRegisters = registers.staticRegisters;
         this.secretRegisters = registers.secretRegisters;
         this.publicRegisters = registers.publicRegisters;
     }
 
-    setConstraintCount(value: bigint) {
+    setConstraintCount(value: bigint): void {
         this.constraintCount = validateConstraintCount(value, this.limits);
     }
 
-    setStaticConstants(declarations: ConstantDeclaration[]) {
+    setStaticConstants(declarations: ConstantDeclaration[]): void {
         for (let constant of declarations) {
             if (this.staticConstants.has(constant.name)) {
                 throw new Error(`Static constant '${constant.name}' is defined more than once`);
@@ -82,7 +112,7 @@ export class ScriptSpecs {
         }
     }
 
-    setTransitionFunctionDegree(tFunctionBody: Expression) {
+    setTransitionFunction(tFunctionBody: TransitionExpression): void {
         if (this.mutableRegisterCount === 1) {
             if (!tFunctionBody.isScalar && (!tFunctionBody.isVector || tFunctionBody.dimensions[0] !== 1)) {
                 throw new Error(`transition function must evaluate to scalar or to a vector of exactly 1 value`);
@@ -94,12 +124,10 @@ export class ScriptSpecs {
             }
         }
 
-        this.tFunctionDegree = tFunctionBody.isScalar 
-            ? [tFunctionBody.degree as bigint]
-            : tFunctionBody.degree as bigint[];
+        this.transitionFunction = tFunctionBody;
     }
 
-    setTransitionConstraintsDegree(tConstraintsBody: Expression) {
+    setTransitionConstraints(tConstraintsBody: TransitionExpression): void {
         if (this.constraintCount === 1) {
             if (!tConstraintsBody.isScalar && (!tConstraintsBody.isVector || tConstraintsBody.dimensions[0] !== 1)) {
                 throw new Error(`Transition constraints must evaluate to scalar or to a vector of exactly 1 value`);
@@ -111,11 +139,9 @@ export class ScriptSpecs {
             }
         }
 
-        this.tConstraintsDegree = tConstraintsBody.isScalar 
-            ? [tConstraintsBody.degree as bigint]
-            : tConstraintsBody.degree as bigint[];
+        this.transitionConstraints = tConstraintsBody;
 
-        for (let degree of this.tConstraintsDegree) {
+        for (let degree of this.transitionConstraintsDegree) {
             if (degree > this.limits.maxConstraintDegree) {
                 throw new Error(`degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
             }
@@ -131,7 +157,7 @@ export class ScriptSpecs {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function validateSteps(steps: number | bigint, limits: StarkLimits): number {
+function validateTraceLength(steps: number | bigint, limits: StarkLimits): number {
     if (steps > limits.maxSteps) {
         throw new Error(`Number of steps cannot exceed ${limits.maxSteps}`);
     }
@@ -179,7 +205,7 @@ function validateReadonlyRegisterCount(registerCount: number | bigint, limits: S
     return registerCount;
 }
 
-function validateReadonlyRegisterCounts(registers: ReadonlyRegisterGroup, readonlyRegisterCount: number) {
+function validateReadonlyRegisterCounts(registers: ReadonlyRegisterGroup, readonlyRegisterCount: number): void {
 
     const totalRegisterCount = 
         registers.staticRegisters.length

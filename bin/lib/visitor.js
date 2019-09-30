@@ -5,11 +5,10 @@ const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
 const ScriptSpecs_1 = require("./ScriptSpecs");
-const contexts_1 = require("./contexts");
+const ExecutionContext_1 = require("./ExecutionContext");
 const expressions_1 = require("./expressions");
 const expressions = require("./expressions");
 const utils_1 = require("./utils");
-const generator_1 = require("./generator");
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser_1.parser.getBaseCstVisitorConstructor();
@@ -23,9 +22,8 @@ class AirVisitor extends BaseCstVisitor {
         // set up the field
         const field = this.visit(ctx.fieldDeclaration, config.wasmOptions);
         // build script specs
-        const specs = new ScriptSpecs_1.ScriptSpecs(config.limits);
-        specs.setField(field);
-        specs.setSteps(64n); // TODO
+        const specs = new ScriptSpecs_1.ScriptSpecs(starkName, field, config.limits);
+        specs.setTraceLength(64n); // TODO
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
@@ -45,31 +43,12 @@ class AirVisitor extends BaseCstVisitor {
         // parse transition function and transition constraints
         validateTransitionFunction(ctx.transitionFunction);
         const tFunctionBody = this.visit(ctx.transitionFunction, specs);
-        specs.setTransitionFunctionDegree(tFunctionBody);
+        specs.setTransitionFunction(tFunctionBody);
         validateTransitionConstraints(ctx.transitionConstraints);
         const tConstraintsBody = this.visit(ctx.transitionConstraints, specs);
-        specs.setTransitionConstraintsDegree(tConstraintsBody);
-        const constraintSpecs = specs.tConstraintsDegree.map(degree => {
-            return {
-                degree: Number.parseInt(degree)
-            };
-        });
-        // generate executable code for transition function and constraint evaluator
-        const generator = new generator_1.CodeGenerator(specs);
-        const tModule = generator.generateJsModule(tFunctionBody, tConstraintsBody);
+        specs.setTransitionConstraints(tConstraintsBody);
         // build and return AIR config
-        return {
-            name: starkName,
-            field: field,
-            steps: specs.steps,
-            stateWidth: specs.mutableRegisterCount,
-            secretInputs: readonlyRegisters.secretRegisters,
-            publicInputs: readonlyRegisters.publicRegisters,
-            staticRegisters: readonlyRegisters.staticRegisters,
-            constraints: constraintSpecs,
-            transitionFunction: tModule.transition,
-            constraintEvaluator: tModule.evaluate
-        };
+        return specs;
     }
     // FINITE FIELD
     // --------------------------------------------------------------------------------------------
@@ -179,8 +158,8 @@ class AirVisitor extends BaseCstVisitor {
             if (!ctx.values)
                 throw new Error(`invalid definition for static register ${registerName}: static values must be provided for the register`);
             values = this.visit(ctx.values);
-            if (specs.steps % values.length !== 0) {
-                throw new Error(`invalid definition for static register ${registerName}: number of values must evenly divide the number of steps (${specs.steps})`);
+            if (specs.traceLength % values.length !== 0) {
+                throw new Error(`invalid definition for static register ${registerName}: number of values must evenly divide the number of steps (${specs.traceLength})`);
             }
             if (binary) {
                 for (let value of values) {
@@ -202,13 +181,13 @@ class AirVisitor extends BaseCstVisitor {
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx, specs) {
-        const exc = new contexts_1.ExecutionContext(specs);
+        const exc = new ExecutionContext_1.ExecutionContext(specs);
         const segments = ctx.segments.map((segment) => this.visit(segment, exc));
-        const block = new expressions_1.TransitionBlock(segments);
+        const block = new expressions_1.TransitionExpression(segments);
         return block;
     }
     transitionConstraints(ctx, specs) {
-        const exc = new contexts_1.ExecutionContext(specs);
+        const exc = new ExecutionContext_1.ExecutionContext(specs);
         const statements = this.visit(ctx.statements, exc);
         return statements;
     }

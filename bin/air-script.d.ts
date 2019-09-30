@@ -7,6 +7,12 @@ declare module '@guildofweavers/air-script' {
 
     // INTERFACES
     // --------------------------------------------------------------------------------------------
+    export interface ScriptOptions {
+        limits?         : Partial<StarkLimits>;
+        wasmOptions?    : Partial<WasmOptions>;
+        extensionFactor?: number;
+    }
+
     export interface StarkLimits {
 
         /** Maximum number of steps in an execution trace; defaults to 2^20 */
@@ -36,10 +42,10 @@ declare module '@guildofweavers/air-script' {
         readonly maxConstraintDegree    : number;
 
         /** Creates verification context for the provided public inputs */
-        createContext(publicInputs: bigint[][], extensionFactor: number): VerificationContext;
+        createContext(publicInputs: bigint[][]): VerificationContext;
 
         /** Creates proof context for the provided public and secret inputs */
-        createContext(publicInputs: bigint[][], secretInputs: bigint[][], extensionFactor: number): ProofContext;
+        createContext(publicInputs: bigint[][], secretInputs: bigint[][], initValues: bigint[]): ProofContext;
     }
 
     export class AirScriptError {
@@ -85,7 +91,7 @@ declare module '@guildofweavers/air-script' {
         /** Domain of the low-degree extended composition polynomial */
         readonly compositionDomain: Vector;
 
-        generateExecutionTrace(initValues: bigint[]): Matrix;
+        generateExecutionTrace(): Matrix;
         evaluateTracePolynomials(polynomials: Matrix): Matrix;
 
         getSecretRegisterTraces(): Vector[];
@@ -93,6 +99,47 @@ declare module '@guildofweavers/air-script' {
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
-    export function parseScript(script: string, limits?: Partial<StarkLimits>, useWasm?: boolean): AirObject;
-    export function parseScript(script: string, limits?: Partial<StarkLimits>, wasmOptions?: Partial<WasmOptions>): AirObject;
+    export function parseScript(script: string, options?: ScriptOptions): AirObject;
+
+    // INTERNAL INTERFACES
+    // --------------------------------------------------------------------------------------------
+    export type ReadonlyRegisterEvaluator<T extends bigint | number> = (x: T) => bigint;
+
+    export type ReadonlyValuePattern = 'repeat' | 'spread';
+
+    export interface InputRegisterSpecs {
+        pattern : ReadonlyValuePattern;
+        binary  : boolean;
+    }
+
+    export interface ReadonlyRegisterSpecs {
+        pattern : ReadonlyValuePattern;
+        binary  : boolean;
+        values  : bigint[];
+    }
+
+    export interface TransitionFunction {
+        /**
+         * @param r Array with values of mutable registers at the current step
+         * @param k Array with values of static registers at the current step
+         * @param s Array with values of secret inputs at the current step
+         * @param p Array with values of public inputs at the current step
+         * @param c Array with values of control registers at the current step
+         * @returns Array to hold values of mutable registers for the next step
+         */
+        (r: bigint[], k: bigint[], s: bigint[], p: bigint[], c: bigint[]): bigint[];
+    }
+    
+    export interface ConstraintEvaluator {
+        /**
+         * @param r Array with values of mutable registers at the current step
+         * @param n Array with values of mutable registers at the next step
+         * @param k Array with values of static registers at the current step
+         * @param s Array with values of secret inputs at the current step
+         * @param p Array with values of public inputs at the current step
+         * @param c Array with values of control registers at the current step
+         * @readonly Array to hold values of constraint evaluated at the current step
+         */
+        (r: bigint[], n: bigint[], k: bigint[], s: bigint[], p: bigint[], c: bigint[]): bigint[];
+    }
 }

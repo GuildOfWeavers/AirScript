@@ -1,9 +1,9 @@
 // IMPORTS
 // ================================================================================================
-import { ScriptSpecs } from '../ScriptSpecs';
-import { validateVariableName, Dimensions } from '../utils';
-import { ReadonlyRegisterSpecs, InputRegisterSpecs } from '../registers';
-import { Expression, SymbolReference, SubroutineCall } from '../expressions';
+import { ReadonlyRegisterSpecs, InputRegisterSpecs } from '@guildofweavers/air-script';
+import { ScriptSpecs } from './ScriptSpecs';
+import { validateVariableName, Dimensions } from './utils';
+import { Expression, SymbolReference, SubroutineCall } from './expressions';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -28,7 +28,9 @@ export class ExecutionContext {
         this.staticRegisters = specs.staticRegisters;
         this.secretRegisters = specs.secretRegisters;
         this.publicRegisters = specs.publicRegisters;
-        this.tFunctionDegree = specs.tFunctionDegree;
+        if (specs.transitionFunction) {
+            this.tFunctionDegree = specs.transitionFunctionDegree;
+        }
     }
 
     // ACCESSORS

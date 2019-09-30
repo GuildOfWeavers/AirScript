@@ -1,18 +1,15 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits, ConstraintSpecs } from '@guildofweavers/air-script';
+import { StarkLimits, ReadonlyRegisterSpecs, InputRegisterSpecs, ReadonlyValuePattern } from '@guildofweavers/air-script';
 import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
-import { AirConfig } from './AirObject';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
-import { ExecutionContext } from './contexts';
-import { ReadonlyValuePattern, ReadonlyRegisterSpecs, InputRegisterSpecs } from './registers';
-import { Expression, TransitionBlock, TransitionSegment, StatementBlock, Statement } from './expressions';
+import { ExecutionContext } from './ExecutionContext';
+import { Expression, TransitionExpression, TransitionSegment, StatementBlock, Statement } from './expressions';
 import * as expressions from './expressions';
 import { Dimensions, validateVariableName } from './utils';
-import { CodeGenerator } from './generator';
 
 // INTERFACES
 // ================================================================================================
@@ -48,7 +45,7 @@ class AirVisitor extends BaseCstVisitor {
         this.validateVisitor()
     }
 
-    script(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): AirConfig {
+    script(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): ScriptSpecs {
 
         const starkName = ctx.starkName[0].image;
 
@@ -56,9 +53,8 @@ class AirVisitor extends BaseCstVisitor {
         const field: FiniteField = this.visit(ctx.fieldDeclaration, config.wasmOptions);
 
         // build script specs
-        const specs = new ScriptSpecs(config.limits);
-        specs.setField(field);
-        specs.setSteps(64n);    // TODO
+        const specs = new ScriptSpecs(starkName, field, config.limits);
+        specs.setTraceLength(64n);    // TODO
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
@@ -79,35 +75,15 @@ class AirVisitor extends BaseCstVisitor {
 
         // parse transition function and transition constraints
         validateTransitionFunction(ctx.transitionFunction);
-        const tFunctionBody: TransitionBlock = this.visit(ctx.transitionFunction, specs);
-        specs.setTransitionFunctionDegree(tFunctionBody);
+        const tFunctionBody: TransitionExpression = this.visit(ctx.transitionFunction, specs);
+        specs.setTransitionFunction(tFunctionBody);
         
         validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraintsBody: StatementBlock = this.visit(ctx.transitionConstraints, specs);
-        specs.setTransitionConstraintsDegree(tConstraintsBody);
-        const constraintSpecs = specs.tConstraintsDegree.map( degree => {
-            return {
-                degree: Number.parseInt(degree as any)
-            } as ConstraintSpecs;
-        });
-
-        // generate executable code for transition function and constraint evaluator
-        const generator = new CodeGenerator(specs);
-        const tModule = generator.generateJsModule(tFunctionBody, tConstraintsBody);
+        const tConstraintsBody: TransitionExpression = this.visit(ctx.transitionConstraints, specs);
+        specs.setTransitionConstraints(tConstraintsBody);
 
         // build and return AIR config
-        return {
-            name                : starkName,
-            field               : field,
-            steps               : specs.steps,
-            stateWidth          : specs.mutableRegisterCount,
-            secretInputs        : readonlyRegisters.secretRegisters,
-            publicInputs        : readonlyRegisters.publicRegisters,
-            staticRegisters     : readonlyRegisters.staticRegisters,
-            constraints         : constraintSpecs,
-            transitionFunction  : tModule.transition,
-            constraintEvaluator : tModule.evaluate
-        };
+        return specs;
     }
 
     // FINITE FIELD
@@ -232,8 +208,8 @@ class AirVisitor extends BaseCstVisitor {
             // parse values for static registers
             if (!ctx.values) throw new Error(`invalid definition for static register ${registerName}: static values must be provided for the register`);
             values = this.visit(ctx.values) as bigint[];
-            if (specs.steps % values.length !== 0) {
-                throw new Error(`invalid definition for static register ${registerName}: number of values must evenly divide the number of steps (${specs.steps})`);
+            if (specs.traceLength % values.length !== 0) {
+                throw new Error(`invalid definition for static register ${registerName}: number of values must evenly divide the number of steps (${specs.traceLength})`);
             }
     
             if (binary) {
@@ -259,7 +235,7 @@ class AirVisitor extends BaseCstVisitor {
     transitionFunction(ctx: any, specs: ScriptSpecs): Expression {
         const exc = new ExecutionContext(specs);
         const segments: TransitionSegment[] = ctx.segments.map((segment: any) => this.visit(segment, exc));
-        const block = new TransitionBlock(segments);
+        const block = new TransitionExpression(segments);
         return block;
     }
 
