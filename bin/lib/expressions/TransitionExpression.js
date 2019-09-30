@@ -122,6 +122,6 @@ function validateIntervals(intervalGroups) {
     if (valueMap.size <= maxValue) {
         throw new Error(`range error`); // TODO: better error message
     }
-    return maxValue;
+    return maxValue + 1;
 }
 //# sourceMappingURL=TransitionExpression.js.map

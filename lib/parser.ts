@@ -142,12 +142,16 @@ class AirParser extends CstParser {
     });
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
-        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+        this.CONSUME(LCurly);
+        this.AT_LEAST_ONE(() => {
+            this.SUBRULE(this.transitionSegment, { LABEL: 'segments', ARGS: [true] });
+        });
+        this.CONSUME(RCurly);
     });
 
     // SEGMENTS
     // --------------------------------------------------------------------------------------------
-    private transitionSegment = this.RULE('transitionSegment', () => {
+    private transitionSegment = this.RULE('transitionSegment', (useEnforce: boolean) => {
         this.CONSUME(For);
         this.CONSUME(Steps);
         this.CONSUME(LSquare);
@@ -156,7 +160,10 @@ class AirParser extends CstParser {
             DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
         });
         this.CONSUME(RSquare);
-        this.CONSUME(Do);
+        this.OR([
+            { GATE: () => !useEnforce, ALT: () => this.CONSUME(Do) },
+            { ALT: () => this.CONSUME(Enforce)}
+        ]);
         this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
     });
 

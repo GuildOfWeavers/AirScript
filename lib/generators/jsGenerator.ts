@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { AirObject } from "@guildofweavers/air-script";
+import { AirObject, ReadonlyRegisterSpecs } from "@guildofweavers/air-script";
 import { ScriptSpecs } from "../ScriptSpecs";
 import * as jsTemplate from '../templates/JsModuleTemplate';
 
@@ -20,8 +20,8 @@ export function generateJsModule(specs: ScriptSpecs, extensionFactor: number): A
     code += `const baseCycleLength = ${getBaseCycleLength(specs)};\n\n`;
 
     // build transition function and constraints
-    code += `function applyTransition(r, k, s, p, c) {\n${specs.transitionFunction.toJsCode()}}\n\n`;
-    // TODO: transition constraints
+    code += `function applyTransition(r, k, s, p, c) {\n${specs.transitionFunction.toJsCode()}}\n`;
+    code += `function evaluateConstraints(r, n, k, s, p, c) {\n${specs.transitionConstraints.toJsCode()}}\n\n`;
 
     // add functions from the template
     for (let prop in jsTemplate) {
@@ -57,10 +57,17 @@ function getBaseCycleLength(specs: ScriptSpecs): number {
 }
 
 function buildRegisterSpecs(specs: ScriptSpecs): jsTemplate.RegisterSpecs {
+
+    const controlSpecs: ReadonlyRegisterSpecs[] = specs.transitionFunction.controls.map( values => {
+        return {
+            values, pattern: 'repeat', binary: true
+        };
+    });
+
     return {
         k: specs.staticRegisters,
         s: specs.secretRegisters,
         p: specs.publicRegisters,
-        c: []   // TODO
+        c: controlSpecs
     };
 }

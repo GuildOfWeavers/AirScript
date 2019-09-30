@@ -188,8 +188,9 @@ class AirVisitor extends BaseCstVisitor {
     }
     transitionConstraints(ctx, specs) {
         const exc = new ExecutionContext_1.ExecutionContext(specs);
-        const statements = this.visit(ctx.statements, exc);
-        return statements;
+        const segments = ctx.segments.map((segment) => this.visit(segment, exc));
+        const block = new expressions_1.TransitionExpression(segments);
+        return block;
     }
     // SEGMENTS
     // --------------------------------------------------------------------------------------------

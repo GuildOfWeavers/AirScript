@@ -126,11 +126,15 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
-            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+            this.CONSUME(lexer_1.LCurly);
+            this.AT_LEAST_ONE(() => {
+                this.SUBRULE(this.transitionSegment, { LABEL: 'segments', ARGS: [true] });
+            });
+            this.CONSUME(lexer_1.RCurly);
         });
         // SEGMENTS
         // --------------------------------------------------------------------------------------------
-        this.transitionSegment = this.RULE('transitionSegment', () => {
+        this.transitionSegment = this.RULE('transitionSegment', (useEnforce) => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Steps);
             this.CONSUME(lexer_1.LSquare);
@@ -139,7 +143,10 @@ class AirParser extends chevrotain_1.CstParser {
                 DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
             });
             this.CONSUME(lexer_1.RSquare);
-            this.CONSUME(lexer_1.Do);
+            this.OR([
+                { GATE: () => !useEnforce, ALT: () => this.CONSUME(lexer_1.Do) },
+                { ALT: () => this.CONSUME(lexer_1.Enforce) }
+            ]);
             this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
         });
         // STATEMENTS

@@ -178,6 +178,6 @@ export class ExecutionContext {
             throw new Error(`transition function cannot call itself recursively`);
         }
         const dimensions: Dimensions = [this.mutableRegisterCount, 0];
-        return new SubroutineCall('transition', ['r', 'k', 's', 'p'], dimensions, this.tFunctionDegree!);
+        return new SubroutineCall('applyTransition', ['r', 'k', 's', 'p', 'c'], dimensions, this.tFunctionDegree!);
     }
 }

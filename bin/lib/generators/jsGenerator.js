@@ -13,8 +13,8 @@ function generateJsModule(specs, extensionFactor) {
     code += `const compositionFactor = ${compositionFactor};\n`;
     code += `const baseCycleLength = ${getBaseCycleLength(specs)};\n\n`;
     // build transition function and constraints
-    code += `function applyTransition(r, k, s, p, c) {\n${specs.transitionFunction.toJsCode()}}\n\n`;
-    // TODO: transition constraints
+    code += `function applyTransition(r, k, s, p, c) {\n${specs.transitionFunction.toJsCode()}}\n`;
+    code += `function evaluateConstraints(r, n, k, s, p, c) {\n${specs.transitionConstraints.toJsCode()}}\n\n`;
     // add functions from the template
     for (let prop in jsTemplate) {
         code += `${jsTemplate[prop].toString()}\n`;
@@ -41,11 +41,16 @@ function getBaseCycleLength(specs) {
     return specs.transitionFunction.cycleLength;
 }
 function buildRegisterSpecs(specs) {
+    const controlSpecs = specs.transitionFunction.controls.map(values => {
+        return {
+            values, pattern: 'repeat', binary: true
+        };
+    });
     return {
         k: specs.staticRegisters,
         s: specs.secretRegisters,
         p: specs.publicRegisters,
-        c: [] // TODO
+        c: controlSpecs
     };
 }
 //# sourceMappingURL=jsGenerator.js.map

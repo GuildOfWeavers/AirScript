@@ -156,5 +156,5 @@ function validateIntervals(intervalGroups: Interval[][]): number {
         throw new Error(`range error`); // TODO: better error message
     }
 
-    return maxValue;
+    return maxValue + 1;
 }

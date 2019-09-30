@@ -21,7 +21,9 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
     // transition constraint definition
     enforce 8 constraint {
-        $n - transition($r);
+        for steps [0..63] enforce {
+            $n - transition($r);
+        }
     }
 
     // readonly registers accessible in transition function and constraints
