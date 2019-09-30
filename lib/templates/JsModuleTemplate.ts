@@ -21,7 +21,6 @@ const stateWidth = 0;
 const baseCycleLength = 0;
 
 const registerSpecs: RegisterSpecs = { k: [], s: [], p: [], c: [] };
-
 const constraints: ConstraintSpecs[] = [];
 
 const compositionFactor = 0;

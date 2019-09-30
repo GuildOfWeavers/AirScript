@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { AirModule, ReadonlyRegisterSpecs } from "@guildofweavers/air-script";
+import { AirModule } from "@guildofweavers/air-script";
 import { ScriptSpecs } from "../ScriptSpecs";
 import * as jsTemplate from '../templates/JsModuleTemplate';
 
@@ -17,11 +17,12 @@ export function generateJsModule(specs: ScriptSpecs, extensionFactor: number): A
     code += `const stateWidth = ${specs.mutableRegisterCount};\n`;
     code += `const extensionFactor = ${extensionFactor};\n`;
     code += `const compositionFactor = ${compositionFactor};\n`;
-    code += `const baseCycleLength = ${getBaseCycleLength(specs)};\n\n`;
+    code += `const baseCycleLength = ${specs.baseCycleLength};\n\n`;
 
     // build transition function and constraints
-    code += `function applyTransition(r, k, s, p, c) {\n${specs.transitionFunction.toJsCode()}}\n`;
-    code += `function evaluateConstraints(r, n, k, s, p, c) {\n${specs.transitionConstraints.toJsCode()}}\n\n`;
+    const lc = specs.loopController;
+    code += `function applyTransition(r, k, s, p, c) {\n${specs.transitionFunction.toJsCode(undefined, undefined, lc)}}\n`;
+    code += `function evaluateConstraints(r, n, k, s, p, c) {\n${specs.transitionConstraints.toJsCode(undefined, undefined, lc)}}\n\n`;
 
     // add functions from the template
     for (let prop in jsTemplate) {
@@ -53,22 +54,11 @@ export function generateJsModule(specs: ScriptSpecs, extensionFactor: number): A
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function getBaseCycleLength(specs: ScriptSpecs): number {
-    return specs.transitionFunction.cycleLength;
-}
-
 function buildRegisterSpecs(specs: ScriptSpecs): jsTemplate.RegisterSpecs {
-
-    const controlSpecs: ReadonlyRegisterSpecs[] = specs.transitionFunction.controls.map( values => {
-        return {
-            values, pattern: 'repeat', binary: true
-        };
-    });
-
     return {
         k: specs.staticRegisters,
         s: specs.secretRegisters,
         p: specs.publicRegisters,
-        c: controlSpecs
+        c: specs.controlRegisters
     };
 }

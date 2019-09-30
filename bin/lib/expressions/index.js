@@ -28,4 +28,6 @@ var SubroutineCall_1 = require("./SubroutineCall");
 exports.SubroutineCall = SubroutineCall_1.SubroutineCall;
 var TransitionExpression_1 = require("./TransitionExpression");
 exports.TransitionExpression = TransitionExpression_1.TransitionExpression;
+var LoopController_1 = require("./LoopController");
+exports.LoopController = LoopController_1.LoopController;
 //# sourceMappingURL=index.js.map

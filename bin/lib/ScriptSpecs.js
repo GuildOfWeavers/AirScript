@@ -42,6 +42,16 @@ class ScriptSpecs {
         }
         return result;
     }
+    get controlRegisters() {
+        return this.loopController.values.map(v => {
+            return {
+                values: v, pattern: 'repeat', binary: true
+            };
+        });
+    }
+    get baseCycleLength() {
+        return this.loopController.cycleLength;
+    }
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
     setTraceLength(value) {
@@ -92,6 +102,7 @@ class ScriptSpecs {
             }
         }
         this.transitionFunction = tFunctionBody;
+        this.loopController = new expressions_1.LoopController(tFunctionBody.masks);
     }
     setTransitionConstraints(tConstraintsBody) {
         if (this.constraintCount === 1) {
@@ -105,6 +116,7 @@ class ScriptSpecs {
             }
         }
         this.transitionConstraints = tConstraintsBody;
+        // TODO: validate loop masks
         for (let degree of this.transitionConstraintsDegree) {
             if (degree > this.limits.maxConstraintDegree) {
                 throw new Error(`degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);

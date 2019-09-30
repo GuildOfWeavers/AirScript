@@ -36,34 +36,23 @@ class TransitionExpression extends Expression_1.Expression {
             }
         }
         super(dimensions, degree);
-        this.cycleLength = validateIntervals(intervalGroups);
-        this.controls = buildControls(intervalGroups, this.cycleLength);
+        this.masks = normalizeIntervals(intervalGroups);
         this.blocks = blocks;
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toJsCode(assignTo) {
+    toJsCode(assignTo, options, controller) {
         if (assignTo)
             throw new Error('transition block cannot be assigned to a variable');
-        let code = ``;
-        const tModifiers = [], fModifiers = [];
-        for (let i = 0; i < this.controls.length; i++) {
-            let tRef = `c[${i}]`, fRef = `fc${i}`;
-            tModifiers.push(new SymbolReference_1.SymbolReference(tRef, [0, 0], 1n));
-            fModifiers.push(new SymbolReference_1.SymbolReference(fRef, [0, 0], 1n));
-            code += `let ${BinaryOperation_1.BinaryOperation.sub(ONE, tModifiers[i]).toJsCode(fRef)}`;
-        }
-        code += `let ${this.blocks.map((b, i) => `b${i}`).join(', ')};\n`;
+        if (!controller)
+            throw new Error('TODO');
+        let code = `let ${this.blocks.map((b, i) => `b${i}`).join(', ')};\n`;
         const bResults = [];
         for (let i = 0; i < this.blocks.length; i++) {
             let bVar = `b${i}`, block = this.blocks[i];
             let bRef = new SymbolReference_1.SymbolReference(bVar, block.dimensions, block.degree);
             code += `${this.blocks[i].toJsCode(bVar)}`;
-            let modifier;
-            for (let j = 0; j < this.controls.length; j++) {
-                let m = (i & (1 << j)) ? tModifiers[j] : fModifiers[j];
-                modifier = modifier ? BinaryOperation_1.BinaryOperation.mul(modifier, m) : m;
-            }
+            let modifier = controller.getModifier(this.masks[i]);
             bResults.push(modifier ? BinaryOperation_1.BinaryOperation.mul(bRef, modifier) : bRef);
         }
         let result;
@@ -79,27 +68,7 @@ class TransitionExpression extends Expression_1.Expression {
 exports.TransitionExpression = TransitionExpression;
 // HELPER FUNCTIONS
 // ================================================================================================
-function buildControls(intervalGroups, cycleLength) {
-    const controlCount = Math.ceil(Math.log2(intervalGroups.length));
-    const controls = new Array(controlCount);
-    for (let i = 0; i < controlCount; i++) {
-        controls[i] = new Array(cycleLength);
-    }
-    let mask = 0;
-    for (let intervals of intervalGroups) {
-        for (let [start, end] of intervals) {
-            for (let i = start; i <= end; i++) {
-                let maskString = mask.toString(2).padStart(controlCount, '0');
-                for (let j = 0; j < controlCount; j++) {
-                    controls[j][i] = BigInt(maskString.charAt(j));
-                }
-            }
-        }
-        mask++;
-    }
-    return controls;
-}
-function validateIntervals(intervalGroups) {
+function normalizeIntervals(intervalGroups) {
     let maxValue = 0;
     const valueMap = new Map();
     for (let intervals of intervalGroups) {
@@ -122,6 +91,16 @@ function validateIntervals(intervalGroups) {
     if (valueMap.size <= maxValue) {
         throw new Error(`range error`); // TODO: better error message
     }
-    return maxValue + 1;
+    const masks = [];
+    for (let intervals of intervalGroups) {
+        let mask = new Array(maxValue + 1).fill(0);
+        for (let [start, end] of intervals) {
+            for (let i = start; i <= end; i++) {
+                mask[i] = 1;
+            }
+        }
+        masks.push(mask.map(v => v.toString(10)).join(''));
+    }
+    return masks;
 }
 //# sourceMappingURL=TransitionExpression.js.map

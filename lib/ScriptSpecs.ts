@@ -2,7 +2,7 @@
 // ================================================================================================
 import { StarkLimits, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField } from '@guildofweavers/air-script';
 import { ReadonlyRegisterGroup, ConstantDeclaration } from './visitor';
-import { Expression, LiteralExpression, TransitionExpression } from './expressions';
+import { Expression, LiteralExpression, TransitionExpression, LoopController } from './expressions';
 import { isPowerOf2, isMatrix, isVector } from './utils';
 
 // CLASS DEFINITION
@@ -27,6 +27,8 @@ export class ScriptSpecs {
     
     transitionFunction!         : TransitionExpression;
     transitionConstraints!      : TransitionExpression;
+
+    loopController!             : LoopController;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -66,6 +68,18 @@ export class ScriptSpecs {
             if (degree > result) { result = Number.parseInt(degree as any); }
         }
         return result;
+    }
+
+    get controlRegisters(): ReadonlyRegisterSpecs[] {
+        return this.loopController.values.map( v => {
+            return {
+                values: v, pattern: 'repeat', binary: true
+            };
+        });
+    }
+
+    get baseCycleLength(): number {
+        return this.loopController.cycleLength;
     }
 
     // PROPERTY SETTERS
@@ -125,6 +139,7 @@ export class ScriptSpecs {
         }
 
         this.transitionFunction = tFunctionBody;
+        this.loopController = new LoopController(tFunctionBody.masks);
     }
 
     setTransitionConstraints(tConstraintsBody: TransitionExpression): void {
@@ -140,6 +155,7 @@ export class ScriptSpecs {
         }
 
         this.transitionConstraints = tConstraintsBody;
+        // TODO: validate loop masks
 
         for (let degree of this.transitionConstraintsDegree) {
             if (degree > this.limits.maxConstraintDegree) {

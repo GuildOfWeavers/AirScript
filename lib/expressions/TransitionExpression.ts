@@ -1,11 +1,12 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree } from './Expression';
+import { Expression, ExpressionDegree, JsCodeOptions } from './Expression';
 import { areSameDimensions, isScalar } from '../utils';
 import { StatementBlock } from './StatementBlock';
 import { SymbolReference } from './SymbolReference';
 import { BinaryOperation } from './operations/BinaryOperation';
 import { sumDegree, maxDegree } from './utils';
+import { LoopController } from './LoopController';
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -24,9 +25,8 @@ type Interval = [number, number];
 // ================================================================================================
 export class TransitionExpression extends Expression {
 
-    readonly cycleLength    : number;
-    readonly controls       : bigint[][];
-    readonly blocks         : StatementBlock[];
+    readonly masks  : string[];
+    readonly blocks : StatementBlock[];
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -56,37 +56,24 @@ export class TransitionExpression extends Expression {
         }
 
         super(dimensions, degree);
-        this.cycleLength = validateIntervals(intervalGroups);
-        this.controls = buildControls(intervalGroups, this.cycleLength);
+        this.masks = normalizeIntervals(intervalGroups);
         this.blocks = blocks;
     }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toJsCode(assignTo?: string): string {
+    toJsCode(assignTo?: string, options?: JsCodeOptions, controller?: LoopController): string {
         if (assignTo) throw new Error('transition block cannot be assigned to a variable');
+        if (!controller) throw new Error('TODO');
 
-        let code = ``;
-        const tModifiers: Expression[] = [], fModifiers: Expression[] = [];
-        for (let i = 0; i < this.controls.length; i++) {
-            let tRef = `c[${i}]`, fRef = `fc${i}`;
-            tModifiers.push(new SymbolReference(tRef, [0, 0], 1n));
-            fModifiers.push(new SymbolReference(fRef, [0, 0], 1n));
-            code += `let ${BinaryOperation.sub(ONE, tModifiers[i]).toJsCode(fRef)}`;
-        }
-
-        code += `let ${this.blocks.map((b, i) => `b${i}`).join(', ')};\n`;
+        let code = `let ${this.blocks.map((b, i) => `b${i}`).join(', ')};\n`;
         const bResults: Expression[] = [];
         for (let i = 0; i < this.blocks.length; i++) {
             let bVar = `b${i}`, block = this.blocks[i];
             let bRef = new SymbolReference(bVar, block.dimensions, block.degree);
             code += `${this.blocks[i].toJsCode(bVar)}`;
             
-            let modifier: Expression | undefined;
-            for (let j = 0; j < this.controls.length; j++) {
-                let m = (i & (1 << j)) ? tModifiers[j] : fModifiers[j];
-                modifier = modifier ? BinaryOperation.mul(modifier, m) : m;
-            }
+            let modifier = controller.getModifier(this.masks[i]);
             bResults.push(modifier ? BinaryOperation.mul(bRef, modifier) : bRef);
         }
 
@@ -105,30 +92,7 @@ export class TransitionExpression extends Expression {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function buildControls(intervalGroups: Interval[][], cycleLength: number): bigint[][] {
-    const controlCount = Math.ceil(Math.log2(intervalGroups.length));
-    const controls = new Array<bigint[]>(controlCount);
-    for (let i = 0; i < controlCount; i++) {
-        controls[i] = new Array<bigint>(cycleLength);
-    }
-
-    let mask = 0;
-    for (let intervals of intervalGroups) {
-        for (let [start, end] of intervals) {
-            for (let i = start; i <= end; i++) {
-                let maskString = mask.toString(2).padStart(controlCount, '0');
-                for (let j = 0; j < controlCount; j++) {
-                    controls[j][i] = BigInt(maskString.charAt(j));
-                }
-            }
-        }
-        mask++;
-    }
-
-    return controls;
-}
-
-function validateIntervals(intervalGroups: Interval[][]): number {
+function normalizeIntervals(intervalGroups: Interval[][]): string[] {
 
     let maxValue = 0;
     const valueMap = new Map<number, Interval>();
@@ -156,5 +120,16 @@ function validateIntervals(intervalGroups: Interval[][]): number {
         throw new Error(`range error`); // TODO: better error message
     }
 
-    return maxValue + 1;
+    const masks: string[] = [];
+    for (let intervals of intervalGroups) {
+        let mask = new Array<number>(maxValue + 1).fill(0);
+        for (let [start, end] of intervals) {
+            for (let i = start; i <= end; i++) {
+                mask[i] = 1;
+            }
+        }
+        masks.push(mask.map(v => v.toString(10)).join(''));
+    }
+
+    return masks;
 }
