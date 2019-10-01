@@ -7,12 +7,12 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
     // transition function definition
     transition 8 registers {
-        for steps [0..4, 60..63] do {
+        for steps [0..4, 60..63] {
             S1 <- MDS # ($r[0..3] + $k[0..3])^5;
             S2 <- MDS # ($r[4..7] + $k[4..7])^5;
             [...S1, ...S2];
         }
-        for steps [5..59] do {
+        for steps [5..59] {
             S1 <- MDS # [...$r[0..2], ($r3 + $k3)^5];	
             S2 <- MDS # [...$r[4..6], ($r7 + $k7)^5];
             [...S1, ...S2];
@@ -21,8 +21,8 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
     // transition constraint definition
     enforce 8 constraint {
-        for steps [0..63] enforce {
-            $n - transition($r);
+        for all steps {
+            transition($r) = $n;
         }
     }
 

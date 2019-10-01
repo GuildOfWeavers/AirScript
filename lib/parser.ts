@@ -3,9 +3,9 @@
 import { CstParser } from "chevrotain";
 import {
     allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
-    ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, AssignOp, When, Else,
+    ExpOp, MulOp, AddOp, Transition, Registers, Steps, Enforce, Constraints, AssignOp, When, Else,
     RegisterRef, ReadonlyRegister, LSquare, RSquare, Comma, Using, DoubleDot, Colon, Semicolon,
-    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash, QMark, For, Do
+    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash, QMark, For, Equals, All
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -143,15 +143,26 @@ class AirParser extends CstParser {
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
         this.CONSUME(LCurly);
-        this.AT_LEAST_ONE(() => {
-            this.SUBRULE(this.transitionSegment, { LABEL: 'segments', ARGS: [true] });
-        });
+        this.OR([
+            { ALT: () => {
+                this.AT_LEAST_ONE(() => {
+                    this.SUBRULE(this.transitionSegment, { LABEL: 'segments' });
+                });
+            }},
+            { ALT: () => {
+                this.CONSUME(For);
+                this.CONSUME(All,                        { LABEL: 'all' });
+                this.CONSUME(Steps);
+                this.SUBRULE(this.statementBlock,        { LABEL: 'statements' });
+            }}
+        ]);
+        
         this.CONSUME(RCurly);
     });
 
     // SEGMENTS
     // --------------------------------------------------------------------------------------------
-    private transitionSegment = this.RULE('transitionSegment', (useEnforce: boolean) => {
+    private transitionSegment = this.RULE('transitionSegment', () => {
         this.CONSUME(For);
         this.CONSUME(Steps);
         this.CONSUME(LSquare);
@@ -160,10 +171,6 @@ class AirParser extends CstParser {
             DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
         });
         this.CONSUME(RSquare);
-        this.OR([
-            { GATE: () => !useEnforce, ALT: () => this.CONSUME(Do) },
-            { ALT: () => this.CONSUME(Enforce)}
-        ]);
         this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
     });
 
@@ -172,10 +179,14 @@ class AirParser extends CstParser {
     public statementBlock = this.RULE('statementBlock', () => {
         this.CONSUME(LCurly);
         this.MANY(() => {
-            this.SUBRULE(this.statement, { LABEL: 'statements' });
+            this.SUBRULE(this.statement,    { LABEL: 'statements' });
         });
-        this.SUBRULE(this.expression,    { LABEL: 'expression' });
-        this.OPTION(() => {
+        this.SUBRULE1(this.expression,      { LABEL: 'expression' });
+        this.OPTION1(() => {
+            this.CONSUME(Equals);
+            this.SUBRULE2(this.expression,  { LABEL: 'constraint' });
+        });
+        this.OPTION2(() => {
             this.CONSUME(Semicolon);
         });
         this.CONSUME(RCurly);

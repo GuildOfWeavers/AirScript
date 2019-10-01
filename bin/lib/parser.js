@@ -127,14 +127,24 @@ class AirParser extends chevrotain_1.CstParser {
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.AT_LEAST_ONE(() => {
-                this.SUBRULE(this.transitionSegment, { LABEL: 'segments', ARGS: [true] });
-            });
+            this.OR([
+                { ALT: () => {
+                        this.AT_LEAST_ONE(() => {
+                            this.SUBRULE(this.transitionSegment, { LABEL: 'segments' });
+                        });
+                    } },
+                { ALT: () => {
+                        this.CONSUME(lexer_1.For);
+                        this.CONSUME(lexer_1.All, { LABEL: 'all' });
+                        this.CONSUME(lexer_1.Steps);
+                        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+                    } }
+            ]);
             this.CONSUME(lexer_1.RCurly);
         });
         // SEGMENTS
         // --------------------------------------------------------------------------------------------
-        this.transitionSegment = this.RULE('transitionSegment', (useEnforce) => {
+        this.transitionSegment = this.RULE('transitionSegment', () => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Steps);
             this.CONSUME(lexer_1.LSquare);
@@ -143,10 +153,6 @@ class AirParser extends chevrotain_1.CstParser {
                 DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
             });
             this.CONSUME(lexer_1.RSquare);
-            this.OR([
-                { GATE: () => !useEnforce, ALT: () => this.CONSUME(lexer_1.Do) },
-                { ALT: () => this.CONSUME(lexer_1.Enforce) }
-            ]);
             this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
         });
         // STATEMENTS
@@ -156,8 +162,12 @@ class AirParser extends chevrotain_1.CstParser {
             this.MANY(() => {
                 this.SUBRULE(this.statement, { LABEL: 'statements' });
             });
-            this.SUBRULE(this.expression, { LABEL: 'expression' });
-            this.OPTION(() => {
+            this.SUBRULE1(this.expression, { LABEL: 'expression' });
+            this.OPTION1(() => {
+                this.CONSUME(lexer_1.Equals);
+                this.SUBRULE2(this.expression, { LABEL: 'constraint' });
+            });
+            this.OPTION2(() => {
                 this.CONSUME(lexer_1.Semicolon);
             });
             this.CONSUME(lexer_1.RCurly);

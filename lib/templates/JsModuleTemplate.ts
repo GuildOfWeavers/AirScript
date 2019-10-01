@@ -430,7 +430,7 @@ export function getTraceLength(initValues: bigint[]): number {
     return traceLength;
 }
 
-export function validateStaticRegisterValues(traceLength: number) {
+export function validateStaticRegisterValues(traceLength: number): void {
     for (let i = 0; i < registerSpecs.k.length; i++) {
         if (traceLength % registerSpecs.k[i].values.length !== 0) {
             throw new Error(`invalid definition for static register $k${i}: number of values must be a divisor of ${traceLength}`);

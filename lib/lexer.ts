@@ -39,6 +39,7 @@ export const Nothing     = createToken({ name: "Nothing",     pattern: /nothing/
 export const When        = createToken({ name: "When",        pattern: /when/,          longer_alt: Identifier });
 export const Else        = createToken({ name: "Else",        pattern: /else/,          longer_alt: Identifier });
 export const Init        = createToken({ name: "Init",        pattern: /init/,          longer_alt: Identifier });
+export const All         = createToken({ name: "All",         pattern: /all/,           longer_alt: Identifier });
 
 export const Using       = createToken({ name: "Using",       pattern: /using/,         longer_alt: Identifier });
 export const Readonly    = createToken({ name: "Readonly",    pattern: /readonly/,      longer_alt: Identifier });
@@ -62,6 +63,7 @@ export const Pound      = createToken({ name: "Pound",      pattern: /#/,   cate
 
 export const ExpOp      = createToken({ name: "ExpOp",      pattern: /\^/ });
 
+export const Equals     = createToken({ name: "Equals",     pattern: /=/ });
 export const AssignOp   = createToken({ name: "AssignOp",   pattern: /<-/ });
 
 // SYMBOLS
@@ -104,9 +106,9 @@ export const allTokens = [
     WhiteSpace, Comment,
     
     Define, Over, Prime, Binary, Field, Transition, Registers, In, Steps, Enforce, Constraints, Of,
-    Degree, For, Do, With, Nothing, When, Else, Repeat, Spread, Using, Readonly, Import, From, As,
+    Degree, For, Do, With, Nothing, When, Else, Repeat, Spread, Using, Readonly, Import, From, As, All,
 
-    Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp, AssignOp,
+    Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp, AssignOp, Equals,
 
     LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, DoubleDot,
     Pipe, Tilde, Ampersand, QMark, EMark,

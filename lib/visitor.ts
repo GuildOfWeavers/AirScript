@@ -240,9 +240,17 @@ class AirVisitor extends BaseCstVisitor {
 
     transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionExpression {
         const exc = new ExecutionContext(specs);
-        const segments: TransitionSegment[] = ctx.segments.map((segment: any) => this.visit(segment, exc));
-        const block = new TransitionExpression(segments);
-        return block;
+        let segments: TransitionSegment[];
+        if (ctx.segments) {
+            segments = ctx.segments.map((segment: any) => this.visit(segment, exc));
+        }
+        else {
+            const intervalEnd = specs.baseCycleLength - 1;
+            const statements: StatementBlock = this.visit(ctx.statements, exc);
+            segments = [{ intervals: [[0, intervalEnd]], statements }]
+        }
+        return new TransitionExpression(segments);
+
     }
 
     // SEGMENTS
@@ -264,7 +272,16 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.statements) {
             statements = ctx.statements.map((stmt: any) => this.visit(stmt, exc));
         }
-        const out: Expression = this.visit(ctx.expression, exc);
+
+        let out: Expression = this.visit(ctx.expression, exc);
+        if (ctx.constraint) {
+            if (!exc.canAccessFutureState) {
+                throw new Error('comparison operator cannot be used in transition function');
+            }
+            const constraint: Expression = this.visit(ctx.constraint, exc);
+            out = expressions.BinaryOperation.sub(constraint, out);
+        }
+
         return new StatementBlock(out, statements);
     }
 
