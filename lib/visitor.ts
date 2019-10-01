@@ -9,7 +9,7 @@ import { ScriptSpecs } from './ScriptSpecs';
 import { ExecutionContext } from './ExecutionContext';
 import { Expression, TransitionExpression, TransitionSegment, StatementBlock, Statement } from './expressions';
 import * as expressions from './expressions';
-import { Dimensions, validateVariableName } from './utils';
+import { Dimensions, validateVariableName, isPowerOf2 } from './utils';
 
 // INTERFACES
 // ================================================================================================
@@ -54,12 +54,11 @@ class AirVisitor extends BaseCstVisitor {
 
         // build script specs
         const specs = new ScriptSpecs(starkName, field, config.limits);
-        specs.setTraceLength(64n);    // TODO
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
         if (ctx.staticConstants) {
-            specs.setStaticConstants(ctx.staticConstants.map((element: any) => this.visit(element, field)));
+            specs.setGlobalConstants(ctx.staticConstants.map((element: any) => this.visit(element, field)));
         }
 
         // build readonly registers
@@ -208,8 +207,8 @@ class AirVisitor extends BaseCstVisitor {
             // parse values for static registers
             if (!ctx.values) throw new Error(`invalid definition for static register ${registerName}: static values must be provided for the register`);
             values = this.visit(ctx.values) as bigint[];
-            if (specs.traceLength % values.length !== 0) {
-                throw new Error(`invalid definition for static register ${registerName}: number of values must evenly divide the number of steps (${specs.traceLength})`);
+            if (!isPowerOf2(values.length)) {
+                throw new Error(`invalid definition for static register ${registerName}: number of values must be a power of 2`);
             }
     
             if (binary) {
@@ -240,7 +239,6 @@ class AirVisitor extends BaseCstVisitor {
     }
 
     transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionExpression {
-        // TODO: reconcile control variables
         const exc = new ExecutionContext(specs);
         const segments: TransitionSegment[] = ctx.segments.map((segment: any) => this.visit(segment, exc));
         const block = new TransitionExpression(segments);
@@ -524,24 +522,24 @@ export const visitor = new AirVisitor();
 // ================================================================================================
 function validateTransitionFunction(value: any[] | undefined) {
     if (!value || value.length === 0) {
-        throw new Error('Transition function is not defined');
+        throw new Error('transition function section is missing');
     }
     else if (value.length > 1) {
-        throw new Error('Transition function is defined more than once');
+        throw new Error('transition function section is defined more than once');
     }
 }
 
 function validateTransitionConstraints(value: any[] | undefined) {
     if (!value || value.length === 0) {
-        throw new Error('Transition constraints are not defined');
+        throw new Error('transition constraints section is missing');
     }
     else if (value.length > 1) {
-        throw new Error('Transition constraints are defined more than once');
+        throw new Error('transition constraints section is defined more than once');
     }
 }
 
 function validateReadonlyRegisterDefinitions(value: any[]) {
     if (value.length > 1) {
-        throw new Error('Readonly registers are defined more than once');
+        throw new Error('readonly registers section is defined more than once');
     }
 }

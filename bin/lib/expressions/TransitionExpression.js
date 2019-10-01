@@ -7,9 +7,6 @@ const utils_1 = require("../utils");
 const SymbolReference_1 = require("./SymbolReference");
 const BinaryOperation_1 = require("./operations/BinaryOperation");
 const utils_2 = require("./utils");
-// MODULE VARIABLES
-// ================================================================================================
-const ONE = new SymbolReference_1.SymbolReference('f.one', [0, 0], 0n);
 // CLASS DEFINITION
 // ================================================================================================
 class TransitionExpression extends Expression_1.Expression {
@@ -32,7 +29,7 @@ class TransitionExpression extends Expression_1.Expression {
             degree = utils_2.maxDegree(utils_2.sumDegree(segment.statements.degree, controlDegree), degree);
             // make sure all segments have the same dimensions
             if (!utils_1.areSameDimensions(dimensions, segment.statements.dimensions)) {
-                throw new Error('TODO');
+                throw new Error('all loops loop expressions must resolve to values of same dimensions');
             }
         }
         super(dimensions, degree);
@@ -43,9 +40,9 @@ class TransitionExpression extends Expression_1.Expression {
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo, options, controller) {
         if (assignTo)
-            throw new Error('transition block cannot be assigned to a variable');
+            throw new Error('transition expression cannot be assigned to a variable');
         if (!controller)
-            throw new Error('TODO');
+            throw new Error('transition expression cannot be reduced to code without a loop controller');
         let code = `let ${this.blocks.map((b, i) => `b${i}`).join(', ')};\n`;
         const bResults = [];
         for (let i = 0; i < this.blocks.length; i++) {
@@ -75,11 +72,12 @@ function normalizeIntervals(intervalGroups) {
         for (let interval of intervals) {
             let start = interval[0], end = interval[1];
             if (start > end) {
-                throw new Error(`range error`); // TODO: better error message
+                throw new Error(`invalid step interval [${start}..${end}]: start index must be smaller than end index`);
             }
             for (let i = start; i <= end; i++) {
                 if (valueMap.has(i)) {
-                    throw new Error(`range error`); // TODO: better error message
+                    const [s2, e2] = valueMap.get(i);
+                    throw new Error(`step interval [${start}..${end}] overlaps with interval [${s2}..${e2}]`);
                 }
                 valueMap.set(i, interval);
                 if (i > maxValue) {
@@ -88,12 +86,20 @@ function normalizeIntervals(intervalGroups) {
             }
         }
     }
-    if (valueMap.size <= maxValue) {
-        throw new Error(`range error`); // TODO: better error message
+    maxValue++;
+    if (valueMap.size < maxValue) {
+        for (let i = 0; i < maxValue; i++) {
+            if (!valueMap.has(i)) {
+                throw new Error(`step ${i} is not covered by any expression`);
+            }
+        }
+    }
+    if (!utils_1.isPowerOf2(maxValue)) {
+        throw new Error('total number of steps must be a power of 2');
     }
     const masks = [];
     for (let intervals of intervalGroups) {
-        let mask = new Array(maxValue + 1).fill(0);
+        let mask = new Array(maxValue).fill(0);
         for (let [start, end] of intervals) {
             for (let i = start; i <= end; i++) {
                 mask[i] = 1;

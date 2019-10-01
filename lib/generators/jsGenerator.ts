@@ -1,12 +1,12 @@
 // IMPORTS
 // ================================================================================================
-import { AirModule } from "@guildofweavers/air-script";
+import { AirModule, StarkLimits } from "@guildofweavers/air-script";
 import { ScriptSpecs } from "../ScriptSpecs";
 import * as jsTemplate from '../templates/JsModuleTemplate';
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function generateJsModule(specs: ScriptSpecs, extensionFactor: number): AirModule {
+export function generateJsModule(specs: ScriptSpecs, limits: StarkLimits, extensionFactor: number): AirModule {
 
     let code = `'use strict';\n\n`;
 
@@ -17,12 +17,12 @@ export function generateJsModule(specs: ScriptSpecs, extensionFactor: number): A
     code += `const stateWidth = ${specs.mutableRegisterCount};\n`;
     code += `const extensionFactor = ${extensionFactor};\n`;
     code += `const compositionFactor = ${compositionFactor};\n`;
-    code += `const baseCycleLength = ${specs.baseCycleLength};\n\n`;
+    code += `const baseCycleLength = ${specs.baseCycleLength};\n`;
+    code += `const maxTraceLength = ${limits.maxTraceLength};\n\n`;
 
     // build transition function and constraints
-    const lc = specs.loopController;
-    code += `function applyTransition(r, k, s, p, c) {\n${specs.transitionFunction.toJsCode(undefined, undefined, lc)}}\n`;
-    code += `function evaluateConstraints(r, n, k, s, p, c) {\n${specs.transitionConstraints.toJsCode(undefined, undefined, lc)}}\n\n`;
+    code += `function applyTransition(r, k, s, p, c) {\n${buildTransitionFunctionBody(specs)}}\n`;
+    code += `function evaluateConstraints(r, n, k, s, p, c) {\n${buildTransitionConstraintsBody(specs)}}\n\n`;
 
     // add functions from the template
     for (let prop in jsTemplate) {
@@ -43,8 +43,8 @@ export function generateJsModule(specs: ScriptSpecs, extensionFactor: number): A
     code += '};';
 
     // create and execute module builder function
-    const moduleBuilder = new Function('f', 'g', 'registerSpecs', 'constraints', code);
-    return moduleBuilder(
+    const buildModule = new Function('f', 'g', 'registerSpecs', 'constraints', code);
+    return buildModule(
         specs.field,
         specs.constantBindings,
         buildRegisterSpecs(specs),
@@ -54,6 +54,14 @@ export function generateJsModule(specs: ScriptSpecs, extensionFactor: number): A
 
 // HELPER FUNCTIONS
 // ================================================================================================
+function buildTransitionFunctionBody(specs: ScriptSpecs): string {
+    return specs.transitionFunction.toJsCode(undefined, undefined, specs.loopController);
+}
+
+function buildTransitionConstraintsBody(specs: ScriptSpecs): string {
+    return specs.transitionConstraints.toJsCode(undefined, undefined, specs.loopController);
+}
+
 function buildRegisterSpecs(specs: ScriptSpecs): jsTemplate.RegisterSpecs {
     return {
         k: specs.staticRegisters,

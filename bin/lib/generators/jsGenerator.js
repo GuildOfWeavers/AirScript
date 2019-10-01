@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const jsTemplate = require("../templates/JsModuleTemplate");
 // PUBLIC FUNCTIONS
 // ================================================================================================
-function generateJsModule(specs, extensionFactor) {
+function generateJsModule(specs, limits, extensionFactor) {
     let code = `'use strict';\n\n`;
     // set up module variables
     const maxConstraintDegree = specs.maxTransitionConstraintDegree;
@@ -11,11 +11,11 @@ function generateJsModule(specs, extensionFactor) {
     code += `const stateWidth = ${specs.mutableRegisterCount};\n`;
     code += `const extensionFactor = ${extensionFactor};\n`;
     code += `const compositionFactor = ${compositionFactor};\n`;
-    code += `const baseCycleLength = ${specs.baseCycleLength};\n\n`;
+    code += `const baseCycleLength = ${specs.baseCycleLength};\n`;
+    code += `const maxTraceLength = ${limits.maxTraceLength};\n\n`;
     // build transition function and constraints
-    const lc = specs.loopController;
-    code += `function applyTransition(r, k, s, p, c) {\n${specs.transitionFunction.toJsCode(undefined, undefined, lc)}}\n`;
-    code += `function evaluateConstraints(r, n, k, s, p, c) {\n${specs.transitionConstraints.toJsCode(undefined, undefined, lc)}}\n\n`;
+    code += `function applyTransition(r, k, s, p, c) {\n${buildTransitionFunctionBody(specs)}}\n`;
+    code += `function evaluateConstraints(r, n, k, s, p, c) {\n${buildTransitionConstraintsBody(specs)}}\n\n`;
     // add functions from the template
     for (let prop in jsTemplate) {
         code += `${jsTemplate[prop].toString()}\n`;
@@ -33,12 +33,18 @@ function generateJsModule(specs, extensionFactor) {
     code += `initVerification\n`;
     code += '};';
     // create and execute module builder function
-    const moduleBuilder = new Function('f', 'g', 'registerSpecs', 'constraints', code);
-    return moduleBuilder(specs.field, specs.constantBindings, buildRegisterSpecs(specs), specs.transitionConstraintsSpecs);
+    const buildModule = new Function('f', 'g', 'registerSpecs', 'constraints', code);
+    return buildModule(specs.field, specs.constantBindings, buildRegisterSpecs(specs), specs.transitionConstraintsSpecs);
 }
 exports.generateJsModule = generateJsModule;
 // HELPER FUNCTIONS
 // ================================================================================================
+function buildTransitionFunctionBody(specs) {
+    return specs.transitionFunction.toJsCode(undefined, undefined, specs.loopController);
+}
+function buildTransitionConstraintsBody(specs) {
+    return specs.transitionConstraints.toJsCode(undefined, undefined, specs.loopController);
+}
 function buildRegisterSpecs(specs) {
     return {
         k: specs.staticRegisters,

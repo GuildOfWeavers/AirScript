@@ -9,6 +9,7 @@ const registerSpecs = { k: [], s: [], p: [], c: [] };
 const constraints = [];
 const compositionFactor = 0;
 const extensionFactor = 0;
+const maxTraceLength = 0;
 // GENERATED FUNCTION PLACEHOLDERS
 // ================================================================================================
 const applyTransition = function () { return []; };
@@ -18,6 +19,7 @@ const evaluateConstraints = function () { return []; };
 function initProof(pInputs, sInputs, initValues) {
     // calculate trace length and validate inputs
     const traceLength = getTraceLength(initValues);
+    validateStaticRegisterValues(traceLength);
     validateInputRegisterValues(pInputs, traceLength, 'public');
     validateInputRegisterValues(sInputs, traceLength, 'secret');
     // build evaluation domain
@@ -236,6 +238,7 @@ exports.initProof = initProof;
 // ================================================================================================
 function initVerification(pInputs) {
     const traceLength = baseCycleLength; // TODO
+    validateStaticRegisterValues(traceLength);
     validateInputRegisterValues(pInputs, traceLength, 'public');
     const evaluationDomainSize = traceLength * extensionFactor;
     const rootOfUnity = f.getRootOfUnity(evaluationDomainSize);
@@ -333,23 +336,35 @@ function initVerification(pInputs) {
 exports.initVerification = initVerification;
 // HELPER FUNCTIONS
 // ================================================================================================
-function getTraceLength(values) {
-    if (!values)
-        throw new TypeError('Initial values are undefined');
-    if (!Array.isArray(values))
-        throw new TypeError('Initial values parameter must be an array');
-    if (values.length !== stateWidth) {
-        throw new Error(`Initial values array must contain exactly ${stateWidth} elements`);
+function getTraceLength(initValues) {
+    if (!initValues)
+        throw new TypeError('initial values are undefined');
+    if (!Array.isArray(initValues))
+        throw new TypeError('initial values parameter must be an array');
+    if (initValues.length !== stateWidth) {
+        throw new Error(`initial values array must contain exactly ${stateWidth} elements`);
     }
     for (let i = 0; i < stateWidth; i++) {
-        if (typeof values[i] !== 'bigint') {
-            throw new TypeError(`Initial value ${i} is invalid: value '${values[i]}' is not a BigInt`);
+        if (typeof initValues[i] !== 'bigint') {
+            throw new TypeError(`initial value ${i} is invalid: value '${initValues[i]}' is not a BigInt`);
         }
     }
     // TODO: calculate actual trace length
-    return baseCycleLength;
+    const traceLength = baseCycleLength;
+    if (traceLength > maxTraceLength) {
+        throw new Error(`total trace length cannot exceed ${maxTraceLength}`);
+    }
+    return traceLength;
 }
 exports.getTraceLength = getTraceLength;
+function validateStaticRegisterValues(traceLength) {
+    for (let i = 0; i < registerSpecs.k.length; i++) {
+        if (traceLength % registerSpecs.k[i].values.length !== 0) {
+            throw new Error(`invalid definition for static register $k${i}: number of values must be a divisor of ${traceLength}`);
+        }
+    }
+}
+exports.validateStaticRegisterValues = validateStaticRegisterValues;
 function validateInputRegisterValues(inputs, traceLength, type) {
     if (!inputs)
         throw new TypeError(`${type} inputs are undefined`);

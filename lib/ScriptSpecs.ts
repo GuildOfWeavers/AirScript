@@ -14,10 +14,9 @@ export class ScriptSpecs {
     readonly name               : string;
     readonly field              : FiniteField;
 
-    readonly staticConstants    : Map<string, Expression>;
+    readonly globalConstants    : Map<string, Expression>;
     readonly constantBindings   : any;
 
-    traceLength!                : number;
     mutableRegisterCount!       : number;
     readonlyRegisterCount!      : number;
     staticRegisters!            : ReadonlyRegisterSpecs[];
@@ -36,7 +35,7 @@ export class ScriptSpecs {
         this.name = name;
         this.field = field;
         this.limits = limits;
-        this.staticConstants = new Map();
+        this.globalConstants = new Map();
         this.constantBindings = {};
     }
 
@@ -56,9 +55,7 @@ export class ScriptSpecs {
 
     get transitionConstraintsSpecs(): ConstraintSpecs[] {
         return this.transitionConstraintsDegree.map( degree => {
-            return {
-                degree: Number.parseInt(degree as any)
-            } as ConstraintSpecs;
+            return { degree: Number.parseInt(degree as any) } as ConstraintSpecs;
         });
     }
 
@@ -71,10 +68,8 @@ export class ScriptSpecs {
     }
 
     get controlRegisters(): ReadonlyRegisterSpecs[] {
-        return this.loopController.values.map( v => {
-            return {
-                values: v, pattern: 'repeat', binary: true
-            };
+        return this.loopController.values.map( values => {
+            return { values, pattern: 'repeat', binary: true };
         });
     }
 
@@ -84,10 +79,6 @@ export class ScriptSpecs {
 
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
-    setTraceLength(value: bigint): void {
-        this.traceLength = validateTraceLength(value, this.limits);
-    }
-
     setMutableRegisterCount(value: bigint): void {
         this.mutableRegisterCount = validateMutableRegisterCount(value, this.limits);
     }
@@ -107,13 +98,13 @@ export class ScriptSpecs {
         this.constraintCount = validateConstraintCount(value, this.limits);
     }
 
-    setStaticConstants(declarations: ConstantDeclaration[]): void {
+    setGlobalConstants(declarations: ConstantDeclaration[]): void {
         for (let constant of declarations) {
-            if (this.staticConstants.has(constant.name)) {
+            if (this.globalConstants.has(constant.name)) {
                 throw new Error(`Static constant '${constant.name}' is defined more than once`);
             }
             let constExpression = new LiteralExpression(constant.value, constant.name);
-            this.staticConstants.set(constant.name, constExpression);
+            this.globalConstants.set(constant.name, constExpression);
             if (isMatrix(constant.dimensions)) {
                 this.constantBindings[constant.name] = this.field.newMatrixFrom(constant.value as bigint[][]);
             }
@@ -139,7 +130,7 @@ export class ScriptSpecs {
         }
 
         this.transitionFunction = tFunctionBody;
-        this.loopController = new LoopController(tFunctionBody.masks);
+        this.loopController = new LoopController(tFunctionBody.masks, this.field);
     }
 
     setTransitionConstraints(tConstraintsBody: TransitionExpression): void {
@@ -155,7 +146,7 @@ export class ScriptSpecs {
         }
 
         this.transitionConstraints = tConstraintsBody;
-        // TODO: validate loop masks
+        this.loopController.validateConstraintMasks(tConstraintsBody.masks);
 
         for (let degree of this.transitionConstraintsDegree) {
             if (degree > this.limits.maxConstraintDegree) {
@@ -173,23 +164,6 @@ export class ScriptSpecs {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function validateTraceLength(steps: number | bigint, limits: StarkLimits): number {
-    if (steps > limits.maxSteps) {
-        throw new Error(`Number of steps cannot exceed ${limits.maxSteps}`);
-    }
-    else if (steps < 0) {
-        throw new Error('Number of steps must be greater than 0');
-    }
-    else if (!isPowerOf2(steps)) {
-        throw new Error('Number of steps must be a power of 2');
-    }
-    else if (typeof steps === 'bigint') {
-        steps = Number.parseInt(steps as any);
-    }
-
-    return steps;
-}
-
 function validateMutableRegisterCount(registerCount: number | bigint, limits: StarkLimits): number {
     if (registerCount > limits.maxMutableRegisters) {
         throw new Error(`Number of mutable registers cannot exceed ${limits.maxMutableRegisters}`);

@@ -11,7 +11,7 @@ class ScriptSpecs {
         this.name = name;
         this.field = field;
         this.limits = limits;
-        this.staticConstants = new Map();
+        this.globalConstants = new Map();
         this.constantBindings = {};
     }
     // PUBLIC ACCESSORS
@@ -28,9 +28,7 @@ class ScriptSpecs {
     }
     get transitionConstraintsSpecs() {
         return this.transitionConstraintsDegree.map(degree => {
-            return {
-                degree: Number.parseInt(degree)
-            };
+            return { degree: Number.parseInt(degree) };
         });
     }
     get maxTransitionConstraintDegree() {
@@ -43,10 +41,8 @@ class ScriptSpecs {
         return result;
     }
     get controlRegisters() {
-        return this.loopController.values.map(v => {
-            return {
-                values: v, pattern: 'repeat', binary: true
-            };
+        return this.loopController.values.map(values => {
+            return { values, pattern: 'repeat', binary: true };
         });
     }
     get baseCycleLength() {
@@ -54,9 +50,6 @@ class ScriptSpecs {
     }
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
-    setTraceLength(value) {
-        this.traceLength = validateTraceLength(value, this.limits);
-    }
     setMutableRegisterCount(value) {
         this.mutableRegisterCount = validateMutableRegisterCount(value, this.limits);
     }
@@ -72,13 +65,13 @@ class ScriptSpecs {
     setConstraintCount(value) {
         this.constraintCount = validateConstraintCount(value, this.limits);
     }
-    setStaticConstants(declarations) {
+    setGlobalConstants(declarations) {
         for (let constant of declarations) {
-            if (this.staticConstants.has(constant.name)) {
+            if (this.globalConstants.has(constant.name)) {
                 throw new Error(`Static constant '${constant.name}' is defined more than once`);
             }
             let constExpression = new expressions_1.LiteralExpression(constant.value, constant.name);
-            this.staticConstants.set(constant.name, constExpression);
+            this.globalConstants.set(constant.name, constExpression);
             if (utils_1.isMatrix(constant.dimensions)) {
                 this.constantBindings[constant.name] = this.field.newMatrixFrom(constant.value);
             }
@@ -102,7 +95,7 @@ class ScriptSpecs {
             }
         }
         this.transitionFunction = tFunctionBody;
-        this.loopController = new expressions_1.LoopController(tFunctionBody.masks);
+        this.loopController = new expressions_1.LoopController(tFunctionBody.masks, this.field);
     }
     setTransitionConstraints(tConstraintsBody) {
         if (this.constraintCount === 1) {
@@ -116,7 +109,7 @@ class ScriptSpecs {
             }
         }
         this.transitionConstraints = tConstraintsBody;
-        // TODO: validate loop masks
+        this.loopController.validateConstraintMasks(tConstraintsBody.masks);
         for (let degree of this.transitionConstraintsDegree) {
             if (degree > this.limits.maxConstraintDegree) {
                 throw new Error(`degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
@@ -133,21 +126,6 @@ class ScriptSpecs {
 exports.ScriptSpecs = ScriptSpecs;
 // HELPER FUNCTIONS
 // ================================================================================================
-function validateTraceLength(steps, limits) {
-    if (steps > limits.maxSteps) {
-        throw new Error(`Number of steps cannot exceed ${limits.maxSteps}`);
-    }
-    else if (steps < 0) {
-        throw new Error('Number of steps must be greater than 0');
-    }
-    else if (!utils_1.isPowerOf2(steps)) {
-        throw new Error('Number of steps must be a power of 2');
-    }
-    else if (typeof steps === 'bigint') {
-        steps = Number.parseInt(steps);
-    }
-    return steps;
-}
 function validateMutableRegisterCount(registerCount, limits) {
     if (registerCount > limits.maxMutableRegisters) {
         throw new Error(`Number of mutable registers cannot exceed ${limits.maxMutableRegisters}`);

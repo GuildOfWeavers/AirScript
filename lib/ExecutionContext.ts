@@ -9,7 +9,7 @@ import { Expression, SymbolReference, SubroutineCall } from './expressions';
 // ================================================================================================
 export class ExecutionContext {
 
-    readonly staticConstants        : Map<string, Expression>;
+    readonly globalConstants        : Map<string, Expression>;
     readonly localVariables         : Map<string, SymbolReference>[];
     readonly subroutines            : Map<string, string>;
     readonly mutableRegisterCount   : number;
@@ -23,7 +23,7 @@ export class ExecutionContext {
     constructor(specs: ScriptSpecs) {
         this.subroutines = new Map();
         this.localVariables = [new Map()];
-        this.staticConstants = specs.staticConstants;
+        this.globalConstants = specs.globalConstants;
         this.mutableRegisterCount = specs.mutableRegisterCount;
         this.staticRegisters = specs.staticRegisters;
         this.secretRegisters = specs.secretRegisters;
@@ -65,8 +65,8 @@ export class ExecutionContext {
     // VARIABLES
     // --------------------------------------------------------------------------------------------
     setVariableAssignment(variable: string, expression: Expression): SymbolReference {
-        if (this.staticConstants.has(variable)) {
-            throw new Error(`value of static constant '${variable}' cannot be changed`);
+        if (this.globalConstants.has(variable)) {
+            throw new Error(`value of global constant '${variable}' cannot be changed`);
         }
         
         // get the last frame from the local variable stack
@@ -98,9 +98,9 @@ export class ExecutionContext {
     }
 
     private getVariableReference(variable: string): Expression | undefined {
-        if (this.staticConstants.has(variable)) {
+        if (this.globalConstants.has(variable)) {
             // check for variable in global constants
-            return this.staticConstants.get(variable)!;
+            return this.globalConstants.get(variable)!;
         }
         else {
             // search for the variable in the local variable stack
@@ -119,7 +119,7 @@ export class ExecutionContext {
 
     destroyVariableFrame() {
         if (this.localVariables.length === 1) {
-            throw new Error('Cannot destroy last variable frame');
+            throw new Error('cannot destroy last variable frame');
         }
         this.localVariables.pop();
     }

@@ -10,7 +10,7 @@ class ExecutionContext {
     constructor(specs) {
         this.subroutines = new Map();
         this.localVariables = [new Map()];
-        this.staticConstants = specs.staticConstants;
+        this.globalConstants = specs.globalConstants;
         this.mutableRegisterCount = specs.mutableRegisterCount;
         this.staticRegisters = specs.staticRegisters;
         this.secretRegisters = specs.secretRegisters;
@@ -49,8 +49,8 @@ class ExecutionContext {
     // VARIABLES
     // --------------------------------------------------------------------------------------------
     setVariableAssignment(variable, expression) {
-        if (this.staticConstants.has(variable)) {
-            throw new Error(`value of static constant '${variable}' cannot be changed`);
+        if (this.globalConstants.has(variable)) {
+            throw new Error(`value of global constant '${variable}' cannot be changed`);
         }
         // get the last frame from the local variable stack
         const localVariables = this.localVariables[this.localVariables.length - 1];
@@ -76,9 +76,9 @@ class ExecutionContext {
         return sExpression;
     }
     getVariableReference(variable) {
-        if (this.staticConstants.has(variable)) {
+        if (this.globalConstants.has(variable)) {
             // check for variable in global constants
-            return this.staticConstants.get(variable);
+            return this.globalConstants.get(variable);
         }
         else {
             // search for the variable in the local variable stack
@@ -95,7 +95,7 @@ class ExecutionContext {
     }
     destroyVariableFrame() {
         if (this.localVariables.length === 1) {
-            throw new Error('Cannot destroy last variable frame');
+            throw new Error('cannot destroy last variable frame');
         }
         this.localVariables.pop();
     }

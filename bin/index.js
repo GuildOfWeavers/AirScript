@@ -9,7 +9,7 @@ const utils_1 = require("./lib/utils");
 // MODULE VARIABLES
 // ================================================================================================
 const DEFAULT_LIMITS = {
-    maxSteps: 2 ** 20,
+    maxTraceLength: 2 ** 20,
     maxMutableRegisters: 64,
     maxReadonlyRegisters: 64,
     maxConstraintCount: 1024,
@@ -36,7 +36,7 @@ function parseScript(script, options = {}) {
     try {
         const specs = visitor_1.visitor.visit(cst, { limits, wasmOptions });
         const extensionFactor = validateExtensionFactor(specs.maxTransitionConstraintDegree, options.extensionFactor);
-        const air = generators.generateJsModule(specs, extensionFactor);
+        const air = generators.generateJsModule(specs, limits, extensionFactor);
         return air;
     }
     catch (error) {

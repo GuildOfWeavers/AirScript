@@ -16,7 +16,7 @@ declare module '@guildofweavers/air-script' {
     export interface StarkLimits {
 
         /** Maximum number of steps in an execution trace; defaults to 2^20 */
-        maxSteps: number;
+        maxTraceLength: number;
 
         /** Maximum number of mutable registers; defaults to 64 */
         maxMutableRegisters: number;

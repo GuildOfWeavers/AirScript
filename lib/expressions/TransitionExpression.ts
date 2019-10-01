@@ -1,16 +1,12 @@
 // IMPORTS
 // ================================================================================================
 import { Expression, ExpressionDegree, JsCodeOptions } from './Expression';
-import { areSameDimensions, isScalar } from '../utils';
+import { areSameDimensions, isScalar, isPowerOf2 } from '../utils';
 import { StatementBlock } from './StatementBlock';
 import { SymbolReference } from './SymbolReference';
 import { BinaryOperation } from './operations/BinaryOperation';
 import { sumDegree, maxDegree } from './utils';
 import { LoopController } from './LoopController';
-
-// MODULE VARIABLES
-// ================================================================================================
-const ONE = new SymbolReference('f.one', [0, 0], 0n);
 
 // INTERFACES
 // ================================================================================================
@@ -51,7 +47,7 @@ export class TransitionExpression extends Expression {
 
             // make sure all segments have the same dimensions
             if (!areSameDimensions(dimensions, segment.statements.dimensions)) {
-                throw new Error('TODO');
+                throw new Error('all loops loop expressions must resolve to values of same dimensions');
             }
         }
 
@@ -63,8 +59,8 @@ export class TransitionExpression extends Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo?: string, options?: JsCodeOptions, controller?: LoopController): string {
-        if (assignTo) throw new Error('transition block cannot be assigned to a variable');
-        if (!controller) throw new Error('TODO');
+        if (assignTo) throw new Error('transition expression cannot be assigned to a variable');
+        if (!controller) throw new Error('transition expression cannot be reduced to code without a loop controller');
 
         let code = `let ${this.blocks.map((b, i) => `b${i}`).join(', ')};\n`;
         const bResults: Expression[] = [];
@@ -101,12 +97,13 @@ function normalizeIntervals(intervalGroups: Interval[][]): string[] {
         for (let interval of intervals) {
             let start = interval[0], end = interval[1];
             if (start > end) {
-                throw new Error(`range error`); // TODO: better error message
+                throw new Error(`invalid step interval [${start}..${end}]: start index must be smaller than end index`);
             }
 
             for (let i = start; i <= end; i++) {
                 if (valueMap.has(i)) {
-                    throw new Error(`range error`); // TODO: better error message
+                    const [s2, e2] = valueMap.get(i)!;
+                    throw new Error(`step interval [${start}..${end}] overlaps with interval [${s2}..${e2}]`);
                 }
                 valueMap.set(i, interval);
                 if (i > maxValue) {
@@ -115,14 +112,23 @@ function normalizeIntervals(intervalGroups: Interval[][]): string[] {
             }
         }
     }
+    maxValue++;
 
-    if (valueMap.size <= maxValue) {
-        throw new Error(`range error`); // TODO: better error message
+    if (valueMap.size < maxValue) {
+        for (let i = 0; i < maxValue; i++) {
+            if (!valueMap.has(i)) {
+                throw new Error(`step ${i} is not covered by any expression`);
+            }
+        }
+    }
+
+    if (!isPowerOf2(maxValue)) {
+        throw new Error('total number of steps must be a power of 2');
     }
 
     const masks: string[] = [];
     for (let intervals of intervalGroups) {
-        let mask = new Array<number>(maxValue + 1).fill(0);
+        let mask = new Array<number>(maxValue).fill(0);
         for (let [start, end] of intervals) {
             for (let i = start; i <= end; i++) {
                 mask[i] = 1;

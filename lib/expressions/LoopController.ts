@@ -4,6 +4,7 @@ import { Expression } from "./Expression";
 import { BinaryOperation } from "./operations/BinaryOperation";
 import { SymbolReference } from "./SymbolReference";
 import { ExtractVectorElement } from "./vectors/ExtractElement";
+import { FiniteField } from "@guildofweavers/galois";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -17,7 +18,7 @@ export class LoopController {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(masks: string[]) {
+    constructor(masks: string[], field: FiniteField) {
         this.segmentCount = Math.ceil(Math.log2(masks.length)) * 2;
         this.cycleLength = masks[0].length;
         this.maskToKey = new Map();
@@ -35,9 +36,9 @@ export class LoopController {
             for (let i = 0; i < mask.length; i++) {
                 for (let j = 0; j < this.segmentCount / 2; j++) {
                     if (mask[i] === '1') {
-                        let value = BigInt(key.charAt(j));
+                        let value = key.charAt(j) === '1' ? field.one : field.zero;
                         this.values[2 * j][i] = value;
-                        this.values[2 * j + 1][i] = 1n - value;
+                        this.values[2 * j + 1][i] = field.sub(field.one, value);
                     }
                 }
             }
@@ -60,6 +61,19 @@ export class LoopController {
         }
 
         return modifier;
+    }
+
+    validateConstraintMasks(masks: string[]): void {
+        for (let mask of masks) {
+            if (mask.length !== this.cycleLength) {
+                throw new Error(`number of steps in transition constraints conflicts with transition function`);
+            }
+            else if (!this.maskToKey.has(mask)) {
+                if (mask.includes('0')) {
+                    throw new Error('loop structures in transition constraints conflict with transition function');
+                }
+            }
+        }
     }
 }
 
