@@ -112,7 +112,7 @@ class ScriptSpecs {
             }
         }
         this.transitionConstraints = tConstraintsBody;
-        this.loopController.validateConstraintMasks(tConstraintsBody.masks);
+        // TODO: this.loopController.validateConstraintMasks(tConstraintsBody.masks);
         for (let degree of this.transitionConstraintsDegree) {
             if (degree > this.limits.maxConstraintDegree) {
                 throw new Error(`degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);

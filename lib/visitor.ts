@@ -7,7 +7,7 @@ import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ExecutionContext } from './ExecutionContext';
-import { Expression, InputLoop, SegmentLoop, SegmentLoopBlock, TransitionExpression, TransitionSegment, StatementBlock, Statement } from './expressions';
+import { Expression, InputLoop, SegmentLoop, SegmentLoopBlock, StatementBlock, Statement } from './expressions';
 import * as expressions from './expressions';
 import { Dimensions, validateVariableName, isPowerOf2 } from './utils';
 
@@ -78,7 +78,7 @@ class AirVisitor extends BaseCstVisitor {
         specs.setTransitionFunction(tFunctionBody);
         
         validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraintsBody: TransitionExpression = this.visit(ctx.transitionConstraints, specs);
+        const tConstraintsBody: InputLoop = this.visit(ctx.transitionConstraints, specs);
         specs.setTransitionConstraints(tConstraintsBody);
 
         // build and return AIR config
@@ -237,19 +237,10 @@ class AirVisitor extends BaseCstVisitor {
         return loop;
     }
 
-    transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionExpression {
+    transitionConstraints(ctx: any, specs: ScriptSpecs): InputLoop {
         const exc = new ExecutionContext(specs);
-        let segments: TransitionSegment[];
-        if (ctx.segments) {
-            segments = ctx.segments.map((segment: any) => this.visit(segment, exc));
-        }
-        else {
-            const intervalEnd = specs.baseCycleLength - 1;
-            const statements: StatementBlock = this.visit(ctx.statements, exc);
-            segments = [{ intervals: [[0, intervalEnd]], statements }]
-        }
-        return new TransitionExpression(segments);
-
+        const loop: InputLoop = this.visit(ctx.segment, exc);
+        return loop;
     }
 
     // LOOPS

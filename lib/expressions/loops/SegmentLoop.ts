@@ -17,7 +17,7 @@ export class SegmentLoop extends Expression {
 
     readonly modifierId : number;
     readonly statements : StatementBlock;
-    readonly mask       : string;
+    readonly mask       : number[];
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -48,7 +48,7 @@ export class SegmentLoop extends Expression {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function parseIntervals(intervals: Interval[]): string {
+function parseIntervals(intervals: Interval[]): number[] {
 
     let maxSteps = 0;
     const stepMap = new Map<number, Interval>();
@@ -78,5 +78,5 @@ function parseIntervals(intervals: Interval[]): string {
         }
     }
 
-    return mask.map(v => v.toString(10)).join('');
+    return mask;
 }

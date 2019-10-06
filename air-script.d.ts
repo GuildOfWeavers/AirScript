@@ -126,9 +126,10 @@ declare module '@guildofweavers/air-script' {
          * @param s Array with values of secret inputs at the current step
          * @param p Array with values of public inputs at the current step
          * @param c Array with values of control registers at the current step
+         * @param i Array with values of init registers at the current step
          * @returns Array to hold values of mutable registers for the next step
          */
-        (r: bigint[], k: bigint[], s: bigint[], p: bigint[], c: bigint[]): bigint[];
+        (r: bigint[], k: bigint[], s: bigint[], p: bigint[], c: bigint[], i: bigint[]): bigint[];
     }
     
     export interface ConstraintEvaluator {
@@ -139,8 +140,9 @@ declare module '@guildofweavers/air-script' {
          * @param s Array with values of secret inputs at the current step
          * @param p Array with values of public inputs at the current step
          * @param c Array with values of control registers at the current step
+         * @param i Array with values of init registers at the current step
          * @readonly Array to hold values of constraint evaluated at the current step
          */
-        (r: bigint[], n: bigint[], k: bigint[], s: bigint[], p: bigint[], c: bigint[]): bigint[];
+        (r: bigint[], n: bigint[], k: bigint[], s: bigint[], p: bigint[], c: bigint[], i: bigint[]): bigint[];
     }
 }

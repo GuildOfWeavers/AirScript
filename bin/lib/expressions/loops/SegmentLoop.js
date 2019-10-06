@@ -61,6 +61,6 @@ function parseIntervals(intervals) {
             mask[i] = 1;
         }
     }
-    return mask.map(v => v.toString(10)).join('');
+    return mask;
 }
 //# sourceMappingURL=SegmentLoop.js.map

@@ -12,7 +12,7 @@ import { SegmentLoopBlock } from "./SegmentLoopBlock";
 export class LoopController {
 
     readonly inputTemplate  : number[];
-    readonly segmentMasks   : string[];
+    readonly segmentMasks   : number[][];
     readonly controls       : Expression[];
     
     // CONSTRUCTOR

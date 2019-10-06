@@ -17,9 +17,6 @@ export function generateJsModule(specs: ScriptSpecs, limits: StarkLimits, extens
     code += `const stateWidth = ${specs.mutableRegisterCount};\n`;
     code += `const extensionFactor = ${extensionFactor};\n`;
     code += `const compositionFactor = ${compositionFactor};\n`;
-    code += `const baseCycleLength = ${specs.baseCycleLength};\n`;
-    code += `const initValueTemplate = [${specs.loopController.inputTemplate.join(', ')}];\n`
-    code += `const loopSegmentMasks = [${specs.loopController.segmentMasks.map(m => '\'' + m + '\'').join(', ')}];\n`;  // TODO
     code += `const maxTraceLength = ${limits.maxTraceLength};\n\n`;
 
     // build transition function and constraints
@@ -45,11 +42,12 @@ export function generateJsModule(specs: ScriptSpecs, limits: StarkLimits, extens
     code += '};';
 
     // create and execute module builder function
-    const buildModule = new Function('f', 'g', 'registerSpecs', 'constraints', code);
+    const buildModule = new Function('f', 'g', 'registerSpecs', 'loopSpecs', 'constraints', code);
     return buildModule(
         specs.field,
         specs.constantBindings,
         buildRegisterSpecs(specs),
+        buildLoopSpecs(specs),
         specs.transitionConstraintsSpecs,
     );
 }
@@ -66,6 +64,14 @@ function buildTransitionFunctionBody(specs: ScriptSpecs): string {
 function buildTransitionConstraintsBody(specs: ScriptSpecs): string {
     return 'return [];\n';
     //return specs.transitionConstraints.toJsCode(undefined, undefined, specs.loopController as any); // TODO
+}
+
+function buildLoopSpecs(specs: ScriptSpecs): jsTemplate.LoopSpecs {
+    return {
+        traceTemplate   : specs.loopController.inputTemplate,
+        segmentMasks    : specs.loopController.segmentMasks,
+        baseCycleLength : specs.baseCycleLength
+    };
 }
 
 function buildRegisterSpecs(specs: ScriptSpecs): jsTemplate.RegisterSpecs {

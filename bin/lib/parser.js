@@ -125,19 +125,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.OR([
-                { ALT: () => {
-                        this.AT_LEAST_ONE(() => {
-                            this.SUBRULE(this.segmentLoop, { LABEL: 'segments' });
-                        });
-                    } },
-                { ALT: () => {
-                        this.CONSUME(lexer_1.For);
-                        this.CONSUME(lexer_1.All, { LABEL: 'all' });
-                        this.CONSUME(lexer_1.Steps);
-                        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
-                    } }
-            ]);
+            this.SUBRULE(this.inputLoop, { LABEL: 'segment' });
             this.CONSUME(lexer_1.RCurly);
         });
         // LOOPS
@@ -333,7 +321,7 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.OR2([
                 { GATE: this.BACKTRACK(this.whenExpression), ALT: () => {
-                        this.SUBRULE(this.whenExpression, { LABEL: 'expression' });
+                        this.SUBRULE(this.whenExpression, { LABEL: 'expression' }); // TODO: move to statement block?
                     } },
                 { ALT: () => {
                         this.CONSUME(lexer_1.LParen);

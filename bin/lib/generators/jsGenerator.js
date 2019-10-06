@@ -11,9 +11,6 @@ function generateJsModule(specs, limits, extensionFactor) {
     code += `const stateWidth = ${specs.mutableRegisterCount};\n`;
     code += `const extensionFactor = ${extensionFactor};\n`;
     code += `const compositionFactor = ${compositionFactor};\n`;
-    code += `const baseCycleLength = ${specs.baseCycleLength};\n`;
-    code += `const initValueTemplate = [${specs.loopController.inputTemplate.join(', ')}];\n`;
-    code += `const loopSegmentMasks = [${specs.loopController.segmentMasks.map(m => '\'' + m + '\'').join(', ')}];\n`; // TODO
     code += `const maxTraceLength = ${limits.maxTraceLength};\n\n`;
     // build transition function and constraints
     code += `function applyTransition(r, k, s, p, c) {\n${buildTransitionFunctionBody(specs)}}\n`;
@@ -35,8 +32,8 @@ function generateJsModule(specs, limits, extensionFactor) {
     code += `initVerification\n`;
     code += '};';
     // create and execute module builder function
-    const buildModule = new Function('f', 'g', 'registerSpecs', 'constraints', code);
-    return buildModule(specs.field, specs.constantBindings, buildRegisterSpecs(specs), specs.transitionConstraintsSpecs);
+    const buildModule = new Function('f', 'g', 'registerSpecs', 'loopSpecs', 'constraints', code);
+    return buildModule(specs.field, specs.constantBindings, buildRegisterSpecs(specs), buildLoopSpecs(specs), specs.transitionConstraintsSpecs);
 }
 exports.generateJsModule = generateJsModule;
 // HELPER FUNCTIONS
@@ -50,6 +47,13 @@ function buildTransitionFunctionBody(specs) {
 function buildTransitionConstraintsBody(specs) {
     return 'return [];\n';
     //return specs.transitionConstraints.toJsCode(undefined, undefined, specs.loopController as any); // TODO
+}
+function buildLoopSpecs(specs) {
+    return {
+        traceTemplate: specs.loopController.inputTemplate,
+        segmentMasks: specs.loopController.segmentMasks,
+        baseCycleLength: specs.baseCycleLength
+    };
 }
 function buildRegisterSpecs(specs) {
     return {

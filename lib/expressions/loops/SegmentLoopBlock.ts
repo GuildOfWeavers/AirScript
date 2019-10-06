@@ -13,7 +13,7 @@ import { SegmentLoop } from './SegmentLoop';
 export class SegmentLoopBlock extends Expression {
 
     readonly loops  : SegmentLoop[];
-    readonly masks  : string[];
+    readonly masks  : number[][];
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -64,7 +64,7 @@ export class SegmentLoopBlock extends Expression {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function validateMasks(loops: SegmentLoop[]): string[] {
+function validateMasks(loops: SegmentLoop[]): number[][] {
 
     let maxSteps = 0;
     const stepSet = new Set<number>();
@@ -72,7 +72,7 @@ function validateMasks(loops: SegmentLoop[]): string[] {
     // make sure masks don't overlap
     for (let loop of loops) {
         for (let i = 0; i < loop.mask.length; i++) {
-            if (loop.mask[i] === '0') continue;
+            if (loop.mask[i] === 0) continue;
             if (stepSet.has(i)) {
                 throw new Error(`step ${i} is covered by multiple loops`);
             }
@@ -98,11 +98,11 @@ function validateMasks(loops: SegmentLoop[]): string[] {
     }
 
     // make sure all masks are of the same length
-    const masks: string[] = [];
+    const masks: number[][] = [];
     for (let loop of loops) {
         let mask = loop.mask;
         if (mask.length < stepCount) {
-            mask = mask.padEnd(stepCount, '0');
+            mask = mask.concat(new Array(stepCount - mask.length).fill(0))
         }
         masks.push(mask);
     }

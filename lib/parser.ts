@@ -141,20 +141,7 @@ class AirParser extends CstParser {
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
         this.CONSUME(LCurly);
-        this.OR([
-            { ALT: () => {
-                this.AT_LEAST_ONE(() => {
-                    this.SUBRULE(this.segmentLoop, { LABEL: 'segments' });
-                });
-            }},
-            { ALT: () => {
-                this.CONSUME(For);
-                this.CONSUME(All,                        { LABEL: 'all' });
-                this.CONSUME(Steps);
-                this.SUBRULE(this.statementBlock,        { LABEL: 'statements' });
-            }}
-        ]);
-        
+        this.SUBRULE(this.inputLoop, { LABEL: 'segment' });
         this.CONSUME(RCurly);
     });
 
@@ -366,7 +353,7 @@ class AirParser extends CstParser {
         });
         this.OR2([
             { GATE: this.BACKTRACK(this.whenExpression), ALT: () => {
-                this.SUBRULE(this.whenExpression,           { LABEL: 'expression' })
+                this.SUBRULE(this.whenExpression,           { LABEL: 'expression' })    // TODO: move to statement block?
             }},
             { ALT: () => {
                 this.CONSUME(LParen);

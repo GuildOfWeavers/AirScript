@@ -2,7 +2,7 @@
 // ================================================================================================
 import { StarkLimits, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField } from '@guildofweavers/air-script';
 import { ReadonlyRegisterGroup, ConstantDeclaration } from './visitor';
-import { Expression, LiteralExpression, TransitionExpression, LoopController, InputLoop } from './expressions';
+import { Expression, LiteralExpression, LoopController, InputLoop } from './expressions';
 import { isPowerOf2, isMatrix, isVector } from './utils';
 
 // CLASS DEFINITION
@@ -25,7 +25,7 @@ export class ScriptSpecs {
     constraintCount!            : number;
     
     transitionFunction!         : InputLoop;
-    transitionConstraints!      : TransitionExpression;
+    transitionConstraints!      : InputLoop;
 
     loopController!             : LoopController;
 
@@ -136,7 +136,7 @@ export class ScriptSpecs {
         this.loopController = new LoopController(tFunctionBody);
     }
 
-    setTransitionConstraints(tConstraintsBody: TransitionExpression): void {
+    setTransitionConstraints(tConstraintsBody: InputLoop): void {
         if (this.constraintCount === 1) {
             if (!tConstraintsBody.isScalar && (!tConstraintsBody.isVector || tConstraintsBody.dimensions[0] !== 1)) {
                 throw new Error(`Transition constraints must evaluate to scalar or to a vector of exactly 1 value`);
@@ -149,7 +149,7 @@ export class ScriptSpecs {
         }
 
         this.transitionConstraints = tConstraintsBody;
-        this.loopController.validateConstraintMasks(tConstraintsBody.masks);
+        // TODO: this.loopController.validateConstraintMasks(tConstraintsBody.masks);
 
         for (let degree of this.transitionConstraintsDegree) {
             if (degree > this.limits.maxConstraintDegree) {

@@ -60,7 +60,7 @@ function validateMasks(loops) {
     // make sure masks don't overlap
     for (let loop of loops) {
         for (let i = 0; i < loop.mask.length; i++) {
-            if (loop.mask[i] === '0')
+            if (loop.mask[i] === 0)
                 continue;
             if (stepSet.has(i)) {
                 throw new Error(`step ${i} is covered by multiple loops`);
@@ -88,7 +88,7 @@ function validateMasks(loops) {
     for (let loop of loops) {
         let mask = loop.mask;
         if (mask.length < stepCount) {
-            mask = mask.padEnd(stepCount, '0');
+            mask = mask.concat(new Array(stepCount - mask.length).fill(0));
         }
         masks.push(mask);
     }
