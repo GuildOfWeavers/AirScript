@@ -42,7 +42,7 @@ declare module '@guildofweavers/air-script' {
         readonly maxConstraintDegree    : number;
 
         /** Creates proof object for the provided public inputs, secret inputs, and init values */
-        initProof(publicInputs: bigint[][], secretInputs: bigint[][], initValues: bigint[]): ProofObject;
+        initProof(publicInputs: bigint[][], secretInputs: bigint[][], initValues: any[]): ProofObject;
 
         /** Creates verification object for the provided public inputs */
         initVerification(publicInputs: bigint[][]): VerificationObject;

@@ -88,7 +88,7 @@ export function initProof(pInputs: bigint[][], sInputs: bigint[][], initValues: 
         const traceValues = new Array<bigint[]>(stateWidth);
         for (let register = 0; register < traceValues.length; register++) {
             traceValues[register] = new Array<bigint>(traceLength);
-            let value = iRegisters[register]((steps - 1) * compositionFactor);
+            let value = iRegisters[register](steps * compositionFactor);
             traceValues[register][0] = rValues[register] = value;
         }
 
@@ -519,7 +519,7 @@ export function validateBinaryValues(values: bigint[], isSecret: boolean, i: num
 
 export function buildControlRegisterSpecs(traceShape: number[], traceLength: number): ReadonlyRegisterSpecs[] {
     
-    let masks: number[][] = [];
+    const masks: number[][] = [];
 
     // derive input loop trace masks from trace shape
     let period = traceLength;
@@ -535,7 +535,11 @@ export function buildControlRegisterSpecs(traceShape: number[], traceLength: num
     }
 
     // combine input loop trace masks with segment loop trace masks
-    masks = masks.concat(loopSpecs.segmentMasks);
+    for (let segmentMask of loopSpecs.segmentMasks) {
+        let mask = segmentMask.slice(1);
+        mask.push(0);   // move the init step mask to the end
+        masks.push(mask);
+    }
 
     // transform masks into a set of static register values
     const values: bigint[][] = [];

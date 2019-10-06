@@ -13,8 +13,8 @@ function generateJsModule(specs, limits, extensionFactor) {
     code += `const compositionFactor = ${compositionFactor};\n`;
     code += `const maxTraceLength = ${limits.maxTraceLength};\n\n`;
     // build transition function and constraints
-    code += `function applyTransition(r, k, s, p, c) {\n${buildTransitionFunctionBody(specs)}}\n`;
-    code += `function evaluateConstraints(r, n, k, s, p, c) {\n${buildTransitionConstraintsBody(specs)}}\n\n`;
+    code += `function applyTransition(r, k, s, p, c, i) {\n${buildTransitionFunctionBody(specs)}}\n`;
+    code += `function evaluateConstraints(r, n, k, s, p, c, i) {\n${buildTransitionConstraintsBody(specs)}}\n\n`;
     // add functions from the template
     for (let prop in jsTemplate) {
         code += `${jsTemplate[prop].toString()}\n`;

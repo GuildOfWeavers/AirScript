@@ -33,7 +33,7 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
 const extensionFactor = 32;
 const air = parseScript(script, { extensionFactor });
-const pContext = air.initProof([], [], [[3n], [4n]] as any);  // TODO
+const pContext = air.initProof([], [], [[3n], [4n]]);
 console.time('generate trace');
 const trace = pContext.generateExecutionTrace();
 console.timeEnd('generate trace');

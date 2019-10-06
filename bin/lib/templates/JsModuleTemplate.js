@@ -56,7 +56,7 @@ function initProof(pInputs, sInputs, initValues) {
         const traceValues = new Array(stateWidth);
         for (let register = 0; register < traceValues.length; register++) {
             traceValues[register] = new Array(traceLength);
-            let value = iRegisters[register]((steps - 1) * compositionFactor);
+            let value = iRegisters[register](steps * compositionFactor);
             traceValues[register][0] = rValues[register] = value;
         }
         // apply transition function for each step
@@ -432,7 +432,7 @@ function validateBinaryValues(values, isSecret, i) {
 }
 exports.validateBinaryValues = validateBinaryValues;
 function buildControlRegisterSpecs(traceShape, traceLength) {
-    let masks = [];
+    const masks = [];
     // derive input loop trace masks from trace shape
     let period = traceLength;
     let baseline = new Array(period / traceShape[0]);
@@ -447,7 +447,11 @@ function buildControlRegisterSpecs(traceShape, traceLength) {
         }
     }
     // combine input loop trace masks with segment loop trace masks
-    masks = masks.concat(loopSpecs.segmentMasks);
+    for (let segmentMask of loopSpecs.segmentMasks) {
+        let mask = segmentMask.slice(1);
+        mask.push(0); // move the init step mask to the end
+        masks.push(mask);
+    }
     // transform masks into a set of static register values
     const values = [];
     const loopCount = Math.ceil(Math.log2(masks.length));
