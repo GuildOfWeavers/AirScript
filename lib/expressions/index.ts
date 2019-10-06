@@ -12,4 +12,7 @@ export { StatementBlock, Statement } from './StatementBlock';
 export { WhenExpression } from './WhenExpression';
 export { SubroutineCall } from './SubroutineCall';
 export { TransitionExpression, TransitionSegment } from './TransitionExpression';
-export { LoopController } from './LoopController';
+export { InputLoop } from './loops/InputLoop';
+export { SegmentLoop } from './loops/SegmentLoop';
+export { SegmentLoopBlock } from './loops/SegmentLoopBlock';
+export { LoopController } from './loops/LoopController';

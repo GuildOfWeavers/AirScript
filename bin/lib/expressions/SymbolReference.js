@@ -17,9 +17,6 @@ class SymbolReference extends Expression_1.Expression {
     get isRegisterBank() {
         return (this.symbol.length === 1);
     }
-    get isRegister() {
-        return (this.symbol.length > 1 && !this.symbol.startsWith('$'));
-    }
     get isVariable() {
         return (this.symbol.startsWith('$'));
     }

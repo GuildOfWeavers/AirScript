@@ -18,12 +18,16 @@ class ExecutionContext {
         if (specs.transitionFunction) {
             this.tFunctionDegree = specs.transitionFunctionDegree;
         }
+        this.loopFrames = [];
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
     get canAccessFutureState() {
         // if transition function degree has been set, we are in transition constraints
         return (this.tFunctionDegree !== undefined);
+    }
+    get modifierDegree() {
+        return BigInt(Math.ceil(Math.log2(this.loopFrames.length)));
     }
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
@@ -44,6 +48,28 @@ class ExecutionContext {
             else {
                 return ref;
             }
+        }
+    }
+    // INITIALIZERS
+    // --------------------------------------------------------------------------------------------
+    addLoopFrame(registers) {
+        if (!registers) {
+            return this.loopFrames.push(undefined) - 1;
+        }
+        else {
+            const lastFrame = this.loopFrames[this.loopFrames.length - 1];
+            const newFrame = new Set();
+            for (let i = 0; i < registers.length; i++) {
+                let regIdx = Number.parseInt(registers[i].slice(2), 10);
+                if (lastFrame && !lastFrame.has(regIdx)) {
+                    throw new Error('TODO');
+                }
+                newFrame.add(regIdx);
+            }
+            if (newFrame.size !== registers.length) {
+                throw new Error('TODO');
+            }
+            return this.loopFrames.push(newFrame) - 1;
         }
     }
     // VARIABLES
@@ -118,25 +144,45 @@ class ExecutionContext {
         const index = Number.parseInt(reference.slice(2), 10);
         const bankLength = this.getRegisterBankLength(bankName);
         if (index >= bankLength) {
-            throw new Error(`invalid register reference ${reference}: register index must be smaller than ${bankLength}`);
+            if (bankLength === 0)
+                throw new Error(`invalid register reference ${reference}: no $${bankName} registers have been defined`);
+            else if (bankLength === 1)
+                throw new Error(`invalid register reference ${reference}: only 1 $${bankName} register has been defined`);
+            else
+                throw new Error(`invalid register reference ${reference}: only ${bankLength} $${bankName} registers have been defined`);
         }
-        else if (bankName === 'n' && !this.canAccessFutureState) {
-            throw new Error(`invalid register reference ${reference}: transition function cannot reference future register states`);
+        else if (bankName === 'i') {
+            const lastFrame = this.loopFrames[this.loopFrames.length - 1];
+            if (!lastFrame.has(index)) {
+                throw new Error(`register ${reference} is out of scope`);
+            }
         }
-        return new expressions_1.SymbolReference(`${bankName}[${index}]`, [0, 0], 1n);
+        const bankRef = new expressions_1.SymbolReference(bankName, [bankLength, 0], new Array(bankLength).fill(1n));
+        return new expressions_1.ExtractVectorElement(bankRef, index);
     }
     getRegisterBankReference(reference) {
         const bankName = reference.slice(1, 2);
-        if (bankName === 'n' && !this.canAccessFutureState) {
-            throw new Error(`invalid register reference ${reference}: transition function cannot reference future register states`);
-        }
         const bankLength = this.getRegisterBankLength(bankName);
         return new expressions_1.SymbolReference(bankName, [bankLength, 0], new Array(bankLength).fill(1n));
     }
     getRegisterBankLength(bankName) {
-        if (bankName === 'r')
+        const loopFrame = this.loopFrames[this.loopFrames.length - 1];
+        if (bankName === 'i') {
+            if (!loopFrame) {
+                throw new Error(`$i registers cannot be accessed outside of init block`);
+            }
+            return this.loopFrames[0].size;
+        }
+        else if (loopFrame && this.loopFrames.length === 1) {
+            throw new Error('TODO');
+        }
+        else if (bankName === 'n') {
+            if (!this.canAccessFutureState) {
+                throw new Error(`$n registers cannot be accessed in transition function`);
+            }
             return this.mutableRegisterCount;
-        else if (bankName === 'n')
+        }
+        else if (bankName === 'r')
             return this.mutableRegisterCount;
         else if (bankName === 'k')
             return this.staticRegisters.length;

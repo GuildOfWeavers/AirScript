@@ -7,7 +7,7 @@ import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ExecutionContext } from './ExecutionContext';
-import { Expression, TransitionExpression, TransitionSegment, StatementBlock, Statement } from './expressions';
+import { Expression, InputLoop, SegmentLoop, SegmentLoopBlock, TransitionExpression, TransitionSegment, StatementBlock, Statement } from './expressions';
 import * as expressions from './expressions';
 import { Dimensions, validateVariableName, isPowerOf2 } from './utils';
 
@@ -74,7 +74,7 @@ class AirVisitor extends BaseCstVisitor {
 
         // parse transition function and transition constraints
         validateTransitionFunction(ctx.transitionFunction);
-        const tFunctionBody: TransitionExpression = this.visit(ctx.transitionFunction, specs);
+        const tFunctionBody: InputLoop = this.visit(ctx.transitionFunction, specs);
         specs.setTransitionFunction(tFunctionBody);
         
         validateTransitionConstraints(ctx.transitionConstraints);
@@ -231,11 +231,10 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, specs: ScriptSpecs): TransitionExpression {
+    transitionFunction(ctx: any, specs: ScriptSpecs): InputLoop {
         const exc = new ExecutionContext(specs);
-        const segments: TransitionSegment[] = ctx.segments.map((segment: any) => this.visit(segment, exc));
-        const block = new TransitionExpression(segments);
-        return block;
+        const loop: InputLoop = this.visit(ctx.segment, exc);
+        return loop;
     }
 
     transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionExpression {
@@ -253,16 +252,35 @@ class AirVisitor extends BaseCstVisitor {
 
     }
 
-    // SEGMENTS
+    // LOOPS
     // --------------------------------------------------------------------------------------------
-    transitionSegment(ctx: any, exc: ExecutionContext): TransitionSegment {
-        const intervals: [number, number][] = [];
-        ctx.ranges.forEach((range: any) => {
-            let interval: [number, number] = this.visit(range);
-            intervals.push(interval);
-        });
+    inputLoop(ctx: any, exc: ExecutionContext): InputLoop {
+
+        const registers: string[] = ctx.registers.map((register: any) => register.image);
+        const modifierId = exc.addLoopFrame(registers);
+
+        // parse init expression
+        const initExpression: Expression = this.visit(ctx.initExpression, exc);
+
+        // parse body expression
+        let bodyExpression: InputLoop | SegmentLoopBlock;
+        if (ctx.inputLoop) {
+            bodyExpression = this.visit(ctx.inputLoop, exc);
+        }
+        else {
+            const loops: SegmentLoop[] = ctx.segmentLoops.map((loop: any) => this.visit(loop, exc));
+            bodyExpression = new SegmentLoopBlock(loops);
+        }
+
+        const indexSet = new Set(registers.map(register => Number.parseInt(register.slice(2))));
+        return new InputLoop(initExpression, bodyExpression, indexSet, modifierId, exc.modifierDegree);
+    }
+
+    segmentLoop(ctx: any, exc: ExecutionContext): SegmentLoop {
+        const intervals: [number, number][] = ctx.ranges.map((range: any) => this.visit(range));
+        const modifierId = exc.addLoopFrame();
         const statements: StatementBlock = this.visit(ctx.statements, exc);
-        return { intervals, statements };
+        return new SegmentLoop(statements, intervals, modifierId, exc.modifierDegree);
     }
 
     // STATEMENTS
@@ -314,7 +332,7 @@ class AirVisitor extends BaseCstVisitor {
 
         // make sure the condition register holds only binary values
         if (!exc.isBinaryRegister(registerName)) {
-            throw new Error(`when...else expression condition must be based on a binary register`);
+            throw new Error(`conditional expression must be based on a binary register`);
         }
 
         return registerRef;

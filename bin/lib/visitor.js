@@ -181,9 +181,8 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx, specs) {
         const exc = new ExecutionContext_1.ExecutionContext(specs);
-        const segments = ctx.segments.map((segment) => this.visit(segment, exc));
-        const block = new expressions_1.TransitionExpression(segments);
-        return block;
+        const loop = this.visit(ctx.segment, exc);
+        return loop;
     }
     transitionConstraints(ctx, specs) {
         const exc = new ExecutionContext_1.ExecutionContext(specs);
@@ -198,16 +197,30 @@ class AirVisitor extends BaseCstVisitor {
         }
         return new expressions_1.TransitionExpression(segments);
     }
-    // SEGMENTS
+    // LOOPS
     // --------------------------------------------------------------------------------------------
-    transitionSegment(ctx, exc) {
-        const intervals = [];
-        ctx.ranges.forEach((range) => {
-            let interval = this.visit(range);
-            intervals.push(interval);
-        });
+    inputLoop(ctx, exc) {
+        const registers = ctx.registers.map((register) => register.image);
+        const modifierId = exc.addLoopFrame(registers);
+        // parse init expression
+        const initExpression = this.visit(ctx.initExpression, exc);
+        // parse body expression
+        let bodyExpression;
+        if (ctx.inputLoop) {
+            bodyExpression = this.visit(ctx.inputLoop, exc);
+        }
+        else {
+            const loops = ctx.segmentLoops.map((loop) => this.visit(loop, exc));
+            bodyExpression = new expressions_1.SegmentLoopBlock(loops);
+        }
+        const indexSet = new Set(registers.map(register => Number.parseInt(register.slice(2))));
+        return new expressions_1.InputLoop(initExpression, bodyExpression, indexSet, modifierId, exc.modifierDegree);
+    }
+    segmentLoop(ctx, exc) {
+        const intervals = ctx.ranges.map((range) => this.visit(range));
+        const modifierId = exc.addLoopFrame();
         const statements = this.visit(ctx.statements, exc);
-        return { intervals, statements };
+        return new expressions_1.SegmentLoop(statements, intervals, modifierId, exc.modifierDegree);
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
@@ -249,7 +262,7 @@ class AirVisitor extends BaseCstVisitor {
         const registerRef = exc.getSymbolReference(registerName);
         // make sure the condition register holds only binary values
         if (!exc.isBinaryRegister(registerName)) {
-            throw new Error(`when...else expression condition must be based on a binary register`);
+            throw new Error(`conditional expression must be based on a binary register`);
         }
         return registerRef;
     }

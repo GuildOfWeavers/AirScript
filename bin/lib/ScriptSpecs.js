@@ -41,12 +41,15 @@ class ScriptSpecs {
         return result;
     }
     get controlRegisters() {
-        return this.loopController.values.map(values => {
+        return [];
+        /*
+        return this.loopController.values.map( values => {
             return { values, pattern: 'repeat', binary: true };
         });
+        */
     }
     get baseCycleLength() {
-        return this.loopController.cycleLength;
+        return this.loopController.baseCycleLength;
     }
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
@@ -95,7 +98,7 @@ class ScriptSpecs {
             }
         }
         this.transitionFunction = tFunctionBody;
-        this.loopController = new expressions_1.LoopController(tFunctionBody.masks, this.field);
+        this.loopController = new expressions_1.LoopController(tFunctionBody);
     }
     setTransitionConstraints(tConstraintsBody) {
         if (this.constraintCount === 1) {

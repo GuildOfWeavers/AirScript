@@ -3,7 +3,7 @@
 import { ReadonlyRegisterSpecs, InputRegisterSpecs } from '@guildofweavers/air-script';
 import { ScriptSpecs } from './ScriptSpecs';
 import { validateVariableName, Dimensions } from './utils';
-import { Expression, SymbolReference, SubroutineCall } from './expressions';
+import { Expression, SymbolReference, SubroutineCall, ExtractVectorElement } from './expressions';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -18,6 +18,8 @@ export class ExecutionContext {
     readonly publicRegisters        : InputRegisterSpecs[];
     readonly tFunctionDegree?       : bigint[];
 
+    readonly loopFrames             : (Set<number> | undefined)[];
+
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(specs: ScriptSpecs) {
@@ -31,6 +33,7 @@ export class ExecutionContext {
         if (specs.transitionFunction) {
             this.tFunctionDegree = specs.transitionFunctionDegree;
         }
+        this.loopFrames = [];
     }
 
     // ACCESSORS
@@ -38,6 +41,10 @@ export class ExecutionContext {
     get canAccessFutureState(): boolean {
         // if transition function degree has been set, we are in transition constraints
         return (this.tFunctionDegree !== undefined);
+    }
+    
+    get modifierDegree(): bigint {
+        return BigInt(Math.ceil(Math.log2(this.loopFrames.length)));
     }
 
     // SYMBOLIC REFERENCES
@@ -59,6 +66,31 @@ export class ExecutionContext {
             else {
                 return ref;
             }
+        }
+    }
+
+    // INITIALIZERS
+    // --------------------------------------------------------------------------------------------
+    addLoopFrame(registers?: string[]): number {
+        if (!registers) {
+            return this.loopFrames.push(undefined) - 1;
+        } 
+        else {
+            const lastFrame = this.loopFrames[this.loopFrames.length - 1];
+            const newFrame = new Set<number>();
+            for (let i = 0; i < registers.length; i++) {
+                let regIdx = Number.parseInt(registers[i].slice(2), 10);
+                if (lastFrame && !lastFrame.has(regIdx)) {
+                    throw new Error('TODO');
+                }
+                newFrame.add(regIdx);
+            }
+    
+            if (newFrame.size !== registers.length) {
+                throw new Error('TODO');
+            }
+    
+            return this.loopFrames.push(newFrame) - 1;
         }
     }
 
@@ -142,29 +174,44 @@ export class ExecutionContext {
         
         const bankLength = this.getRegisterBankLength(bankName);
         if (index >= bankLength) {
-            throw new Error(`invalid register reference ${reference}: register index must be smaller than ${bankLength}`);
+            if (bankLength === 0) throw new Error(`invalid register reference ${reference}: no $${bankName} registers have been defined`);
+            else if (bankLength === 1) throw new Error(`invalid register reference ${reference}: only 1 $${bankName} register has been defined`);
+            else throw new Error(`invalid register reference ${reference}: only ${bankLength} $${bankName} registers have been defined`);
         }
-        else if (bankName === 'n' && !this.canAccessFutureState) {
-            throw new Error(`invalid register reference ${reference}: transition function cannot reference future register states`);
+        else if (bankName === 'i') {
+            const lastFrame = this.loopFrames[this.loopFrames.length - 1]!;
+            if (!lastFrame.has(index)) {
+                throw new Error(`register ${reference} is out of scope`);
+            }
         }
-
-        return new SymbolReference(`${bankName}[${index}]`, [0, 0], 1n);
+        const bankRef = new SymbolReference(bankName, [bankLength, 0], new Array(bankLength).fill(1n));
+        return new ExtractVectorElement(bankRef, index);
     }
 
     private getRegisterBankReference(reference: string): Expression {
         const bankName = reference.slice(1, 2);
-
-        if (bankName === 'n' && !this.canAccessFutureState) {
-            throw new Error(`invalid register reference ${reference}: transition function cannot reference future register states`);
-        }
-
         const bankLength = this.getRegisterBankLength(bankName);
         return new SymbolReference(bankName, [bankLength, 0], new Array(bankLength).fill(1n));
     }
 
     private getRegisterBankLength(bankName: string): number {
-        if (bankName === 'r')       return this.mutableRegisterCount;
-        else if (bankName === 'n')  return this.mutableRegisterCount;
+        const loopFrame = this.loopFrames[this.loopFrames.length - 1];
+        if (bankName === 'i') {
+            if (!loopFrame) {
+                throw new Error(`$i registers cannot be accessed outside of init block`);
+            }
+            return this.loopFrames[0]!.size;
+        }
+        else if (loopFrame && this.loopFrames.length === 1) {
+            throw new Error('TODO');
+        }
+        else if (bankName === 'n') {
+            if (!this.canAccessFutureState) {
+                throw new Error(`$n registers cannot be accessed in transition function`);
+            }
+            return this.mutableRegisterCount
+        }
+        else if (bankName === 'r')  return this.mutableRegisterCount;
         else if (bankName === 'k')  return this.staticRegisters.length;
         else if (bankName === 's')  return this.secretRegisters.length;
         else if (bankName === 'p')  return this.publicRegisters.length;

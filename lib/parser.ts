@@ -5,7 +5,7 @@ import {
     allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
     ExpOp, MulOp, AddOp, Transition, Registers, Steps, Enforce, Constraints, AssignOp, When, Else,
     RegisterRef, ReadonlyRegister, LSquare, RSquare, Comma, Using, DoubleDot, Colon, Semicolon,
-    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash, QMark, For, Equals, All
+    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash, QMark, For, Equals, All, Each, Init, InitRegister
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -135,9 +135,7 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private transitionFunction = this.RULE('transitionFunction', () => {
         this.CONSUME(LCurly);
-        this.AT_LEAST_ONE(() => {
-            this.SUBRULE(this.transitionSegment, { LABEL: 'segments' });
-        });
+        this.SUBRULE(this.inputLoop, { LABEL: 'segment' });
         this.CONSUME(RCurly);
     });
 
@@ -146,7 +144,7 @@ class AirParser extends CstParser {
         this.OR([
             { ALT: () => {
                 this.AT_LEAST_ONE(() => {
-                    this.SUBRULE(this.transitionSegment, { LABEL: 'segments' });
+                    this.SUBRULE(this.segmentLoop, { LABEL: 'segments' });
                 });
             }},
             { ALT: () => {
@@ -160,9 +158,35 @@ class AirParser extends CstParser {
         this.CONSUME(RCurly);
     });
 
-    // SEGMENTS
+    // LOOPS
     // --------------------------------------------------------------------------------------------
-    private transitionSegment = this.RULE('transitionSegment', () => {
+    private inputLoop = this.RULE('inputLoop', () => {
+        this.CONSUME(For);
+        this.CONSUME(Each);
+        this.CONSUME(LParen);
+        this.AT_LEAST_ONE_SEP({
+            SEP: Comma,
+            DEF: () => this.CONSUME(InitRegister,           { LABEL: 'registers' })
+        });
+        this.CONSUME(RParen);
+        this.CONSUME(LCurly);
+        this.CONSUME(Init);
+        this.OR1([
+            { ALT: () => this.SUBRULE(this.statementBlock,  { LABEL: 'initExpression' })},
+            { ALT: () => this.SUBRULE(this.expression,      { LABEL: 'initExpression' })}
+        ]);
+        this.OR2([
+            { ALT: () => this.SUBRULE(this.inputLoop,       { LABEL: 'inputLoop'      })},
+            { ALT: () => {
+                this.AT_LEAST_ONE(() => {
+                    this.SUBRULE(this.segmentLoop,          { LABEL: 'segmentLoops'    });
+                });
+            }}
+        ]);
+        this.CONSUME(RCurly);
+    });
+
+    private segmentLoop = this.RULE('segmentLoop', () => {
         this.CONSUME(For);
         this.CONSUME(Steps);
         this.CONSUME(LSquare);
@@ -171,7 +195,7 @@ class AirParser extends CstParser {
             DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
         });
         this.CONSUME(RSquare);
-        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+        this.SUBRULE(this.statementBlock,                        { LABEL: 'statements' });
     });
 
     // STATEMENTS

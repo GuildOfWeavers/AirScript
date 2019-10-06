@@ -120,9 +120,7 @@ class AirParser extends chevrotain_1.CstParser {
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.AT_LEAST_ONE(() => {
-                this.SUBRULE(this.transitionSegment, { LABEL: 'segments' });
-            });
+            this.SUBRULE(this.inputLoop, { LABEL: 'segment' });
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
@@ -130,7 +128,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.OR([
                 { ALT: () => {
                         this.AT_LEAST_ONE(() => {
-                            this.SUBRULE(this.transitionSegment, { LABEL: 'segments' });
+                            this.SUBRULE(this.segmentLoop, { LABEL: 'segments' });
                         });
                     } },
                 { ALT: () => {
@@ -142,9 +140,34 @@ class AirParser extends chevrotain_1.CstParser {
             ]);
             this.CONSUME(lexer_1.RCurly);
         });
-        // SEGMENTS
+        // LOOPS
         // --------------------------------------------------------------------------------------------
-        this.transitionSegment = this.RULE('transitionSegment', () => {
+        this.inputLoop = this.RULE('inputLoop', () => {
+            this.CONSUME(lexer_1.For);
+            this.CONSUME(lexer_1.Each);
+            this.CONSUME(lexer_1.LParen);
+            this.AT_LEAST_ONE_SEP({
+                SEP: lexer_1.Comma,
+                DEF: () => this.CONSUME(lexer_1.InitRegister, { LABEL: 'registers' })
+            });
+            this.CONSUME(lexer_1.RParen);
+            this.CONSUME(lexer_1.LCurly);
+            this.CONSUME(lexer_1.Init);
+            this.OR1([
+                { ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'initExpression' }) },
+                { ALT: () => this.SUBRULE(this.expression, { LABEL: 'initExpression' }) }
+            ]);
+            this.OR2([
+                { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop' }) },
+                { ALT: () => {
+                        this.AT_LEAST_ONE(() => {
+                            this.SUBRULE(this.segmentLoop, { LABEL: 'segmentLoops' });
+                        });
+                    } }
+            ]);
+            this.CONSUME(lexer_1.RCurly);
+        });
+        this.segmentLoop = this.RULE('segmentLoop', () => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Steps);
             this.CONSUME(lexer_1.LSquare);

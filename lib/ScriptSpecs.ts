@@ -2,7 +2,7 @@
 // ================================================================================================
 import { StarkLimits, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField } from '@guildofweavers/air-script';
 import { ReadonlyRegisterGroup, ConstantDeclaration } from './visitor';
-import { Expression, LiteralExpression, TransitionExpression, LoopController } from './expressions';
+import { Expression, LiteralExpression, TransitionExpression, LoopController, InputLoop } from './expressions';
 import { isPowerOf2, isMatrix, isVector } from './utils';
 
 // CLASS DEFINITION
@@ -24,7 +24,7 @@ export class ScriptSpecs {
     publicRegisters!            : InputRegisterSpecs[];
     constraintCount!            : number;
     
-    transitionFunction!         : TransitionExpression;
+    transitionFunction!         : InputLoop;
     transitionConstraints!      : TransitionExpression;
 
     loopController!             : LoopController;
@@ -68,13 +68,16 @@ export class ScriptSpecs {
     }
 
     get controlRegisters(): ReadonlyRegisterSpecs[] {
+        return [];
+        /*
         return this.loopController.values.map( values => {
             return { values, pattern: 'repeat', binary: true };
         });
+        */
     }
 
     get baseCycleLength(): number {
-        return this.loopController.cycleLength;
+        return this.loopController.baseCycleLength;
     }
 
     // PROPERTY SETTERS
@@ -117,7 +120,7 @@ export class ScriptSpecs {
         }
     }
 
-    setTransitionFunction(tFunctionBody: TransitionExpression): void {
+    setTransitionFunction(tFunctionBody: InputLoop): void {
         if (this.mutableRegisterCount === 1) {
             if (!tFunctionBody.isScalar && (!tFunctionBody.isVector || tFunctionBody.dimensions[0] !== 1)) {
                 throw new Error(`transition function must evaluate to scalar or to a vector of exactly 1 value`);
@@ -130,7 +133,7 @@ export class ScriptSpecs {
         }
 
         this.transitionFunction = tFunctionBody;
-        this.loopController = new LoopController(tFunctionBody.masks, this.field);
+        this.loopController = new LoopController(tFunctionBody);
     }
 
     setTransitionConstraints(tConstraintsBody: TransitionExpression): void {

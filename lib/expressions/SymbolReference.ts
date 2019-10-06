@@ -22,10 +22,6 @@ export class SymbolReference extends Expression {
         return (this.symbol.length === 1);
     }
 
-    get isRegister(): boolean {
-        return (this.symbol.length > 1 && !this.symbol.startsWith('$'));
-    }
-
     get isVariable(): boolean {
         return (this.symbol.startsWith('$'));
     }

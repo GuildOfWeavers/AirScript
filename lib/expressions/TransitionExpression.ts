@@ -114,8 +114,8 @@ function normalizeIntervals(intervalGroups: Interval[][]): string[] {
     }
     maxValue++;
 
-    if (valueMap.size < maxValue) {
-        for (let i = 0; i < maxValue; i++) {
+    if (valueMap.size < maxValue - 1) {
+        for (let i = 1; i < maxValue; i++) {
             if (!valueMap.has(i)) {
                 throw new Error(`step ${i} is not covered by any expression`);
             }
