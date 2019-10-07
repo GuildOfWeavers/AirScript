@@ -16,7 +16,7 @@ const applyTransition = function () { return []; };
 const evaluateConstraints = function () { return []; };
 // PROOF OBJECT GENERATOR
 // ================================================================================================
-function initProof(pInputs, sInputs, initValues) {
+function initProof(initValues, pInputs, sInputs) {
     // validate inputs
     const { traceLength, traceShape, iRegisterSpecs } = validateInitValues(initValues);
     validateStaticRegisterValues(traceLength);
@@ -34,7 +34,7 @@ function initProof(pInputs, sInputs, initValues) {
     const compositionDomainLength = traceLength * compositionFactor;
     const compositionDomain = f.pluckVector(evaluationDomain, cSkip, compositionDomainLength);
     // create a variable to hold secret register traces
-    const sRegisterTraces = [];
+    const hiddenRegisterTraces = [];
     // build readonly registers
     const kRegisters = buildReadonlyRegisterEvaluators(registerSpecs.k, false);
     const pRegisters = buildInputRegisterEvaluators(pInputs, registerSpecs.p, false);
@@ -169,7 +169,7 @@ function initProof(pInputs, sInputs, initValues) {
     }
     // REGISTER BUILDERS
     // --------------------------------------------------------------------------------------------
-    function buildReadonlyRegisterEvaluators(specs, isSecret) {
+    function buildReadonlyRegisterEvaluators(specs, isHidden) {
         const registers = specs.map(s => {
             if (s.pattern === 'repeat') {
                 // make sure the length of values is at least 4; this is needed for FFT interpolation
@@ -187,10 +187,10 @@ function initProof(pInputs, sInputs, initValues) {
                 const xs2 = f.pluckVector(compositionDomain, skip2, length2);
                 const evaluations = f.evalPolyAtRoots(poly, xs2);
                 // if the register is secret, build its trace over evaluation domain
-                if (isSecret) {
+                if (isHidden) {
                     // figure out how many times the evaluations vector needs to be doubled to reach domain size
                     const i = Math.log2(evaluationDomain.length / evaluations.length);
-                    sRegisterTraces.push((i > 0) ? f.duplicateVector(evaluations, i) : evaluations);
+                    hiddenRegisterTraces.push((i > 0) ? f.duplicateVector(evaluations, i) : evaluations);
                 }
                 // return evaluator function
                 return (position) => evaluations.getValue(position % evaluations.length);
@@ -204,8 +204,8 @@ function initProof(pInputs, sInputs, initValues) {
                 // evaluate the polynomial over composition domain
                 const evaluations = f.evalPolyAtRoots(poly, compositionDomain);
                 // if the register is secret, build its trace over evaluation domain
-                if (isSecret) {
-                    sRegisterTraces.push(f.evalPolyAtRoots(poly, evaluationDomain));
+                if (isHidden) {
+                    hiddenRegisterTraces.push(f.evalPolyAtRoots(poly, evaluationDomain));
                 }
                 // return evaluator function
                 return (position) => evaluations.getValue(position % evaluations.length);
@@ -216,16 +216,16 @@ function initProof(pInputs, sInputs, initValues) {
         });
         return registers;
     }
-    function buildInputRegisterEvaluators(inputs, specs, isSecret) {
+    function buildInputRegisterEvaluators(inputs, specs, isHidden) {
         const regSpecs = new Array(inputs.length);
         for (let i = 0; i < inputs.length; i++) {
             let binary = specs[i].binary;
             if (binary) {
-                validateBinaryValues(inputs[i], isSecret, i);
+                validateBinaryValues(inputs[i], isHidden, i);
             }
             regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern, binary };
         }
-        return buildReadonlyRegisterEvaluators(regSpecs, isSecret);
+        return buildReadonlyRegisterEvaluators(regSpecs, isHidden);
     }
     // CONTEXT OBJECT
     // --------------------------------------------------------------------------------------------
@@ -244,7 +244,7 @@ function initProof(pInputs, sInputs, initValues) {
         compositionDomain: compositionDomain,
         generateExecutionTrace: generateExecutionTrace,
         evaluateTracePolynomials: evaluateTracePolynomials,
-        secretRegisterTraces: sRegisterTraces
+        hiddenRegisterTraces: hiddenRegisterTraces
     };
 }
 exports.initProof = initProof;
@@ -261,9 +261,10 @@ function initVerification(traceShape, pInputs) {
     const kRegisters = buildReadonlyRegisterEvaluators(registerSpecs.k);
     const pRegisters = buildInputRegisterEvaluators(pInputs, registerSpecs.p);
     const cRegisters = buildReadonlyRegisterEvaluators(cRegisterSpecs);
+    const iRegistersOffset = registerSpecs.s.length;
     // CONSTRAINT EVALUATOR
     // --------------------------------------------------------------------------------------------
-    function evaluateConstraintsAt(x, rValues, nValues, sValues, iValues) {
+    function evaluateConstraintsAt(x, rValues, nValues, hValues) {
         // get values of readonly registers for the current position
         const kValues = new Array(kRegisters.length);
         for (let i = 0; i < kValues.length; i++) {
@@ -279,6 +280,9 @@ function initVerification(traceShape, pInputs) {
         for (let i = 0; i < cValues.length; i++) {
             cValues[i] = cRegisters[i](x);
         }
+        // split hidden values into secret and init register values
+        const sValues = hValues.slice(0, iRegistersOffset);
+        const iValues = hValues.slice(iRegistersOffset);
         // populate qValues with constraint evaluations
         const qValues = evaluateConstraints(rValues, nValues, kValues, sValues, pValues, cValues, iValues);
         return qValues;
@@ -338,6 +342,7 @@ function initVerification(traceShape, pInputs) {
     // --------------------------------------------------------------------------------------------
     return {
         field: f,
+        traceShape: traceShape,
         traceLength: traceLength,
         extensionFactor: extensionFactor,
         rootOfUnity: rootOfUnity,

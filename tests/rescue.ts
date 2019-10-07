@@ -83,7 +83,7 @@ const air = parseScript(script, { extensionFactor });
 console.log(`degree: ${air.maxConstraintDegree}`);
 
 const gStart = Date.now();
-const pObject = air.initProof([], [], [42n, 0n]);
+const pObject = air.initProof([42n, 0n], [], []);   // TODO
 
 let start = Date.now();
 const trace = pObject.generateExecutionTrace();
@@ -112,7 +112,6 @@ const vObject = air.initVerification(pObject.traceShape, []);
 const x = air.field.exp(vObject.rootOfUnity, 2n);
 const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2)];
 const nValues = [pEvaluations.getValue(0, 18), pEvaluations.getValue(1, 18)];
-const iValues = [] as bigint[]; // TODO
-const qValues = vObject.evaluateConstraintsAt(x, rValues, nValues, [], iValues);
+const qValues = vObject.evaluateConstraintsAt(x, rValues, nValues, []);
 
 console.log(qEvaluations.getValue(0, 2) === qValues[0]);

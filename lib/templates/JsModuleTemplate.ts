@@ -39,7 +39,7 @@ const evaluateConstraints: ConstraintEvaluator = function () { return []; }
 
 // PROOF OBJECT GENERATOR
 // ================================================================================================
-export function initProof(pInputs: bigint[][], sInputs: bigint[][], initValues: bigint[]): ProofObject {
+export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bigint[][]): ProofObject {
 
     // validate inputs
     const { traceLength, traceShape, iRegisterSpecs } = validateInitValues(initValues);
@@ -62,7 +62,7 @@ export function initProof(pInputs: bigint[][], sInputs: bigint[][], initValues: 
     const compositionDomain = f.pluckVector(evaluationDomain, cSkip, compositionDomainLength);
 
     // create a variable to hold secret register traces
-    const sRegisterTraces: Vector[] = [];
+    const hiddenRegisterTraces: Vector[] = [];
 
     // build readonly registers
     const kRegisters = buildReadonlyRegisterEvaluators(registerSpecs.k, false);
@@ -227,7 +227,7 @@ export function initProof(pInputs: bigint[][], sInputs: bigint[][], initValues: 
 
     // REGISTER BUILDERS
     // --------------------------------------------------------------------------------------------
-    function buildReadonlyRegisterEvaluators(specs: ReadonlyRegisterSpecs[], isSecret: boolean): ReadonlyRegisterEvaluator<number>[] {
+    function buildReadonlyRegisterEvaluators(specs: ReadonlyRegisterSpecs[], isHidden: boolean): ReadonlyRegisterEvaluator<number>[] {
         const registers: ReadonlyRegisterEvaluator<number>[] = specs.map(s => {
             if (s.pattern === 'repeat') {
                 // make sure the length of values is at least 4; this is needed for FFT interpolation
@@ -246,10 +246,10 @@ export function initProof(pInputs: bigint[][], sInputs: bigint[][], initValues: 
                 const evaluations = f.evalPolyAtRoots(poly, xs2);
 
                 // if the register is secret, build its trace over evaluation domain
-                if (isSecret) {
+                if (isHidden) {
                     // figure out how many times the evaluations vector needs to be doubled to reach domain size
                     const i = Math.log2(evaluationDomain.length / evaluations.length);
-                    sRegisterTraces.push((i > 0) ? f.duplicateVector(evaluations, i) : evaluations);
+                    hiddenRegisterTraces.push((i > 0) ? f.duplicateVector(evaluations, i) : evaluations);
                 }
 
                 // return evaluator function
@@ -267,8 +267,8 @@ export function initProof(pInputs: bigint[][], sInputs: bigint[][], initValues: 
                 const evaluations = f.evalPolyAtRoots(poly, compositionDomain);
 
                 // if the register is secret, build its trace over evaluation domain
-                if (isSecret) {
-                    sRegisterTraces.push(f.evalPolyAtRoots(poly, evaluationDomain));
+                if (isHidden) {
+                    hiddenRegisterTraces.push(f.evalPolyAtRoots(poly, evaluationDomain));
                 }
 
                 // return evaluator function
@@ -281,14 +281,14 @@ export function initProof(pInputs: bigint[][], sInputs: bigint[][], initValues: 
         return registers;
     }
     
-    function buildInputRegisterEvaluators(inputs: bigint[][], specs: InputRegisterSpecs[], isSecret: boolean): ReadonlyRegisterEvaluator<number>[] {
+    function buildInputRegisterEvaluators(inputs: bigint[][], specs: InputRegisterSpecs[], isHidden: boolean): ReadonlyRegisterEvaluator<number>[] {
         const regSpecs = new Array<ReadonlyRegisterSpecs>(inputs.length);
         for (let i = 0; i < inputs.length; i++) {
             let binary = specs[i].binary;
-            if (binary) { validateBinaryValues(inputs[i], isSecret, i); }
+            if (binary) { validateBinaryValues(inputs[i], isHidden, i); }
             regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern, binary };
         }
-        return buildReadonlyRegisterEvaluators(regSpecs, isSecret);
+        return buildReadonlyRegisterEvaluators(regSpecs, isHidden);
     }
 
     // CONTEXT OBJECT
@@ -308,7 +308,7 @@ export function initProof(pInputs: bigint[][], sInputs: bigint[][], initValues: 
         compositionDomain           : compositionDomain,
         generateExecutionTrace      : generateExecutionTrace,
         evaluateTracePolynomials    : evaluateTracePolynomials,
-        secretRegisterTraces        : sRegisterTraces
+        hiddenRegisterTraces        : hiddenRegisterTraces
     };
 }
 
@@ -329,9 +329,11 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
     const pRegisters = buildInputRegisterEvaluators(pInputs, registerSpecs.p);
     const cRegisters = buildReadonlyRegisterEvaluators(cRegisterSpecs);
 
+    const iRegistersOffset = registerSpecs.s.length;
+
     // CONSTRAINT EVALUATOR
     // --------------------------------------------------------------------------------------------
-    function evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[], iValues: bigint[]): bigint[] {
+    function evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], hValues: bigint[]): bigint[] {
         // get values of readonly registers for the current position
         const kValues = new Array<bigint>(kRegisters.length);
         for (let i = 0; i < kValues.length; i++) {
@@ -349,6 +351,10 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
         for (let i = 0; i < cValues.length; i++) {
             cValues[i] = cRegisters[i](x);
         }
+
+        // split hidden values into secret and init register values
+        const sValues = hValues.slice(0, iRegistersOffset);
+        const iValues = hValues.slice(iRegistersOffset);
 
         // populate qValues with constraint evaluations
         const qValues = evaluateConstraints(rValues, nValues, kValues, sValues, pValues, cValues, iValues);
@@ -416,6 +422,7 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
     // --------------------------------------------------------------------------------------------
     return {
         field                       : f,
+        traceShape                  : traceShape,
         traceLength                 : traceLength,
         extensionFactor             : extensionFactor,
         rootOfUnity                 : rootOfUnity,

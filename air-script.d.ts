@@ -42,7 +42,7 @@ declare module '@guildofweavers/air-script' {
         readonly maxConstraintDegree    : number;
 
         /** Creates proof object for the provided public inputs, secret inputs, and init values */
-        initProof(publicInputs: bigint[][], secretInputs: bigint[][], initValues: any[]): ProofObject;
+        initProof(initValues: any[], publicInputs: bigint[][], secretInputs: bigint[][]): ProofObject;
 
         /** Creates verification object for the provided public inputs */
         initVerification(traceShape: number[], publicInputs: bigint[][]): VerificationObject;
@@ -60,7 +60,8 @@ declare module '@guildofweavers/air-script' {
     // CONTEXTS
     // --------------------------------------------------------------------------------------------
     export interface EvaluationContext {
-        readonly field              : FiniteField
+        readonly field              : FiniteField;
+        readonly traceShape         : number[];
         readonly traceLength        : number;
         readonly extensionFactor    : number;
         readonly rootOfUnity        : bigint;
@@ -76,10 +77,9 @@ declare module '@guildofweavers/air-script' {
          * @param x Point in the evaluation domain at which to evaluate constraints
          * @param rValues Values of mutable registers at the current step
          * @param nValues Values of mutable registers at the next step
-         * @param sValues Values of secret registers at the current step
-         * @param iValues Values of init registers at the current step
+         * @param hValues Values of hidden registers at the current step
          */
-        evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[], iValues: bigint[]): bigint[];
+        evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], hValues: bigint[]): bigint[];
     }
 
     export interface ProofObject extends EvaluationContext {
@@ -92,11 +92,8 @@ declare module '@guildofweavers/air-script' {
         /** Domain of the low-degree extended composition polynomial */
         readonly compositionDomain: Vector;
 
-        /** Values of secret registers evaluated over execution domain */
-        readonly secretRegisterTraces: Vector[];
-
-        /** Array describing number of cycles at each layer of execution trace */
-        readonly traceShape: number[];
+        /** Values of hidden registers evaluated over execution domain */
+        readonly hiddenRegisterTraces: Vector[];
 
         generateExecutionTrace(): Matrix;
         evaluateTracePolynomials(polynomials: Matrix): Matrix;
