@@ -127,7 +127,17 @@ class AirParser extends chevrotain_1.CstParser {
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.inputLoop, { LABEL: 'segment' });
+            this.OR([
+                { ALT: () => {
+                        this.SUBRULE(this.inputLoop, { LABEL: 'segment' });
+                    } },
+                { ALT: () => {
+                        this.CONSUME(lexer_1.For);
+                        this.CONSUME(lexer_1.All);
+                        this.CONSUME(lexer_1.Steps);
+                        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+                    } }
+            ]);
             this.CONSUME(lexer_1.RCurly);
         });
         // LOOPS
@@ -175,7 +185,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.MANY(() => {
                 this.SUBRULE(this.statement, { LABEL: 'statements' });
             });
-            this.SUBRULE1(this.expression, { LABEL: 'expression' });
+            this.SUBRULE1(this.assignableExpression, { LABEL: 'expression' });
             this.OPTION1(() => {
                 this.CONSUME(lexer_1.Equals);
                 this.SUBRULE2(this.expression, { LABEL: 'constraint' });
@@ -188,16 +198,23 @@ class AirParser extends chevrotain_1.CstParser {
         this.statement = this.RULE('statement', () => {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'variableName' });
             this.CONSUME(lexer_1.AssignOp);
+            this.SUBRULE(this.assignableExpression, { LABEL: 'expression' });
+            this.CONSUME(lexer_1.Semicolon);
+        });
+        this.assignableExpression = this.RULE('assignableExpression', () => {
             this.OR([
                 {
                     GATE: this.BACKTRACK(this.matrix),
                     ALT: () => this.SUBRULE(this.matrix, { LABEL: 'expression' })
                 },
                 {
+                    GATE: this.BACKTRACK(this.whenExpression),
+                    ALT: () => this.SUBRULE(this.whenExpression, { LABEL: 'expression' })
+                },
+                {
                     ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' })
                 }
             ]);
-            this.CONSUME(lexer_1.Semicolon);
         });
         // WHEN...ELSE EXPRESSION
         // --------------------------------------------------------------------------------------------
@@ -322,9 +339,6 @@ class AirParser extends chevrotain_1.CstParser {
                 ]);
             });
             this.OR2([
-                { GATE: this.BACKTRACK(this.whenExpression), ALT: () => {
-                        this.SUBRULE(this.whenExpression, { LABEL: 'expression' }); // TODO: move to statement block?
-                    } },
                 { ALT: () => {
                         this.CONSUME(lexer_1.LParen);
                         this.SUBRULE(this.expression, { LABEL: 'expression' });

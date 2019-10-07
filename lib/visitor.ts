@@ -300,6 +300,10 @@ class AirVisitor extends BaseCstVisitor {
         return { variable: variable.symbol, expression };
     }
 
+    assignableExpression(ctx: any, exc: ExecutionContext): Expression {
+        return this.visit(ctx.expression, exc);
+    }
+
     // WHEN...ELSE EXPRESSION
     // --------------------------------------------------------------------------------------------
     whenExpression(ctx: any, exc: ExecutionContext): Expression {

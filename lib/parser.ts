@@ -2,10 +2,10 @@
 // ================================================================================================
 import { CstParser } from "chevrotain";
 import {
-    allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
-    ExpOp, MulOp, AddOp, Transition, Registers, Steps, Enforce, Constraints, AssignOp, When, Else,
-    RegisterRef, ReadonlyRegister, LSquare, RSquare, Comma, Using, DoubleDot, Colon, Semicolon,
-    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash, QMark, For, Equals, All, Each, Init, InitRegister
+    allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, LParen, RParen, LCurly, RCurly, LSquare, RSquare,
+    ExpOp, MulOp, AddOp, AssignOp, Transition, Registers, Steps, Enforce, Constraints,  When, Else,
+    RegisterRef, ReadonlyRegister, InitRegister, Comma, Using, DoubleDot, Colon, Semicolon, Equals,
+    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash, QMark, For, All, Each, Init
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -143,7 +143,17 @@ class AirParser extends CstParser {
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
         this.CONSUME(LCurly);
-        this.SUBRULE(this.inputLoop, { LABEL: 'segment' });
+        this.OR([
+            { ALT: () => {
+                this.SUBRULE(this.inputLoop,      { LABEL: 'segment' });
+            }},
+            { ALT: () => {
+                this.CONSUME(For);
+                this.CONSUME(All);
+                this.CONSUME(Steps);
+                this.SUBRULE(this.statementBlock, { LABEL: 'statements' })
+            }}
+        ]);
         this.CONSUME(RCurly);
     });
 
@@ -192,12 +202,12 @@ class AirParser extends CstParser {
     public statementBlock = this.RULE('statementBlock', () => {
         this.CONSUME(LCurly);
         this.MANY(() => {
-            this.SUBRULE(this.statement,    { LABEL: 'statements' });
+            this.SUBRULE(this.statement,         { LABEL: 'statements' });
         });
-        this.SUBRULE1(this.expression,      { LABEL: 'expression' });
+        this.SUBRULE1(this.assignableExpression, { LABEL: 'expression' });
         this.OPTION1(() => {
             this.CONSUME(Equals);
-            this.SUBRULE2(this.expression,  { LABEL: 'constraint' });
+            this.SUBRULE2(this.expression,       { LABEL: 'constraint' });
         });
         this.OPTION2(() => {
             this.CONSUME(Semicolon);
@@ -206,18 +216,26 @@ class AirParser extends CstParser {
     });
 
     private statement = this.RULE('statement', () => {
-        this.CONSUME(Identifier,                          { LABEL: 'variableName' });
+        this.CONSUME(Identifier,                { LABEL: 'variableName' });
         this.CONSUME(AssignOp);
+        this.SUBRULE(this.assignableExpression, { LABEL: 'expression' });
+        this.CONSUME(Semicolon);
+    });
+
+    private assignableExpression = this.RULE('assignableExpression', () => {
         this.OR([
             {
                 GATE: this.BACKTRACK(this.matrix),
-                ALT : () => this.SUBRULE(this.matrix,     { LABEL: 'expression' })
+                ALT : () => this.SUBRULE(this.matrix,        { LABEL: 'expression' })
             },
             {
-                ALT : () => this.SUBRULE(this.expression, { LABEL: 'expression' }) 
+                GATE: this.BACKTRACK(this.whenExpression),
+                ALT: () => this.SUBRULE(this.whenExpression, { LABEL: 'expression' })
+            },
+            {
+                ALT : () => this.SUBRULE(this.expression,    { LABEL: 'expression' }) 
             }
         ]);
-        this.CONSUME(Semicolon);
     });
 
     // WHEN...ELSE EXPRESSION
@@ -354,9 +372,6 @@ class AirParser extends CstParser {
             ])
         });
         this.OR2([
-            { GATE: this.BACKTRACK(this.whenExpression), ALT: () => {
-                this.SUBRULE(this.whenExpression,           { LABEL: 'expression' })    // TODO: move to statement block?
-            }},
             { ALT: () => {
                 this.CONSUME(LParen);
                 this.SUBRULE(this.expression,               { LABEL: 'expression' });

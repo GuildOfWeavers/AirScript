@@ -236,6 +236,9 @@ class AirVisitor extends BaseCstVisitor {
         const variable = exc.setVariableAssignment(ctx.variableName[0].image, expression);
         return { variable: variable.symbol, expression };
     }
+    assignableExpression(ctx, exc) {
+        return this.visit(ctx.expression, exc);
+    }
     // WHEN...ELSE EXPRESSION
     // --------------------------------------------------------------------------------------------
     whenExpression(ctx, exc) {
