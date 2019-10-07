@@ -10,6 +10,8 @@ const errors_1 = require("./errors");
 class AirParser extends chevrotain_1.CstParser {
     constructor() {
         super(lexer_1.allTokens, { errorMessageProvider: errors_1.parserErrorMessageProvider });
+        // SCRIPT
+        // --------------------------------------------------------------------------------------------
         this.script = this.RULE('script', () => {
             this.CONSUME(lexer_1.Define);
             this.CONSUME(lexer_1.Identifier, { LABEL: 'starkName' });
@@ -19,7 +21,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.MANY(() => {
                 this.OR([
                     { ALT: () => {
-                            this.SUBRULE(this.constantDeclaration, { LABEL: 'staticConstants' });
+                            this.SUBRULE(this.constantDeclaration, { LABEL: 'globalConstants' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Transition);
@@ -53,7 +55,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.SUBRULE(this.literalExpression, { LABEL: 'modulus' });
             this.CONSUME(lexer_1.RParen);
         });
-        // STATIC CONSTANTS
+        // GLOBAL CONSTANTS
         // --------------------------------------------------------------------------------------------
         this.constantDeclaration = this.RULE('constantDeclaration', () => {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'constantName' });

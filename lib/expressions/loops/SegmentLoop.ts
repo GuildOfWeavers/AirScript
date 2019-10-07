@@ -21,8 +21,8 @@ export class SegmentLoop extends Expression {
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(statements: StatementBlock, intervals: Interval[], modifierId: number, controlDegree: bigint) {
-        const degree = sumDegree(statements.degree, controlDegree);
+    constructor(statements: StatementBlock, intervals: Interval[], modifierId: number, modifierDegree: bigint) {
+        const degree = sumDegree(statements.degree, modifierDegree);
         super(statements.dimensions, degree);
         this.modifierId = modifierId;
         this.statements = statements;

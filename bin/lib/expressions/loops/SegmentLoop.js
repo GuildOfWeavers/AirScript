@@ -11,8 +11,8 @@ const utils_1 = require("../utils");
 class SegmentLoop extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(statements, intervals, modifierId, controlDegree) {
-        const degree = utils_1.sumDegree(statements.degree, controlDegree);
+    constructor(statements, intervals, modifierId, modifierDegree) {
+        const degree = utils_1.sumDegree(statements.degree, modifierDegree);
         super(statements.dimensions, degree);
         this.modifierId = modifierId;
         this.statements = statements;

@@ -57,8 +57,8 @@ class AirVisitor extends BaseCstVisitor {
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
-        if (ctx.staticConstants) {
-            specs.setGlobalConstants(ctx.staticConstants.map((element: any) => this.visit(element, field)));
+        if (ctx.globalConstants) {
+            specs.setGlobalConstants(ctx.globalConstants.map((element: any) => this.visit(element, field)));
         }
 
         // build readonly registers

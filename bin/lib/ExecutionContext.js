@@ -173,14 +173,14 @@ class ExecutionContext {
             }
             return this.loopFrames[0].size;
         }
-        else if (loopFrame && this.loopFrames.length === 1) {
-            throw new Error('TODO');
-        }
         else if (bankName === 'n') {
             if (!this.canAccessFutureState) {
                 throw new Error(`$n registers cannot be accessed in transition function`);
             }
             return this.mutableRegisterCount;
+        }
+        else if (loopFrame && this.loopFrames.length === 1) {
+            throw new Error('TODO');
         }
         else if (bankName === 'r')
             return this.mutableRegisterCount;

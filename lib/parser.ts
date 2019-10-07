@@ -17,6 +17,8 @@ class AirParser extends CstParser {
         this.performSelfAnalysis();
     }
 
+    // SCRIPT
+    // --------------------------------------------------------------------------------------------
     public script = this.RULE('script', () => {
         this.CONSUME(Define);
         this.CONSUME(Identifier,                             { LABEL: 'starkName'             });
@@ -26,7 +28,7 @@ class AirParser extends CstParser {
         this.MANY(() => {
             this.OR([
                 { ALT: () => {
-                    this.SUBRULE(this.constantDeclaration,   { LABEL: 'staticConstants'       });
+                    this.SUBRULE(this.constantDeclaration,   { LABEL: 'globalConstants'       });
                 }},
                 { ALT: () => {
                     this.CONSUME(Transition);
@@ -62,7 +64,7 @@ class AirParser extends CstParser {
         this.CONSUME(RParen);
     });
 
-    // STATIC CONSTANTS
+    // GLOBAL CONSTANTS
     // --------------------------------------------------------------------------------------------
     private constantDeclaration = this.RULE('constantDeclaration', () => {
         this.CONSUME(Identifier, { LABEL: 'constantName' });

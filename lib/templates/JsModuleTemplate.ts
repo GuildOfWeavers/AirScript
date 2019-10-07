@@ -139,7 +139,6 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
     function evaluateTracePolynomials(polynomials: Matrix): Matrix {
 
         const domainSize = compositionDomain.length;
-        const extensionFactor = domainSize / traceLength;
         const constraintCount = constraints.length;
 
         // make sure trace polynomials are valid
@@ -154,7 +153,7 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
             evaluations[i] = new Array<bigint>(domainSize);
         }
 
-        const nfSteps = domainSize - extensionFactor;
+        const nfSteps = domainSize - compositionFactor;
         const rValues = new Array<bigint>(stateWidth);
         const nValues = new Array<bigint>(stateWidth);
         const kValues = new Array<bigint>(kRegisters.length);
@@ -171,7 +170,7 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
             for (let register = 0; register < stateWidth; register++) {
                 rValues[register] = tEvaluations.getValue(register, position);
 
-                let nextStepIndex = (position + extensionFactor) % domainSize;
+                let nextStepIndex = (position + compositionFactor) % domainSize;
                 nValues[register] = tEvaluations.getValue(register, nextStepIndex);
             }
 
@@ -205,11 +204,11 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
 
             // copy evaluations to the result, and also check that constraints evaluate to 0
             // at multiples of the extensions factor
-            if (position % extensionFactor === 0 && position < nfSteps) {
+            if (position % compositionFactor === 0 && position < nfSteps) {
                 for (let constraint = 0; constraint < constraintCount; constraint++) {
                     let qValue = qValues[constraint];
                     if (qValue !== 0n) {
-                        throw new Error(`Constraint ${constraint} didn't evaluate to 0 at step: ${position / extensionFactor}`);
+                        throw new Error(`Constraint ${constraint} didn't evaluate to 0 at step: ${position / compositionFactor}`);
                     }
                     evaluations[constraint][position] = qValue;
                 }

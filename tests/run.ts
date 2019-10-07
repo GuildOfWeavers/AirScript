@@ -17,10 +17,10 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
     // transition constraint definition
     enforce 1 constraint {
         for each ($i0) {
-            init { [$i0] }
+            init { $i0 = $n0 }
 
             for steps [1..63] {
-                [$r0^3 + $k0] = $n;
+                $r0^3 + $k0 = $n0
             }
         }
     }
@@ -33,7 +33,7 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
 const extensionFactor = 32;
 const air = parseScript(script, { extensionFactor });
-const pContext = air.initProof([], [], [[3n], [4n]]);
+const pContext = air.initProof([[3n], [4n]], [], []);
 console.time('generate trace');
 const trace = pContext.generateExecutionTrace();
 console.timeEnd('generate trace');
