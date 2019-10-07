@@ -45,7 +45,7 @@ declare module '@guildofweavers/air-script' {
         initProof(publicInputs: bigint[][], secretInputs: bigint[][], initValues: any[]): ProofObject;
 
         /** Creates verification object for the provided public inputs */
-        initVerification(publicInputs: bigint[][]): VerificationObject;
+        initVerification(traceShape: number[], publicInputs: bigint[][]): VerificationObject;
     }
 
     export class AirScriptError {
@@ -77,8 +77,9 @@ declare module '@guildofweavers/air-script' {
          * @param rValues Values of mutable registers at the current step
          * @param nValues Values of mutable registers at the next step
          * @param sValues Values of secret registers at the current step
+         * @param iValues Values of init registers at the current step
          */
-        evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[]): bigint[];
+        evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[], iValues: bigint[]): bigint[];
     }
 
     export interface ProofObject extends EvaluationContext {
@@ -93,6 +94,9 @@ declare module '@guildofweavers/air-script' {
 
         /** Values of secret registers evaluated over execution domain */
         readonly secretRegisterTraces: Vector[];
+
+        /** Array describing number of cycles at each layer of execution trace */
+        readonly traceShape: number[];
 
         generateExecutionTrace(): Matrix;
         evaluateTracePolynomials(polynomials: Matrix): Matrix;

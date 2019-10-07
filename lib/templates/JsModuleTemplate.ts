@@ -295,6 +295,7 @@ export function initProof(pInputs: bigint[][], sInputs: bigint[][], initValues: 
     // --------------------------------------------------------------------------------------------
     return {
         field                       : f,
+        traceShape                  : traceShape,
         traceLength                 : traceLength,
         extensionFactor             : extensionFactor,
         rootOfUnity                 : rootOfUnity,
@@ -313,23 +314,24 @@ export function initProof(pInputs: bigint[][], sInputs: bigint[][], initValues: 
 
 // VERIFICATION OBJECT GENERATOR
 // ================================================================================================
-export function initVerification(pInputs: bigint[][]): VerificationObject {
+export function initVerification(traceShape: number[], pInputs: bigint[][]): VerificationObject {
     
-    const traceLength = loopSpecs.baseCycleLength;  // TODO
+    const traceLength = validateTraceShape(traceShape);
     validateStaticRegisterValues(traceLength);
     validateInputRegisterValues(pInputs, traceLength, 'public');
+    const cRegisterSpecs = buildControlRegisterSpecs(traceShape, traceLength);
         
     const evaluationDomainSize = traceLength * extensionFactor;
     const rootOfUnity = f.getRootOfUnity(evaluationDomainSize);
 
     // build static, public, and control register evaluators
     const kRegisters = buildReadonlyRegisterEvaluators(registerSpecs.k);
-    const pRegisters = buildInputRegisterEvaluators(pInputs, registerSpecs.p, false);
-    const cRegisters = [] as ReadonlyRegisterEvaluator<bigint>[]; // TODO
+    const pRegisters = buildInputRegisterEvaluators(pInputs, registerSpecs.p);
+    const cRegisters = buildReadonlyRegisterEvaluators(cRegisterSpecs);
 
     // CONSTRAINT EVALUATOR
     // --------------------------------------------------------------------------------------------
-    function evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[]): bigint[] {
+    function evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], sValues: bigint[], iValues: bigint[]): bigint[] {
         // get values of readonly registers for the current position
         const kValues = new Array<bigint>(kRegisters.length);
         for (let i = 0; i < kValues.length; i++) {
@@ -347,8 +349,6 @@ export function initVerification(pInputs: bigint[][]): VerificationObject {
         for (let i = 0; i < cValues.length; i++) {
             cValues[i] = cRegisters[i](x);
         }
-
-        const iValues: bigint[] = []; // TODO
 
         // populate qValues with constraint evaluations
         const qValues = evaluateConstraints(rValues, nValues, kValues, sValues, pValues, cValues, iValues);
@@ -402,11 +402,11 @@ export function initVerification(pInputs: bigint[][]): VerificationObject {
         return registers;
     }
 
-    function buildInputRegisterEvaluators(inputs: bigint[][], specs: InputRegisterSpecs[], isSecret: boolean): ReadonlyRegisterEvaluator<bigint>[] {
+    function buildInputRegisterEvaluators(inputs: bigint[][], specs: InputRegisterSpecs[]): ReadonlyRegisterEvaluator<bigint>[] {
         const regSpecs = new Array<ReadonlyRegisterSpecs>(inputs.length);
         for (let i = 0; i < inputs.length; i++) {
             let binary = specs[i].binary;
-            if (binary) { validateBinaryValues(inputs[i], isSecret, i); }
+            if (binary) { validateBinaryValues(inputs[i], false, i); }
             regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern, binary };
         }
         return buildReadonlyRegisterEvaluators(regSpecs);
@@ -457,6 +457,27 @@ export function validateInitValues(initValues: any[]): { traceLength: number, tr
     });
 
     return { traceLength, traceShape, iRegisterSpecs };
+}
+
+export function validateTraceShape(traceShape: number[]): number {
+    if (traceShape === undefined) throw new Error('trace shape was not provided');
+    if (!Array.isArray(traceShape)) throw new Error('trace shape must be an array');
+    if (traceShape.length === 0) throw new Error('trace shape array must contain at least one element');
+
+    let cycleCount = 1;
+    for (let i = 0; i < traceShape.length; i++) {
+        if (!Number.isInteger(traceShape[i]) || traceShape[i] < 1) {
+            throw new Error('trace shape elements must be integers greater than 0');
+        }
+        cycleCount = cycleCount * traceShape[0];
+    }
+
+    const traceLength = cycleCount * loopSpecs.baseCycleLength;
+    if (traceLength > maxTraceLength) {
+        throw new Error(`total trace length cannot exceed ${maxTraceLength}`);
+    }
+
+    return traceLength;
 }
 
 export function validateStaticRegisterValues(traceLength: number): void {
@@ -591,6 +612,10 @@ export function unrollRegisterValues(value: any[] | bigint, register: number, de
         return [value];
     }
     else {
+        if (!Array.isArray(value) || validateInitValues.length === 0) {
+            throw new Error(`values provided for register $i${register} are invalid`)
+        }
+
         if (shape[depth] === undefined) {
             shape[depth] = value.length;
         }

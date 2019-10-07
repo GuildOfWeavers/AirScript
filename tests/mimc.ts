@@ -30,35 +30,36 @@ const air = parseScript(script, { extensionFactor });
 console.log(`degree: ${air.maxConstraintDegree}`);
 
 const gStart = Date.now();
-const pContext = air.initProof([], [], [3n]);
+const pObject = air.initProof([], [], [3n]);
 
 let start = Date.now();
-const trace = pContext.generateExecutionTrace();
+const trace = pObject.generateExecutionTrace();
 console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
 start = Date.now();
-const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
+const pPolys = air.field.interpolateRoots(pObject.executionDomain, trace);
 console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
 
 start = Date.now();
-const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
+const pEvaluations = air.field.evalPolysAtRoots(pPolys, pObject.evaluationDomain);
 console.log(`Extended execution trace in ${Date.now() - start} ms`);
 
 start = Date.now();
-const cEvaluations = pContext.evaluateTracePolynomials(pPolys);
+const cEvaluations = pObject.evaluateTracePolynomials(pPolys);
 console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 
 start = Date.now();
-const qPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
-const qEvaluations = air.field.evalPolysAtRoots(qPolys, pContext.evaluationDomain);
+const qPolys = air.field.interpolateRoots(pObject.compositionDomain, cEvaluations);
+const qEvaluations = air.field.evalPolysAtRoots(qPolys, pObject.evaluationDomain);
 console.log(`Extended constraints in ${Date.now() - start} ms`);
 console.log(`Total time: ${Date.now() - gStart} ms`);
 
-const vContext = air.initVerification([]);
+const vObject = air.initVerification(pObject.traceShape, []);
 
-const x = air.field.exp(vContext.rootOfUnity, 2n);
+const x = air.field.exp(vObject.rootOfUnity, 2n);
 const rValues = [pEvaluations.getValue(0, 2)];
 const nValues = [pEvaluations.getValue(0, 18)];
-const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, []);
+const iValues = [] as bigint[]; // TODO
+const qValues = vObject.evaluateConstraintsAt(x, rValues, nValues, [], iValues);
 
 console.log(qEvaluations.getValue(0, 2) === qValues[0]);

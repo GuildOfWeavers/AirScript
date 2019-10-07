@@ -45,8 +45,10 @@ function buildTransitionFunctionBody(specs) {
     return code;
 }
 function buildTransitionConstraintsBody(specs) {
-    return 'return [];\n';
-    //return specs.transitionConstraints.toJsCode(undefined, undefined, specs.loopController as any); // TODO
+    let code = 'let result;\n';
+    code += specs.transitionConstraints.toJsCode('result', undefined, specs.loopController);
+    code += specs.transitionConstraints.isScalar ? `return [result];\n` : `return result.values;\n`;
+    return code;
 }
 function buildLoopSpecs(specs) {
     return {
