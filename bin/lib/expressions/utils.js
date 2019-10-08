@@ -5,24 +5,25 @@ const SegmentLoopBlock_1 = require("./loops/SegmentLoopBlock");
 // LOOPS
 // ================================================================================================
 function getInputBlockStructure(inputBlock) {
-    const traceTemplate = new Array(inputBlock.registers.size).fill(0);
-    const segmentMasks = [];
+    const baseCycleMasks = [];
+    const registerDepths = new Array(inputBlock.registers.size).fill(0);
     while (true) {
         if (inputBlock.bodyExpression instanceof InputBlock_1.InputBlock) {
             inputBlock = inputBlock.bodyExpression;
             for (let register of inputBlock.registers) {
-                traceTemplate[register]++;
+                registerDepths[register]++;
             }
         }
         else if (inputBlock.bodyExpression instanceof SegmentLoopBlock_1.SegmentLoopBlock) {
-            inputBlock.bodyExpression.masks.forEach(mask => segmentMasks.push(mask));
+            inputBlock.bodyExpression.masks.forEach(mask => baseCycleMasks.push(mask));
             break;
         }
         else {
-            throw Error('TODO');
+            throw Error('invalid expression in input block body');
         }
     }
-    return { traceTemplate, segmentMasks, baseCycleLength: segmentMasks[0].length };
+    const baseCycleLength = baseCycleMasks[0].length;
+    return { registerDepths, baseCycleMasks, baseCycleLength };
 }
 exports.getInputBlockStructure = getInputBlockStructure;
 // DEGREE

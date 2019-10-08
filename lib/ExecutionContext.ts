@@ -38,9 +38,12 @@ export class ExecutionContext {
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    get canAccessFutureState(): boolean {
-        // if transition function degree has been set, we are in transition constraints
-        return (this.tFunctionDegree !== undefined);
+    get inTransitionFunction(): boolean {
+        return (this.tFunctionDegree === undefined);
+    }
+
+    get inInputBlock(): boolean {
+        return (this.loopFrames.length !== 0);
     }
 
     // SYMBOLIC REFERENCES
@@ -76,14 +79,12 @@ export class ExecutionContext {
             const newFrame = new Set<number>();
             for (let i = 0; i < registers.length; i++) {
                 let regIdx = Number.parseInt(registers[i].slice(2), 10);
-                if (lastFrame && !lastFrame.has(regIdx)) {
-                    throw new Error('TODO');
-                }
+                if (lastFrame && !lastFrame.has(regIdx))
+                    throw new Error(`invalid loop declaration: register $i${regIdx} is absent from the parent loop`);
+                else if (newFrame.has(regIdx))
+                    throw new Error(`invalid loop declaration: register $i${regIdx} is listed more than once`);
+
                 newFrame.add(regIdx);
-            }
-    
-            if (newFrame.size !== registers.length) {
-                throw new Error('TODO');
             }
     
             return this.loopFrames.push(newFrame) - 1;
@@ -206,7 +207,7 @@ export class ExecutionContext {
             return this.loopFrames[0]!.size;
         }
         else if (bankName === 'n') {
-            if (!this.canAccessFutureState) {
+            if (this.inTransitionFunction) {
                 throw new Error(`$n registers cannot be accessed in transition function`);
             }
             return this.mutableRegisterCount
@@ -224,10 +225,13 @@ export class ExecutionContext {
     // SUBROUTINES
     // --------------------------------------------------------------------------------------------
     getTransitionFunctionCall(): SubroutineCall {
-        if (!this.canAccessFutureState) {
+        if (this.inTransitionFunction) {
             throw new Error(`transition function cannot call itself recursively`);
         }
+        else if (this.inInputBlock) {
+            throw new Error(`transition function cannot be called from an input block`);
+        }
         const dimensions: Dimensions = [this.mutableRegisterCount, 0];
-        return new SubroutineCall('applyTransition', ['r', 'k', 's', 'p', 'c'], dimensions, this.tFunctionDegree!);
+        return new SubroutineCall('applyTransition', ['r', 'k', 's', 'p', 'c', 'i'], dimensions, this.tFunctionDegree!);
     }
 }

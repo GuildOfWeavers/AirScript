@@ -52,7 +52,10 @@ function parseIntervals(intervals: Interval[]): number[] {
 
     for (let interval of intervals) {
         let start = interval[0], end = interval[1];
-        if (start > end) {
+        if (start < 1) {
+            throw new Error(`invalid step interval [${start}..${end}]: start index must be greater than 0`);
+        }
+        else if (start > end) {
             throw new Error(`invalid step interval [${start}..${end}]: start index must be smaller than end index`);
         }
 

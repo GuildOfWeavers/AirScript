@@ -5,6 +5,7 @@ import {
     ReadonlyRegisterGroup, ReadonlyRegisterSpecs, InputRegisterSpecs, ReadonlyRegisterEvaluator,
     InputBlockDescriptor, ProofObject, VerificationObject
 } from "@guildofweavers/air-script";
+import { isPowerOf2 } from "../utils";
 
 // MODULE VARIABLE PLACEHOLDERS
 // ================================================================================================
@@ -12,7 +13,7 @@ const f: FiniteField = undefined as any;
 const stateWidth = 0;
 
 const registerSpecs: ReadonlyRegisterGroup = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
-const loops: InputBlockDescriptor = { traceTemplate: [], segmentMasks: [], baseCycleLength: 0 };
+const loops: InputBlockDescriptor = { registerDepths: [], baseCycleMasks: [], baseCycleLength: 0 };
 const constraints: ConstraintSpecs[] = [];
 
 const compositionFactor = 0;
@@ -420,12 +421,12 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
 // ================================================================================================
 export function validateInitValues(initValues: any[]): { traceLength: number, traceShape: number[], iRegisterSpecs: ReadonlyRegisterSpecs[] } {
 
-    const traceTemplate = loops.traceTemplate;
+    const registerDepths = loops.registerDepths;
     const traceShape: number[] = [initValues.length];
-    const iRegisterValues = new Array<bigint[]>(traceTemplate.length).fill([]);
+    const iRegisterValues = new Array<bigint[]>(registerDepths.length).fill([]);
     for (let value of initValues) {
-        for (let i = 0; i < traceTemplate.length; i++) {
-            let uv = unrollRegisterValues(value[i], i, traceTemplate[i], traceShape);
+        for (let i = 0; i < registerDepths.length; i++) {
+            let uv = unrollRegisterValues(value[i], i, registerDepths[i], traceShape);
             iRegisterValues[i] = iRegisterValues[i].concat(uv);
         }
     }
@@ -545,8 +546,8 @@ export function buildControlRegisterSpecs(traceShape: number[], traceLength: num
     }
 
     // combine input loop trace masks with segment loop trace masks
-    for (let segmentMask of loops.segmentMasks) {
-        let mask = segmentMask.slice(1);
+    for (let cycleMask of loops.baseCycleMasks) {
+        let mask = cycleMask.slice(1);
         mask.push(0);   // move the init step mask to the end
         masks.push(mask);
     }
@@ -564,7 +565,7 @@ export function buildControlRegisterSpecs(traceShape: number[], traceLength: num
         for (let i = 0; i < mask.length; i++) {
             for (let j = 0; j < loopCount; j++) {
                 if (mask[i] === 1) {
-                    values[j][i] = (key.charAt(j) === '1') ? f.one : f.zero;;
+                    values[j][i] = (key.charAt(j) === '0') ? f.one : f.zero;;
                 }
             }
         }
@@ -593,23 +594,25 @@ export function stretchRegisterValues(values: bigint[], traceLength: number): bi
 
 export function unrollRegisterValues(value: any[] | bigint, register: number, depth: number, shape: number[]): bigint[] {
     if (typeof value === 'bigint') {
-        if (depth !== 0) {
+        if (depth !== 0)
             throw new Error(`values provided for register $i${register} do not match the expected template`);
-        }
         return [value];
     }
     else {
-        if (!Array.isArray(value) || validateInitValues.length === 0) {
-            throw new Error(`values provided for register $i${register} are invalid`)
-        }
+        if (depth === 0)
+            throw new Error(`values provided for register $i${register} do not match the expected template`);
+        if (!Array.isArray(value))
+            throw new Error(`value provided for register $i${register} at depth ${depth} is invalid`);
+        else if (value.length === 0)
+            throw new Error(`number of values for register $i${register} at depth ${depth} must be greater than 0`);
+        else if (isPowerOf2(value.length)) 
+            throw new Error(`number of values for register $i${register} at depth ${depth} must be a power of 2`);
 
         if (shape[depth] === undefined) {
             shape[depth] = value.length;
         }
-        else {
-            if (value.length !== shape[depth]) {
-                throw new Error(`values provided for register $i${register} do not match the expected template`);
-            }
+        else if (value.length !== shape[depth]) {
+            throw new Error(`values provided for register $i${register} do not match the expected template`);
         }
 
         let result: bigint[] = [];

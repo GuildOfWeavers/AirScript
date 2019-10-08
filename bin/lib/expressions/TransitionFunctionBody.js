@@ -20,17 +20,14 @@ class TransitionFunctionBody extends Expression_1.Expression {
             throw new Error(`transition function must evaluate to a scalar or to a vector`);
         }
         this.inputBlock = inputBlock;
-        const loopStructure = utils_1.getInputBlockStructure(inputBlock);
-        this.traceTemplate = loopStructure.traceTemplate;
-        this.segmentMasks = loopStructure.segmentMasks;
+        const blockStructure = utils_1.getInputBlockStructure(inputBlock);
+        this.registerDepths = blockStructure.registerDepths;
+        this.baseCycleMasks = blockStructure.baseCycleMasks;
     }
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
     get baseCycleLength() {
-        return this.segmentMasks[0].length;
-    }
-    get LoopCount() {
-        return this.traceTemplate.length + this.segmentMasks.length;
+        return this.baseCycleMasks[0].length;
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

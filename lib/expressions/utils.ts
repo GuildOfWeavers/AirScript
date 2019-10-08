@@ -14,26 +14,27 @@ export interface DegreeOp {
 // LOOPS
 // ================================================================================================
 export function getInputBlockStructure(inputBlock: InputBlock): InputBlockDescriptor {
-    const traceTemplate = new Array<number>(inputBlock.registers.size).fill(0);
-    const segmentMasks: number[][] = [];
+    const baseCycleMasks: number[][] = [];
+    const registerDepths = new Array<number>(inputBlock.registers.size).fill(0);
 
     while (true) {
         if (inputBlock.bodyExpression instanceof InputBlock) {
             inputBlock = inputBlock.bodyExpression;
             for (let register of inputBlock.registers) {
-                traceTemplate[register]++;
+                registerDepths[register]++;
             }
         }
         else if (inputBlock.bodyExpression instanceof SegmentLoopBlock) {
-            inputBlock.bodyExpression.masks.forEach(mask => segmentMasks.push(mask));
+            inputBlock.bodyExpression.masks.forEach(mask => baseCycleMasks.push(mask));
             break;
         }
         else {
-            throw Error('TODO');
+            throw Error('invalid expression in input block body');
         }
     }
 
-    return { traceTemplate, segmentMasks, baseCycleLength: segmentMasks[0].length };
+    const baseCycleLength = baseCycleMasks[0].length;
+    return { registerDepths, baseCycleMasks, baseCycleLength };
 }
 
 // DEGREE

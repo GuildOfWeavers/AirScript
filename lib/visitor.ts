@@ -238,9 +238,14 @@ class AirVisitor extends BaseCstVisitor {
 
     transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionConstraintsBody {
         const exc = new ExecutionContext(specs);
-        const loop: InputBlock = this.visit(ctx.inputBlock, exc);
-        const result = new TransitionConstraintsBody(loop, specs.inputBlock);
-        return result;
+        let root: Expression;
+        if (ctx.allStepBlock) {
+            root = this.visit(ctx.allStepBlock, exc);
+        }
+        else {
+            root = this.visit(ctx.inputBlock, exc);
+        }
+        return new TransitionConstraintsBody(root, specs.inputBlock);
     }
 
     // LOOPS
@@ -286,7 +291,7 @@ class AirVisitor extends BaseCstVisitor {
 
         let out: Expression = this.visit(ctx.expression, exc);
         if (ctx.constraint) {
-            if (!exc.canAccessFutureState) {
+            if (exc.inTransitionFunction) {
                 throw new Error('comparison operator cannot be used in transition function');
             }
             const constraint: Expression = this.visit(ctx.constraint, exc);

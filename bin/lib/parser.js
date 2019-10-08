@@ -135,7 +135,7 @@ class AirParser extends chevrotain_1.CstParser {
                         this.CONSUME(lexer_1.For);
                         this.CONSUME(lexer_1.All);
                         this.CONSUME(lexer_1.Steps);
-                        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+                        this.SUBRULE(this.statementBlock, { LABEL: 'allStepBlock' });
                     } }
             ]);
             this.CONSUME(lexer_1.RCurly);

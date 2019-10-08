@@ -16,12 +16,8 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
     // transition constraint definition
     enforce 1 constraint {
-        for each ($i0) {
-            init { $i0 = $n0 }
-
-            for steps [1..63] {
-                $r0^3 + $k0 = $n0
-            }
+        for all steps {
+            transition($r) = $n
         }
     }
 
@@ -47,3 +43,14 @@ const pPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluatio
 const qEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
 
 console.log('done!');
+
+console.log(test(3n, 63) === trace.toValues()[0][63]);
+console.log(test(4n, 63) === trace.toValues()[0][127]);
+
+function test(input: bigint, steps: number) {
+    const k = [ 42n, 43n, 170n, 2209n, 16426n, 78087n, 279978n, 823517n, 2097194n, 4782931n, 10000042n, 19487209n, 35831850n, 62748495n, 105413546n, 170859333n ];
+    for (let i = 0; i < steps; i++) {
+        input = air.field.add(air.field.exp(input, 3n), k[i % k.length] );
+    }
+    return input;
+}

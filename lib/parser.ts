@@ -151,7 +151,7 @@ class AirParser extends CstParser {
                 this.CONSUME(For);
                 this.CONSUME(All);
                 this.CONSUME(Steps);
-                this.SUBRULE(this.statementBlock, { LABEL: 'statements' })
+                this.SUBRULE(this.statementBlock, { LABEL: 'allStepBlock' })
             }}
         ]);
         this.CONSUME(RCurly);

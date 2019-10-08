@@ -9,8 +9,8 @@ import { getInputBlockStructure } from './utils';
 export class TransitionFunctionBody extends Expression {
 
     readonly inputBlock     : Expression;
-    readonly traceTemplate  : number[];
-    readonly segmentMasks   : number[][];
+    readonly registerDepths : number[];
+    readonly baseCycleMasks : number[][];
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -25,19 +25,15 @@ export class TransitionFunctionBody extends Expression {
             throw new Error(`transition function must evaluate to a scalar or to a vector`);
         }
         this.inputBlock = inputBlock;
-        const loopStructure = getInputBlockStructure(inputBlock);
-        this.traceTemplate = loopStructure.traceTemplate;
-        this.segmentMasks = loopStructure.segmentMasks;
+        const blockStructure = getInputBlockStructure(inputBlock);
+        this.registerDepths = blockStructure.registerDepths;
+        this.baseCycleMasks = blockStructure.baseCycleMasks;
     }
 
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
     get baseCycleLength(): number {
-        return this.segmentMasks[0].length;
-    }
-
-    get LoopCount(): number {
-        return this.traceTemplate.length + this.segmentMasks.length;
+        return this.baseCycleMasks[0].length;
     }
 
     // PUBLIC MEMBERS

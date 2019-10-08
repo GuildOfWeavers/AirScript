@@ -75,8 +75,8 @@ export class ScriptSpecs {
 
     get inputBlock(): InputBlockDescriptor {
         return {
-            traceTemplate   : this.transitionFunction.traceTemplate,
-            segmentMasks    : this.transitionFunction.segmentMasks,
+            registerDepths  : this.transitionFunction.registerDepths,
+            baseCycleMasks  : this.transitionFunction.baseCycleMasks,
             baseCycleLength : this.transitionFunction.baseCycleLength
         };
     }

@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const utils_1 = require("../utils");
 // MODULE VARIABLE PLACEHOLDERS
 // ================================================================================================
 const f = undefined;
 const stateWidth = 0;
 const registerSpecs = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
-const loops = { traceTemplate: [], segmentMasks: [], baseCycleLength: 0 };
+const loops = { registerDepths: [], baseCycleMasks: [], baseCycleLength: 0 };
 const constraints = [];
 const compositionFactor = 0;
 const extensionFactor = 0;
@@ -351,12 +352,12 @@ exports.initVerification = initVerification;
 // HELPER FUNCTIONS
 // ================================================================================================
 function validateInitValues(initValues) {
-    const traceTemplate = loops.traceTemplate;
+    const registerDepths = loops.registerDepths;
     const traceShape = [initValues.length];
-    const iRegisterValues = new Array(traceTemplate.length).fill([]);
+    const iRegisterValues = new Array(registerDepths.length).fill([]);
     for (let value of initValues) {
-        for (let i = 0; i < traceTemplate.length; i++) {
-            let uv = unrollRegisterValues(value[i], i, traceTemplate[i], traceShape);
+        for (let i = 0; i < registerDepths.length; i++) {
+            let uv = unrollRegisterValues(value[i], i, registerDepths[i], traceShape);
             iRegisterValues[i] = iRegisterValues[i].concat(uv);
         }
     }
@@ -468,8 +469,8 @@ function buildControlRegisterSpecs(traceShape, traceLength) {
         }
     }
     // combine input loop trace masks with segment loop trace masks
-    for (let segmentMask of loops.segmentMasks) {
-        let mask = segmentMask.slice(1);
+    for (let cycleMask of loops.baseCycleMasks) {
+        let mask = cycleMask.slice(1);
         mask.push(0); // move the init step mask to the end
         masks.push(mask);
     }
@@ -485,7 +486,7 @@ function buildControlRegisterSpecs(traceShape, traceLength) {
         for (let i = 0; i < mask.length; i++) {
             for (let j = 0; j < loopCount; j++) {
                 if (mask[i] === 1) {
-                    values[j][i] = (key.charAt(j) === '1') ? f.one : f.zero;
+                    values[j][i] = (key.charAt(j) === '0') ? f.one : f.zero;
                     ;
                 }
             }
@@ -511,22 +512,24 @@ function stretchRegisterValues(values, traceLength) {
 exports.stretchRegisterValues = stretchRegisterValues;
 function unrollRegisterValues(value, register, depth, shape) {
     if (typeof value === 'bigint') {
-        if (depth !== 0) {
+        if (depth !== 0)
             throw new Error(`values provided for register $i${register} do not match the expected template`);
-        }
         return [value];
     }
     else {
-        if (!Array.isArray(value) || validateInitValues.length === 0) {
-            throw new Error(`values provided for register $i${register} are invalid`);
-        }
+        if (depth === 0)
+            throw new Error(`values provided for register $i${register} do not match the expected template`);
+        if (!Array.isArray(value))
+            throw new Error(`value provided for register $i${register} at depth ${depth} is invalid`);
+        else if (value.length === 0)
+            throw new Error(`number of values for register $i${register} at depth ${depth} must be greater than 0`);
+        else if (utils_1.isPowerOf2(value.length))
+            throw new Error(`number of values for register $i${register} at depth ${depth} must be a power of 2`);
         if (shape[depth] === undefined) {
             shape[depth] = value.length;
         }
-        else {
-            if (value.length !== shape[depth]) {
-                throw new Error(`values provided for register $i${register} do not match the expected template`);
-            }
+        else if (value.length !== shape[depth]) {
+            throw new Error(`values provided for register $i${register} do not match the expected template`);
         }
         let result = [];
         for (let i = 0; i < value.length; i++) {

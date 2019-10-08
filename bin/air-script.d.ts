@@ -127,8 +127,8 @@ declare module '@guildofweavers/air-script' {
     }
 
     export interface InputBlockDescriptor {
-        traceTemplate   : number[];
-        segmentMasks    : number[][];
+        registerDepths  : number[];
+        baseCycleMasks  : number[][];
         baseCycleLength : number;
     }
 
