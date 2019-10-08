@@ -120,6 +120,18 @@ declare module '@guildofweavers/air-script' {
         values  : bigint[];
     }
 
+    export interface ReadonlyRegisterGroup {
+        staticRegisters : ReadonlyRegisterSpecs[];
+        secretRegisters : InputRegisterSpecs[];
+        publicRegisters : InputRegisterSpecs[];
+    }
+
+    export interface LoopDescriptor {
+        traceTemplate   : number[];
+        segmentMasks    : number[][];
+        baseCycleLength : number;
+    }
+
     export interface TransitionFunction {
         /**
          * @param r Array with values of mutable registers at the current step

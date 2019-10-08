@@ -38,7 +38,7 @@ class AirVisitor extends BaseCstVisitor {
         else {
             readonlyRegisters = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
         }
-        specs.setReadonlyRegisterCounts(readonlyRegisters);
+        specs.setReadonlyRegisters(readonlyRegisters);
         // parse transition function and transition constraints
         validateTransitionFunction(ctx.transitionFunction);
         const tFunctionBody = this.visit(ctx.transitionFunction, specs);
@@ -182,12 +182,14 @@ class AirVisitor extends BaseCstVisitor {
     transitionFunction(ctx, specs) {
         const exc = new ExecutionContext_1.ExecutionContext(specs);
         const loop = this.visit(ctx.segment, exc);
-        return loop;
+        const result = new expressions_1.TransitionFunctionBody(loop);
+        return result;
     }
     transitionConstraints(ctx, specs) {
         const exc = new ExecutionContext_1.ExecutionContext(specs);
         const loop = this.visit(ctx.segment, exc);
-        return loop;
+        const result = new expressions_1.TransitionConstraintsBody(loop);
+        return result;
     }
     // LOOPS
     // --------------------------------------------------------------------------------------------

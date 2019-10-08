@@ -1,31 +1,18 @@
 // INTERFACE IMPORTS
 // ================================================================================================
 import {
-    ProofObject, VerificationObject, ConstraintSpecs, ReadonlyRegisterSpecs, InputRegisterSpecs,
-    ReadonlyRegisterEvaluator, FiniteField, Matrix, Vector, TransitionFunction, ConstraintEvaluator
+    FiniteField, Matrix, Vector, ConstraintSpecs, TransitionFunction, ConstraintEvaluator,
+    ReadonlyRegisterGroup, ReadonlyRegisterSpecs, InputRegisterSpecs, ReadonlyRegisterEvaluator,
+    LoopDescriptor, ProofObject, VerificationObject
 } from "@guildofweavers/air-script";
-
-// INTERFACES
-// ================================================================================================
-export interface RegisterSpecs {
-    k: ReadonlyRegisterSpecs[],
-    s: InputRegisterSpecs[],
-    p: InputRegisterSpecs[]
-}
-
-export interface LoopSpecs {
-    traceTemplate   : number[];
-    segmentMasks    : number[][];
-    baseCycleLength : number;
-}
 
 // MODULE VARIABLE PLACEHOLDERS
 // ================================================================================================
 const f: FiniteField = undefined as any;
 const stateWidth = 0;
 
-const registerSpecs: RegisterSpecs = { k: [], s: [], p: [] };
-const loopSpecs: LoopSpecs = { traceTemplate: [], segmentMasks: [], baseCycleLength: 0 };
+const registerSpecs: ReadonlyRegisterGroup = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
+const loops: LoopDescriptor = { traceTemplate: [], segmentMasks: [], baseCycleLength: 0 };
 const constraints: ConstraintSpecs[] = [];
 
 const compositionFactor = 0;
@@ -65,9 +52,9 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
     const hiddenRegisterTraces: Vector[] = [];
 
     // build readonly registers
-    const kRegisters = buildReadonlyRegisterEvaluators(registerSpecs.k, false);
-    const pRegisters = buildInputRegisterEvaluators(pInputs, registerSpecs.p, false);
-    const sRegisters = buildInputRegisterEvaluators(sInputs, registerSpecs.s, true);
+    const kRegisters = buildReadonlyRegisterEvaluators(registerSpecs.staticRegisters, false);
+    const pRegisters = buildInputRegisterEvaluators(pInputs, registerSpecs.publicRegisters, false);
+    const sRegisters = buildInputRegisterEvaluators(sInputs, registerSpecs.secretRegisters, true);
     const cRegisters = buildReadonlyRegisterEvaluators(cRegisterSpecs, false);
     const iRegisters = buildReadonlyRegisterEvaluators(iRegisterSpecs, true);
 
@@ -298,8 +285,8 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
         rootOfUnity                 : rootOfUnity,
         stateWidth                  : stateWidth,
         constraintCount             : constraints.length,
-        secretInputCount            : registerSpecs.s.length,
-        publicInputCount            : registerSpecs.p.length,
+        secretInputCount            : registerSpecs.secretRegisters.length,
+        publicInputCount            : registerSpecs.publicRegisters.length,
         executionDomain             : executionDomain,
         evaluationDomain            : evaluationDomain,
         compositionDomain           : compositionDomain,
@@ -322,11 +309,11 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
     const rootOfUnity = f.getRootOfUnity(evaluationDomainSize);
 
     // build static, public, and control register evaluators
-    const kRegisters = buildReadonlyRegisterEvaluators(registerSpecs.k);
-    const pRegisters = buildInputRegisterEvaluators(pInputs, registerSpecs.p);
+    const kRegisters = buildReadonlyRegisterEvaluators(registerSpecs.staticRegisters);
+    const pRegisters = buildInputRegisterEvaluators(pInputs, registerSpecs.publicRegisters);
     const cRegisters = buildReadonlyRegisterEvaluators(cRegisterSpecs);
 
-    const iRegistersOffset = registerSpecs.s.length;
+    const iRegistersOffset = registerSpecs.secretRegisters.length;
 
     // CONSTRAINT EVALUATOR
     // --------------------------------------------------------------------------------------------
@@ -423,8 +410,8 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
         rootOfUnity                 : rootOfUnity,
         stateWidth                  : stateWidth,
         constraintCount             : constraints.length,
-        secretInputCount            : registerSpecs.s.length,
-        publicInputCount            : registerSpecs.p.length,
+        secretInputCount            : registerSpecs.secretRegisters.length,
+        publicInputCount            : registerSpecs.publicRegisters.length,
         evaluateConstraintsAt       : evaluateConstraintsAt
     };
 }
@@ -433,7 +420,7 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
 // ================================================================================================
 export function validateInitValues(initValues: any[]): { traceLength: number, traceShape: number[], iRegisterSpecs: ReadonlyRegisterSpecs[] } {
 
-    const traceTemplate = loopSpecs.traceTemplate;
+    const traceTemplate = loops.traceTemplate;
     const traceShape: number[] = [initValues.length];
     const iRegisterValues = new Array<bigint[]>(traceTemplate.length).fill([]);
     for (let value of initValues) {
@@ -449,7 +436,7 @@ export function validateInitValues(initValues: any[]): { traceLength: number, tr
         iRegisterValues[i].push(iRegisterValues[i].shift()!);
     }
 
-    const traceLength = cycleCount * loopSpecs.baseCycleLength;
+    const traceLength = cycleCount * loops.baseCycleLength;
     if (traceLength > maxTraceLength) {
         throw new Error(`total trace length cannot exceed ${maxTraceLength}`);
     }
@@ -474,7 +461,7 @@ export function validateTraceShape(traceShape: number[]): number {
         cycleCount = cycleCount * traceShape[0];
     }
 
-    const traceLength = cycleCount * loopSpecs.baseCycleLength;
+    const traceLength = cycleCount * loops.baseCycleLength;
     if (traceLength > maxTraceLength) {
         throw new Error(`total trace length cannot exceed ${maxTraceLength}`);
     }
@@ -483,8 +470,8 @@ export function validateTraceShape(traceShape: number[]): number {
 }
 
 export function validateStaticRegisterValues(traceLength: number): void {
-    for (let i = 0; i < registerSpecs.k.length; i++) {
-        if (traceLength % registerSpecs.k[i].values.length !== 0) {
+    for (let i = 0; i < registerSpecs.staticRegisters.length; i++) {
+        if (traceLength % registerSpecs.staticRegisters[i].values.length !== 0) {
             throw new Error(`invalid definition for static register $k${i}: number of values must be a divisor of ${traceLength}`);
         }
     }
@@ -494,7 +481,7 @@ export function validateInputRegisterValues(inputs: bigint[][], traceLength: num
     if (!inputs) throw new TypeError(`${type} inputs are undefined`);
     if (!Array.isArray(inputs)) throw new TypeError(`${type} inputs parameter must be an array`);
 
-    const expectedInputCount = type === 'public' ? registerSpecs.p.length : registerSpecs.s.length;
+    const expectedInputCount = type === 'public' ? registerSpecs.publicRegisters.length : registerSpecs.secretRegisters.length;
     if (inputs.length !== expectedInputCount) {
         throw new Error(`${type} inputs array must contain exactly ${expectedInputCount} elements`);
     }
@@ -558,7 +545,7 @@ export function buildControlRegisterSpecs(traceShape: number[], traceLength: num
     }
 
     // combine input loop trace masks with segment loop trace masks
-    for (let segmentMask of loopSpecs.segmentMasks) {
+    for (let segmentMask of loops.segmentMasks) {
         let mask = segmentMask.slice(1);
         mask.push(0);   // move the init step mask to the end
         masks.push(mask);

@@ -1,6 +1,8 @@
 // IMPORTS
 // ================================================================================================
 import { ExpressionDegree } from "./Expression";
+import { InputLoop } from "./loops/InputLoop";
+import { SegmentLoopBlock } from "./loops/SegmentLoopBlock";
 
 // INTERFACES
 // ================================================================================================
@@ -8,7 +10,32 @@ export interface DegreeOp {
     (d1: bigint, d2: bigint): bigint;
 }
 
-// PUBLIC FUNCTIONS
+// LOOPS
+// ================================================================================================
+export function getLoopStructure(loop: InputLoop) {
+    const inputTemplate = new Array<number>(loop.registers.size).fill(0);
+    const segmentMasks: number[][] = [];
+
+    while (true) {
+        if (loop.bodyExpression instanceof InputLoop) {
+            loop = loop.bodyExpression;
+            for (let register of loop.registers) {
+                inputTemplate[register]++;
+            }
+        }
+        else if (loop.bodyExpression instanceof SegmentLoopBlock) {
+            loop.bodyExpression.masks.forEach(mask => segmentMasks.push(mask));
+            break;
+        }
+        else {
+            throw Error('TODO');
+        }
+    }
+
+    return { inputTemplate, segmentMasks };
+}
+
+// DEGREE
 // ================================================================================================
 export function maxDegree(d1: ExpressionDegree, d2: ExpressionDegree): ExpressionDegree {
     if (typeof d1 === 'bigint') {

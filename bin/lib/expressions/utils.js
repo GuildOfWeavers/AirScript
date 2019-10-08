@@ -1,6 +1,31 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-// PUBLIC FUNCTIONS
+const InputLoop_1 = require("./loops/InputLoop");
+const SegmentLoopBlock_1 = require("./loops/SegmentLoopBlock");
+// LOOPS
+// ================================================================================================
+function getLoopStructure(loop) {
+    const inputTemplate = new Array(loop.registers.size).fill(0);
+    const segmentMasks = [];
+    while (true) {
+        if (loop.bodyExpression instanceof InputLoop_1.InputLoop) {
+            loop = loop.bodyExpression;
+            for (let register of loop.registers) {
+                inputTemplate[register]++;
+            }
+        }
+        else if (loop.bodyExpression instanceof SegmentLoopBlock_1.SegmentLoopBlock) {
+            loop.bodyExpression.masks.forEach(mask => segmentMasks.push(mask));
+            break;
+        }
+        else {
+            throw Error('TODO');
+        }
+    }
+    return { inputTemplate, segmentMasks };
+}
+exports.getLoopStructure = getLoopStructure;
+// DEGREE
 // ================================================================================================
 function maxDegree(d1, d2) {
     if (typeof d1 === 'bigint') {

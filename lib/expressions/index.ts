@@ -14,4 +14,5 @@ export { SubroutineCall } from './SubroutineCall';
 export { InputLoop } from './loops/InputLoop';
 export { SegmentLoop } from './loops/SegmentLoop';
 export { SegmentLoopBlock } from './loops/SegmentLoopBlock';
-export { LoopController } from './loops/LoopController';
+export { TransitionFunctionBody } from './TransitionFunctionBody';
+export { TransitionConstraintsBody } from './TransitionConstraintsBody';

@@ -1,9 +1,11 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField } from '@guildofweavers/air-script';
-import { ReadonlyRegisterGroup, ConstantDeclaration } from './visitor';
-import { Expression, LiteralExpression, LoopController, InputLoop } from './expressions';
-import { isPowerOf2, isMatrix, isVector } from './utils';
+import {
+    StarkLimits, ReadonlyRegisterGroup, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField, LoopDescriptor
+} from '@guildofweavers/air-script';
+import { ConstantDeclaration } from './visitor';
+import { Expression, LiteralExpression, TransitionFunctionBody, TransitionConstraintsBody } from './expressions';
+import { isMatrix, isVector } from './utils';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -24,10 +26,8 @@ export class ScriptSpecs {
     publicRegisters!            : InputRegisterSpecs[];
     constraintCount!            : number;
     
-    transitionFunction!         : InputLoop;
-    transitionConstraints!      : InputLoop;
-
-    loopController!             : LoopController;
+    transitionFunction!         : TransitionFunctionBody;
+    transitionConstraints!      : TransitionConstraintsBody;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -48,9 +48,7 @@ export class ScriptSpecs {
     }
 
     get transitionConstraintsDegree(): bigint[] {
-        return this.transitionConstraints.isScalar 
-            ? [this.transitionConstraints.degree as bigint]
-            : this.transitionConstraints.degree as bigint[];
+        return this.transitionConstraints.degree as bigint[];
     }
 
     get transitionConstraintsSpecs(): ConstraintSpecs[] {
@@ -67,17 +65,20 @@ export class ScriptSpecs {
         return result;
     }
 
-    get controlRegisters(): ReadonlyRegisterSpecs[] {
-        return [];
-        /*
-        return this.loopController.values.map( values => {
-            return { values, pattern: 'repeat', binary: true };
-        });
-        */
+    get readonlyRegisters(): ReadonlyRegisterGroup {
+        return {
+            staticRegisters: this.staticRegisters,
+            secretRegisters: this.secretRegisters,
+            publicRegisters: this.publicRegisters
+        };        
     }
 
-    get baseCycleLength(): number {
-        return this.loopController.baseCycleLength;
+    get loopDescriptor(): LoopDescriptor {
+        return {
+            traceTemplate   : this.transitionFunction.inputTemplate,
+            segmentMasks    : this.transitionFunction.segmentMasks,
+            baseCycleLength : this.transitionFunction.baseCycleLength
+        };
     }
 
     // PROPERTY SETTERS
@@ -90,7 +91,7 @@ export class ScriptSpecs {
         this.readonlyRegisterCount = validateReadonlyRegisterCount(value, this.limits);
     }
 
-    setReadonlyRegisterCounts(registers: ReadonlyRegisterGroup): void {
+    setReadonlyRegisters(registers: ReadonlyRegisterGroup): void {
         validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
         this.staticRegisters = registers.staticRegisters;
         this.secretRegisters = registers.secretRegisters;
@@ -120,52 +121,38 @@ export class ScriptSpecs {
         }
     }
 
-    setTransitionFunction(tFunctionBody: InputLoop): void {
-        if (this.mutableRegisterCount === 1) {
-            if (!tFunctionBody.isScalar && (!tFunctionBody.isVector || tFunctionBody.dimensions[0] !== 1)) {
+    setTransitionFunction(tFunctionBody: TransitionFunctionBody): void {
+        if (tFunctionBody.dimensions[0] !== this.mutableRegisterCount) {
+            if (this.mutableRegisterCount === 1)
                 throw new Error(`transition function must evaluate to scalar or to a vector of exactly 1 value`);
-            }
-        }
-        else {
-            if (!tFunctionBody.isVector || tFunctionBody.dimensions[0] !== this.mutableRegisterCount) {
+            else
                 throw new Error(`transition function must evaluate to a vector of exactly ${this.mutableRegisterCount} values`);
-            }
         }
-
         this.transitionFunction = tFunctionBody;
-        this.loopController = new LoopController(tFunctionBody);
     }
 
-    setTransitionConstraints(tConstraintsBody: InputLoop): void {
-        if (this.constraintCount === 1) {
-            if (!tConstraintsBody.isScalar && (!tConstraintsBody.isVector || tConstraintsBody.dimensions[0] !== 1)) {
-                throw new Error(`Transition constraints must evaluate to scalar or to a vector of exactly 1 value`);
-            }
-        }
-        else {
-            if (!tConstraintsBody.isVector || tConstraintsBody.dimensions[0] !== this.constraintCount) {
-                throw new Error(`Transition constraints must evaluate to a vector of exactly ${this.constraintCount} values`);
-            }
+    setTransitionConstraints(tConstraintsBody: TransitionConstraintsBody): void {
+        if (tConstraintsBody.dimensions[0] !== this.constraintCount) {
+            if (this.constraintCount === 1)
+                throw new Error(`transition constraints must evaluate to scalar or to a vector of exactly 1 value`);
+            else 
+                throw new Error(`transition constraints must evaluate to a vector of exactly ${this.constraintCount} values`);
         }
 
         this.transitionConstraints = tConstraintsBody;
-        // TODO: this.loopController.validateConstraintMasks(tConstraintsBody.masks);
 
         for (let degree of this.transitionConstraintsDegree) {
-            if (degree > this.limits.maxConstraintDegree) {
+            if (degree > this.limits.maxConstraintDegree)
                 throw new Error(`degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
-            }
-            else if (degree < 0n) {
+            else if (degree < 0n)
                 throw new Error('degree of transition constraints must be positive');
-            }
-            else if (degree === 0n) {
+            else if (degree === 0n)
                 throw new Error('degree of transition constraints cannot be 0');
-            }
         }
     }
 }
 
-// HELPER FUNCTIONS
+// VALIDATORS
 // ================================================================================================
 function validateMutableRegisterCount(registerCount: number | bigint, limits: StarkLimits): number {
     if (registerCount > limits.maxMutableRegisters) {

@@ -20,8 +20,8 @@ export function generateJsModule(specs: ScriptSpecs, limits: StarkLimits, extens
     code += `const maxTraceLength = ${limits.maxTraceLength};\n\n`;
 
     // build transition function and constraints
-    code += `function applyTransition(r, k, s, p, c, i) {\n${buildTransitionFunctionBody(specs)}}\n`;
-    code += `function evaluateConstraints(r, n, k, s, p, c, i) {\n${buildTransitionConstraintsBody(specs)}}\n\n`;
+    code += `function applyTransition(r, k, s, p, c, i) {\n${specs.transitionFunction.toJsCode()}}\n`;
+    code += `function evaluateConstraints(r, n, k, s, p, c, i) {\n${specs.transitionConstraints.toJsCode()}}\n\n`;
 
     // add functions from the template
     for (let prop in jsTemplate) {
@@ -42,44 +42,12 @@ export function generateJsModule(specs: ScriptSpecs, limits: StarkLimits, extens
     code += '};';
 
     // create and execute module builder function
-    const buildModule = new Function('f', 'g', 'registerSpecs', 'loopSpecs', 'constraints', code);
+    const buildModule = new Function('f', 'g', 'registerSpecs', 'loops', 'constraints', code);
     return buildModule(
         specs.field,
         specs.constantBindings,
-        buildRegisterSpecs(specs),
-        buildLoopSpecs(specs),
+        specs.readonlyRegisters,
+        specs.loopDescriptor,
         specs.transitionConstraintsSpecs,
     );
-}
-
-// HELPER FUNCTIONS
-// ================================================================================================
-function buildTransitionFunctionBody(specs: ScriptSpecs): string {
-    let code = 'let result;\n';
-    code += specs.transitionFunction.toJsCode('result');
-    code += specs.transitionFunction.isScalar ? `return [result];\n` : `return result.values;\n`;
-    return code;
-}
-
-function buildTransitionConstraintsBody(specs: ScriptSpecs): string {
-    let code = 'let result;\n';
-    code += specs.transitionConstraints.toJsCode('result');
-    code += specs.transitionConstraints.isScalar ? `return [result];\n` : `return result.values;\n`;
-    return code;
-}
-
-function buildLoopSpecs(specs: ScriptSpecs): jsTemplate.LoopSpecs {
-    return {
-        traceTemplate   : specs.loopController.inputTemplate,
-        segmentMasks    : specs.loopController.segmentMasks,
-        baseCycleLength : specs.baseCycleLength
-    };
-}
-
-function buildRegisterSpecs(specs: ScriptSpecs): jsTemplate.RegisterSpecs {
-    return {
-        k: specs.staticRegisters,
-        s: specs.secretRegisters,
-        p: specs.publicRegisters
-    };
 }

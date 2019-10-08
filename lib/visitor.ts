@@ -1,13 +1,17 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits, ReadonlyRegisterSpecs, InputRegisterSpecs, ReadonlyValuePattern } from '@guildofweavers/air-script';
+import {
+    StarkLimits, ReadonlyRegisterSpecs, ReadonlyRegisterGroup, InputRegisterSpecs, ReadonlyValuePattern
+} from '@guildofweavers/air-script';
 import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ExecutionContext } from './ExecutionContext';
-import { Expression, InputLoop, SegmentLoop, SegmentLoopBlock, StatementBlock, Statement } from './expressions';
+import {
+    Expression, InputLoop, SegmentLoop, SegmentLoopBlock, StatementBlock, Statement, TransitionFunctionBody, TransitionConstraintsBody
+} from './expressions';
 import * as expressions from './expressions';
 import { Dimensions, validateVariableName, isPowerOf2 } from './utils';
 
@@ -26,12 +30,6 @@ export interface ReadonlyRegisterDeclaration {
     pattern         : ReadonlyValuePattern;
     binary          : boolean;
     values?         : bigint[];    
-}
-
-export interface ReadonlyRegisterGroup {
-    staticRegisters : ReadonlyRegisterSpecs[];
-    secretRegisters : InputRegisterSpecs[];
-    publicRegisters : InputRegisterSpecs[];
 }
 
 // MODULE VARIABLES
@@ -70,15 +68,15 @@ class AirVisitor extends BaseCstVisitor {
         else {
             readonlyRegisters = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
         }
-        specs.setReadonlyRegisterCounts(readonlyRegisters);
+        specs.setReadonlyRegisters(readonlyRegisters);
 
         // parse transition function and transition constraints
         validateTransitionFunction(ctx.transitionFunction);
-        const tFunctionBody: InputLoop = this.visit(ctx.transitionFunction, specs);
+        const tFunctionBody: TransitionFunctionBody = this.visit(ctx.transitionFunction, specs);
         specs.setTransitionFunction(tFunctionBody);
         
         validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraintsBody: InputLoop = this.visit(ctx.transitionConstraints, specs);
+        const tConstraintsBody: TransitionConstraintsBody = this.visit(ctx.transitionConstraints, specs);
         specs.setTransitionConstraints(tConstraintsBody);
 
         // build and return AIR config
@@ -231,16 +229,18 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, specs: ScriptSpecs): InputLoop {
+    transitionFunction(ctx: any, specs: ScriptSpecs): TransitionFunctionBody {
         const exc = new ExecutionContext(specs);
         const loop: InputLoop = this.visit(ctx.segment, exc);
-        return loop;
+        const result = new TransitionFunctionBody(loop);
+        return result;
     }
 
-    transitionConstraints(ctx: any, specs: ScriptSpecs): InputLoop {
+    transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionConstraintsBody {
         const exc = new ExecutionContext(specs);
         const loop: InputLoop = this.visit(ctx.segment, exc);
-        return loop;
+        const result = new TransitionConstraintsBody(loop);
+        return result;
     }
 
     // LOOPS
