@@ -239,7 +239,7 @@ class AirVisitor extends BaseCstVisitor {
     transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionConstraintsBody {
         const exc = new ExecutionContext(specs);
         const loop: InputLoop = this.visit(ctx.segment, exc);
-        const result = new TransitionConstraintsBody(loop);
+        const result = new TransitionConstraintsBody(loop, specs.loopDescriptor);
         return result;
     }
 

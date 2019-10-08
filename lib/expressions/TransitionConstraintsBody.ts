@@ -1,5 +1,6 @@
 // IMPORTS
 // ================================================================================================
+import { LoopDescriptor } from '@guildofweavers/air-script';
 import { Expression } from './Expression';
 import { InputLoop } from './loops/InputLoop';
 import { getLoopStructure } from './utils';
@@ -12,7 +13,7 @@ export class TransitionConstraintsBody extends Expression {
     
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(root: InputLoop) {
+    constructor(root: InputLoop, template: LoopDescriptor) {
         if (root.isScalar) {
             super([1, 0], [root.degree as bigint]);
         }
@@ -24,7 +25,8 @@ export class TransitionConstraintsBody extends Expression {
         }
         this.root = root;
         const loopStructure = getLoopStructure(root);
-        // TODO: validate loop structure
+        validateInputLoopStructure(template.traceTemplate, loopStructure.inputTemplate);
+        validateSegmentLoopStructure(template.segmentMasks, loopStructure.segmentMasks);
     }
 
     // PUBLIC MEMBERS
@@ -37,5 +39,29 @@ export class TransitionConstraintsBody extends Expression {
         code += this.root.isScalar ? `return [result];\n` : `return result.values;\n`;
 
         return code;
+    }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+function validateInputLoopStructure(a: number[], b: number[]): void {
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) {
+            throw new Error('TODO: inconsistent loop structure');
+        }
+    }
+}
+
+function validateSegmentLoopStructure(a: number[][], b: number[][]): void {
+    if (a.length !== b.length) {
+        throw new Error('TODO: inconsistent loop structure');
+    }
+
+    for (let i = 0; i < a.length; i++) {
+        for (let j = 0; j < a[i].length; j++) {
+            if (a[i][j] !== b[i][j]) {
+                throw new Error('TODO: inconsistent loop structure');
+            }
+        }        
     }
 }

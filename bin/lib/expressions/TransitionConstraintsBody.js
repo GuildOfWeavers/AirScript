@@ -1,7 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-// IMPORTS
-// ================================================================================================
 const Expression_1 = require("./Expression");
 const utils_1 = require("./utils");
 // CLASS DEFINITION
@@ -9,7 +7,7 @@ const utils_1 = require("./utils");
 class TransitionConstraintsBody extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(root) {
+    constructor(root, template) {
         if (root.isScalar) {
             super([1, 0], [root.degree]);
         }
@@ -21,7 +19,8 @@ class TransitionConstraintsBody extends Expression_1.Expression {
         }
         this.root = root;
         const loopStructure = utils_1.getLoopStructure(root);
-        // TODO: validate loop structure
+        validateInputLoopStructure(template.traceTemplate, loopStructure.inputTemplate);
+        validateSegmentLoopStructure(template.segmentMasks, loopStructure.segmentMasks);
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
@@ -35,4 +34,25 @@ class TransitionConstraintsBody extends Expression_1.Expression {
     }
 }
 exports.TransitionConstraintsBody = TransitionConstraintsBody;
+// HELPER FUNCTIONS
+// ================================================================================================
+function validateInputLoopStructure(a, b) {
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) {
+            throw new Error('TODO: inconsistent loop structure');
+        }
+    }
+}
+function validateSegmentLoopStructure(a, b) {
+    if (a.length !== b.length) {
+        throw new Error('TODO: inconsistent loop structure');
+    }
+    for (let i = 0; i < a.length; i++) {
+        for (let j = 0; j < a[i].length; j++) {
+            if (a[i][j] !== b[i][j]) {
+                throw new Error('TODO: inconsistent loop structure');
+            }
+        }
+    }
+}
 //# sourceMappingURL=TransitionConstraintsBody.js.map
