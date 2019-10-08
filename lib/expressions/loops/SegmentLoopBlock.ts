@@ -1,11 +1,10 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree, JsCodeOptions } from '../Expression';
+import { Expression, ExpressionDegree } from '../Expression';
 import { areSameDimensions, isPowerOf2 } from '../../utils';
 import { SymbolReference } from '../SymbolReference';
 import { BinaryOperation } from '../operations/BinaryOperation';
 import { maxDegree } from '../utils';
-import { LoopController } from './LoopController';
 import { SegmentLoop } from './SegmentLoop';
 
 // CLASS DEFINITION
@@ -38,25 +37,19 @@ export class SegmentLoopBlock extends Expression {
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toJsCode(assignTo?: string, options: JsCodeOptions = {}, controller?: LoopController): string {
+    toJsCode(assignTo?: string): string {
         if (!assignTo) throw new Error('segment loop block cannot be reduced to unassigned code');
-        if (!controller) throw new Error('segment loop block cannot be reduced to code without a loop controller');
-
+        
         let code = `let ${this.loops.map((loop, i) => `b${i}`).join(', ')};\n`;
         let result!: Expression;
         for (let i = 0; i < this.loops.length; i++) {
             let bVar = `b${i}`, loop = this.loops[i];
             let bRef = new SymbolReference(bVar, loop.dimensions, loop.degree);
-            code += `${loop.toJsCode(bVar, undefined, controller)}`;
+            code += `${loop.toJsCode(bVar)}`;
             result = result ? BinaryOperation.add(bRef, result) : bRef;
         }
 
-        if (options.vectorAsArray && this.isVector) {
-            code += `${result.toJsCode(assignTo)}.values`;
-        }
-        else {
-            code += `${result.toJsCode(assignTo)}`;
-        }
+        code += `${result.toJsCode(assignTo)}`;
 
         return `{\n${code}}\n`;
     }

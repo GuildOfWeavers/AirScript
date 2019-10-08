@@ -45,10 +45,10 @@ function initProof(initValues, pInputs, sInputs) {
     // --------------------------------------------------------------------------------------------
     function generateExecutionTrace() {
         const steps = traceLength - 1;
+        const kValues = new Array(kRegisters.length);
         const sValues = new Array(sRegisters.length);
         const pValues = new Array(pRegisters.length);
-        const kValues = new Array(kRegisters.length);
-        const cValues = new Array(cRegisters.length);
+        const cValues = new Array(2 ** cRegisters.length);
         const iValues = new Array(iRegisters.length);
         // initialize rValues and set first state of execution trace to the last state of init registers
         let nValues;
@@ -62,25 +62,24 @@ function initProof(initValues, pInputs, sInputs) {
         // apply transition function for each step
         let step = 0;
         while (step < steps) {
+            let position = step * compositionFactor;
             // get values of readonly registers for the current step
             for (let i = 0; i < kValues.length; i++) {
-                kValues[i] = kRegisters[i](step * compositionFactor);
+                kValues[i] = kRegisters[i](position);
             }
             // get values of secret input registers for the current step
             for (let i = 0; i < sValues.length; i++) {
-                sValues[i] = sRegisters[i](step * compositionFactor);
+                sValues[i] = sRegisters[i](position);
             }
             // get values of public input registers for the current step
             for (let i = 0; i < pValues.length; i++) {
-                pValues[i] = pRegisters[i](step * compositionFactor);
+                pValues[i] = pRegisters[i](position);
             }
             // get values of control registers for the current step
-            for (let i = 0; i < cValues.length; i++) {
-                cValues[i] = cRegisters[i](step * compositionFactor);
-            }
+            populateControlValues(cRegisters, cValues, position);
             // get values of init registers for the current step
             for (let i = 0; i < iValues.length; i++) {
-                iValues[i] = iRegisters[i](step * compositionFactor);
+                iValues[i] = iRegisters[i](position);
             }
             // populate nValues with the next computation state
             nValues = applyTransition(rValues, kValues, sValues, pValues, cValues, iValues);
@@ -113,7 +112,7 @@ function initProof(initValues, pInputs, sInputs) {
         const kValues = new Array(kRegisters.length);
         const sValues = new Array(sRegisters.length);
         const pValues = new Array(pRegisters.length);
-        const cValues = new Array(cRegisters.length);
+        const cValues = new Array(2 ** cRegisters.length);
         const iValues = new Array(iRegisters.length);
         // evaluate constraints for each position of the extended trace
         let qValues;
@@ -137,9 +136,7 @@ function initProof(initValues, pInputs, sInputs) {
                 pValues[i] = pRegisters[i](position);
             }
             // get values of control registers for the current step
-            for (let i = 0; i < cValues.length; i++) {
-                cValues[i] = cRegisters[i](position);
-            }
+            populateControlValues(cRegisters, cValues, position);
             // get values of init registers for the current step
             for (let i = 0; i < iValues.length; i++) {
                 iValues[i] = iRegisters[i](position);
@@ -275,10 +272,8 @@ function initVerification(traceShape, pInputs) {
             pValues[i] = pRegisters[i](x);
         }
         // get values of control for the current position
-        const cValues = new Array(cRegisters.length);
-        for (let i = 0; i < cValues.length; i++) {
-            cValues[i] = cRegisters[i](x);
-        }
+        const cValues = new Array(2 ** cRegisters.length);
+        populateControlValues(cRegisters, cValues, x);
         // split hidden values into secret and init register values
         const sValues = hValues.slice(0, iRegistersOffset);
         const iValues = hValues.slice(iRegistersOffset);
@@ -481,7 +476,7 @@ function buildControlRegisterSpecs(traceShape, traceLength) {
     // transform masks into a set of static register values
     const values = [];
     const loopCount = Math.ceil(Math.log2(masks.length));
-    for (let i = 0; i < loopCount * 2; i++) {
+    for (let i = 0; i < loopCount; i++) {
         values.push(new Array(baseline.length));
     }
     let p = 0;
@@ -490,9 +485,8 @@ function buildControlRegisterSpecs(traceShape, traceLength) {
         for (let i = 0; i < mask.length; i++) {
             for (let j = 0; j < loopCount; j++) {
                 if (mask[i] === 1) {
-                    let value = key.charAt(j) === '1' ? f.one : f.zero;
-                    values[2 * j][i] = value;
-                    values[2 * j + 1][i] = f.sub(f.one, value);
+                    values[j][i] = (key.charAt(j) === '1') ? f.one : f.zero;
+                    ;
                 }
             }
         }
@@ -552,4 +546,24 @@ function removeRepeatingCycles(values) {
     return removeRepeatingCycles(values.slice(halfLength));
 }
 exports.removeRepeatingCycles = removeRepeatingCycles;
+function populateControlValues(cRegisters, cValues, position) {
+    let cPeriod = 1;
+    cValues.fill(f.one);
+    for (let i = 0; i < cRegisters.length; i++) {
+        let j = 0;
+        let value = cRegisters[i](position);
+        for (; j < cPeriod; j++) {
+            cValues[j] = f.mul(cValues[j], value);
+        }
+        value = f.sub(f.one, value);
+        cPeriod = cPeriod * 2;
+        for (; j < cPeriod; j++) {
+            cValues[j] = f.mul(cValues[j], value);
+        }
+        for (; j < cValues.length; j++) {
+            cValues[j] = cValues[j - cPeriod];
+        }
+    }
+}
+exports.populateControlValues = populateControlValues;
 //# sourceMappingURL=JsModuleTemplate.js.map

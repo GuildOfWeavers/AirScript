@@ -5,7 +5,6 @@ import { StatementBlock } from '../StatementBlock';
 import { SymbolReference } from '../SymbolReference';
 import { BinaryOperation } from '../operations/BinaryOperation';
 import { sumDegree } from '../utils';
-import { LoopController } from './LoopController';
 
 // INTERFACES
 // ================================================================================================
@@ -15,32 +14,30 @@ type Interval = [number, number];
 // ================================================================================================
 export class SegmentLoop extends Expression {
 
-    readonly modifierId : number;
+    readonly controller : Expression;
     readonly statements : StatementBlock;
     readonly mask       : number[];
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(statements: StatementBlock, intervals: Interval[], modifierId: number, modifierDegree: bigint) {
-        const degree = sumDegree(statements.degree, modifierDegree);
+    constructor(statements: StatementBlock, intervals: Interval[], controller: Expression) {
+        const degree = sumDegree(statements.degree, controller.degree);
         super(statements.dimensions, degree);
-        this.modifierId = modifierId;
+        this.controller = controller;
         this.statements = statements;
         this.mask = parseIntervals(intervals);
     }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toJsCode(assignTo?: string, options?: JsCodeOptions, controller?: LoopController): string {
+    toJsCode(assignTo?: string, options?: JsCodeOptions): string {
         if (!assignTo) throw new Error('segment loop cannot be reduced to unassigned code');
-        if (!controller) throw new Error('segment loop cannot be reduced to code without a loop controller');
 
         let code = this.statements.toJsCode(assignTo);
 
         // apply control modifier
         const resRef = new SymbolReference(assignTo, this.statements.dimensions, this.statements.degree);
-        const modifier = controller.getModifier(this.modifierId)!;
-        code += BinaryOperation.mul(resRef, modifier).toJsCode(assignTo, options);
+        code += BinaryOperation.mul(resRef, this.controller).toJsCode(assignTo, options);
 
         return code;
     }

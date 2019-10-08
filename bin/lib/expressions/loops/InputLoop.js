@@ -11,31 +11,28 @@ const utils_1 = require("../utils");
 class InputLoop extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(initExpression, bodyExpression, registers, modifierId, modifierDegree) {
+    constructor(initExpression, bodyExpression, registers, controller) {
         if (!initExpression.isSameDimensions(bodyExpression)) {
             throw new Error(`init and body expressions must resolve to values of same dimensions`);
         }
-        const degree = utils_1.maxDegree(utils_1.sumDegree(initExpression.degree, modifierDegree), bodyExpression.degree);
+        const degree = utils_1.maxDegree(utils_1.sumDegree(initExpression.degree, controller.degree), bodyExpression.degree);
         super(initExpression.dimensions, degree);
-        this.modifierId = modifierId;
+        this.controller = controller;
         this.initExpression = initExpression;
         this.bodyExpression = bodyExpression;
         this.registers = registers;
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toJsCode(assignTo, options = {}, controller) {
+    toJsCode(assignTo, options = {}) {
         if (!assignTo)
             throw new Error('input loop cannot be reduced to unassigned code');
-        if (!controller)
-            throw new Error('input loop cannot be reduced to code without a loop controller');
         let code = 'let init, body;\n';
         code += this.initExpression.toJsCode('init');
-        code += this.bodyExpression.toJsCode('body', options, controller);
+        code += this.bodyExpression.toJsCode('body');
         const iRef = new SymbolReference_1.SymbolReference('init', this.initExpression.dimensions, this.initExpression.degree);
         const bRef = new SymbolReference_1.SymbolReference('body', this.bodyExpression.dimensions, this.bodyExpression.degree);
-        const modifier = controller.getModifier(this.modifierId);
-        const result = BinaryOperation_1.BinaryOperation.add(BinaryOperation_1.BinaryOperation.mul(iRef, modifier), bRef);
+        const result = BinaryOperation_1.BinaryOperation.add(BinaryOperation_1.BinaryOperation.mul(iRef, this.controller), bRef);
         code += result.toJsCode(assignTo, options);
         return `{\n${code}}\n`;
     }

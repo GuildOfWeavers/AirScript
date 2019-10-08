@@ -1,9 +1,5 @@
 // IMPORTS
 // ================================================================================================
-import { Expression } from "../Expression";
-import { BinaryOperation } from "../operations/BinaryOperation";
-import { SymbolReference } from "../SymbolReference";
-import { ExtractVectorElement } from "../vectors/ExtractElement";
 import { InputLoop } from "./InputLoop";
 import { SegmentLoopBlock } from "./SegmentLoopBlock";
 
@@ -13,7 +9,6 @@ export class LoopController {
 
     readonly inputTemplate  : number[];
     readonly segmentMasks   : number[][];
-    readonly controls       : Expression[];
     
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -38,15 +33,6 @@ export class LoopController {
                 throw Error('TODO');
             }
         }
-
-        // build loop control expressions
-        const loopCount = this.inputTemplate.length + this.segmentMasks.length;
-        const controlCount = Math.ceil(Math.log2(loopCount)) * 2;
-        
-        this.controls = [];
-        for (let i = 0; i < controlCount; i++) {
-            this.controls.push(buildControlExpression(i, controlCount));
-        }
     }
 
     // PUBLIC ACCESSORS
@@ -55,31 +41,13 @@ export class LoopController {
         return this.segmentMasks[0].length;
     }
 
-    // PUBLIC METHODS
-    // --------------------------------------------------------------------------------------------
-    getModifier(controlId: number): Expression | undefined {
-        let modifier: Expression | undefined;
-
-        const key = controlId.toString(2).padStart(this.controls.length / 2, '0');
-        if (key) {
-            for (let i = 0; i < key.length; i++) {
-                let m = (key[i] === '1') ? this.controls[2 * i] : this.controls[2 * i + 1];
-                modifier = modifier ? BinaryOperation.mul(modifier, m) : m;
-            }
-        }
-
-        return modifier;
+    get LoopCount(): number {
+        return this.inputTemplate.length + this.segmentMasks.length;
     }
 
+    // PUBLIC METHODS
+    // --------------------------------------------------------------------------------------------
     validateConstraintMasks(masks: string[]): void {
         // TODO
     }
-}
-
-// HELPER FUNCTIONS
-// ================================================================================================
-function buildControlExpression(controlId: number, length: number): Expression {
-    let result: Expression = new SymbolReference('c', [length, 0], new Array(length).fill(1n));
-    result = new ExtractVectorElement(result, controlId);
-    return result;
 }

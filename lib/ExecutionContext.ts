@@ -42,10 +42,6 @@ export class ExecutionContext {
         // if transition function degree has been set, we are in transition constraints
         return (this.tFunctionDegree !== undefined);
     }
-    
-    get modifierDegree(): bigint {
-        return BigInt(Math.ceil(Math.log2(this.loopFrames.length)));
-    }
 
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
@@ -69,7 +65,7 @@ export class ExecutionContext {
         }
     }
 
-    // INITIALIZERS
+    // LOOPS
     // --------------------------------------------------------------------------------------------
     addLoopFrame(registers?: string[]): number {
         if (!registers) {
@@ -92,6 +88,13 @@ export class ExecutionContext {
     
             return this.loopFrames.push(newFrame) - 1;
         }
+    }
+
+    getControlReference(index: number): Expression {
+        const controlCount = Math.ceil(Math.log2(this.loopFrames.length));
+        const degree = new Array(this.loopFrames.length).fill(BigInt(controlCount));
+        const controlBank = new SymbolReference('c', [this.loopFrames.length, 0], degree);
+        return new ExtractVectorElement(controlBank, index);
     }
 
     // VARIABLES

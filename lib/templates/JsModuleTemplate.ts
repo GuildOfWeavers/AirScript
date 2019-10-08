@@ -76,10 +76,10 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
     function generateExecutionTrace(): Matrix {
         const steps = traceLength - 1;
         
+        const kValues = new Array<bigint>(kRegisters.length);
         const sValues = new Array<bigint>(sRegisters.length);
         const pValues = new Array<bigint>(pRegisters.length);
-        const kValues = new Array<bigint>(kRegisters.length);
-        const cValues = new Array<bigint>(cRegisters.length);
+        const cValues = new Array<bigint>(2**cRegisters.length);
         const iValues = new Array<bigint>(iRegisters.length);
 
         // initialize rValues and set first state of execution trace to the last state of init registers
@@ -95,29 +95,29 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
         // apply transition function for each step
         let step = 0;
         while (step < steps) {
+            let position = step * compositionFactor;
+
             // get values of readonly registers for the current step
             for (let i = 0; i < kValues.length; i++) {
-                kValues[i] = kRegisters[i](step * compositionFactor);
+                kValues[i] = kRegisters[i](position);
             }
 
             // get values of secret input registers for the current step
             for (let i = 0; i < sValues.length; i++) {
-                sValues[i] = sRegisters[i](step * compositionFactor);
+                sValues[i] = sRegisters[i](position);
             }
 
             // get values of public input registers for the current step
             for (let i = 0; i < pValues.length; i++) {
-                pValues[i] = pRegisters[i](step * compositionFactor);
+                pValues[i] = pRegisters[i](position);
             }
 
             // get values of control registers for the current step
-            for (let i = 0; i < cValues.length; i++) {
-                cValues[i] = cRegisters[i](step * compositionFactor);
-            }
+            populateControlValues(cRegisters, cValues, position);
 
             // get values of init registers for the current step
             for (let i = 0; i < iValues.length; i++) {
-                iValues[i] = iRegisters[i](step * compositionFactor);
+                iValues[i] = iRegisters[i](position);
             }
 
             // populate nValues with the next computation state
@@ -159,7 +159,7 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
         const kValues = new Array<bigint>(kRegisters.length);
         const sValues = new Array<bigint>(sRegisters.length);
         const pValues = new Array<bigint>(pRegisters.length);
-        const cValues = new Array<bigint>(cRegisters.length);
+        const cValues = new Array<bigint>(2**cRegisters.length);
         const iValues = new Array<bigint>(iRegisters.length);
 
         // evaluate constraints for each position of the extended trace
@@ -190,9 +190,7 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
             }
 
             // get values of control registers for the current step
-            for (let i = 0; i < cValues.length; i++) {
-                cValues[i] = cRegisters[i](position);
-            }
+            populateControlValues(cRegisters, cValues, position);
 
             // get values of init registers for the current step
             for (let i = 0; i < iValues.length; i++) {
@@ -346,10 +344,8 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
         }
 
         // get values of control for the current position
-        const cValues = new Array<bigint>(cRegisters.length);
-        for (let i = 0; i < cValues.length; i++) {
-            cValues[i] = cRegisters[i](x);
-        }
+        const cValues = new Array<bigint>(2**cRegisters.length);
+        populateControlValues(cRegisters, cValues, x);
 
         // split hidden values into secret and init register values
         const sValues = hValues.slice(0, iRegistersOffset);
@@ -571,7 +567,7 @@ export function buildControlRegisterSpecs(traceShape: number[], traceLength: num
     // transform masks into a set of static register values
     const values: bigint[][] = [];
     const loopCount = Math.ceil(Math.log2(masks.length));
-    for (let i = 0; i < loopCount * 2; i++) {
+    for (let i = 0; i < loopCount; i++) {
         values.push(new Array<bigint>(baseline.length));
     }
 
@@ -581,9 +577,7 @@ export function buildControlRegisterSpecs(traceShape: number[], traceLength: num
         for (let i = 0; i < mask.length; i++) {
             for (let j = 0; j < loopCount; j++) {
                 if (mask[i] === 1) {
-                    let value = key.charAt(j) === '1' ? f.one : f.zero;
-                    values[2 * j][i] = value;
-                    values[2 * j + 1][i] = f.sub(f.one, value);
+                    values[j][i] = (key.charAt(j) === '1') ? f.one : f.zero;;
                 }
             }
         }
@@ -647,4 +641,28 @@ export function removeRepeatingCycles(values: bigint[]): bigint[] {
         }        
     }
     return removeRepeatingCycles(values.slice(halfLength));
+}
+
+export function populateControlValues<T extends number | bigint>(cRegisters: ReadonlyRegisterEvaluator<T>[], cValues: bigint[], position: T): void {
+    let cPeriod = 1;
+    cValues.fill(f.one);
+
+    for (let i = 0; i < cRegisters.length; i++) {
+        let j = 0;
+
+        let value = cRegisters[i](position);
+        for (; j < cPeriod; j++) {
+            cValues[j] = f.mul(cValues[j], value);
+        }
+
+        value = f.sub(f.one, value);
+        cPeriod = cPeriod * 2;
+        for (; j < cPeriod; j++) {
+            cValues[j] = f.mul(cValues[j], value);
+        }
+
+        for (; j < cValues.length; j++) {
+            cValues[j] = cValues[j - cPeriod];
+        }
+    }
 }

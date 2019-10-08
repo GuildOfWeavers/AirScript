@@ -248,7 +248,7 @@ class AirVisitor extends BaseCstVisitor {
     inputLoop(ctx: any, exc: ExecutionContext): InputLoop {
 
         const registers: string[] = ctx.registers.map((register: any) => register.image);
-        const modifierId = exc.addLoopFrame(registers);
+        const controlIndex = exc.addLoopFrame(registers);
 
         // parse init expression
         const initExpression: Expression = this.visit(ctx.initExpression, exc);
@@ -264,14 +264,16 @@ class AirVisitor extends BaseCstVisitor {
         }
 
         const indexSet = new Set(registers.map(register => Number.parseInt(register.slice(2))));
-        return new InputLoop(initExpression, bodyExpression, indexSet, modifierId, exc.modifierDegree);
+        const controller = exc.getControlReference(controlIndex);
+        return new InputLoop(initExpression, bodyExpression, indexSet, controller);
     }
 
     segmentLoop(ctx: any, exc: ExecutionContext): SegmentLoop {
         const intervals: [number, number][] = ctx.ranges.map((range: any) => this.visit(range));
-        const modifierId = exc.addLoopFrame();
+        const controlIndex = exc.addLoopFrame();
         const statements: StatementBlock = this.visit(ctx.statements, exc);
-        return new SegmentLoop(statements, intervals, modifierId, exc.modifierDegree);
+        const controller = exc.getControlReference(controlIndex);
+        return new SegmentLoop(statements, intervals, controller);
     }
 
     // STATEMENTS

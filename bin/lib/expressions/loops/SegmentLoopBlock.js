@@ -29,25 +29,18 @@ class SegmentLoopBlock extends Expression_1.Expression {
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
-    toJsCode(assignTo, options = {}, controller) {
+    toJsCode(assignTo) {
         if (!assignTo)
             throw new Error('segment loop block cannot be reduced to unassigned code');
-        if (!controller)
-            throw new Error('segment loop block cannot be reduced to code without a loop controller');
         let code = `let ${this.loops.map((loop, i) => `b${i}`).join(', ')};\n`;
         let result;
         for (let i = 0; i < this.loops.length; i++) {
             let bVar = `b${i}`, loop = this.loops[i];
             let bRef = new SymbolReference_1.SymbolReference(bVar, loop.dimensions, loop.degree);
-            code += `${loop.toJsCode(bVar, undefined, controller)}`;
+            code += `${loop.toJsCode(bVar)}`;
             result = result ? BinaryOperation_1.BinaryOperation.add(bRef, result) : bRef;
         }
-        if (options.vectorAsArray && this.isVector) {
-            code += `${result.toJsCode(assignTo)}.values`;
-        }
-        else {
-            code += `${result.toJsCode(assignTo)}`;
-        }
+        code += `${result.toJsCode(assignTo)}`;
         return `{\n${code}}\n`;
     }
 }

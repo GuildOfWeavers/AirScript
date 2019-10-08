@@ -40,13 +40,13 @@ exports.generateJsModule = generateJsModule;
 // ================================================================================================
 function buildTransitionFunctionBody(specs) {
     let code = 'let result;\n';
-    code += specs.transitionFunction.toJsCode('result', undefined, specs.loopController);
+    code += specs.transitionFunction.toJsCode('result');
     code += specs.transitionFunction.isScalar ? `return [result];\n` : `return result.values;\n`;
     return code;
 }
 function buildTransitionConstraintsBody(specs) {
     let code = 'let result;\n';
-    code += specs.transitionConstraints.toJsCode('result', undefined, specs.loopController);
+    code += specs.transitionConstraints.toJsCode('result');
     code += specs.transitionConstraints.isScalar ? `return [result];\n` : `return result.values;\n`;
     return code;
 }
