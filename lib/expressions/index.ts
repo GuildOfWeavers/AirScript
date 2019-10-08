@@ -11,7 +11,7 @@ export { CreateMatrix } from './matrixes/CreateMatrix';
 export { StatementBlock, Statement } from './StatementBlock';
 export { WhenExpression } from './WhenExpression';
 export { SubroutineCall } from './SubroutineCall';
-export { InputLoop } from './loops/InputLoop';
+export { InputBlock } from './loops/InputBlock';
 export { SegmentLoop } from './loops/SegmentLoop';
 export { SegmentLoopBlock } from './loops/SegmentLoopBlock';
 export { TransitionFunctionBody } from './TransitionFunctionBody';

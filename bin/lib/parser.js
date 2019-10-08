@@ -122,14 +122,14 @@ class AirParser extends chevrotain_1.CstParser {
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.inputLoop, { LABEL: 'segment' });
+            this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' });
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
             this.OR([
                 { ALT: () => {
-                        this.SUBRULE(this.inputLoop, { LABEL: 'segment' });
+                        this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' });
                     } },
                 { ALT: () => {
                         this.CONSUME(lexer_1.For);
@@ -142,7 +142,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         // LOOPS
         // --------------------------------------------------------------------------------------------
-        this.inputLoop = this.RULE('inputLoop', () => {
+        this.inputBlock = this.RULE('inputBlock', () => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Each);
             this.CONSUME(lexer_1.LParen);
@@ -158,7 +158,7 @@ class AirParser extends chevrotain_1.CstParser {
                 { ALT: () => this.SUBRULE(this.expression, { LABEL: 'initExpression' }) }
             ]);
             this.OR2([
-                { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop' }) },
+                { ALT: () => this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' }) },
                 { ALT: () => {
                         this.AT_LEAST_ONE(() => {
                             this.SUBRULE(this.segmentLoop, { LABEL: 'segmentLoops' });

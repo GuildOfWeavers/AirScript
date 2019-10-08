@@ -137,7 +137,7 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private transitionFunction = this.RULE('transitionFunction', () => {
         this.CONSUME(LCurly);
-        this.SUBRULE(this.inputLoop, { LABEL: 'segment' });
+        this.SUBRULE(this.inputBlock,             { LABEL: 'inputBlock' });
         this.CONSUME(RCurly);
     });
 
@@ -145,7 +145,7 @@ class AirParser extends CstParser {
         this.CONSUME(LCurly);
         this.OR([
             { ALT: () => {
-                this.SUBRULE(this.inputLoop,      { LABEL: 'segment' });
+                this.SUBRULE(this.inputBlock,     { LABEL: 'inputBlock' });
             }},
             { ALT: () => {
                 this.CONSUME(For);
@@ -159,7 +159,7 @@ class AirParser extends CstParser {
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    private inputLoop = this.RULE('inputLoop', () => {
+    private inputBlock = this.RULE('inputBlock', () => {
         this.CONSUME(For);
         this.CONSUME(Each);
         this.CONSUME(LParen);
@@ -175,7 +175,7 @@ class AirParser extends CstParser {
             { ALT: () => this.SUBRULE(this.expression,      { LABEL: 'initExpression' })}
         ]);
         this.OR2([
-            { ALT: () => this.SUBRULE(this.inputLoop,       { LABEL: 'inputLoop'      })},
+            { ALT: () => this.SUBRULE(this.inputBlock,      { LABEL: 'inputBlock'     })},
             { ALT: () => {
                 this.AT_LEAST_ONE(() => {
                     this.SUBRULE(this.segmentLoop,          { LABEL: 'segmentLoops'    });

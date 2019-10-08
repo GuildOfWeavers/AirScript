@@ -47,7 +47,7 @@ export function generateJsModule(specs: ScriptSpecs, limits: StarkLimits, extens
         specs.field,
         specs.constantBindings,
         specs.readonlyRegisters,
-        specs.loopDescriptor,
+        specs.inputBlock,
         specs.transitionConstraintsSpecs,
     );
 }

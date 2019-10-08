@@ -45,9 +45,9 @@ class ScriptSpecs {
             publicRegisters: this.publicRegisters
         };
     }
-    get loopDescriptor() {
+    get inputBlock() {
         return {
-            traceTemplate: this.transitionFunction.inputTemplate,
+            traceTemplate: this.transitionFunction.traceTemplate,
             segmentMasks: this.transitionFunction.segmentMasks,
             baseCycleLength: this.transitionFunction.baseCycleLength
         };

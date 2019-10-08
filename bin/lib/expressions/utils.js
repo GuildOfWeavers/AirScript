@@ -1,30 +1,30 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const InputLoop_1 = require("./loops/InputLoop");
+const InputBlock_1 = require("./loops/InputBlock");
 const SegmentLoopBlock_1 = require("./loops/SegmentLoopBlock");
 // LOOPS
 // ================================================================================================
-function getLoopStructure(loop) {
-    const inputTemplate = new Array(loop.registers.size).fill(0);
+function getInputBlockStructure(inputBlock) {
+    const traceTemplate = new Array(inputBlock.registers.size).fill(0);
     const segmentMasks = [];
     while (true) {
-        if (loop.bodyExpression instanceof InputLoop_1.InputLoop) {
-            loop = loop.bodyExpression;
-            for (let register of loop.registers) {
-                inputTemplate[register]++;
+        if (inputBlock.bodyExpression instanceof InputBlock_1.InputBlock) {
+            inputBlock = inputBlock.bodyExpression;
+            for (let register of inputBlock.registers) {
+                traceTemplate[register]++;
             }
         }
-        else if (loop.bodyExpression instanceof SegmentLoopBlock_1.SegmentLoopBlock) {
-            loop.bodyExpression.masks.forEach(mask => segmentMasks.push(mask));
+        else if (inputBlock.bodyExpression instanceof SegmentLoopBlock_1.SegmentLoopBlock) {
+            inputBlock.bodyExpression.masks.forEach(mask => segmentMasks.push(mask));
             break;
         }
         else {
             throw Error('TODO');
         }
     }
-    return { inputTemplate, segmentMasks };
+    return { traceTemplate, segmentMasks, baseCycleLength: segmentMasks[0].length };
 }
-exports.getLoopStructure = getLoopStructure;
+exports.getInputBlockStructure = getInputBlockStructure;
 // DEGREE
 // ================================================================================================
 function maxDegree(d1, d2) {

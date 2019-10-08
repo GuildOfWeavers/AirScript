@@ -7,19 +7,19 @@ const utils_1 = require("./utils");
 class TransitionConstraintsBody extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(root, template) {
-        if (root.isScalar) {
-            super([1, 0], [root.degree]);
+    constructor(inputBlock, template) {
+        if (inputBlock.isScalar) {
+            super([1, 0], [inputBlock.degree]);
         }
-        else if (root.isVector) {
-            super(root.dimensions, root.degree);
+        else if (inputBlock.isVector) {
+            super(inputBlock.dimensions, inputBlock.degree);
         }
         else {
             throw new Error(`transition constraints must evaluate to a scalar or to a vector`);
         }
-        this.root = root;
-        const loopStructure = utils_1.getLoopStructure(root);
-        validateInputLoopStructure(template.traceTemplate, loopStructure.inputTemplate);
+        this.inputBlock = inputBlock;
+        const loopStructure = utils_1.getInputBlockStructure(inputBlock);
+        validateInputLoopStructure(template.traceTemplate, loopStructure.traceTemplate);
         validateSegmentLoopStructure(template.segmentMasks, loopStructure.segmentMasks);
     }
     // PUBLIC MEMBERS
@@ -28,8 +28,8 @@ class TransitionConstraintsBody extends Expression_1.Expression {
         if (assignTo)
             throw new Error('transition constraints body cannot be assigned to a variable');
         let code = 'let result;\n';
-        code += this.root.toJsCode('result');
-        code += this.root.isScalar ? `return [result];\n` : `return result.values;\n`;
+        code += this.inputBlock.toJsCode('result');
+        code += this.inputBlock.isScalar ? `return [result];\n` : `return result.values;\n`;
         return code;
     }
 }

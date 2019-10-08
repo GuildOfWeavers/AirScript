@@ -16,7 +16,7 @@ class SegmentLoop extends Expression_1.Expression {
         super(statements.dimensions, degree);
         this.controller = controller;
         this.statements = statements;
-        this.mask = parseIntervals(intervals);
+        this.traceMask = parseIntervals(intervals);
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

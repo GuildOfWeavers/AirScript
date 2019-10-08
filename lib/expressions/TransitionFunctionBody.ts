@@ -1,32 +1,32 @@
 // IMPORTS
 // ================================================================================================
 import { Expression } from './Expression';
-import { InputLoop } from './loops/InputLoop';
-import { getLoopStructure } from './utils';
+import { InputBlock } from './loops/InputBlock';
+import { getInputBlockStructure } from './utils';
 
 // CLASS DEFINITION
 // ================================================================================================
 export class TransitionFunctionBody extends Expression {
 
-    readonly root           : Expression;
-    readonly inputTemplate  : number[];
+    readonly inputBlock     : Expression;
+    readonly traceTemplate  : number[];
     readonly segmentMasks   : number[][];
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(root: InputLoop) {
-        if (root.isScalar) {
-            super([1, 0], [root.degree as bigint]);
+    constructor(inputBlock: InputBlock) {
+        if (inputBlock.isScalar) {
+            super([1, 0], [inputBlock.degree as bigint]);
         }
-        else if (root.isVector) {
-            super(root.dimensions, root.degree);
+        else if (inputBlock.isVector) {
+            super(inputBlock.dimensions, inputBlock.degree);
         }
         else {
             throw new Error(`transition function must evaluate to a scalar or to a vector`);
         }
-        this.root = root;
-        const loopStructure = getLoopStructure(root);
-        this.inputTemplate = loopStructure.inputTemplate;
+        this.inputBlock = inputBlock;
+        const loopStructure = getInputBlockStructure(inputBlock);
+        this.traceTemplate = loopStructure.traceTemplate;
         this.segmentMasks = loopStructure.segmentMasks;
     }
 
@@ -37,7 +37,7 @@ export class TransitionFunctionBody extends Expression {
     }
 
     get LoopCount(): number {
-        return this.inputTemplate.length + this.segmentMasks.length;
+        return this.traceTemplate.length + this.segmentMasks.length;
     }
 
     // PUBLIC MEMBERS
@@ -46,8 +46,8 @@ export class TransitionFunctionBody extends Expression {
         if (assignTo) throw new Error('transition function body cannot be assigned to a variable');
 
         let code = 'let result;\n';
-        code += this.root.toJsCode('result');
-        code += this.root.isScalar ? `return [result];\n` : `return result.values;\n`;
+        code += this.inputBlock.toJsCode('result');
+        code += this.inputBlock.isScalar ? `return [result];\n` : `return result.values;\n`;
 
         return code;
     }

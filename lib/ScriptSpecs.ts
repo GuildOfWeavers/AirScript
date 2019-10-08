@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import {
-    StarkLimits, ReadonlyRegisterGroup, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField, LoopDescriptor
+    StarkLimits, ReadonlyRegisterGroup, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField, InputBlockDescriptor
 } from '@guildofweavers/air-script';
 import { ConstantDeclaration } from './visitor';
 import { Expression, LiteralExpression, TransitionFunctionBody, TransitionConstraintsBody } from './expressions';
@@ -73,9 +73,9 @@ export class ScriptSpecs {
         };        
     }
 
-    get loopDescriptor(): LoopDescriptor {
+    get inputBlock(): InputBlockDescriptor {
         return {
-            traceTemplate   : this.transitionFunction.inputTemplate,
+            traceTemplate   : this.transitionFunction.traceTemplate,
             segmentMasks    : this.transitionFunction.segmentMasks,
             baseCycleLength : this.transitionFunction.baseCycleLength
         };

@@ -181,27 +181,27 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx, specs) {
         const exc = new ExecutionContext_1.ExecutionContext(specs);
-        const loop = this.visit(ctx.segment, exc);
-        const result = new expressions_1.TransitionFunctionBody(loop);
+        const inputBlock = this.visit(ctx.inputBlock, exc);
+        const result = new expressions_1.TransitionFunctionBody(inputBlock);
         return result;
     }
     transitionConstraints(ctx, specs) {
         const exc = new ExecutionContext_1.ExecutionContext(specs);
-        const loop = this.visit(ctx.segment, exc);
-        const result = new expressions_1.TransitionConstraintsBody(loop, specs.loopDescriptor);
+        const loop = this.visit(ctx.inputBlock, exc);
+        const result = new expressions_1.TransitionConstraintsBody(loop, specs.inputBlock);
         return result;
     }
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputLoop(ctx, exc) {
+    inputBlock(ctx, exc) {
         const registers = ctx.registers.map((register) => register.image);
         const controlIndex = exc.addLoopFrame(registers);
         // parse init expression
         const initExpression = this.visit(ctx.initExpression, exc);
         // parse body expression
         let bodyExpression;
-        if (ctx.inputLoop) {
-            bodyExpression = this.visit(ctx.inputLoop, exc);
+        if (ctx.inputBlock) {
+            bodyExpression = this.visit(ctx.inputBlock, exc);
         }
         else {
             const loops = ctx.segmentLoops.map((loop) => this.visit(loop, exc));
@@ -209,7 +209,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         const indexSet = new Set(registers.map(register => Number.parseInt(register.slice(2))));
         const controller = exc.getControlReference(controlIndex);
-        return new expressions_1.InputLoop(initExpression, bodyExpression, indexSet, controller);
+        return new expressions_1.InputBlock(initExpression, bodyExpression, indexSet, controller);
     }
     segmentLoop(ctx, exc) {
         const intervals = ctx.ranges.map((range) => this.visit(range));

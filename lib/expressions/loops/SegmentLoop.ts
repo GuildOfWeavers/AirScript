@@ -16,7 +16,7 @@ export class SegmentLoop extends Expression {
 
     readonly controller : Expression;
     readonly statements : StatementBlock;
-    readonly mask       : number[];
+    readonly traceMask  : number[];
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ export class SegmentLoop extends Expression {
         super(statements.dimensions, degree);
         this.controller = controller;
         this.statements = statements;
-        this.mask = parseIntervals(intervals);
+        this.traceMask = parseIntervals(intervals);
     }
 
     // PUBLIC MEMBERS

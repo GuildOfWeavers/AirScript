@@ -52,8 +52,8 @@ function validateMasks(loops) {
     const stepSet = new Set();
     // make sure masks don't overlap
     for (let loop of loops) {
-        for (let i = 0; i < loop.mask.length; i++) {
-            if (loop.mask[i] === 0)
+        for (let i = 0; i < loop.traceMask.length; i++) {
+            if (loop.traceMask[i] === 0)
                 continue;
             if (stepSet.has(i)) {
                 throw new Error(`step ${i} is covered by multiple loops`);
@@ -79,7 +79,7 @@ function validateMasks(loops) {
     // make sure all masks are of the same length
     const masks = [];
     for (let loop of loops) {
-        let mask = loop.mask;
+        let mask = loop.traceMask;
         if (mask.length < stepCount) {
             mask = mask.concat(new Array(stepCount - mask.length).fill(0));
         }

@@ -8,7 +8,7 @@ const BinaryOperation_1 = require("../operations/BinaryOperation");
 const utils_1 = require("../utils");
 // CLASS DEFINITION
 // ================================================================================================
-class InputLoop extends Expression_1.Expression {
+class InputBlock extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
     constructor(initExpression, bodyExpression, registers, controller) {
@@ -37,5 +37,5 @@ class InputLoop extends Expression_1.Expression {
         return `{\n${code}}\n`;
     }
 }
-exports.InputLoop = InputLoop;
-//# sourceMappingURL=InputLoop.js.map
+exports.InputBlock = InputBlock;
+//# sourceMappingURL=InputBlock.js.map

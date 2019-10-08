@@ -9,19 +9,19 @@ const utils_1 = require("./utils");
 class TransitionFunctionBody extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(root) {
-        if (root.isScalar) {
-            super([1, 0], [root.degree]);
+    constructor(inputBlock) {
+        if (inputBlock.isScalar) {
+            super([1, 0], [inputBlock.degree]);
         }
-        else if (root.isVector) {
-            super(root.dimensions, root.degree);
+        else if (inputBlock.isVector) {
+            super(inputBlock.dimensions, inputBlock.degree);
         }
         else {
             throw new Error(`transition function must evaluate to a scalar or to a vector`);
         }
-        this.root = root;
-        const loopStructure = utils_1.getLoopStructure(root);
-        this.inputTemplate = loopStructure.inputTemplate;
+        this.inputBlock = inputBlock;
+        const loopStructure = utils_1.getInputBlockStructure(inputBlock);
+        this.traceTemplate = loopStructure.traceTemplate;
         this.segmentMasks = loopStructure.segmentMasks;
     }
     // PUBLIC ACCESSORS
@@ -30,7 +30,7 @@ class TransitionFunctionBody extends Expression_1.Expression {
         return this.segmentMasks[0].length;
     }
     get LoopCount() {
-        return this.inputTemplate.length + this.segmentMasks.length;
+        return this.traceTemplate.length + this.segmentMasks.length;
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
@@ -38,8 +38,8 @@ class TransitionFunctionBody extends Expression_1.Expression {
         if (assignTo)
             throw new Error('transition function body cannot be assigned to a variable');
         let code = 'let result;\n';
-        code += this.root.toJsCode('result');
-        code += this.root.isScalar ? `return [result];\n` : `return result.values;\n`;
+        code += this.inputBlock.toJsCode('result');
+        code += this.inputBlock.isScalar ? `return [result];\n` : `return result.values;\n`;
         return code;
     }
 }

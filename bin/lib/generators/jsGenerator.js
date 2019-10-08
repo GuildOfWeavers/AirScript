@@ -33,7 +33,7 @@ function generateJsModule(specs, limits, extensionFactor) {
     code += '};';
     // create and execute module builder function
     const buildModule = new Function('f', 'g', 'registerSpecs', 'loops', 'constraints', code);
-    return buildModule(specs.field, specs.constantBindings, specs.readonlyRegisters, specs.loopDescriptor, specs.transitionConstraintsSpecs);
+    return buildModule(specs.field, specs.constantBindings, specs.readonlyRegisters, specs.inputBlock, specs.transitionConstraintsSpecs);
 }
 exports.generateJsModule = generateJsModule;
 //# sourceMappingURL=jsGenerator.js.map

@@ -1,31 +1,31 @@
 // IMPORTS
 // ================================================================================================
-import { LoopDescriptor } from '@guildofweavers/air-script';
+import { InputBlockDescriptor } from '@guildofweavers/air-script';
 import { Expression } from './Expression';
-import { InputLoop } from './loops/InputLoop';
-import { getLoopStructure } from './utils';
+import { InputBlock } from './loops/InputBlock';
+import { getInputBlockStructure } from './utils';
 
 // CLASS DEFINITION
 // ================================================================================================
 export class TransitionConstraintsBody extends Expression {
 
-    readonly root           : Expression;
+    readonly inputBlock : Expression;
     
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(root: InputLoop, template: LoopDescriptor) {
-        if (root.isScalar) {
-            super([1, 0], [root.degree as bigint]);
+    constructor(inputBlock: InputBlock, template: InputBlockDescriptor) {
+        if (inputBlock.isScalar) {
+            super([1, 0], [inputBlock.degree as bigint]);
         }
-        else if (root.isVector) {
-            super(root.dimensions, root.degree);
+        else if (inputBlock.isVector) {
+            super(inputBlock.dimensions, inputBlock.degree);
         }
         else {
             throw new Error(`transition constraints must evaluate to a scalar or to a vector`);
         }
-        this.root = root;
-        const loopStructure = getLoopStructure(root);
-        validateInputLoopStructure(template.traceTemplate, loopStructure.inputTemplate);
+        this.inputBlock = inputBlock;
+        const loopStructure = getInputBlockStructure(inputBlock);
+        validateInputLoopStructure(template.traceTemplate, loopStructure.traceTemplate);
         validateSegmentLoopStructure(template.segmentMasks, loopStructure.segmentMasks);
     }
 
@@ -35,8 +35,8 @@ export class TransitionConstraintsBody extends Expression {
         if (assignTo) throw new Error('transition constraints body cannot be assigned to a variable');
 
         let code = 'let result;\n';
-        code += this.root.toJsCode('result');
-        code += this.root.isScalar ? `return [result];\n` : `return result.values;\n`;
+        code += this.inputBlock.toJsCode('result');
+        code += this.inputBlock.isScalar ? `return [result];\n` : `return result.values;\n`;
 
         return code;
     }

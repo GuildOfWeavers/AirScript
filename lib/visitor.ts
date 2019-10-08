@@ -10,7 +10,7 @@ import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
 import { ExecutionContext } from './ExecutionContext';
 import {
-    Expression, InputLoop, SegmentLoop, SegmentLoopBlock, StatementBlock, Statement, TransitionFunctionBody, TransitionConstraintsBody
+    Expression, InputBlock, SegmentLoop, SegmentLoopBlock, StatementBlock, Statement, TransitionFunctionBody, TransitionConstraintsBody
 } from './expressions';
 import * as expressions from './expressions';
 import { Dimensions, validateVariableName, isPowerOf2 } from './utils';
@@ -231,21 +231,21 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx: any, specs: ScriptSpecs): TransitionFunctionBody {
         const exc = new ExecutionContext(specs);
-        const loop: InputLoop = this.visit(ctx.segment, exc);
-        const result = new TransitionFunctionBody(loop);
+        const inputBlock: InputBlock = this.visit(ctx.inputBlock, exc);
+        const result = new TransitionFunctionBody(inputBlock);
         return result;
     }
 
     transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionConstraintsBody {
         const exc = new ExecutionContext(specs);
-        const loop: InputLoop = this.visit(ctx.segment, exc);
-        const result = new TransitionConstraintsBody(loop, specs.loopDescriptor);
+        const loop: InputBlock = this.visit(ctx.inputBlock, exc);
+        const result = new TransitionConstraintsBody(loop, specs.inputBlock);
         return result;
     }
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputLoop(ctx: any, exc: ExecutionContext): InputLoop {
+    inputBlock(ctx: any, exc: ExecutionContext): InputBlock {
 
         const registers: string[] = ctx.registers.map((register: any) => register.image);
         const controlIndex = exc.addLoopFrame(registers);
@@ -254,9 +254,9 @@ class AirVisitor extends BaseCstVisitor {
         const initExpression: Expression = this.visit(ctx.initExpression, exc);
 
         // parse body expression
-        let bodyExpression: InputLoop | SegmentLoopBlock;
-        if (ctx.inputLoop) {
-            bodyExpression = this.visit(ctx.inputLoop, exc);
+        let bodyExpression: InputBlock | SegmentLoopBlock;
+        if (ctx.inputBlock) {
+            bodyExpression = this.visit(ctx.inputBlock, exc);
         }
         else {
             const loops: SegmentLoop[] = ctx.segmentLoops.map((loop: any) => this.visit(loop, exc));
@@ -265,7 +265,7 @@ class AirVisitor extends BaseCstVisitor {
 
         const indexSet = new Set(registers.map(register => Number.parseInt(register.slice(2))));
         const controller = exc.getControlReference(controlIndex);
-        return new InputLoop(initExpression, bodyExpression, indexSet, controller);
+        return new InputBlock(initExpression, bodyExpression, indexSet, controller);
     }
 
     segmentLoop(ctx: any, exc: ExecutionContext): SegmentLoop {

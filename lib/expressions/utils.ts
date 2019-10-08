@@ -1,8 +1,9 @@
 // IMPORTS
 // ================================================================================================
 import { ExpressionDegree } from "./Expression";
-import { InputLoop } from "./loops/InputLoop";
+import { InputBlock } from "./loops/InputBlock";
 import { SegmentLoopBlock } from "./loops/SegmentLoopBlock";
+import { InputBlockDescriptor } from "@guildofweavers/air-script";
 
 // INTERFACES
 // ================================================================================================
@@ -12,19 +13,19 @@ export interface DegreeOp {
 
 // LOOPS
 // ================================================================================================
-export function getLoopStructure(loop: InputLoop) {
-    const inputTemplate = new Array<number>(loop.registers.size).fill(0);
+export function getInputBlockStructure(inputBlock: InputBlock): InputBlockDescriptor {
+    const traceTemplate = new Array<number>(inputBlock.registers.size).fill(0);
     const segmentMasks: number[][] = [];
 
     while (true) {
-        if (loop.bodyExpression instanceof InputLoop) {
-            loop = loop.bodyExpression;
-            for (let register of loop.registers) {
-                inputTemplate[register]++;
+        if (inputBlock.bodyExpression instanceof InputBlock) {
+            inputBlock = inputBlock.bodyExpression;
+            for (let register of inputBlock.registers) {
+                traceTemplate[register]++;
             }
         }
-        else if (loop.bodyExpression instanceof SegmentLoopBlock) {
-            loop.bodyExpression.masks.forEach(mask => segmentMasks.push(mask));
+        else if (inputBlock.bodyExpression instanceof SegmentLoopBlock) {
+            inputBlock.bodyExpression.masks.forEach(mask => segmentMasks.push(mask));
             break;
         }
         else {
@@ -32,7 +33,7 @@ export function getLoopStructure(loop: InputLoop) {
         }
     }
 
-    return { inputTemplate, segmentMasks };
+    return { traceTemplate, segmentMasks, baseCycleLength: segmentMasks[0].length };
 }
 
 // DEGREE

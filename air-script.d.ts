@@ -126,7 +126,7 @@ declare module '@guildofweavers/air-script' {
         publicRegisters : InputRegisterSpecs[];
     }
 
-    export interface LoopDescriptor {
+    export interface InputBlockDescriptor {
         traceTemplate   : number[];
         segmentMasks    : number[][];
         baseCycleLength : number;

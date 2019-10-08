@@ -8,16 +8,16 @@ import { maxDegree, sumDegree } from '../utils';
 
 // CLASS DEFINITION
 // ================================================================================================
-export class InputLoop extends Expression {
+export class InputBlock extends Expression {
 
     readonly controller     : Expression;
     readonly initExpression : Expression;
-    readonly bodyExpression : InputLoop | SegmentLoopBlock;
+    readonly bodyExpression : InputBlock | SegmentLoopBlock;
     readonly registers      : Set<number>;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(initExpression: Expression, bodyExpression: InputLoop | SegmentLoopBlock, registers: Set<number>, controller: Expression) {
+    constructor(initExpression: Expression, bodyExpression: InputBlock | SegmentLoopBlock, registers: Set<number>, controller: Expression) {
         if (!initExpression.isSameDimensions(bodyExpression)) {
             throw new Error(`init and body expressions must resolve to values of same dimensions`);
         }

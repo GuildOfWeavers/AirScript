@@ -3,7 +3,7 @@
 import {
     FiniteField, Matrix, Vector, ConstraintSpecs, TransitionFunction, ConstraintEvaluator,
     ReadonlyRegisterGroup, ReadonlyRegisterSpecs, InputRegisterSpecs, ReadonlyRegisterEvaluator,
-    LoopDescriptor, ProofObject, VerificationObject
+    InputBlockDescriptor, ProofObject, VerificationObject
 } from "@guildofweavers/air-script";
 
 // MODULE VARIABLE PLACEHOLDERS
@@ -12,7 +12,7 @@ const f: FiniteField = undefined as any;
 const stateWidth = 0;
 
 const registerSpecs: ReadonlyRegisterGroup = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
-const loops: LoopDescriptor = { traceTemplate: [], segmentMasks: [], baseCycleLength: 0 };
+const loops: InputBlockDescriptor = { traceTemplate: [], segmentMasks: [], baseCycleLength: 0 };
 const constraints: ConstraintSpecs[] = [];
 
 const compositionFactor = 0;
