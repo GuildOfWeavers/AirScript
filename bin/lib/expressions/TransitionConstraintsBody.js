@@ -32,7 +32,7 @@ class TransitionConstraintsBody extends Expression_1.Expression {
             throw new Error('transition constraints body cannot be assigned to a variable');
         let code = 'let result;\n';
         code += this.root.toJsCode('result');
-        code += this.root.isScalar ? `return [result];\n` : `return result.values;\n`;
+        code += this.root.isScalar ? `return [result];\n` : `return result.toValues();\n`;
         return code;
     }
 }

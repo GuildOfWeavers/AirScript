@@ -28,7 +28,7 @@ class SymbolReference extends Expression_1.Expression {
             }
         }
         else if (this.isVector && options.vectorAsArray) {
-            code = `${code}.values`;
+            code = `${code}.toValues()`;
         }
         if (assignTo) {
             code = `${assignTo} = ${code};\n`;

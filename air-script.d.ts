@@ -9,7 +9,7 @@ declare module '@guildofweavers/air-script' {
     // --------------------------------------------------------------------------------------------
     export interface ScriptOptions {
         limits?         : Partial<StarkLimits>;
-        wasmOptions?    : Partial<WasmOptions>; // TODO: add boolean?
+        wasmOptions?    : Partial<WasmOptions> | boolean;
         extensionFactor?: number;
     }
 

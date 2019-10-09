@@ -47,7 +47,7 @@ export class UnaryOperation extends Expression {
         let code = `f.${opFunction}(${this.operand.toJsCode()})`;
 
         if (this.isVector && options.vectorAsArray) {
-            code = `${code}.values`;
+            code = `${code}.toValues()`;
         }
 
         if (assignTo) {

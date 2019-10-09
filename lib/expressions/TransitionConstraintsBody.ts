@@ -39,7 +39,7 @@ export class TransitionConstraintsBody extends Expression {
 
         let code = 'let result;\n';
         code += this.root.toJsCode('result');
-        code += this.root.isScalar ? `return [result];\n` : `return result.values;\n`;
+        code += this.root.isScalar ? `return [result];\n` : `return result.toValues();\n`;
 
         return code;
     }

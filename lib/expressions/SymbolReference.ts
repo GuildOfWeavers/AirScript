@@ -35,7 +35,7 @@ export class SymbolReference extends Expression {
             }
         }
         else if (this.isVector && options.vectorAsArray) {
-            code = `${code}.values`;
+            code = `${code}.toValues()`;
         }
 
         if (assignTo) {

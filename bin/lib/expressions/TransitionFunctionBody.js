@@ -36,7 +36,7 @@ class TransitionFunctionBody extends Expression_1.Expression {
             throw new Error('transition function body cannot be assigned to a variable');
         let code = 'let result;\n';
         code += this.inputBlock.toJsCode('result');
-        code += this.inputBlock.isScalar ? `return [result];\n` : `return result.values;\n`;
+        code += this.inputBlock.isScalar ? `return [result];\n` : `return result.toValues();\n`;
         return code;
     }
 }

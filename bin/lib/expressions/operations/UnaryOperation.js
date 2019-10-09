@@ -32,7 +32,7 @@ class UnaryOperation extends Expression_1.Expression {
         const opFunction = getOpFunction(this.operation, this.operand);
         let code = `f.${opFunction}(${this.operand.toJsCode()})`;
         if (this.isVector && options.vectorAsArray) {
-            code = `${code}.values`;
+            code = `${code}.toValues()`;
         }
         if (assignTo) {
             code = `${assignTo} = ${code};\n`;

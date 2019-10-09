@@ -137,7 +137,7 @@ export class BinaryOperation extends Expression {
         let code = `f.${opFunction}(${this.lhs.toJsCode()}, ${this.rhs.toJsCode()})`;
         
         if (this.isVector && options.vectorAsArray) {
-            code = `${code}.values`;
+            code = `${code}.toValues()`;
         }
 
         if (assignTo) {

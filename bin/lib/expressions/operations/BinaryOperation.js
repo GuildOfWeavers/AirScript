@@ -109,7 +109,7 @@ class BinaryOperation extends Expression_1.Expression {
         const opFunction = getOpFunction(this.operation, this.lhs, this.rhs);
         let code = `f.${opFunction}(${this.lhs.toJsCode()}, ${this.rhs.toJsCode()})`;
         if (this.isVector && options.vectorAsArray) {
-            code = `${code}.values`;
+            code = `${code}.toValues()`;
         }
         if (assignTo) {
             code = `${assignTo} = ${code};\n`;

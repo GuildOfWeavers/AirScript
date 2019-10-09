@@ -43,7 +43,7 @@ export class TransitionFunctionBody extends Expression {
 
         let code = 'let result;\n';
         code += this.inputBlock.toJsCode('result');
-        code += this.inputBlock.isScalar ? `return [result];\n` : `return result.values;\n`;
+        code += this.inputBlock.isScalar ? `return [result];\n` : `return result.toValues();\n`;
 
         return code;
     }
