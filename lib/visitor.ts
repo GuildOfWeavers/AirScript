@@ -270,7 +270,7 @@ class AirVisitor extends BaseCstVisitor {
 
         const indexSet = new Set(registers.map(register => Number.parseInt(register.slice(2))));
         const controller = exc.getControlReference(controlIndex);
-        return new InputBlock(initExpression, bodyExpression, indexSet, controller);
+        return new InputBlock(controlIndex, initExpression, bodyExpression, indexSet, controller);
     }
 
     segmentLoop(ctx: any, exc: ExecutionContext): SegmentLoop {

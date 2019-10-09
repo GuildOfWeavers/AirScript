@@ -5,7 +5,6 @@ import {
     ReadonlyRegisterGroup, ReadonlyRegisterSpecs, InputRegisterSpecs, ReadonlyRegisterEvaluator,
     InputBlockDescriptor, ProofObject, VerificationObject
 } from "@guildofweavers/air-script";
-import { isPowerOf2 } from "../utils";
 
 // MODULE VARIABLE PLACEHOLDERS
 // ================================================================================================
@@ -64,20 +63,26 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
     function generateExecutionTrace(): Matrix {
         const steps = traceLength - 1;
         
-        const kValues = new Array<bigint>(kRegisters.length);
-        const sValues = new Array<bigint>(sRegisters.length);
-        const pValues = new Array<bigint>(pRegisters.length);
-        const cValues = new Array<bigint>(2**cRegisters.length);
-        const iValues = new Array<bigint>(iRegisters.length);
+        const kValues = new Array<bigint>(kRegisters.length).fill(f.zero);
+        const sValues = new Array<bigint>(sRegisters.length).fill(f.zero);
+        const pValues = new Array<bigint>(pRegisters.length).fill(f.zero);
+        const cValues = new Array<bigint>(2**cRegisters.length).fill(f.zero);
+        const iValues = new Array<bigint>(iRegisters.length).fill(f.zero);
 
-        // initialize rValues and set first state of execution trace to the last state of init registers
-        let nValues: bigint[];
-        let rValues = new Array<bigint>(stateWidth);
+        // build the first row of the execution trace by execution transition function at the last step
+        let rValues = new Array<bigint>(stateWidth).fill(f.zero);
+        populateControlValues(cRegisters, cValues, steps * compositionFactor);
+        for (let i = 0; i < iValues.length; i++) {
+            iValues[i] = iRegisters[i](steps * compositionFactor);
+        }
+        let nValues = applyTransition(rValues, kValues, sValues, pValues, cValues, iValues);
+
+        // initialize execution trace and copy over the first row
         const traceValues = new Array<bigint[]>(stateWidth);
         for (let register = 0; register < traceValues.length; register++) {
             traceValues[register] = new Array<bigint>(traceLength);
-            let value = iRegisters[register](steps * compositionFactor);
-            traceValues[register][0] = rValues[register] = value;
+            traceValues[register][0] = nValues[register];
+            rValues[register] = nValues[register];
         }
 
         // apply transition function for each step
@@ -459,7 +464,7 @@ export function validateTraceShape(traceShape: number[]): number {
         if (!Number.isInteger(traceShape[i]) || traceShape[i] < 1) {
             throw new Error('trace shape elements must be integers greater than 0');
         }
-        cycleCount = cycleCount * traceShape[0];
+        cycleCount = cycleCount * traceShape[i];
     }
 
     const traceLength = cycleCount * loops.baseCycleLength;
@@ -547,8 +552,13 @@ export function buildControlRegisterSpecs(traceShape: number[], traceLength: num
 
     // combine input loop trace masks with segment loop trace masks
     for (let cycleMask of loops.baseCycleMasks) {
-        let mask = cycleMask.slice(1);
-        mask.push(0);   // move the init step mask to the end
+        // move the init step mask to the end
+        let mask = cycleMask.slice(1); mask.push(0);
+
+        // make sure all masks have the same length
+        while(mask.length < baseline.length) {
+            mask = mask.concat(mask);
+        }
         masks.push(mask);
     }
 
@@ -605,7 +615,7 @@ export function unrollRegisterValues(value: any[] | bigint, register: number, de
             throw new Error(`value provided for register $i${register} at depth ${depth} is invalid`);
         else if (value.length === 0)
             throw new Error(`number of values for register $i${register} at depth ${depth} must be greater than 0`);
-        else if (isPowerOf2(value.length)) 
+        else if (!isPowerOf2(value.length)) 
             throw new Error(`number of values for register $i${register} at depth ${depth} must be a power of 2`);
 
         if (shape[depth] === undefined) {
@@ -655,4 +665,8 @@ export function populateControlValues<T extends number | bigint>(cRegisters: Rea
             cValues[j] = cValues[j - cPeriod];
         }
     }
+}
+
+export function isPowerOf2(value: number){
+    return (value !== 0) && (value & (value - 1)) === 0;
 }

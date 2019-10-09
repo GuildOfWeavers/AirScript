@@ -1,6 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils_1 = require("../utils");
 // MODULE VARIABLE PLACEHOLDERS
 // ================================================================================================
 const f = undefined;
@@ -46,19 +45,24 @@ function initProof(initValues, pInputs, sInputs) {
     // --------------------------------------------------------------------------------------------
     function generateExecutionTrace() {
         const steps = traceLength - 1;
-        const kValues = new Array(kRegisters.length);
-        const sValues = new Array(sRegisters.length);
-        const pValues = new Array(pRegisters.length);
-        const cValues = new Array(2 ** cRegisters.length);
-        const iValues = new Array(iRegisters.length);
-        // initialize rValues and set first state of execution trace to the last state of init registers
-        let nValues;
-        let rValues = new Array(stateWidth);
+        const kValues = new Array(kRegisters.length).fill(f.zero);
+        const sValues = new Array(sRegisters.length).fill(f.zero);
+        const pValues = new Array(pRegisters.length).fill(f.zero);
+        const cValues = new Array(2 ** cRegisters.length).fill(f.zero);
+        const iValues = new Array(iRegisters.length).fill(f.zero);
+        // build the first row of the execution trace by execution transition function at the last step
+        let rValues = new Array(stateWidth).fill(f.zero);
+        populateControlValues(cRegisters, cValues, steps * compositionFactor);
+        for (let i = 0; i < iValues.length; i++) {
+            iValues[i] = iRegisters[i](steps * compositionFactor);
+        }
+        let nValues = applyTransition(rValues, kValues, sValues, pValues, cValues, iValues);
+        // initialize execution trace and copy over the first row
         const traceValues = new Array(stateWidth);
         for (let register = 0; register < traceValues.length; register++) {
             traceValues[register] = new Array(traceLength);
-            let value = iRegisters[register](steps * compositionFactor);
-            traceValues[register][0] = rValues[register] = value;
+            traceValues[register][0] = nValues[register];
+            rValues[register] = nValues[register];
         }
         // apply transition function for each step
         let step = 0;
@@ -388,7 +392,7 @@ function validateTraceShape(traceShape) {
         if (!Number.isInteger(traceShape[i]) || traceShape[i] < 1) {
             throw new Error('trace shape elements must be integers greater than 0');
         }
-        cycleCount = cycleCount * traceShape[0];
+        cycleCount = cycleCount * traceShape[i];
     }
     const traceLength = cycleCount * loops.baseCycleLength;
     if (traceLength > maxTraceLength) {
@@ -470,8 +474,13 @@ function buildControlRegisterSpecs(traceShape, traceLength) {
     }
     // combine input loop trace masks with segment loop trace masks
     for (let cycleMask of loops.baseCycleMasks) {
+        // move the init step mask to the end
         let mask = cycleMask.slice(1);
-        mask.push(0); // move the init step mask to the end
+        mask.push(0);
+        // make sure all masks have the same length
+        while (mask.length < baseline.length) {
+            mask = mask.concat(mask);
+        }
         masks.push(mask);
     }
     // transform masks into a set of static register values
@@ -523,7 +532,7 @@ function unrollRegisterValues(value, register, depth, shape) {
             throw new Error(`value provided for register $i${register} at depth ${depth} is invalid`);
         else if (value.length === 0)
             throw new Error(`number of values for register $i${register} at depth ${depth} must be greater than 0`);
-        else if (utils_1.isPowerOf2(value.length))
+        else if (!isPowerOf2(value.length))
             throw new Error(`number of values for register $i${register} at depth ${depth} must be a power of 2`);
         if (shape[depth] === undefined) {
             shape[depth] = value.length;
@@ -569,4 +578,8 @@ function populateControlValues(cRegisters, cValues, position) {
     }
 }
 exports.populateControlValues = populateControlValues;
+function isPowerOf2(value) {
+    return (value !== 0) && (value & (value - 1)) === 0;
+}
+exports.isPowerOf2 = isPowerOf2;
 //# sourceMappingURL=JsModuleTemplate.js.map

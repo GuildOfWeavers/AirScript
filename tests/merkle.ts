@@ -4,7 +4,7 @@ const script = `
 define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
 
     alpha: 3;
-    inv_alpha: 0-6148914683720324437;
+    inv_alpha: 6148914683720324437;
 
     MDS: [
         [18446744051160973310, 18446744051160973301],
@@ -16,74 +16,56 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
         [16397105823254198500, 12297829367440648875]
     ];
 
-    transition 4 register in 4*32 steps {
-        when ($k0) {
-            K1: [$k1, $k2];
-            K2: [$k3, $k4];
+    transition 4 register {
+        for each ($i0, $i1) {
+            init { [$i0, $i1, $i1, $i0] }
 
-            S1: [$r0, $r1];
-            S1: MDS # S1^alpha + K1;
-            S1: MDS # S1^(inv_alpha) + K2;
+            for each ($i1) {
+                init {
+                    h <- $p0 ? $r0 : $r2;
+                    [h, $i1, $i1, h];
+                }
 
-            S2: [$r2, $r3];
-            S2: MDS # S2^alpha + K1;
-            S2: MDS # S2^(inv_alpha) + K2;
+                for steps [1..31] {
+                    S1 <- MDS # $r[0..1]^alpha + $k[0..1];
+                    S1 <- MDS # (/S1)^inv_alpha + $k[2..3];
 
-            out: [...S1, ...S2];
-        }
-        else {
-            h: $p0 ? $r0 | $r2;
-            S1: [h, $s0];
-            S2: [$s0, h];
+                    S2 <- MDS # $r[2..3]^alpha + $k[0..1];
+                    S2 <- MDS # (/S2)^inv_alpha + $k[2..3];
 
-            out: [...S1, ...S2];
+                    [...S1, ...S2];
+                }
+            }
         }
     }
 
     enforce 4 constraint {
-        when ($k0) {
-            K1: [$k1, $k2];
-            K2: [$k3, $k4];
+        for each ($i0, $i1, $i2, $i3) {
+            init { [$i0, $i1, $i1, $i0] = $n }
 
-            S1: [$r0, $r1];
-            N1: [$n0, $n1];
-            S1: MDS # S1^alpha + K1;
-            N1: (INV_MDS # (N1 - K2))^alpha;
-            T1: S1 - N1;
+            for each ($i1) {
+                init {
+                    h <- $p0 ? $r0 : $r2;
+                    [h, $i1, $i1, h] = $n;
+                }
 
-            S2: [$r2, $r3];
-            N2: [$n2, $n3];
-            S2: MDS # S2^alpha + K1;
-            N2: (INV_MDS # (N2 - K2))^alpha;
-            T2: S2 - N2;
+                for steps [1..31] {
+                    S1 <- MDS # $r[0..1]^alpha + $k[0..1];
+                    T1 <- (INV_MDS # ($n[0..1] - $k[2..3]))^alpha;
 
-            out: [...T1, ...T2];
-        }
-        else {
-            h: $p0 ? $r0 | $r2;
+                    S2 <- MDS # $r[2..3]^alpha + $k[0..1];
+                    T2 <- (INV_MDS # ($n[2..3] - $k[2..3]))^alpha;
 
-            S1: [h, $s0];
-            N1: [$n0, $n1];
-            T1: S1 - N1;
-
-            S2: [$s0, h];
-            N2: [$n2, $n3];
-            T2: S2 - N2;
-
-            out: [...T1, ...T2];
+                    [...S1, ...S2] = [...T1, ...T2]
+                }
+            }
         }
     }
 
-    using 7 readonly registers {
-        $s0: spread [...];          // proof nodes
+    using 5 readonly registers {
         $p0: spread binary [...];   // node index
 
-        // 31 ones followed by a zero
-        $k0: repeat binary [
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
-        ];
-
-        $k1: repeat [
+        $k0: repeat [
              3507676442884075254, 14199898198859462402,  9943771478517422846,  5299008510059709046,
              4876587438151046518,   935380327644019241, 11969155768995001697,  8905176503159002610,
             10209632462003885590,  4094264109993537899, 13783103540050167525,  7244561326597804778,
@@ -93,7 +75,7 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
              2452137769288432333,  4412015122616966251, 11465432874127736482,  5737914329229941931,
             10297324169560390650,  8193234160249188780,  2724535690916515409,  1291976646389720043
         ];
-        $k2: repeat [
+        $k1: repeat [
             17202444183124002971, 17723456717189439036,  3750639259183275092,  7448158522061432535,
              3164914583837294015, 12646084612349376118,  7395381026560285023,   729218816014270996,
              6265319720055610278,  6560811038686569758, 10193097109625174474, 10009700032272605410,
@@ -103,7 +85,7 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
             13859809880585885275,  8887260856005721590, 16705356207851584356,  6630713008605848931,
             15272332635899000284,  8293330822552540371,  3663678680344765735,  6202077743967849795
         ];
-        $k3: repeat [
+        $k2: repeat [
             13832924244624368586,  9528928158945462573, 14179395919100586062,  6969939104331843825,
              7310089016056177663,  2330122620296285666,   366614009711950633, 15868530560167501485,
             13062220818183197584, 13862631616076321733,  7173753005560765122,  7401758400845058914,
@@ -113,7 +95,7 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
             13752314705754602748, 13854843066947953115, 18247924359033306459, 16205059579474396736,
              1084973183965784029, 16412335787336649629, 14382883703753853349, 12271654898018238098
         ];
-        $k4: repeat [
+        $k3: repeat [
             16169418098402584869,  5525673020174675568, 12936657854060094775, 11948000946147909875,
             15353833107488796089, 14618049475397165649,  3778101905464969682,  6365740825469087467,
             16234655844237036703,  2799885056387663031,  5302770125087202743,  5660153358913361974,
@@ -131,9 +113,11 @@ const air = parseScript(script, { extensionFactor });
 console.log(`degree: ${air.maxConstraintDegree}`);
 
 const gStart = Date.now();
-const pObject = air.initProof([42n, 0n, 43n, 0n], [[0n, 1n, 0n, 1n]], [[1n, 2n, 3n, 4n]]); // TODO
-
 let start = Date.now();
+const pObject = air.initProof([[42n, [1n, 2n, 3n, 4n]]], [[0n, 1n, 0n, 1n]], []);
+console.log(`Initialized proof object in ${Date.now() - start} ms`);
+
+start = Date.now();
 const trace = pObject.generateExecutionTrace();
 console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
@@ -149,7 +133,7 @@ start = Date.now();
 const cEvaluations = pObject.evaluateTracePolynomials(pPolys);
 console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 
-const hiddenRegisterValues = pObject.hiddenRegisterTraces[0];
+const hRegisterValues = pObject.hiddenRegisterTraces;
 
 start = Date.now();
 const qPolys = air.field.interpolateRoots(pObject.compositionDomain, cEvaluations);
@@ -162,7 +146,7 @@ const vContext = air.initVerification(pObject.traceShape, [[0n, 1n, 0n, 1n]]);
 const x = air.field.exp(vContext.rootOfUnity, 2n);
 const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2)];
 const nValues = [pEvaluations.getValue(0, 18), pEvaluations.getValue(1, 18), pEvaluations.getValue(2, 18), pEvaluations.getValue(3, 18)];
-const sValues = [hiddenRegisterValues.getValue(2)];
-const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, sValues);
+const hValues = [hRegisterValues[0].getValue(2), hRegisterValues[1].getValue(2)];
+const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, hValues);
 
 console.log(qEvaluations.getValue(0, 2) === qValues[0]);

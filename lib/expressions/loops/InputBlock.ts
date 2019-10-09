@@ -6,10 +6,15 @@ import { BinaryOperation } from '../operations/BinaryOperation';
 import { SegmentLoopBlock } from './SegmentLoopBlock';
 import { maxDegree, sumDegree } from '../utils';
 
+// INTERFACES
+// ================================================================================================
+type BlockBody = InputBlock | SegmentLoopBlock;
+
 // CLASS DEFINITION
 // ================================================================================================
 export class InputBlock extends Expression {
 
+    readonly id             : number;
     readonly controller     : Expression;
     readonly initExpression : Expression;
     readonly bodyExpression : InputBlock | SegmentLoopBlock;
@@ -17,12 +22,13 @@ export class InputBlock extends Expression {
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(initExpression: Expression, bodyExpression: InputBlock | SegmentLoopBlock, registers: Set<number>, controller: Expression) {
+    constructor(id: number, initExpression: Expression, bodyExpression: BlockBody, registers: Set<number>, controller: Expression) {
         if (!initExpression.isSameDimensions(bodyExpression)) {
             throw new Error(`init and body expressions must resolve to values of same dimensions`);
         }
         const degree = maxDegree(sumDegree(initExpression.degree, controller.degree), bodyExpression.degree);
         super(initExpression.dimensions, degree);
+        this.id = id;
         this.controller = controller;
         this.initExpression = initExpression;
         this.bodyExpression = bodyExpression;
@@ -34,12 +40,14 @@ export class InputBlock extends Expression {
     toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
         if (!assignTo) throw new Error('input loop cannot be reduced to unassigned code');
         
-        let code = 'let init, body;\n';
-        code += this.initExpression.toJsCode('init');
-        code += this.bodyExpression.toJsCode('body');
+        const initVar = `init${this.id}`, bodyVar = `body${this.id}`;
 
-        const iRef = new SymbolReference('init', this.initExpression.dimensions, this.initExpression.degree);
-        const bRef = new SymbolReference('body', this.bodyExpression.dimensions, this.bodyExpression.degree);
+        let code = `let ${initVar}, ${bodyVar};\n`;
+        code += this.initExpression.toJsCode(initVar);
+        code += this.bodyExpression.toJsCode(bodyVar);
+
+        const iRef = new SymbolReference(initVar, this.initExpression.dimensions, this.initExpression.degree);
+        const bRef = new SymbolReference(bodyVar, this.bodyExpression.dimensions, this.bodyExpression.degree);
 
         const result = BinaryOperation.add(BinaryOperation.mul(iRef, this.controller), bRef);
         code += result.toJsCode(assignTo, options);

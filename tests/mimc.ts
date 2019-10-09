@@ -7,13 +7,21 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
     alpha: 3;
 
     // transition function definition
-    transition 1 register in 2^16 steps {
-        out: $r0^3 + $k0;
+    transition 1 register {
+        for each ($i0) {
+            init { $i0 }
+
+            for steps [1..65535] {
+                $r0^3 + $k0;
+            }
+        }
     }
 
     // transition constraint definition
     enforce 1 constraint {
-        out: $n0 - ($r0^3 + $k0);
+        for all steps {
+            transition($r) = $n;
+        }
     }
 
     // readonly registers accessible in transition function and constraints
@@ -30,9 +38,12 @@ const air = parseScript(script, { extensionFactor });
 console.log(`degree: ${air.maxConstraintDegree}`);
 
 const gStart = Date.now();
-const pObject = air.initProof([3n], [], []); // TODO
 
 let start = Date.now();
+const pObject = air.initProof([[3n]], [], []);
+console.log(`Initialized proof object in ${Date.now() - start} ms`);
+
+start = Date.now();
 const trace = pObject.generateExecutionTrace();
 console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
@@ -54,11 +65,16 @@ const qEvaluations = air.field.evalPolysAtRoots(qPolys, pObject.evaluationDomain
 console.log(`Extended constraints in ${Date.now() - start} ms`);
 console.log(`Total time: ${Date.now() - gStart} ms`);
 
+const hEvaluations = pObject.hiddenRegisterTraces[0];
+
+start = Date.now();
 const vObject = air.initVerification(pObject.traceShape, []);
+console.log(`Initialized verification object in ${Date.now() - start} ms`);
 
 const x = air.field.exp(vObject.rootOfUnity, 2n);
 const rValues = [pEvaluations.getValue(0, 2)];
 const nValues = [pEvaluations.getValue(0, 18)];
-const qValues = vObject.evaluateConstraintsAt(x, rValues, nValues, []);
+const hValues = [hEvaluations.getValue(2)];
+const qValues = vObject.evaluateConstraintsAt(x, rValues, nValues, hValues);
 
 console.log(qEvaluations.getValue(0, 2) === qValues[0]);
