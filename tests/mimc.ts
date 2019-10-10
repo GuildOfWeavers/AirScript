@@ -9,7 +9,7 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
     // transition function definition
     transition 1 register {
         for each ($i0) {
-            init { $i0 }
+            init $i0;
 
             for steps [1..65535] {
                 $r0^3 + $k0;
@@ -34,7 +34,7 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 }`;
 
 const extensionFactor = 16;
-const air = parseScript(script, { extensionFactor });
+const air = parseScript(script, { extensionFactor, wasmOptions: true });
 console.log(`degree: ${air.maxConstraintDegree}`);
 
 const gStart = Date.now();

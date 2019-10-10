@@ -172,7 +172,10 @@ class AirParser extends CstParser {
         this.CONSUME(Init);
         this.OR1([
             { ALT: () => this.SUBRULE(this.statementBlock,  { LABEL: 'initExpression' })},
-            { ALT: () => this.SUBRULE(this.expression,      { LABEL: 'initExpression' })}
+            { ALT: () => {
+                this.SUBRULE(this.expression,               { LABEL: 'initExpression' })
+                this.CONSUME(Semicolon);
+            }}
         ]);
         this.OR2([
             { ALT: () => this.SUBRULE(this.inputBlock,      { LABEL: 'inputBlock'     })},
