@@ -169,14 +169,7 @@ class AirParser extends CstParser {
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
-        this.CONSUME(Init);
-        this.OR1([
-            { ALT: () => this.SUBRULE(this.statementBlock,  { LABEL: 'initExpression' })},
-            { ALT: () => {
-                this.SUBRULE(this.expression,               { LABEL: 'initExpression' })
-                this.CONSUME(Semicolon);
-            }}
-        ]);
+        this.SUBRULE(this.transitionInit,                   { LABEL: 'initExpression' });
         this.OR2([
             { ALT: () => this.SUBRULE(this.inputBlock,      { LABEL: 'inputBlock'     })},
             { ALT: () => {
@@ -186,6 +179,17 @@ class AirParser extends CstParser {
             }}
         ]);
         this.CONSUME(RCurly);
+    });
+
+    private transitionInit = this.RULE('transitionInit', () => {
+        this.CONSUME(Init);
+        this.OR([
+            { ALT: () => this.SUBRULE(this.statementBlock,  { LABEL: 'expression' })},
+            { ALT: () => {
+                this.SUBRULE(this.expression,               { LABEL: 'expression' });
+                this.CONSUME(Semicolon);
+            }}
+        ]);
     });
 
     private segmentLoop = this.RULE('segmentLoop', () => {
@@ -237,6 +241,9 @@ class AirParser extends CstParser {
             },
             {
                 ALT : () => this.SUBRULE(this.expression,    { LABEL: 'expression' }) 
+            },
+            {
+                ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'expression' })
             }
         ]);
     });

@@ -43,6 +43,8 @@ class AirVisitor extends BaseCstVisitor {
         this.validateVisitor()
     }
 
+    // ENTRY POINT
+    // --------------------------------------------------------------------------------------------
     script(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): ScriptSpecs {
 
         const starkName = ctx.starkName[0].image;
@@ -271,6 +273,10 @@ class AirVisitor extends BaseCstVisitor {
         const indexSet = new Set(registers.map(register => Number.parseInt(register.slice(2))));
         const controller = exc.getControlReference(controlIndex);
         return new InputBlock(controlIndex, initExpression, bodyExpression, indexSet, controller);
+    }
+
+    transitionInit(ctx: any, exc: ExecutionContext): Expression {
+        return this.visit(ctx.expression, exc);
     }
 
     segmentLoop(ctx: any, exc: ExecutionContext): SegmentLoop {

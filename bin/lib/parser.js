@@ -152,14 +152,7 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.CONSUME(lexer_1.RParen);
             this.CONSUME(lexer_1.LCurly);
-            this.CONSUME(lexer_1.Init);
-            this.OR1([
-                { ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'initExpression' }) },
-                { ALT: () => {
-                        this.SUBRULE(this.expression, { LABEL: 'initExpression' });
-                        this.CONSUME(lexer_1.Semicolon);
-                    } }
-            ]);
+            this.SUBRULE(this.transitionInit, { LABEL: 'initExpression' });
             this.OR2([
                 { ALT: () => this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' }) },
                 { ALT: () => {
@@ -169,6 +162,16 @@ class AirParser extends chevrotain_1.CstParser {
                     } }
             ]);
             this.CONSUME(lexer_1.RCurly);
+        });
+        this.transitionInit = this.RULE('transitionInit', () => {
+            this.CONSUME(lexer_1.Init);
+            this.OR([
+                { ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'expression' }) },
+                { ALT: () => {
+                        this.SUBRULE(this.expression, { LABEL: 'expression' });
+                        this.CONSUME(lexer_1.Semicolon);
+                    } }
+            ]);
         });
         this.segmentLoop = this.RULE('segmentLoop', () => {
             this.CONSUME(lexer_1.For);
@@ -216,6 +219,9 @@ class AirParser extends chevrotain_1.CstParser {
                 },
                 {
                     ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' })
+                },
+                {
+                    ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'expression' })
                 }
             ]);
         });

@@ -36,16 +36,18 @@ declare module '@guildofweavers/air-script' {
         readonly name                   : string;
         readonly field                  : FiniteField;
         readonly stateWidth             : number;
-        readonly publicInputCount       : number;
-        readonly secretInputCount       : number;
+        readonly publicInputCount       : number;   // TODO: rename?
+        readonly secretInputCount       : number;   // TODO: rename?
         readonly constraints            : ConstraintSpecs[];
         readonly maxConstraintDegree    : number;
+
+        // TODO: add extension factor?
 
         /** Creates proof object for the provided public inputs, secret inputs, and init values */
         initProof(initValues: any[], publicInputs: bigint[][], secretInputs: bigint[][]): ProofObject;
 
         /** Creates verification object for the provided public inputs */
-        initVerification(traceShape: number[], publicInputs: bigint[][]): VerificationObject;
+        initVerification(inputSpecs: number[], publicInputs: bigint[][]): VerificationObject;
     }
 
     export class AirScriptError {
@@ -61,7 +63,7 @@ declare module '@guildofweavers/air-script' {
     // --------------------------------------------------------------------------------------------
     export interface EvaluationContext {
         readonly field              : FiniteField;
-        readonly traceShape         : number[];
+        readonly inputSpecs         : number[];
         readonly traceLength        : number;
         readonly extensionFactor    : number;
         readonly rootOfUnity        : bigint;

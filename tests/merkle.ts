@@ -141,7 +141,7 @@ const qEvaluations = air.field.evalPolysAtRoots(qPolys, pObject.evaluationDomain
 console.log(`Extended constraints in ${Date.now() - start} ms`);
 console.log(`Total time: ${Date.now() - gStart} ms`);
 
-const vContext = air.initVerification(pObject.traceShape, [[0n, 1n, 0n, 1n]]);
+const vContext = air.initVerification(pObject.inputSpecs, [[0n, 1n, 0n, 1n]]);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
 const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2)];

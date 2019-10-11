@@ -8,6 +8,8 @@
 * Added support for inline vector definitions
 * Allowed direct references to register banks
 * Enabled invoking transition function from transition constraints
+* Added `for steps` loops
+* Added `for each` loops
 
 ### v0.4.2 - September 5, 2019
 

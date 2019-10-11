@@ -17,6 +17,8 @@ class AirVisitor extends BaseCstVisitor {
         super();
         this.validateVisitor();
     }
+    // ENTRY POINT
+    // --------------------------------------------------------------------------------------------
     script(ctx, config) {
         const starkName = ctx.starkName[0].image;
         // set up the field
@@ -215,6 +217,9 @@ class AirVisitor extends BaseCstVisitor {
         const indexSet = new Set(registers.map(register => Number.parseInt(register.slice(2))));
         const controller = exc.getControlReference(controlIndex);
         return new expressions_1.InputBlock(controlIndex, initExpression, bodyExpression, indexSet, controller);
+    }
+    transitionInit(ctx, exc) {
+        return this.visit(ctx.expression, exc);
     }
     segmentLoop(ctx, exc) {
         const intervals = ctx.ranges.map((range) => this.visit(range));

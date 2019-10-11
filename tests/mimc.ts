@@ -68,7 +68,7 @@ console.log(`Total time: ${Date.now() - gStart} ms`);
 const hEvaluations = pObject.hiddenRegisterTraces[0];
 
 start = Date.now();
-const vObject = air.initVerification(pObject.traceShape, []);
+const vObject = air.initVerification(pObject.inputSpecs, []);
 console.log(`Initialized verification object in ${Date.now() - start} ms`);
 
 const x = air.field.exp(vObject.rootOfUnity, 2n);

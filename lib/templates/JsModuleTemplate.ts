@@ -285,7 +285,7 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
     // --------------------------------------------------------------------------------------------
     return {
         field                       : f,
-        traceShape                  : traceShape,
+        inputSpecs                  : traceShape,   // TODO: rename
         traceLength                 : traceLength,
         extensionFactor             : extensionFactor,
         rootOfUnity                 : rootOfUnity,
@@ -410,7 +410,7 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
     // --------------------------------------------------------------------------------------------
     return {
         field                       : f,
-        traceShape                  : traceShape,
+        inputSpecs                  : traceShape,   // TODO: rename
         traceLength                 : traceLength,
         extensionFactor             : extensionFactor,
         rootOfUnity                 : rootOfUnity,
