@@ -316,10 +316,10 @@ Currently, there are 6 register banks:
 
 * **$r** bank holds values of *mutable* registers for the current step of the computation.
 * **$n** bank holds values of *mutable* registers for the next step of the computation. This bank can be referenced only in transition constraints (not in the transition function).
-* **$k** bank holds values of static registers for the current step of the computation.
-* **$p** bank holds values of public trace registers for the current step of the computation.
-* **$s** bank holds values of secret trace registers for the current step of the computation.
 * **$i** bank holds values of input registers at the current step of the computation.
+* **$p** bank holds values of auxiliary public input registers for the current step of the computation.
+* **$s** bank holds values of auxiliary secret input registers for the current step of the computation.
+* **$k** bank holds values of static registers for the current step of the computation.
 
 #### Input registers
 The number and depth of input registers depend on the structure of the transition function as defined by [input loops](#Input-loops). Specifically, the top-level input loop specifies all required input registers. The depth of input registers is defined by the [nesting](#Nested-input-loops) of input loops.
@@ -476,8 +476,8 @@ else {
 In addition to mutable registers (`$r`, `$n`) and input registers (`$i`), you can define STARKs with readonly registers. A readonly register is a register whose value cannot be changed by a transition function. There are 3 types of readonly registers:
 
 * **Static registers** - values for these registers are a part of STARK's definition. To reference these registers in transition function and transition constraints use `$k` prefix.
-* **Public trace registers** - values for these registers are known both to the prover and to the verifier, and are provided when a proof is generated and when it is verified. To reference these registers in transition function and transition constraints use `$p` prefix.
-* **Secret trace registers** - values for these registers are known only to the prover, and are provided only when a proof is generated. To reference these registers in transition function and transition constraints use `$s` prefix.
+* **Auxiliary public input registers** - values for these registers are known both to the prover and to the verifier, and are provided when a proof is generated and when it is verified. To reference these registers in transition function and transition constraints use `$p` prefix.
+* **Auxiliary secret input registers** - values for these registers are known only to the prover, and are provided only when a proof is generated. To reference these registers in transition function and transition constraints use `$s` prefix.
 
 Readonly registers can be defined like so:
 ```
@@ -507,7 +507,7 @@ $k0: repeat [1, 2, 3, 4];
 $p0: repeat [...];
 $k1: spread [1, 2, 3, 4];
 ```
-Since values for public and secret trace registers are not known at the time of STARK definition, you can't provide them within the script. Instead, use `[...]` to indicate that the values will be provided at the time of proof generation and/or verification.
+Since values for the auxiliary public and secret input registers are not known at the time of STARK definition, you can't provide them within the script. Instead, use `[...]` to indicate that the values will be provided at the time of proof generation and/or verification.
 
 
 ### Value pattern
@@ -568,18 +568,20 @@ If parsing of the script is successful, the `parseScript()` method returns an `A
 | name                 | Name from the STARK declaration. |
 | field                | Finite field specified for the computation. |
 | stateWidth           | Number of mutable registers defined for the computation. |
-| publicInputCount     | Number of public input registers defined for the computation. |
-| secretInputCount     | Number of secret input registers defined for the computation. |
+| iRegisterCount       | Number of input registers defined for the computation. |
+| pRegisterCount       | Number of auxiliary public input registers defined for the computation. |
+| sRegisterCount       | Number of auxiliary secret input registers defined for the computation. |
+| kRegisterCount       | Number of static registers defined for the computation. |
 | constraints          | An array of constraint specification objects. |
 | maxConstraintDegree  | Maximum algebraic degree of transition constraints required for the computation. |
 | extensionFactor      | Execution trace extension factor set for this computation. |
 
 `AirModule` also exposes the following methods:
 
-* **initVerification**(inputSpecs: `number[]`, publicInputs: `bigint[][]`): `VerificationObject`<br />
+* **initVerification**(traceShape: `number[]`, auxPublicInputs: `bigint[][]`): `VerificationObject`<br />
   Creates a `VerificationObject` for the computation. This object can be used to evaluate transition constraints at at a single point.
 
-* **initProof**(initValues: any[], publicInputs: `bigint[][]`, secretInputs: `bigint[][]`): `ProofObject`<br />
+* **initProof**(inputs: `any[]`, auxPublicInputs: `bigint[][]`, auxSecretInputs: `bigint[][]`): `ProofObject`<br />
   Creates a `ProofObject` for the computation. This object can be used to generate execution traces and evaluate transition constraints.
 
 If parsing of the script fails, the `parseScript()` method throws an `AirScriptError` which contains a list of errors (under `.errors` property) that caused the failure.

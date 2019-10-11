@@ -201,7 +201,7 @@ console.log(`Extended constraints in ${Date.now() - start} ms`);
 console.log(`Total time: ${Date.now() - gStart} ms`);
 
 start = Date.now();
-const vContext = air.initVerification(pObject.inputSpecs, [[0n, 1n, 0n, 1n, 0n, 1n, 0n, 1n]]);
+const vContext = air.initVerification(pObject.traceShape, [[0n, 1n, 0n, 1n, 0n, 1n, 0n, 1n]]);
 console.log(`Initialized verification object in ${Date.now() - start} ms`);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);

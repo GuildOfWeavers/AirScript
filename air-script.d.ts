@@ -36,18 +36,28 @@ declare module '@guildofweavers/air-script' {
         readonly name                   : string;
         readonly field                  : FiniteField;
         readonly stateWidth             : number;
-        readonly publicInputCount       : number;   // TODO: rename?
-        readonly secretInputCount       : number;   // TODO: rename?
+        readonly iRegisterCount         : number;
+        readonly pRegisterCount         : number;
+        readonly sRegisterCount         : number;
+        readonly kRegisterCount         : number;
         readonly constraints            : ConstraintSpecs[];
         readonly maxConstraintDegree    : number;
+        readonly extensionFactor        : number;
 
-        // TODO: add extension factor?
+        /**
+         * Creates proof object for the provided input values
+         * @param inputs values used to initialized $i registers
+         * @param auxPublicInputs values used to initialize $p registers
+         * @param auxSecretInputs values used to initialize $s registers
+         */
+        initProof(inputs: any[], auxPublicInputs: bigint[][], auxSecretInputs: bigint[][]): ProofObject;
 
-        /** Creates proof object for the provided public inputs, secret inputs, and init values */
-        initProof(initValues: any[], publicInputs: bigint[][], secretInputs: bigint[][]): ProofObject;
-
-        /** Creates verification object for the provided public inputs */
-        initVerification(inputSpecs: number[], publicInputs: bigint[][]): VerificationObject;
+        /**
+         * Creates verification object for the specified trace shape and public inputs
+         * @param traceShape number of cycles of each depth of input loop
+         * @param auxPublicInputs values used to initialize $p registers
+         */
+        initVerification(traceShape: number[], auxPublicInputs: bigint[][]): VerificationObject;
     }
 
     export class AirScriptError {
@@ -61,9 +71,9 @@ declare module '@guildofweavers/air-script' {
 
     // CONTEXTS
     // --------------------------------------------------------------------------------------------
-    export interface EvaluationContext {
+    export interface AirObject {
         readonly field              : FiniteField;
-        readonly inputSpecs         : number[];
+        readonly traceShape         : number[];
         readonly traceLength        : number;
         readonly extensionFactor    : number;
         readonly rootOfUnity        : bigint;
@@ -73,7 +83,7 @@ declare module '@guildofweavers/air-script' {
         readonly publicInputCount   : number;
     }
 
-    export interface VerificationObject extends EvaluationContext {
+    export interface VerificationObject extends AirObject {
         /**
          * Evaluates transition constraints at the specified point
          * @param x Point in the evaluation domain at which to evaluate constraints
@@ -84,7 +94,7 @@ declare module '@guildofweavers/air-script' {
         evaluateConstraintsAt(x: bigint, rValues: bigint[], nValues: bigint[], hValues: bigint[]): bigint[];
     }
 
-    export interface ProofObject extends EvaluationContext {
+    export interface ProofObject extends AirObject {
         /** Domain of the execution trace */
         readonly executionDomain: Vector;
 

@@ -21,7 +21,7 @@ class TransitionFunctionBody extends Expression_1.Expression {
         }
         this.inputBlock = inputBlock;
         const blockStructure = utils_1.getInputBlockStructure(inputBlock);
-        this.registerDepths = blockStructure.registerDepths;
+        this.inputRegisterSpecs = blockStructure.registerDepths;
         this.baseCycleMasks = blockStructure.baseCycleMasks;
     }
     // PUBLIC ACCESSORS

@@ -47,10 +47,13 @@ class ScriptSpecs {
     }
     get inputBlock() {
         return {
-            registerDepths: this.transitionFunction.registerDepths,
+            registerDepths: this.transitionFunction.inputRegisterSpecs,
             baseCycleMasks: this.transitionFunction.baseCycleMasks,
             baseCycleLength: this.transitionFunction.baseCycleLength
         };
+    }
+    get inputRegisterCount() {
+        return this.transitionFunction.inputRegisterSpecs.length;
     }
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------

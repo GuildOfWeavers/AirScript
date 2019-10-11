@@ -8,9 +8,9 @@ import { getInputBlockStructure } from './utils';
 // ================================================================================================
 export class TransitionFunctionBody extends Expression {
 
-    readonly inputBlock     : Expression;
-    readonly registerDepths : number[];
-    readonly baseCycleMasks : number[][];
+    readonly inputBlock         : Expression;
+    readonly inputRegisterSpecs : number[];
+    readonly baseCycleMasks     : number[][];
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ export class TransitionFunctionBody extends Expression {
         }
         this.inputBlock = inputBlock;
         const blockStructure = getInputBlockStructure(inputBlock);
-        this.registerDepths = blockStructure.registerDepths;
+        this.inputRegisterSpecs = blockStructure.registerDepths;
         this.baseCycleMasks = blockStructure.baseCycleMasks;
     }
 

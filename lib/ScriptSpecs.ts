@@ -75,10 +75,14 @@ export class ScriptSpecs {
 
     get inputBlock(): InputBlockDescriptor {
         return {
-            registerDepths  : this.transitionFunction.registerDepths,
+            registerDepths  : this.transitionFunction.inputRegisterSpecs,
             baseCycleMasks  : this.transitionFunction.baseCycleMasks,
             baseCycleLength : this.transitionFunction.baseCycleLength
         };
+    }
+
+    get inputRegisterCount(): number {
+        return this.transitionFunction.inputRegisterSpecs.length;
     }
 
     // PROPERTY SETTERS

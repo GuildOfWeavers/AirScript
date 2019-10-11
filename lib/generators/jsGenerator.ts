@@ -34,9 +34,12 @@ export function generateJsModule(specs: ScriptSpecs, limits: StarkLimits, extens
     code += `name: \`${specs.name}\`,\n`;
     code += `field: f,\n`;
     code += `stateWidth: stateWidth,\n`;
-    code += `publicInputCount: ${specs.publicRegisters.length},\n`;
-    code += `secretInputCount: ${specs.secretRegisters.length},\n`;
+    code += `kRegisterCount: ${specs.staticRegisters.length},\n`;
+    code += `pRegisterCount: ${specs.publicRegisters.length},\n`;
+    code += `sRegisterCount: ${specs.secretRegisters.length},\n`;
+    code += `iRegisterCount: ${specs.inputRegisterCount},\n`;
     code += `maxConstraintDegree: ${specs.maxTransitionConstraintDegree},\n`;
+    code += `extensionFactor: extensionFactor,\n`;
     code += `initProof,\n`;
     code += `initVerification\n`;
     code += '};';

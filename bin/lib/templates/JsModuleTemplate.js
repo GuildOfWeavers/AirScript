@@ -232,7 +232,7 @@ function initProof(initValues, pInputs, sInputs) {
     // --------------------------------------------------------------------------------------------
     return {
         field: f,
-        inputSpecs: traceShape,
+        traceShape: traceShape,
         traceLength: traceLength,
         extensionFactor: extensionFactor,
         rootOfUnity: rootOfUnity,
@@ -341,7 +341,7 @@ function initVerification(traceShape, pInputs) {
     // --------------------------------------------------------------------------------------------
     return {
         field: f,
-        inputSpecs: traceShape,
+        traceShape: traceShape,
         traceLength: traceLength,
         extensionFactor: extensionFactor,
         rootOfUnity: rootOfUnity,
