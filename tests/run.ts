@@ -3,37 +3,54 @@ import { parseScript } from '../index';
 const script = `
 define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
-    // constants used in transition function and constraint computations
-    alpha: 3;
-
     // transition function definition
-    transition 1 register in 2^10 steps {
-        out: $r0^3 + $k0;
+    transition 1 registers {
+        for each ($i0) {
+            init { $i0 }
+    
+            for steps [1..63] {
+                $r0^3 + $k0
+            }
+        }
     }
 
     // transition constraint definition
     enforce 1 constraint {
-        out: $n0 - ($r0^3 + $k0);
+        for all steps {
+            transition($r) = $n
+        }
     }
 
     // readonly registers accessible in transition function and constraints
     using 1 readonly register {
-        $k0: repeat [
-            42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931,
-            10000042, 19487209, 35831850, 62748495, 105413546, 170859333
-        ];
+        $k0: repeat [ 42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931, 10000042, 19487209, 35831850, 62748495, 105413546, 170859333 ];
     }
 }`;
 
-const extensionFactor = 16;
-const air = parseScript(script);
-const pContext = air.createContext([], [], extensionFactor);
-const trace = pContext.generateExecutionTrace([3n]);
+const extensionFactor = 32;
+const air = parseScript(script, { extensionFactor });
+const pContext = air.initProof([[3n], [4n]], [], []);
+console.time('generate trace');
+const trace = pContext.generateExecutionTrace();
+console.timeEnd('generate trace');
 const tPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
 
+console.time('evaluate constraints');
 const cEvaluations = pContext.evaluateTracePolynomials(tPolys);
+console.timeEnd('evaluate constraints');
 
 const pPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
 const qEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
 
 console.log('done!');
+
+console.log(test(3n, 63) === trace.toValues()[0][63]);
+console.log(test(4n, 63) === trace.toValues()[0][127]);
+
+function test(input: bigint, steps: number) {
+    const k = [ 42n, 43n, 170n, 2209n, 16426n, 78087n, 279978n, 823517n, 2097194n, 4782931n, 10000042n, 19487209n, 35831850n, 62748495n, 105413546n, 170859333n ];
+    for (let i = 0; i < steps; i++) {
+        input = air.field.add(air.field.exp(input, 3n), k[i % k.length] );
+    }
+    return input;
+}

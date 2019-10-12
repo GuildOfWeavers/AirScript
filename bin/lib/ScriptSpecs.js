@@ -1,32 +1,69 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const StaticExpression_1 = require("./expressions/StaticExpression");
+const expressions_1 = require("./expressions");
 const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
 class ScriptSpecs {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(limits) {
+    constructor(name, field, limits) {
+        this.name = name;
+        this.field = field;
         this.limits = limits;
-        this.staticConstants = new Map();
+        this.globalConstants = new Map();
         this.constantBindings = {};
+    }
+    // PUBLIC ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get transitionFunctionDegree() {
+        return this.transitionFunction.isScalar
+            ? [this.transitionFunction.degree]
+            : this.transitionFunction.degree;
+    }
+    get transitionConstraintsDegree() {
+        return this.transitionConstraints.degree;
+    }
+    get transitionConstraintsSpecs() {
+        return this.transitionConstraintsDegree.map(degree => {
+            return { degree: Number.parseInt(degree) };
+        });
+    }
+    get maxTransitionConstraintDegree() {
+        let result = 0;
+        for (let degree of this.transitionConstraintsDegree) {
+            if (degree > result) {
+                result = Number.parseInt(degree);
+            }
+        }
+        return result;
+    }
+    get readonlyRegisters() {
+        return {
+            staticRegisters: this.staticRegisters,
+            secretRegisters: this.secretRegisters,
+            publicRegisters: this.publicRegisters
+        };
+    }
+    get inputBlock() {
+        return {
+            registerDepths: this.transitionFunction.inputRegisterSpecs,
+            baseCycleMasks: this.transitionFunction.baseCycleMasks,
+            baseCycleLength: this.transitionFunction.baseCycleLength
+        };
+    }
+    get inputRegisterCount() {
+        return this.transitionFunction.inputRegisterSpecs.length;
     }
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
-    setField(value) {
-        this.field = value;
-    }
-    setSteps(value) {
-        this.steps = validateSteps(value, this.limits);
-    }
     setMutableRegisterCount(value) {
         this.mutableRegisterCount = validateMutableRegisterCount(value, this.limits);
     }
     setReadonlyRegisterCount(value) {
         this.readonlyRegisterCount = validateReadonlyRegisterCount(value, this.limits);
     }
-    setReadonlyRegisterCounts(registers) {
+    setReadonlyRegisters(registers) {
         validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
         this.staticRegisters = registers.staticRegisters;
         this.secretRegisters = registers.secretRegisters;
@@ -35,13 +72,13 @@ class ScriptSpecs {
     setConstraintCount(value) {
         this.constraintCount = validateConstraintCount(value, this.limits);
     }
-    setStaticConstants(declarations) {
+    setGlobalConstants(declarations) {
         for (let constant of declarations) {
-            if (this.staticConstants.has(constant.name)) {
+            if (this.globalConstants.has(constant.name)) {
                 throw new Error(`Static constant '${constant.name}' is defined more than once`);
             }
-            let constExpression = new StaticExpression_1.StaticExpression(constant.value, constant.name);
-            this.staticConstants.set(constant.name, constExpression);
+            let constExpression = new expressions_1.LiteralExpression(constant.value, constant.name);
+            this.globalConstants.set(constant.name, constExpression);
             if (utils_1.isMatrix(constant.dimensions)) {
                 this.constantBindings[constant.name] = this.field.newMatrixFrom(constant.value);
             }
@@ -53,39 +90,36 @@ class ScriptSpecs {
             }
         }
     }
-    // VALIDATORS
-    // --------------------------------------------------------------------------------------------
-    validateConstraintDegree(constraintDegree) {
-        if (constraintDegree > this.limits.maxConstraintDegree) {
-            throw new Error(`Degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
+    setTransitionFunction(tFunctionBody) {
+        if (tFunctionBody.dimensions[0] !== this.mutableRegisterCount) {
+            if (this.mutableRegisterCount === 1)
+                throw new Error(`transition function must evaluate to scalar or to a vector of exactly 1 value`);
+            else
+                throw new Error(`transition function must evaluate to a vector of exactly ${this.mutableRegisterCount} values`);
         }
-        else if (constraintDegree < 0n) {
-            throw new Error('Degree of transition constraints must be positive');
+        this.transitionFunction = tFunctionBody;
+    }
+    setTransitionConstraints(tConstraintsBody) {
+        if (tConstraintsBody.dimensions[0] !== this.constraintCount) {
+            if (this.constraintCount === 1)
+                throw new Error(`transition constraints must evaluate to scalar or to a vector of exactly 1 value`);
+            else
+                throw new Error(`transition constraints must evaluate to a vector of exactly ${this.constraintCount} values`);
         }
-        else if (constraintDegree === 0n) {
-            throw new Error('Degree of transition constraints cannot be 0');
+        this.transitionConstraints = tConstraintsBody;
+        for (let degree of this.transitionConstraintsDegree) {
+            if (degree > this.limits.maxConstraintDegree)
+                throw new Error(`degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
+            else if (degree < 0n)
+                throw new Error('degree of transition constraints must be positive');
+            else if (degree === 0n)
+                throw new Error('degree of transition constraints cannot be 0');
         }
-        return Number.parseInt(constraintDegree);
     }
 }
 exports.ScriptSpecs = ScriptSpecs;
-// HELPER FUNCTIONS
+// VALIDATORS
 // ================================================================================================
-function validateSteps(steps, limits) {
-    if (steps > limits.maxSteps) {
-        throw new Error(`Number of steps cannot exceed ${limits.maxSteps}`);
-    }
-    else if (steps < 0) {
-        throw new Error('Number of steps must be greater than 0');
-    }
-    else if (!utils_1.isPowerOf2(steps)) {
-        throw new Error('Number of steps must be a power of 2');
-    }
-    else if (typeof steps === 'bigint') {
-        steps = Number.parseInt(steps);
-    }
-    return steps;
-}
 function validateMutableRegisterCount(registerCount, limits) {
     if (registerCount > limits.maxMutableRegisters) {
         throw new Error(`Number of mutable registers cannot exceed ${limits.maxMutableRegisters}`);
@@ -117,11 +151,8 @@ function validateReadonlyRegisterCounts(registers, readonlyRegisterCount) {
     const totalRegisterCount = registers.staticRegisters.length
         + registers.secretRegisters.length
         + registers.publicRegisters.length;
-    if (totalRegisterCount > readonlyRegisterCount) {
-        throw new Error(`Too many readonly register definitions: ${readonlyRegisterCount} registers expected`);
-    }
-    else if (totalRegisterCount < readonlyRegisterCount) {
-        throw new Error(`Missing readonly register definitions: ${readonlyRegisterCount} registers expected`);
+    if (totalRegisterCount !== readonlyRegisterCount) {
+        throw new Error(`expected ${readonlyRegisterCount} readonly registers, but ${totalRegisterCount} defined`);
     }
 }
 function validateConstraintCount(constraintCount, limits) {

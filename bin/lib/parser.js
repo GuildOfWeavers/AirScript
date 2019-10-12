@@ -10,6 +10,8 @@ const errors_1 = require("./errors");
 class AirParser extends chevrotain_1.CstParser {
     constructor() {
         super(lexer_1.allTokens, { errorMessageProvider: errors_1.parserErrorMessageProvider });
+        // SCRIPT
+        // --------------------------------------------------------------------------------------------
         this.script = this.RULE('script', () => {
             this.CONSUME(lexer_1.Define);
             this.CONSUME(lexer_1.Identifier, { LABEL: 'starkName' });
@@ -19,26 +21,23 @@ class AirParser extends chevrotain_1.CstParser {
             this.MANY(() => {
                 this.OR([
                     { ALT: () => {
-                            this.SUBRULE(this.constantDeclaration, { LABEL: 'staticConstants' });
+                            this.SUBRULE(this.constantDeclaration, { LABEL: 'globalConstants' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Transition);
-                            this.SUBRULE2(this.literalExpression, { LABEL: 'mutableRegisterCount' });
+                            this.SUBRULE1(this.literalExpression, { LABEL: 'mutableRegisterCount' });
                             this.CONSUME1(lexer_1.Registers);
-                            this.CONSUME(lexer_1.In);
-                            this.SUBRULE3(this.literalExpression, { LABEL: 'steps' });
-                            this.CONSUME(lexer_1.Steps);
                             this.SUBRULE(this.transitionFunction, { LABEL: 'transitionFunction' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Enforce);
-                            this.SUBRULE4(this.literalExpression, { LABEL: 'constraintCount' });
+                            this.SUBRULE2(this.literalExpression, { LABEL: 'constraintCount' });
                             this.CONSUME(lexer_1.Constraints);
                             this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Using);
-                            this.SUBRULE6(this.literalExpression, { LABEL: 'readonlyRegisterCount' });
+                            this.SUBRULE3(this.literalExpression, { LABEL: 'readonlyRegisterCount' });
                             this.CONSUME(lexer_1.Readonly);
                             this.CONSUME2(lexer_1.Registers);
                             this.SUBRULE(this.readonlyRegisters, { LABEL: 'readonlyRegisters' });
@@ -52,15 +51,17 @@ class AirParser extends chevrotain_1.CstParser {
         this.fieldDeclaration = this.RULE('fieldDeclaration', () => {
             this.CONSUME(lexer_1.Prime);
             this.CONSUME(lexer_1.Field);
-            this.SUBRULE(this.literalParenExpression, { LABEL: 'modulus' });
+            this.CONSUME(lexer_1.LParen);
+            this.SUBRULE(this.literalExpression, { LABEL: 'modulus' });
+            this.CONSUME(lexer_1.RParen);
         });
-        // STATIC CONSTANTS
+        // GLOBAL CONSTANTS
         // --------------------------------------------------------------------------------------------
         this.constantDeclaration = this.RULE('constantDeclaration', () => {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'constantName' });
             this.CONSUME(lexer_1.Colon);
             this.OR([
-                { ALT: () => this.SUBRULE(this.literalAddExpression, { LABEL: 'value' }) },
+                { ALT: () => this.SUBRULE(this.literalExpression, { LABEL: 'value' }) },
                 { ALT: () => this.SUBRULE(this.literalVector, { LABEL: 'vector' }) },
                 { ALT: () => this.SUBRULE(this.literalMatrix, { LABEL: 'matrix' }) }
             ]);
@@ -94,155 +95,175 @@ class AirParser extends chevrotain_1.CstParser {
         // --------------------------------------------------------------------------------------------
         this.readonlyRegisters = this.RULE('readonlyRegisters', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.AT_LEAST_ONE(() => {
-                this.OR([
-                    { ALT: () => {
-                            this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'staticRegisters' });
-                        } },
-                    { ALT: () => {
-                            this.SUBRULE(this.secretRegisterDefinition, { LABEL: 'secretRegisters' });
-                        } },
-                    { ALT: () => {
-                            this.SUBRULE(this.publicRegisterDefinition, { LABEL: 'publicRegisters' });
-                        } }
-                ]);
-            });
+            this.AT_LEAST_ONE(() => this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registers' }));
             this.CONSUME(lexer_1.RCurly);
         });
-        this.staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
-            this.CONSUME1(lexer_1.StaticRegister, { LABEL: 'name' });
+        this.readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
+            this.CONSUME1(lexer_1.ReadonlyRegister, { LABEL: 'name' });
             this.CONSUME(lexer_1.Colon);
-            this.OR([
-                { ALT: () => { this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }); } },
-                { ALT: () => { this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }); } }
+            this.OR1([
+                { ALT: () => this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }) },
+                { ALT: () => this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }) }
             ]);
-            this.OPTION(() => {
-                this.CONSUME(lexer_1.Binary, { LABEL: 'binary' });
-            });
-            this.SUBRULE(this.literalVector, { LABEL: 'values' });
-            this.CONSUME(lexer_1.Semicolon);
-        });
-        this.secretRegisterDefinition = this.RULE('secretRegisterDefinition', () => {
-            this.CONSUME1(lexer_1.SecretRegister, { LABEL: 'name' });
-            this.CONSUME(lexer_1.Colon);
-            this.OR([
-                { ALT: () => { this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }); } },
-                { ALT: () => { this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }); } }
+            this.OPTION(() => this.CONSUME(lexer_1.Binary, { LABEL: 'binary' }));
+            this.OR2([
+                { ALT: () => {
+                        this.CONSUME(lexer_1.LSquare);
+                        this.CONSUME(lexer_1.Ellipsis);
+                        this.CONSUME(lexer_1.RSquare);
+                    } },
+                { ALT: () => {
+                        this.SUBRULE(this.literalVector, { LABEL: 'values' });
+                    } }
             ]);
-            this.OPTION(() => {
-                this.CONSUME(lexer_1.Binary, { LABEL: 'binary' });
-            });
-            this.CONSUME(lexer_1.LSquare);
-            this.CONSUME(lexer_1.Ellipsis);
-            this.CONSUME(lexer_1.RSquare);
-            this.CONSUME(lexer_1.Semicolon);
-        });
-        this.publicRegisterDefinition = this.RULE('publicRegisterDefinition', () => {
-            this.CONSUME1(lexer_1.PublicRegister, { LABEL: 'name' });
-            this.CONSUME(lexer_1.Colon);
-            this.OR([
-                { ALT: () => { this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }); } },
-                { ALT: () => { this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }); } }
-            ]);
-            this.OPTION(() => {
-                this.CONSUME(lexer_1.Binary, { LABEL: 'binary' });
-            });
-            this.CONSUME(lexer_1.LSquare);
-            this.CONSUME(lexer_1.Ellipsis);
-            this.CONSUME(lexer_1.RSquare);
             this.CONSUME(lexer_1.Semicolon);
         });
         // TRANSITION FUNCTION AND CONSTRAINTS
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.OR([
-                { ALT: () => {
-                        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
-                    } },
-                { ALT: () => {
-                        this.SUBRULE(this.whenStatement, { LABEL: 'statements' });
-                    } }
-            ]);
+            this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' });
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
             this.OR([
                 { ALT: () => {
-                        this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+                        this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' });
                     } },
                 { ALT: () => {
-                        this.SUBRULE(this.whenStatement, { LABEL: 'statements' });
+                        this.CONSUME(lexer_1.For);
+                        this.CONSUME(lexer_1.All);
+                        this.CONSUME(lexer_1.Steps);
+                        this.SUBRULE(this.statementBlock, { LABEL: 'allStepBlock' });
                     } }
             ]);
             this.CONSUME(lexer_1.RCurly);
         });
+        // LOOPS
+        // --------------------------------------------------------------------------------------------
+        this.inputBlock = this.RULE('inputBlock', () => {
+            this.CONSUME(lexer_1.For);
+            this.CONSUME(lexer_1.Each);
+            this.CONSUME(lexer_1.LParen);
+            this.AT_LEAST_ONE_SEP({
+                SEP: lexer_1.Comma,
+                DEF: () => this.CONSUME(lexer_1.InitRegister, { LABEL: 'registers' })
+            });
+            this.CONSUME(lexer_1.RParen);
+            this.CONSUME(lexer_1.LCurly);
+            this.SUBRULE(this.transitionInit, { LABEL: 'initExpression' });
+            this.OR2([
+                { ALT: () => this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' }) },
+                { ALT: () => {
+                        this.AT_LEAST_ONE(() => {
+                            this.SUBRULE(this.segmentLoop, { LABEL: 'segmentLoops' });
+                        });
+                    } }
+            ]);
+            this.CONSUME(lexer_1.RCurly);
+        });
+        this.transitionInit = this.RULE('transitionInit', () => {
+            this.CONSUME(lexer_1.Init);
+            this.OR([
+                { ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'expression' }) },
+                { ALT: () => {
+                        this.SUBRULE(this.expression, { LABEL: 'expression' });
+                        this.CONSUME(lexer_1.Semicolon);
+                    } }
+            ]);
+        });
+        this.segmentLoop = this.RULE('segmentLoop', () => {
+            this.CONSUME(lexer_1.For);
+            this.CONSUME(lexer_1.Steps);
+            this.CONSUME(lexer_1.LSquare);
+            this.AT_LEAST_ONE_SEP({
+                SEP: lexer_1.Comma,
+                DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
+            });
+            this.CONSUME(lexer_1.RSquare);
+            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+        });
         // STATEMENTS
         // --------------------------------------------------------------------------------------------
         this.statementBlock = this.RULE('statementBlock', () => {
+            this.CONSUME(lexer_1.LCurly);
             this.MANY(() => {
                 this.SUBRULE(this.statement, { LABEL: 'statements' });
             });
-            this.SUBRULE(this.outStatement);
+            this.SUBRULE1(this.assignableExpression, { LABEL: 'expression' });
+            this.OPTION1(() => {
+                this.CONSUME(lexer_1.Equals);
+                this.SUBRULE2(this.expression, { LABEL: 'constraint' });
+            });
+            this.OPTION2(() => {
+                this.CONSUME(lexer_1.Semicolon);
+            });
+            this.CONSUME(lexer_1.RCurly);
         });
         this.statement = this.RULE('statement', () => {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'variableName' });
-            this.CONSUME(lexer_1.Colon);
-            this.OR([
-                { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
-                { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
-                { ALT: () => this.SUBRULE(this.matrix, { LABEL: 'expression' }) }
-            ]);
+            this.CONSUME(lexer_1.AssignOp);
+            this.SUBRULE(this.assignableExpression, { LABEL: 'expression' });
             this.CONSUME(lexer_1.Semicolon);
         });
-        this.outStatement = this.RULE('outStatement', () => {
-            this.CONSUME(lexer_1.Out);
-            this.CONSUME(lexer_1.Colon);
+        this.assignableExpression = this.RULE('assignableExpression', () => {
             this.OR([
-                { ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' }) },
-                { ALT: () => this.SUBRULE(this.vector, { LABEL: 'vector' }) }
+                {
+                    GATE: this.BACKTRACK(this.matrix),
+                    ALT: () => this.SUBRULE(this.matrix, { LABEL: 'expression' })
+                },
+                {
+                    GATE: this.BACKTRACK(this.whenExpression),
+                    ALT: () => this.SUBRULE(this.whenExpression, { LABEL: 'expression' })
+                },
+                {
+                    ALT: () => this.SUBRULE(this.expression, { LABEL: 'expression' })
+                },
+                {
+                    ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'expression' })
+                }
             ]);
-            this.CONSUME(lexer_1.Semicolon);
         });
-        // WHEN STATEMENT
+        // WHEN...ELSE EXPRESSION
         // --------------------------------------------------------------------------------------------
-        this.whenStatement = this.RULE('whenStatement', () => {
-            this.CONSUME(lexer_1.When);
+        this.whenExpression = this.RULE('whenExpression', () => {
+            this.OR([
+                { ALT: () => {
+                        this.CONSUME(lexer_1.When);
+                        this.SUBRULE1(this.whenCondition, { LABEL: 'condition' });
+                        this.SUBRULE1(this.statementBlock, { LABEL: 'tExpression' });
+                        this.CONSUME(lexer_1.Else);
+                        this.SUBRULE2(this.statementBlock, { LABEL: 'fExpression' });
+                    } },
+                { ALT: () => {
+                        this.SUBRULE2(this.whenCondition, { LABEL: 'condition' });
+                        this.CONSUME(lexer_1.QMark);
+                        this.SUBRULE1(this.expression, { LABEL: 'tExpression' });
+                        this.CONSUME(lexer_1.Colon);
+                        this.SUBRULE2(this.expression, { LABEL: 'fExpression' });
+                    } }
+            ]);
+        });
+        this.whenCondition = this.RULE('whenCondition', () => {
+            this.OR([
+                { ALT: () => {
+                        this.CONSUME(lexer_1.LParen);
+                        this.CONSUME1(lexer_1.RegisterRef, { LABEL: 'register' });
+                        this.CONSUME(lexer_1.RParen);
+                    } },
+                { ALT: () => {
+                        this.CONSUME2(lexer_1.RegisterRef, { LABEL: 'register' });
+                    } }
+            ]);
+        });
+        // TRANSITION CALL EXPRESSION
+        // --------------------------------------------------------------------------------------------
+        this.transitionCall = this.RULE('transitionCall', () => {
+            this.CONSUME(lexer_1.Transition);
             this.CONSUME(lexer_1.LParen);
-            this.OR1([
-                { ALT: () => {
-                        this.CONSUME(lexer_1.StaticRegister, { LABEL: 'condition' });
-                    } },
-                { ALT: () => {
-                        this.CONSUME(lexer_1.SecretRegister, { LABEL: 'condition' });
-                    } },
-                { ALT: () => {
-                        this.CONSUME(lexer_1.PublicRegister, { LABEL: 'condition' });
-                    } }
-            ]);
+            this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
             this.CONSUME(lexer_1.RParen);
-            this.CONSUME1(lexer_1.LCurly);
-            this.OR2([
-                { ALT: () => {
-                        this.SUBRULE1(this.statementBlock, { LABEL: 'tBlock' });
-                    } },
-                { ALT: () => {
-                        this.SUBRULE2(this.whenStatement, { LABEL: 'tBlock' });
-                    } }
-            ]);
-            this.CONSUME1(lexer_1.RCurly);
-            this.CONSUME(lexer_1.Else);
-            this.CONSUME2(lexer_1.LCurly);
-            this.OR3([
-                { ALT: () => {
-                        this.SUBRULE3(this.statementBlock, { LABEL: 'fBlock' });
-                    } },
-                { ALT: () => {
-                        this.SUBRULE4(this.whenStatement, { LABEL: 'fBlock' });
-                    } }
-            ]);
-            this.CONSUME2(lexer_1.RCurly);
         });
         // VECTORS AND MATRIXES
         // --------------------------------------------------------------------------------------------
@@ -261,7 +282,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         this.vectorDestructuring = this.RULE('vectorDestructuring', () => {
             this.CONSUME(lexer_1.Ellipsis);
-            this.CONSUME(lexer_1.Identifier, { LABEL: 'vectorName' });
+            this.SUBRULE(this.vectorExpression, { LABEL: 'vector' });
         });
         this.matrix = this.RULE('matrix', () => {
             this.CONSUME(lexer_1.LSquare);
@@ -282,99 +303,111 @@ class AirParser extends chevrotain_1.CstParser {
         // EXPRESSIONS
         // --------------------------------------------------------------------------------------------
         this.expression = this.RULE('expression', () => {
-            this.SUBRULE(this.addExpression);
-        });
-        this.addExpression = this.RULE('addExpression', () => {
-            this.SUBRULE(this.mulExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.mulExpression, { LABEL: 'lhs' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.AddOp);
                 this.SUBRULE2(this.mulExpression, { LABEL: 'rhs' });
             });
         });
         this.mulExpression = this.RULE('mulExpression', () => {
-            this.SUBRULE(this.expExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.expExpression, { LABEL: 'lhs' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.MulOp);
                 this.SUBRULE2(this.expExpression, { LABEL: 'rhs' });
             });
         });
         this.expExpression = this.RULE('expExpression', () => {
-            this.SUBRULE(this.atomicExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.vectorExpression, { LABEL: 'base' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.ExpOp);
-                this.SUBRULE2(this.atomicExpression, { LABEL: 'rhs' });
+                this.SUBRULE2(this.atomicExpression, { LABEL: 'exponent' });
+            });
+        });
+        this.vectorExpression = this.RULE('vectorExpression', () => {
+            this.SUBRULE(this.atomicExpression, { LABEL: 'expression' });
+            this.OPTION(() => {
+                this.CONSUME(lexer_1.LSquare);
+                this.OR([
+                    { ALT: () => {
+                            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'rangeStart' });
+                            this.CONSUME(lexer_1.DoubleDot);
+                            this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'rangeEnd' });
+                        } },
+                    { ALT: () => {
+                            this.CONSUME3(lexer_1.IntegerLiteral, { LABEL: 'index' });
+                        } }
+                ]);
+                this.CONSUME(lexer_1.RSquare);
             });
         });
         this.atomicExpression = this.RULE('atomicExpression', () => {
-            this.OR([
-                { ALT: () => this.SUBRULE(this.parenExpression) },
-                { ALT: () => this.SUBRULE(this.conditionalExpression) },
-                { ALT: () => this.CONSUME(lexer_1.Identifier) },
-                { ALT: () => this.CONSUME(lexer_1.MutableRegister) },
-                { ALT: () => this.CONSUME(lexer_1.StaticRegister) },
-                { ALT: () => this.CONSUME(lexer_1.SecretRegister) },
-                { ALT: () => this.CONSUME(lexer_1.PublicRegister) },
-                { ALT: () => this.CONSUME(lexer_1.IntegerLiteral) }
-            ]);
-        });
-        this.parenExpression = this.RULE('parenExpression', () => {
-            this.CONSUME(lexer_1.LParen);
-            this.SUBRULE(this.expression);
-            this.CONSUME(lexer_1.RParen);
-        });
-        this.conditionalExpression = this.RULE('conditionalExpression', () => {
-            this.OR([
+            this.OPTION(() => {
+                this.OR1([
+                    { ALT: () => this.CONSUME(lexer_1.Minus, { LABEL: 'neg' }) },
+                    { ALT: () => this.CONSUME(lexer_1.Slash, { LABEL: 'inv' }) }
+                ]);
+            });
+            this.OR2([
                 { ALT: () => {
-                        this.CONSUME(lexer_1.StaticRegister, { LABEL: 'register' });
+                        this.CONSUME(lexer_1.LParen);
+                        this.SUBRULE(this.expression, { LABEL: 'expression' });
+                        this.CONSUME(lexer_1.RParen);
                     } },
-                { ALT: () => {
-                        this.CONSUME(lexer_1.SecretRegister, { LABEL: 'register' });
-                    } },
-                { ALT: () => {
-                        this.CONSUME(lexer_1.PublicRegister, { LABEL: 'register' });
-                    } }
+                { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
+                { ALT: () => this.SUBRULE(this.transitionCall, { LABEL: 'expression' }) },
+                { ALT: () => this.CONSUME(lexer_1.Identifier, { LABEL: 'symbol' }) },
+                { ALT: () => this.CONSUME(lexer_1.RegisterRef, { LABEL: 'symbol' }) },
+                { ALT: () => this.CONSUME(lexer_1.RegisterBank, { LABEL: 'symbol' }) },
+                { ALT: () => this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'literal' }) }
             ]);
-            this.CONSUME(lexer_1.QMark);
-            this.SUBRULE1(this.expression, { LABEL: 'tExpression' });
-            this.CONSUME(lexer_1.Pipe);
-            this.SUBRULE2(this.expression, { LABEL: 'fExpression' });
         });
         // LITERAL EXPRESSIONS
         // --------------------------------------------------------------------------------------------
         this.literalExpression = this.RULE('literalExpression', () => {
-            this.SUBRULE(this.literalAddExpression);
-        });
-        this.literalAddExpression = this.RULE('literalAddExpression', () => {
-            this.SUBRULE(this.literalMulExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.literalMulExpression, { LABEL: 'lhs' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.AddOp);
                 this.SUBRULE2(this.literalMulExpression, { LABEL: 'rhs' });
             });
         });
         this.literalMulExpression = this.RULE('literalMulExpression', () => {
-            this.SUBRULE(this.literalExpExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.literalExpExpression, { LABEL: 'lhs' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.MulOp);
                 this.SUBRULE2(this.literalExpExpression, { LABEL: 'rhs' });
             });
         });
         this.literalExpExpression = this.RULE('literalExpExpression', () => {
-            this.SUBRULE(this.literalAtomicExpression, { LABEL: 'lhs' });
+            this.SUBRULE1(this.literalAtomicExpression, { LABEL: 'base' });
             this.MANY(() => {
                 this.CONSUME(lexer_1.ExpOp);
-                this.SUBRULE2(this.literalAtomicExpression, { LABEL: 'rhs' });
+                this.SUBRULE2(this.literalAtomicExpression, { LABEL: 'exponent' });
             });
         });
         this.literalAtomicExpression = this.RULE('literalAtomicExpression', () => {
-            this.OR([
-                { ALT: () => this.SUBRULE(this.literalParenExpression) },
-                { ALT: () => this.CONSUME(lexer_1.IntegerLiteral) },
+            this.OPTION(() => {
+                this.OR1([
+                    { ALT: () => this.CONSUME(lexer_1.Minus, { LABEL: 'neg' }) },
+                    { ALT: () => this.CONSUME(lexer_1.Slash, { LABEL: 'inv' }) }
+                ]);
+            });
+            this.OR2([
+                { ALT: () => {
+                        this.CONSUME(lexer_1.LParen);
+                        this.SUBRULE(this.literalExpression, { LABEL: 'expression' });
+                        this.CONSUME(lexer_1.RParen);
+                    } },
+                { ALT: () => {
+                        this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'literal' });
+                    } }
             ]);
         });
-        this.literalParenExpression = this.RULE('literalParenExpression', () => {
-            this.CONSUME(lexer_1.LParen);
-            this.SUBRULE(this.literalExpression);
-            this.CONSUME(lexer_1.RParen);
+        this.literalRangeExpression = this.RULE('literalRangeExpression', () => {
+            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'start' });
+            this.OPTION(() => {
+                this.CONSUME(lexer_1.DoubleDot);
+                this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'end' });
+            });
         });
         this.performSelfAnalysis();
     }

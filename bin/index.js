@@ -3,12 +3,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const lexer_1 = require("./lib/lexer");
 const parser_1 = require("./lib/parser");
 const visitor_1 = require("./lib/visitor");
-const AirObject_1 = require("./lib/AirObject");
 const errors_1 = require("./lib/errors");
+const generators = require("./lib/generators");
+const utils_1 = require("./lib/utils");
 // MODULE VARIABLES
 // ================================================================================================
 const DEFAULT_LIMITS = {
-    maxSteps: 2 ** 20,
+    maxTraceLength: 2 ** 20,
     maxMutableRegisters: 64,
     maxReadonlyRegisters: 64,
     maxConstraintCount: 1024,
@@ -16,9 +17,10 @@ const DEFAULT_LIMITS = {
 };
 // PUBLIC FUNCTIONS
 // ================================================================================================
-function parseScript(script, limits, wasmOptions) {
-    // apply defaults
-    limits = { ...DEFAULT_LIMITS, ...limits };
+function parseScript(script, options = {}) {
+    // apply default limits
+    const limits = { ...DEFAULT_LIMITS, ...options.limits };
+    const wasmOptions = options.wasmOptions;
     // tokenize input
     const lexResult = lexer_1.lexer.tokenize(script);
     if (lexResult.errors.length > 0) {
@@ -30,10 +32,11 @@ function parseScript(script, limits, wasmOptions) {
     if (parser_1.parser.errors.length > 0) {
         throw new errors_1.AirScriptError(parser_1.parser.errors);
     }
-    // build STARK config
+    // build AIR module
     try {
-        const airConfig = visitor_1.visitor.visit(cst, { limits, wasmOptions });
-        const air = new AirObject_1.AirObject(airConfig);
+        const specs = visitor_1.visitor.visit(cst, { limits, wasmOptions });
+        const extensionFactor = validateExtensionFactor(specs.maxTransitionConstraintDegree, options.extensionFactor);
+        const air = generators.generateJsModule(specs, limits, extensionFactor);
         return air;
     }
     catch (error) {
@@ -41,4 +44,24 @@ function parseScript(script, limits, wasmOptions) {
     }
 }
 exports.parseScript = parseScript;
+// HELPER FUNCTIONS
+// ================================================================================================
+function validateExtensionFactor(maxConstraintDegree, extensionFactor) {
+    if (extensionFactor === undefined) {
+        extensionFactor = 2 ** Math.ceil(Math.log2(maxConstraintDegree)) * 2;
+        if (extensionFactor * 2 < maxConstraintDegree) {
+            extensionFactor = extensionFactor * 2;
+        }
+    }
+    else {
+        if (!Number.isInteger(extensionFactor))
+            throw new TypeError('extension factor must be an integer');
+        if (!utils_1.isPowerOf2(extensionFactor))
+            throw new Error('extension factor must be a power of 2');
+    }
+    if (extensionFactor < maxConstraintDegree) {
+        throw new Error(`extension factor must be greater than max constraint degree`);
+    }
+    return extensionFactor;
+}
 //# sourceMappingURL=index.js.map

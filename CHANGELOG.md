@@ -1,5 +1,17 @@
 # Release History
 
+### v0.5 - XXX
+
+* Added support for unary operators (additive and multiplicative inverses)
+* [breaking] Changed assignment operator from `:` to `<-`
+* Added support for vector slicing and element extraction
+* Added support for inline vector definitions
+* Allowed direct references to register banks
+* Enabled invoking transition function from transition constraints
+* [breaking] Added `for steps` loops
+* [breaking] Added `for each` loops
+* [breaking] Changed syntax for ternary expression
+
 ### v0.4.2 - September 5, 2019
 
 * Enabled nested `when` statements
@@ -10,7 +22,7 @@
 
 ### v0.4.0 - August 24, 2019
 
-* Major refactoring of proof and verification contexts (breaking)
+* [breaking] Major refactoring of proof and verification contexts
 
 ### v0.3.3 - August 14, 2019
 

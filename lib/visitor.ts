@@ -1,31 +1,22 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits, ConstraintSpecs } from '@guildofweavers/air-script';
-import { AirConfig, TransitionFunction, ConstraintEvaluator } from './AirObject';
+import {
+    StarkLimits, ReadonlyRegisterSpecs, ReadonlyRegisterGroup, InputRegisterSpecs, ReadonlyValuePattern
+} from '@guildofweavers/air-script';
 import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { ScriptSpecs } from './ScriptSpecs';
-import { ExecutionContext } from './contexts';
-import { ReadonlyValuePattern, ReadonlyRegisterSpecs, InputRegisterSpecs } from './registers';
-import { Expression } from './expressions/Expression';
-import { StaticExpression } from './expressions/StaticExpression';
-import { Dimensions, isScalar, isVector, isMatrix, validateVariableName } from './utils';
+import { ExecutionContext } from './ExecutionContext';
+import {
+    Expression, InputBlock, SegmentLoop, SegmentLoopBlock, StatementBlock, Statement, TransitionFunctionBody, TransitionConstraintsBody
+} from './expressions';
+import * as expressions from './expressions';
+import { Dimensions, validateVariableName, isPowerOf2 } from './utils';
 
 // INTERFACES
 // ================================================================================================
-export interface StatementBlock {
-    code            : string;
-    outputSize      : number;
-    outputDegrees   : bigint[];
-}
-
-export interface Statement {
-    variable        : string;
-    expression      : Expression;
-}
-
 export interface ConstantDeclaration {
     name            : string;
     value           : bigint | bigint [] | bigint[][];
@@ -34,25 +25,11 @@ export interface ConstantDeclaration {
 
 export interface ReadonlyRegisterDeclaration {
     name            : string;
+    type            : 'k' | 'p' | 's';
     index           : number;
     pattern         : ReadonlyValuePattern;
     binary          : boolean;
     values?         : bigint[];    
-}
-
-export interface ReadonlyRegisterGroup {
-    staticRegisters : ReadonlyRegisterSpecs[];
-    secretRegisters : InputRegisterSpecs[];
-    publicRegisters : InputRegisterSpecs[];
-}
-
-export interface TransitionFunctionInfo {
-    buildFunction(f: FiniteField, g: any): TransitionFunction;
-}
-
-export interface TransitionConstraints {
-    buildEvaluator(f: FiniteField, g: any): ConstraintEvaluator;
-    degrees: number[];
 }
 
 // MODULE VARIABLES
@@ -66,7 +43,9 @@ class AirVisitor extends BaseCstVisitor {
         this.validateVisitor()
     }
 
-    script(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): AirConfig {
+    // ENTRY POINT
+    // --------------------------------------------------------------------------------------------
+    script(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): ScriptSpecs {
 
         const starkName = ctx.starkName[0].image;
 
@@ -74,14 +53,12 @@ class AirVisitor extends BaseCstVisitor {
         const field: FiniteField = this.visit(ctx.fieldDeclaration, config.wasmOptions);
 
         // build script specs
-        const specs = new ScriptSpecs(config.limits);
-        specs.setField(field);
-        specs.setSteps(this.visit(ctx.steps));
+        const specs = new ScriptSpecs(starkName, field, config.limits);
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
-        if (ctx.staticConstants) {
-            specs.setStaticConstants(ctx.staticConstants.map((element: any) => this.visit(element)));
+        if (ctx.globalConstants) {
+            specs.setGlobalConstants(ctx.globalConstants.map((element: any) => this.visit(element, field)));
         }
 
         // build readonly registers
@@ -93,33 +70,19 @@ class AirVisitor extends BaseCstVisitor {
         else {
             readonlyRegisters = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
         }
-        specs.setReadonlyRegisterCounts(readonlyRegisters);
+        specs.setReadonlyRegisters(readonlyRegisters);
 
-        // build transition function
+        // parse transition function and transition constraints
         validateTransitionFunction(ctx.transitionFunction);
-        const tFunction: TransitionFunctionInfo = this.visit(ctx.transitionFunction, specs);
-
-        // build transition constraint evaluator
+        const tFunctionBody: TransitionFunctionBody = this.visit(ctx.transitionFunction, specs);
+        specs.setTransitionFunction(tFunctionBody);
+        
         validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraints: TransitionConstraints = this.visit(ctx.transitionConstraints, specs);
-        const constraintSpecs = new Array<ConstraintSpecs>(specs.constraintCount);
-        for (let i = 0; i < constraintSpecs.length; i++) {
-            constraintSpecs[i] = { degree: tConstraints.degrees[i] };
-        }
+        const tConstraintsBody: TransitionConstraintsBody = this.visit(ctx.transitionConstraints, specs);
+        specs.setTransitionConstraints(tConstraintsBody);
 
-        // build and return stark config
-        return {
-            name                : starkName,
-            field               : field,
-            steps               : specs.steps,
-            stateWidth          : specs.mutableRegisterCount,
-            secretInputs        : readonlyRegisters.secretRegisters,
-            publicInputs        : readonlyRegisters.publicRegisters,
-            staticRegisters     : readonlyRegisters.staticRegisters,
-            constraints         : constraintSpecs,
-            transitionFunction  : tFunction.buildFunction(field.jsField, specs.constantBindings),
-            constraintEvaluator : tConstraints.buildEvaluator(field.jsField, specs.constantBindings)
-        };
+        // build and return AIR config
+        return specs;
     }
 
     // FINITE FIELD
@@ -131,20 +94,20 @@ class AirVisitor extends BaseCstVisitor {
 
     // STATIC CONSTANTS
     // --------------------------------------------------------------------------------------------
-    constantDeclaration(ctx: any): ConstantDeclaration {
+    constantDeclaration(ctx: any, field?: FiniteField): ConstantDeclaration {
         const name = ctx.constantName[0].image;
         let value: any;
         let dimensions: Dimensions;
         if (ctx.value) {
-            value = this.visit(ctx.value);
+            value = this.visit(ctx.value, field);
             dimensions = [0, 0];
         }
         else if (ctx.vector) {
-            value = this.visit(ctx.vector);
+            value = this.visit(ctx.vector, field);
             dimensions = [value.length, 0];
         }
         else if (ctx.matrix) {
-            value = this.visit(ctx.matrix);
+            value = this.visit(ctx.matrix, field);
             dimensions = [value.length, value[0].length];
         }
         else {
@@ -155,23 +118,23 @@ class AirVisitor extends BaseCstVisitor {
         return { name, value, dimensions };
     }
 
-    literalVector(ctx: any) {
+    literalVector(ctx: any, field?: FiniteField) {
         const vector = new Array<bigint>(ctx.elements.length);
         for (let i = 0; i < ctx.elements.length; i++) {
-            let element: bigint = this.visit(ctx.elements[i]);
+            let element: bigint = this.visit(ctx.elements[i], field);
             vector[i] = element;
         }
         return vector;
     }
 
-    literalMatrix(ctx: any) {
+    literalMatrix(ctx: any, field?: FiniteField) {
 
         let colCount = 0;
         const rowCount = ctx.rows.length;
         const matrix = new Array<bigint[]>(rowCount);
         
         for (let i = 0; i < rowCount; i++) {
-            let row: bigint[] = this.visit(ctx.rows[i]);
+            let row: bigint[] = this.visit(ctx.rows[i], field);
             if (colCount === 0) {
                 colCount = row.length;
             }
@@ -183,10 +146,10 @@ class AirVisitor extends BaseCstVisitor {
         return matrix;
     }
 
-    literalMatrixRow(ctx: any) {
+    literalMatrixRow(ctx: any, field?: FiniteField) {
         const row = new Array<bigint>(ctx.elements.length);
         for (let i = 0; i < ctx.elements.length; i++) {
-            let element = this.visit(ctx.elements[i]);
+            let element = this.visit(ctx.elements[i], field);
             row[i] = element;
         }
         return row;
@@ -197,559 +160,400 @@ class AirVisitor extends BaseCstVisitor {
     readonlyRegisters(ctx: any, specs: ScriptSpecs): ReadonlyRegisterGroup {
 
         const registerNames = new Set<string>();
-
         const staticRegisters: ReadonlyRegisterSpecs[] = [];
-        if (ctx.staticRegisters) {
-            for (let i = 0; i < ctx.staticRegisters.length; i++) {
-                let register: ReadonlyRegisterDeclaration = this.visit(ctx.staticRegisters[i], specs);
-                if (registerNames.has(register.name)) {
-                    throw new Error(`Readonly register ${register.name} is defined more than once`);
-                }
-                else if (register.index !== i) {
-                    throw new Error(`Readonly register ${register.name} is declared out of order`);
-                }
-                registerNames.add(register.name);
-                let registerIndex = Number.parseInt(register.name.slice(2), 10);
-                staticRegisters[registerIndex] = { pattern: register.pattern, values: register.values!, binary: register.binary };
-            }
-        }
-
         const secretRegisters: InputRegisterSpecs[] = [];
-        if (ctx.secretRegisters) {
-            for (let i = 0; i < ctx.secretRegisters.length; i++) {
-                let register: ReadonlyRegisterDeclaration = this.visit(ctx.secretRegisters[i], specs);
-                if (registerNames.has(register.name)) {
-                    throw new Error(`Readonly register ${register.name} is defined more than once`);
-                }
-                else if (register.index !== i) {
-                    throw new Error(`Readonly register ${register.name} is declared out of order`);
-                }
-                registerNames.add(register.name);
-                let registerIndex = Number.parseInt(register.name.slice(2), 10);
-                secretRegisters[registerIndex] = { pattern: register.pattern, binary: register.binary };
-            }
-        }
-
         const publicRegisters: InputRegisterSpecs[] = [];
-        if (ctx.publicRegisters) {
-            for (let i = 0; i < ctx.publicRegisters.length; i++) {
-                let register: ReadonlyRegisterDeclaration = this.visit(ctx.publicRegisters[i], specs);
+
+        if (ctx.registers) {
+            ctx.registers.forEach((declaration: any) => {
+                let register: ReadonlyRegisterDeclaration = this.visit(declaration, specs);
                 if (registerNames.has(register.name)) {
-                    throw new Error(`Readonly register ${register.name} is defined more than once`);
-                }
-                else if (register.index !== i) {
-                    throw new Error(`Readonly register ${register.name} is declared out of order`);
+                    throw new Error(`readonly register ${register.name} is defined more than once`);
                 }
                 registerNames.add(register.name);
-                let registerIndex = Number.parseInt(register.name.slice(2), 10);
-                publicRegisters[registerIndex] = { pattern: register.pattern, binary: register.binary };
-            }
+
+                let insertIndex: number | undefined;
+                if (register.type === 'k') {
+                    staticRegisters.push({ pattern: register.pattern, values: register.values!, binary: register.binary });
+                    insertIndex = staticRegisters.length - 1;
+                }
+                else if (register.type === 'p') {
+                    publicRegisters.push({ pattern: register.pattern, binary: register.binary });
+                    insertIndex = publicRegisters.length - 1;
+                }
+                else if (register.type === 's') {
+                    secretRegisters.push({ pattern: register.pattern, binary: register.binary });
+                    insertIndex = secretRegisters.length - 1;
+                }
+
+                if (register.index !== insertIndex) {
+                    throw new Error(`readonly register ${register.name} is declared out of order`);
+                }
+            });
         }
 
         return { staticRegisters, secretRegisters, publicRegisters };
     }
 
-    staticRegisterDefinition(ctx: any, specs: ScriptSpecs): ReadonlyRegisterDeclaration {
+    readonlyRegisterDefinition(ctx: any, specs: ScriptSpecs): ReadonlyRegisterDeclaration {
         const registerName = ctx.name[0].image;
+        const registerType = registerName.slice(1,2);
         const registerIndex = Number.parseInt(registerName.slice(2), 10);
         const pattern = ctx.pattern[0].image;
-        const values: bigint[] = this.visit(ctx.values);
         const binary: boolean = ctx.binary ? true : false;
 
-        if (specs.steps % values.length !== 0) {
-            throw new Error(`Invalid definition for readonly register ${registerName}: number of values must evenly divide the number of steps (${specs.steps})`);
-        }
-
-        if (binary) {
-            for (let value of values) {
-                if (value !== specs.field.zero && value !== specs.field.one) {
-                    throw new Error(`Invalid definition for readonly register ${registerName}: the register can contain only binary values`);
+        let values: bigint[] | undefined;
+        if (registerType === 'k') {
+            // parse values for static registers
+            if (!ctx.values) throw new Error(`invalid definition for static register ${registerName}: static values must be provided for the register`);
+            values = this.visit(ctx.values) as bigint[];
+            if (!isPowerOf2(values.length)) {
+                throw new Error(`invalid definition for static register ${registerName}: number of values must be a power of 2`);
+            }
+    
+            if (binary) {
+                for (let value of values) {
+                    if (value !== specs.field.zero && value !== specs.field.one) {
+                        throw new Error(`invalid definition for binary readonly register ${registerName}: the register contains non-binary values`);
+                    }
                 }
             }
         }
+        else if (registerType === 'p' || registerType === 's') {
+            if (ctx.values) throw new Error(`invalid definition for input register ${registerName}: static values cannot be provided for the register`);
+        }
+        else {
+            throw new Error(`invalid readonly register definition: register name ${registerName} is invalid`);
+        }
 
-        return { name: registerName, index: registerIndex, pattern, binary, values };
-    }
-
-    secretRegisterDefinition(ctx: any, specs: ScriptSpecs): ReadonlyRegisterDeclaration {
-        const registerName = ctx.name[0].image;
-        const registerIndex = Number.parseInt(registerName.slice(2), 10);
-        const pattern = ctx.pattern[0].image;
-        const binary: boolean = ctx.binary ? true : false;
-        return { name: registerName, index: registerIndex, binary, pattern };
-    }
-
-    publicRegisterDefinition(ctx: any, specs: ScriptSpecs): ReadonlyRegisterDeclaration {
-        const registerName = ctx.name[0].image;
-        const registerIndex = Number.parseInt(registerName.slice(2), 10);
-        const pattern = ctx.pattern[0].image;
-        const binary: boolean = ctx.binary ? true : false;
-        return { name: registerName, index: registerIndex, binary, pattern };
+        return { name: registerName, type: registerType, index: registerIndex, pattern, binary, values };
     }
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, specs: ScriptSpecs): TransitionFunctionInfo {
-        const exc = new ExecutionContext(specs, false);
-        const statements: StatementBlock = this.visit(ctx.statements, exc);
-        if (statements.outputSize !== exc.mutableRegisterCount) {
-            if (exc.mutableRegisterCount === 1) {
-                throw new Error(`Transition function must evaluate to exactly 1 value`);
-            }
-            else {
-                throw new Error(`Transition function must evaluate to a vector of exactly ${exc.mutableRegisterCount} values`);
-            }
-        }
-
-        // generate code that can build a transition function
-        let functionBuilderCode = `'use strict';\n\n`;
-        for (let subCode of exc.subroutines.values()) {
-            functionBuilderCode += `${subCode}\n`;
-        }
-        functionBuilderCode += `return function (r, k, s, p, out) {\n${statements.code}}`;
-
-        return {
-            buildFunction: new Function('f', 'g', functionBuilderCode) as any
-        };
+    transitionFunction(ctx: any, specs: ScriptSpecs): TransitionFunctionBody {
+        const exc = new ExecutionContext(specs);
+        const inputBlock: InputBlock = this.visit(ctx.inputBlock, exc);
+        const result = new TransitionFunctionBody(inputBlock);
+        return result;
     }
 
-    transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionConstraints {
-        const exc = new ExecutionContext(specs, true);
+    transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionConstraintsBody {
+        const exc = new ExecutionContext(specs);
+        let root: Expression;
+        if (ctx.allStepBlock) {
+            root = this.visit(ctx.allStepBlock, exc);
+        }
+        else {
+            root = this.visit(ctx.inputBlock, exc);
+        }
+        return new TransitionConstraintsBody(root, specs.inputBlock);
+    }
+
+    // LOOPS
+    // --------------------------------------------------------------------------------------------
+    inputBlock(ctx: any, exc: ExecutionContext): InputBlock {
+
+        const registers: string[] = ctx.registers.map((register: any) => register.image);
+        const controlIndex = exc.addLoopFrame(registers);
+
+        // parse init expression
+        const initExpression: Expression = this.visit(ctx.initExpression, exc);
+
+        // parse body expression
+        let bodyExpression: InputBlock | SegmentLoopBlock;
+        if (ctx.inputBlock) {
+            bodyExpression = this.visit(ctx.inputBlock, exc);
+        }
+        else {
+            const loops: SegmentLoop[] = ctx.segmentLoops.map((loop: any) => this.visit(loop, exc));
+            bodyExpression = new SegmentLoopBlock(loops);
+        }
+
+        const indexSet = new Set(registers.map(register => Number.parseInt(register.slice(2))));
+        const controller = exc.getControlReference(controlIndex);
+        return new InputBlock(controlIndex, initExpression, bodyExpression, indexSet, controller);
+    }
+
+    transitionInit(ctx: any, exc: ExecutionContext): Expression {
+        return this.visit(ctx.expression, exc);
+    }
+
+    segmentLoop(ctx: any, exc: ExecutionContext): SegmentLoop {
+        const intervals: [number, number][] = ctx.ranges.map((range: any) => this.visit(range));
+        const controlIndex = exc.addLoopFrame();
         const statements: StatementBlock = this.visit(ctx.statements, exc);
-        if (statements.outputSize !== specs.constraintCount) {
-            if (specs.constraintCount === 1) {
-                throw new Error(`Transition constraints must evaluate to exactly 1 value`);
-            }
-            else {
-                throw new Error(`Transition constraints must evaluate to a vector of exactly ${specs.constraintCount} values`);
-            }
-        }
-
-        // generate code that can build a constraint evaluator
-        let evaluatorBuilderCode = `'use strict';\n\n`;
-        for (let subCode of exc.subroutines.values()) {
-            evaluatorBuilderCode += `${subCode}\n`;
-        }
-        evaluatorBuilderCode += `return function (r, n, k, s, p, out) {\n${statements.code}}`;
-
-        // convert bigint degrees to numbers
-        const degrees: number[] = [];
-        for (let degree of statements.outputDegrees) {
-            degrees.push(specs.validateConstraintDegree(degree));
-        }
-
-        return {
-            buildEvaluator  : new Function('f', 'g', evaluatorBuilderCode) as any,
-            degrees         : degrees
-        };
+        const controller = exc.getControlReference(controlIndex);
+        return new SegmentLoop(statements, intervals, controller);
     }
 
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx: any, exc: ExecutionContext): StatementBlock {
-
-        let code = '';
+        let statements: Statement[] | undefined;
         if (ctx.statements) {
-            for (let i = 0; i < ctx.statements.length; i++) {
-                let statement: Statement = this.visit(ctx.statements[i], exc);
-                let expression = statement.expression;
-                let variable = exc.setVariableAssignment(statement.variable, expression);
-                code += `${variable.code} = ${expression.code};\n`;
-            }
+            statements = ctx.statements.map((stmt: any) => this.visit(stmt, exc));
         }
 
-        const out: Expression = this.visit(ctx.outStatement, exc);
-        code += out.code;
+        let out: Expression = this.visit(ctx.expression, exc);
+        if (ctx.constraint) {
+            if (exc.inTransitionFunction) {
+                throw new Error('comparison operator cannot be used in transition function');
+            }
+            const constraint: Expression = this.visit(ctx.constraint, exc);
+            out = expressions.BinaryOperation.sub(constraint, out);
+        }
 
-        const outputDegrees = out.degree as bigint[];
-        
-        return { code, outputSize: out.dimensions[0], outputDegrees };
+        return new StatementBlock(out, statements);
     }
 
     statement(ctx: any, exc: ExecutionContext): Statement {
-        const variable = ctx.variableName[0].image;
         const expression = this.visit(ctx.expression, exc);
-        return { variable, expression };
+        const variable = exc.setVariableAssignment(ctx.variableName[0].image, expression);
+        return { variable: variable.symbol, expression };
     }
 
-    outStatement(ctx: any, exc: ExecutionContext): Expression {
-        let code = '', dimensions: Dimensions, degree: bigint[];
-        if (ctx.expression) {
-            const expression: Expression = this.visit(ctx.expression, exc);
-            if (expression.isScalar) {
-                code = `out[0] = ${expression.code};\n`;
-                dimensions = [1, 0];
-                degree = [expression.degree as bigint];
-            }
-            else if (expression.isVector) {
-                dimensions = expression.dimensions;
-                code = `let _out = ${expression.code};\n`;
-                for (let i = 0; i < dimensions[0]; i++) {
-                    code += `out[${i}] = _out.getValue(${i});\n`;
-                }
-                degree = expression.degree as bigint[];
-            }
-            else {
-                throw new Error('Out statement must evaluate either to a scalar or to a vector');
-            }
-        }
-        else {
-            // out statement was defined as a vector
-            const expression: Expression = this.visit(ctx.vector, exc);
-            dimensions = expression.dimensions;
-            code = `let _out = ${expression.code};\n`;
-            for (let i = 0; i < dimensions[0]; i++) {
-                code += `out[${i}] = _out.getValue(${i});\n`;
-            }
-            degree = expression.degree as bigint[];
-        }
-
-        return new Expression(code, dimensions, degree);
+    assignableExpression(ctx: any, exc: ExecutionContext): Expression {
+        return this.visit(ctx.expression, exc);
     }
 
-    // WHEN STATEMENT
+    // WHEN...ELSE EXPRESSION
     // --------------------------------------------------------------------------------------------
-    whenStatement(ctx: any, exc: ExecutionContext): StatementBlock {
-        const registerName: string = ctx.condition[0].image;
-        const registerRef = exc.getRegisterReference(registerName);
-
-        // make sure the condition register holds only binary values
-        if (!exc.isBinaryRegister(registerName)) {
-            throw new Error(`when...else statement condition must be based on a binary register`);
-        }
-
-        // create expressions for (1 - k)
-        const oneMinusReg = Expression.one.sub(registerRef);
+    whenExpression(ctx: any, exc: ExecutionContext): Expression {
+        const condition = this.visit(ctx.condition, exc);
 
         // build subroutines for true and false conditions
         exc.createNewVariableFrame();
-        const tBlock: StatementBlock = this.visit(ctx.tBlock, exc);
+        const tBlock: StatementBlock = this.visit(ctx.tExpression, exc);
         exc.destroyVariableFrame();
 
         exc.createNewVariableFrame();
-        const fBlock: StatementBlock = this.visit(ctx.fBlock, exc);
+        const fBlock: StatementBlock = this.visit(ctx.fExpression, exc);
         exc.destroyVariableFrame();
 
-        // make sure the output vectors of both subroutines are the same length
-        const outputSize = tBlock.outputSize;
-        if (outputSize !== fBlock.outputSize) {
-            throw new Error(`when...else statement branches must evaluate to values of same dimensions`);
+        return new expressions.WhenExpression(condition, tBlock, fBlock);
+    }
+
+    whenCondition(ctx: any, exc: ExecutionContext): Expression {
+        const registerName: string = ctx.register[0].image;
+        const registerRef = exc.getSymbolReference(registerName);
+
+        // make sure the condition register holds only binary values
+        if (!exc.isBinaryRegister(registerName)) {
+            throw new Error(`conditional expression must be based on a binary register`);
         }
-        const resultDim: Dimensions = [outputSize, 0];
 
-        // add both subroutines to statement context
-        const tSubroutine = exc.addSubroutine(tBlock.code);
-        const fSubroutine = exc.addSubroutine(fBlock.code);
+        return registerRef;
+    }
 
-        // compute expressions for true and false branches
-        const tExpression = new Expression('f.newVectorFrom(tOut)', resultDim, tBlock.outputDegrees);
-        const fExpression = new Expression('f.newVectorFrom(fOut)', resultDim, fBlock.outputDegrees);
-
-        const tBranch = tExpression.mul(registerRef);
-        const fBranch = fExpression.mul(oneMinusReg);
-        
-        // generate code for the main function
-        let code = `let tOut = new Array(${outputSize}), fOut = new Array(${outputSize});\n`;
-        code += exc.callSubroutine(tSubroutine, 'tOut');
-        code += exc.callSubroutine(fSubroutine, 'fOut');
-        code += `tOut = ${tBranch.code}.values;\n`;
-        code += `fOut = ${fBranch.code}.values;\n`;
-        for (let i = 0; i < outputSize; i++) {
-            code += `out[${i}] = f.add(tOut[${i}], fOut[${i}]);\n`;
+    // TRANSITION CALL EXPRESSION
+    // --------------------------------------------------------------------------------------------
+    transitionCall(ctx: any, exc: ExecutionContext): Expression {
+        const registers = ctx.registers[0].image;
+        if (registers !== '$r') {
+            throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
         }
-        
-        // compute out expression to get the degree of the output
-        const outExpression = tBranch.add(fBranch);
-        const outputDegrees = outExpression.degree as bigint[];
-
-        return { code, outputSize, outputDegrees };
+        return exc.getTransitionFunctionCall();
     }
 
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------
     vector(ctx: any, exc: ExecutionContext): Expression {
-
-        const dimensions: Dimensions = [ctx.elements.length, 0], degree: bigint[] = [];
-        let code = `f.newVectorFrom([`;
-        for (let i = 0; i < ctx.elements.length; i++) {
-            let element: Expression = this.visit(ctx.elements[i], exc);
-            if (!isScalar(element.dimensions)) {
-                if (isVector(element.dimensions) && element.destructured) {
-                    dimensions[0] += (element.dimensions[0] - 1);
-                    for (let cd of element.degree as bigint[]) {
-                        degree.push(cd);
-                    }
-                }
-                else {
-                    throw new Error('Vector elements must be scalars');
-                }
-            }
-            else {
-                degree.push(element.degree as bigint);
-            }
-            code += `${element.code}, `;
-        }
-        code = code.slice(0, -2) + '])';
-
-        return new Expression(code, dimensions, degree);
+        const elements = ctx.elements.map((e: any) => this.visit(e, exc));
+        return new expressions.CreateVector(elements);
     }
 
     vectorDestructuring(ctx: any, exc: ExecutionContext): Expression {
-        const variableName = ctx.vectorName[0].image;
-        const element = exc.getVariableReference(variableName);
-        if (isScalar(element.dimensions)) {
-            throw new Error(`Cannot expand scalar variable '${variableName}'`);
-        }
-        else if (isMatrix(element.dimensions)) {
-            throw new Error(`Cannot expand matrix variable '${variableName}'`);
-        }
-
-        return new Expression(`...${element.code}.values`, element.dimensions, element.degree, true);
+        const vector = this.visit(ctx.vector, exc);
+        return new expressions.DestructureVector(vector);
     }
 
     matrix(ctx: any, exc: ExecutionContext): Expression {
-
-        const degree: bigint[][] = [];
-        const rowCount = ctx.rows.length;
-        let colCount = 0;
-
-        let code = `f.newMatrixFrom([`;
-        for (let i = 0; i < rowCount; i++) {
-            let row: Expression = this.visit(ctx.rows[i], exc);
-            if (colCount === 0) {
-                colCount = row.dimensions[0];
-            }
-            else if (colCount !== row.dimensions[0]) {
-                throw new Error('All matrix rows must have the same number of columns');
-            }
-            code += `${row.code}, `;
-            degree.push(row.degree as bigint[]);
-        }
-        code = code.slice(0, -2) + '])';
-
-        return new Expression(code, [rowCount, colCount], degree);
+        const elements = ctx.rows.map((r: any) => this.visit(r, exc));
+        return new expressions.CreateMatrix(elements);
     }
 
-    matrixRow(ctx: any, exc: ExecutionContext): Expression {
-
-        const dimensions: Dimensions = [ctx.elements.length, 0], degree: bigint[] = [];
-        let code = `[`;
-        for (let i = 0; i < ctx.elements.length; i++) {
-            let element: Expression = this.visit(ctx.elements[i], exc);
-            if (!isScalar(element.dimensions)) throw new Error('Matrix elements must be scalars');
-            code += `${element.code}, `;
-            degree.push(element.degree as bigint);
-        }
-        code = code.slice(0, -2) + ']';
-
-        return new Expression(code, dimensions, degree);
+    matrixRow(ctx: any, exc: ExecutionContext): Expression[] {
+        return ctx.elements.map((e: any) => this.visit(e, exc));
     }
 
     // EXPRESSIONS
     // --------------------------------------------------------------------------------------------
     expression(ctx: any, exc: ExecutionContext): Expression {
-        return this.visit(ctx.addExpression, exc);
-    }
-
-    addExpression(ctx: any, exc: ExecutionContext): Expression {
         let result: Expression = this.visit(ctx.lhs, exc);
-
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
                 let rhs: Expression = this.visit(rhsOperand, exc);
                 let opToken = ctx.AddOp[i];
                 if (tokenMatcher(opToken, Plus)) {
-                    result = result.add(rhs);
+                    result = expressions.BinaryOperation.add(result, rhs);
                 }
                 else if (tokenMatcher(opToken, Minus)) {
-                    result = result.sub(rhs);
+                    result = expressions.BinaryOperation.sub(result, rhs);
                 }
                 else {
                     throw new Error(`Invalid operator '${opToken.image}'`);
                 }
             });
         }
-
         return result;
     }
 
     mulExpression(ctx: any, exc: ExecutionContext): Expression {
         let result: Expression = this.visit(ctx.lhs, exc);
-
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
                 let rhs: Expression = this.visit(rhsOperand, exc);
                 let opToken = ctx.MulOp[i];
                 if (tokenMatcher(opToken, Star)) {
-                    result = result.mul(rhs);
+                    result = expressions.BinaryOperation.mul(result, rhs);
                 }
                 else if (tokenMatcher(opToken, Slash)) {
-                    result = result.div(rhs);
+                    result = expressions.BinaryOperation.div(result, rhs);
                 }
                 else if (tokenMatcher(opToken, Pound)) {
-                    result = result.prod(rhs);
+                    result = expressions.BinaryOperation.prod(result, rhs);
                 }
                 else {
                     throw new Error(`Invalid operator '${opToken.image}'`);
                 }
             });
         }
-
         return result;
     }
 
     expExpression(ctx: any, exc: ExecutionContext): Expression {
-        let result: Expression = this.visit(ctx.lhs, exc);
-
-        if (ctx.rhs) {
-            ctx.rhs.forEach((rhsOperand: any, i: number) => {
-                let rhs: Expression = this.visit(rhsOperand, exc);
-                result = result.exp(rhs);
+        let result: Expression = this.visit(ctx.base, exc);
+        if (ctx.exponent) {
+            ctx.exponent.forEach((expOperand: any, i: number) => {
+                let exponent: Expression = this.visit(expOperand, exc);
+                result = expressions.BinaryOperation.exp(result, exponent);
             });
         }
+        return result;
+    }
 
+    vectorExpression(ctx: any, exc: ExecutionContext): Expression {
+        let result: Expression = this.visit(ctx.expression, exc);
+        if (ctx.rangeStart) {
+            const rangeStart = Number.parseInt(ctx.rangeStart[0].image, 10);
+            const rangeEnd = Number.parseInt(ctx.rangeEnd[0].image, 10);
+            result = new expressions.SliceVector(result, rangeStart, rangeEnd);
+        }
+        else if (ctx.index) {
+            const index = Number.parseInt(ctx.index[0].image, 10);
+            result = new expressions.ExtractVectorElement(result, index);
+        }
         return result;
     }
 
     atomicExpression(ctx: any, exc: ExecutionContext): Expression {
-        if (ctx.parenExpression) {
-            return this.visit(ctx.parenExpression, exc);
+        let result: Expression;
+        if (ctx.expression) {
+            result = this.visit(ctx.expression, exc);
         }
-        else if (ctx.conditionalExpression) {
-            return this.visit(ctx.conditionalExpression, exc);
+        else if (ctx.symbol) {
+            const symbol: string = ctx.symbol[0].image;
+            result = exc.getSymbolReference(symbol);
         }
-        else if (ctx.Identifier) {
-            const variable = ctx.Identifier[0].image;
-            return exc.getVariableReference(variable);
-        }
-        else if (ctx.MutableRegister) {
-            const register = ctx.MutableRegister[0].image;
-            return exc.getRegisterReference(register);
-        }
-        else if (ctx.StaticRegister) {
-            const register = ctx.StaticRegister[0].image;
-            return exc.getRegisterReference(register);
-        }
-        else if (ctx.SecretRegister) {
-            const register = ctx.SecretRegister[0].image;
-            return exc.getRegisterReference(register);
-        }
-        else if (ctx.PublicRegister) {
-            const register = ctx.PublicRegister[0].image;
-            return exc.getRegisterReference(register);
-        }
-        else if (ctx.IntegerLiteral) {
-            const value: string = ctx.IntegerLiteral[0].image;
-            return new StaticExpression(value);
+        else if (ctx.literal) {
+            const value: string = ctx.literal[0].image;
+            result = new expressions.LiteralExpression(value);
         }
         else {
             throw new Error('Invalid expression syntax');
         }
-    }
 
-    parenExpression(ctx: any, exc: ExecutionContext): Expression {
-        return this.visit(ctx.expression, exc);
-    }
-
-    conditionalExpression(ctx: any, exc: ExecutionContext): Expression {
-        const registerName = ctx.register[0].image;
-        
-        if (!exc.isBinaryRegister(registerName)) {
-            throw new Error('Conditional expression can be based only on binary registers');
-        }
-        
-        // create expressions for k and for (1 - k)
-        const registerRef = exc.getRegisterReference(registerName);
-        const oneMinusReg = Expression.one.sub(registerRef);
-
-        // get expressions for true and false options
-        const tExpression: Expression = this.visit(ctx.tExpression, exc);
-        const fExpression: Expression = this.visit(ctx.fExpression, exc);
-
-        if (!tExpression.isSameDimensions(fExpression)) {
-            throw new Error('Conditional expression branches must evaluate to values of same dimensions');
+        if (ctx.neg) {
+            result = expressions.UnaryOperation.neg(result);
         }
 
-        // compute tExpression * k + fExpression * (1 - k)
-        return tExpression.mul(registerRef).add(fExpression.mul(oneMinusReg));
-    }
-
-    // LITERAL EXPRESSIONS
-    // --------------------------------------------------------------------------------------------
-    literalExpression(ctx: any): bigint {
-        return this.visit(ctx.literalAddExpression);
-    }
-
-    literalAddExpression(ctx: any): bigint {
-        let result: bigint = this.visit(ctx.lhs);
-
-        if (ctx.rhs) {
-            ctx.rhs.forEach((rhsOperand: any, i: number) => {
-                let rhsValue: bigint = this.visit(rhsOperand)
-                let operator = ctx.AddOp[i];
-
-                if (tokenMatcher(operator, Plus)) {
-                    result = result + rhsValue;
-                }
-                else if (tokenMatcher(operator, Minus)) {
-                    result = result - rhsValue;
-                }
-            });
+        if (ctx.inv) {
+            result = expressions.UnaryOperation.inv(result);
         }
 
         return result;
     }
 
-    literalMulExpression(ctx: any): bigint {
-        let result: bigint = this.visit(ctx.lhs);
-
+    // LITERAL EXPRESSIONS
+    // --------------------------------------------------------------------------------------------
+    literalExpression(ctx: any, field?: FiniteField): bigint {
+        let result: bigint = this.visit(ctx.lhs, field);
         if (ctx.rhs) {
             ctx.rhs.forEach((rhsOperand: any, i: number) => {
-                let rhsValue: bigint = this.visit(rhsOperand)
+                let rhsValue: bigint = this.visit(rhsOperand, field);
+                let operator = ctx.AddOp[i];
+
+                if (tokenMatcher(operator, Plus)) {
+                    result = field ? field.add(result, rhsValue) : (result + rhsValue);
+                }
+                else if (tokenMatcher(operator, Minus)) {
+                    result = field ? field.sub(result, rhsValue) : (result - rhsValue);
+                }
+            });
+        }
+        return result;
+    }
+
+    literalMulExpression(ctx: any, field?: FiniteField): bigint {
+        let result: bigint = this.visit(ctx.lhs, field);
+        if (ctx.rhs) {
+            ctx.rhs.forEach((rhsOperand: any, i: number) => {
+                let rhsValue: bigint = this.visit(rhsOperand, field);
                 let operator = ctx.MulOp[i];
 
                 if (tokenMatcher(operator, Star)) {
-                    result = result * rhsValue;
+                    result = field ? field.mul(result, rhsValue) : (result * rhsValue);
                 }
                 else if (tokenMatcher(operator, Slash)) {
-                    result = result / rhsValue;
+                    result = field ? field.div(result, rhsValue) : (result / rhsValue);
                 }
                 else if (tokenMatcher(operator, Pound)) {
                     throw new Error('Matrix multiplication is supported for literal expressions')
                 }
             });
         }
-
         return result;
     }
 
-    literalExpExpression(ctx: any): bigint {
-        let result: bigint = this.visit(ctx.lhs);
-
-        if (ctx.rhs) {
-            ctx.rhs.forEach((rhsOperand: any) => {
-                let rhsValue: bigint = this.visit(rhsOperand);
-                result = result ** rhsValue;
+    literalExpExpression(ctx: any, field?: FiniteField): bigint {
+        let result: bigint = this.visit(ctx.base, field);
+        if (ctx.exponent) {
+            ctx.exponent.forEach((expOperand: any) => {
+                let expValue: bigint = this.visit(expOperand, field);
+                result = field ? field.exp(result, expValue) : (result ** expValue);
             });
         }
-
         return result;
     }
 
-    literalAtomicExpression(ctx: any): bigint {
-        if (ctx.literalParenExpression) {
-            return this.visit(ctx.literalParenExpression);
+    literalAtomicExpression(ctx: any, field?: FiniteField): bigint {
+        let result: bigint;
+        if (ctx.expression) {
+            result = this.visit(ctx.expression, field);
         }
-        else if (ctx.IntegerLiteral) {
-            return BigInt(ctx.IntegerLiteral[0].image);
+        else if (ctx.literal) {
+            result = BigInt(ctx.literal[0].image);
         }
         else {
             throw new Error('Invalid expression syntax');
         }
+
+        if (ctx.neg) {
+            result = field ? field.neg(result) : (-result);
+        }
+
+        if (ctx.inv) {
+            result = field ? field.inv(result) : (1n / result);
+        }
+
+        return result;
     }
 
-    literalParenExpression(ctx: any): bigint {
-        return this.visit(ctx.literalExpression);
+    literalRangeExpression(ctx: any): [number, number] {
+        let start = Number.parseInt(ctx.start[0].image, 10);
+        let end = ctx.end ? Number.parseInt(ctx.end[0].image, 10) : start;
+        return [start, end];
     }
 }
 
@@ -761,24 +565,24 @@ export const visitor = new AirVisitor();
 // ================================================================================================
 function validateTransitionFunction(value: any[] | undefined) {
     if (!value || value.length === 0) {
-        throw new Error('Transition function is not defined');
+        throw new Error('transition function section is missing');
     }
     else if (value.length > 1) {
-        throw new Error('Transition function is defined more than once');
+        throw new Error('transition function section is defined more than once');
     }
 }
 
 function validateTransitionConstraints(value: any[] | undefined) {
     if (!value || value.length === 0) {
-        throw new Error('Transition constraints are not defined');
+        throw new Error('transition constraints section is missing');
     }
     else if (value.length > 1) {
-        throw new Error('Transition constraints are defined more than once');
+        throw new Error('transition constraints section is defined more than once');
     }
 }
 
 function validateReadonlyRegisterDefinitions(value: any[]) {
     if (value.length > 1) {
-        throw new Error('Readonly registers are defined more than once');
+        throw new Error('readonly registers section is defined more than once');
     }
 }

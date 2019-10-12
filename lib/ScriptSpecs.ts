@@ -1,12 +1,11 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits } from '@guildofweavers/air-script';
-import { FiniteField } from '@guildofweavers/galois';
-import { ReadonlyRegisterSpecs, InputRegisterSpecs } from './registers';
-import { ReadonlyRegisterGroup, ConstantDeclaration } from './visitor';
-import { Expression } from './expressions/Expression';
-import { StaticExpression } from './expressions/StaticExpression';
-import { isPowerOf2, isMatrix, isVector } from './utils';
+import {
+    StarkLimits, ReadonlyRegisterGroup, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField, InputBlockDescriptor
+} from '@guildofweavers/air-script';
+import { ConstantDeclaration } from './visitor';
+import { Expression, LiteralExpression, TransitionFunctionBody, TransitionConstraintsBody } from './expressions';
+import { isMatrix, isVector } from './utils';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -14,61 +13,106 @@ export class ScriptSpecs {
 
     private readonly limits : StarkLimits;
 
-    field!                  : FiniteField;
-    steps!                  : number;
-    mutableRegisterCount!   : number;
-    readonlyRegisterCount!  : number;
-    staticRegisters!        : ReadonlyRegisterSpecs[];
-    secretRegisters!        : InputRegisterSpecs[];
-    publicRegisters!        : InputRegisterSpecs[];
-    constraintCount!        : number;
-    staticConstants!        : Map<string, Expression>;
-    constantBindings        : any;
+    readonly name               : string;
+    readonly field              : FiniteField;
+
+    readonly globalConstants    : Map<string, Expression>;
+    readonly constantBindings   : any;
+
+    mutableRegisterCount!       : number;
+    readonlyRegisterCount!      : number;
+    staticRegisters!            : ReadonlyRegisterSpecs[];
+    secretRegisters!            : InputRegisterSpecs[];
+    publicRegisters!            : InputRegisterSpecs[];
+    constraintCount!            : number;
+    
+    transitionFunction!         : TransitionFunctionBody;
+    transitionConstraints!      : TransitionConstraintsBody;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(limits: StarkLimits) {
+    constructor(name: string, field: FiniteField, limits: StarkLimits) {
+        this.name = name;
+        this.field = field;
         this.limits = limits;
-        this.staticConstants = new Map();
+        this.globalConstants = new Map();
         this.constantBindings = {};
+    }
+
+    // PUBLIC ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get transitionFunctionDegree(): bigint[] {
+        return this.transitionFunction.isScalar 
+            ? [this.transitionFunction.degree as bigint]
+            : this.transitionFunction.degree as bigint[];
+    }
+
+    get transitionConstraintsDegree(): bigint[] {
+        return this.transitionConstraints.degree as bigint[];
+    }
+
+    get transitionConstraintsSpecs(): ConstraintSpecs[] {
+        return this.transitionConstraintsDegree.map( degree => {
+            return { degree: Number.parseInt(degree as any) } as ConstraintSpecs;
+        });
+    }
+
+    get maxTransitionConstraintDegree(): number {
+        let result = 0;
+        for (let degree of this.transitionConstraintsDegree) {
+            if (degree > result) { result = Number.parseInt(degree as any); }
+        }
+        return result;
+    }
+
+    get readonlyRegisters(): ReadonlyRegisterGroup {
+        return {
+            staticRegisters: this.staticRegisters,
+            secretRegisters: this.secretRegisters,
+            publicRegisters: this.publicRegisters
+        };        
+    }
+
+    get inputBlock(): InputBlockDescriptor {
+        return {
+            registerDepths  : this.transitionFunction.inputRegisterSpecs,
+            baseCycleMasks  : this.transitionFunction.baseCycleMasks,
+            baseCycleLength : this.transitionFunction.baseCycleLength
+        };
+    }
+
+    get inputRegisterCount(): number {
+        return this.transitionFunction.inputRegisterSpecs.length;
     }
 
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
-    setField(value: FiniteField) {
-        this.field = value;
-    }
-
-    setSteps(value: bigint) {
-        this.steps = validateSteps(value, this.limits);
-    }
-
-    setMutableRegisterCount(value: bigint) {
+    setMutableRegisterCount(value: bigint): void {
         this.mutableRegisterCount = validateMutableRegisterCount(value, this.limits);
     }
 
-    setReadonlyRegisterCount(value: bigint) {
+    setReadonlyRegisterCount(value: bigint): void {
         this.readonlyRegisterCount = validateReadonlyRegisterCount(value, this.limits);
     }
 
-    setReadonlyRegisterCounts(registers: ReadonlyRegisterGroup) {
+    setReadonlyRegisters(registers: ReadonlyRegisterGroup): void {
         validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
         this.staticRegisters = registers.staticRegisters;
         this.secretRegisters = registers.secretRegisters;
         this.publicRegisters = registers.publicRegisters;
     }
 
-    setConstraintCount(value: bigint) {
+    setConstraintCount(value: bigint): void {
         this.constraintCount = validateConstraintCount(value, this.limits);
     }
 
-    setStaticConstants(declarations: ConstantDeclaration[]) {
+    setGlobalConstants(declarations: ConstantDeclaration[]): void {
         for (let constant of declarations) {
-            if (this.staticConstants.has(constant.name)) {
+            if (this.globalConstants.has(constant.name)) {
                 throw new Error(`Static constant '${constant.name}' is defined more than once`);
             }
-            let constExpression = new StaticExpression(constant.value, constant.name);
-            this.staticConstants.set(constant.name, constExpression);
+            let constExpression = new LiteralExpression(constant.value, constant.name);
+            this.globalConstants.set(constant.name, constExpression);
             if (isMatrix(constant.dimensions)) {
                 this.constantBindings[constant.name] = this.field.newMatrixFrom(constant.value as bigint[][]);
             }
@@ -81,42 +125,39 @@ export class ScriptSpecs {
         }
     }
 
-    // VALIDATORS
-    // --------------------------------------------------------------------------------------------
-    validateConstraintDegree(constraintDegree: bigint): number {
-        if (constraintDegree > this.limits.maxConstraintDegree) {
-            throw new Error(`Degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
+    setTransitionFunction(tFunctionBody: TransitionFunctionBody): void {
+        if (tFunctionBody.dimensions[0] !== this.mutableRegisterCount) {
+            if (this.mutableRegisterCount === 1)
+                throw new Error(`transition function must evaluate to scalar or to a vector of exactly 1 value`);
+            else
+                throw new Error(`transition function must evaluate to a vector of exactly ${this.mutableRegisterCount} values`);
         }
-        else if (constraintDegree < 0n) {
-            throw new Error('Degree of transition constraints must be positive');
+        this.transitionFunction = tFunctionBody;
+    }
+
+    setTransitionConstraints(tConstraintsBody: TransitionConstraintsBody): void {
+        if (tConstraintsBody.dimensions[0] !== this.constraintCount) {
+            if (this.constraintCount === 1)
+                throw new Error(`transition constraints must evaluate to scalar or to a vector of exactly 1 value`);
+            else 
+                throw new Error(`transition constraints must evaluate to a vector of exactly ${this.constraintCount} values`);
         }
-        else if (constraintDegree === 0n) {
-            throw new Error('Degree of transition constraints cannot be 0');
+
+        this.transitionConstraints = tConstraintsBody;
+
+        for (let degree of this.transitionConstraintsDegree) {
+            if (degree > this.limits.maxConstraintDegree)
+                throw new Error(`degree of transition constraints cannot exceed ${this.limits.maxConstraintDegree}`);
+            else if (degree < 0n)
+                throw new Error('degree of transition constraints must be positive');
+            else if (degree === 0n)
+                throw new Error('degree of transition constraints cannot be 0');
         }
-    
-        return Number.parseInt(constraintDegree as any);
     }
 }
 
-// HELPER FUNCTIONS
+// VALIDATORS
 // ================================================================================================
-function validateSteps(steps: number | bigint, limits: StarkLimits): number {
-    if (steps > limits.maxSteps) {
-        throw new Error(`Number of steps cannot exceed ${limits.maxSteps}`);
-    }
-    else if (steps < 0) {
-        throw new Error('Number of steps must be greater than 0');
-    }
-    else if (!isPowerOf2(steps)) {
-        throw new Error('Number of steps must be a power of 2');
-    }
-    else if (typeof steps === 'bigint') {
-        steps = Number.parseInt(steps as any);
-    }
-
-    return steps;
-}
-
 function validateMutableRegisterCount(registerCount: number | bigint, limits: StarkLimits): number {
     if (registerCount > limits.maxMutableRegisters) {
         throw new Error(`Number of mutable registers cannot exceed ${limits.maxMutableRegisters}`);
@@ -148,18 +189,15 @@ function validateReadonlyRegisterCount(registerCount: number | bigint, limits: S
     return registerCount;
 }
 
-function validateReadonlyRegisterCounts(registers: ReadonlyRegisterGroup, readonlyRegisterCount: number) {
+function validateReadonlyRegisterCounts(registers: ReadonlyRegisterGroup, readonlyRegisterCount: number): void {
 
     const totalRegisterCount = 
         registers.staticRegisters.length
         + registers.secretRegisters.length
         + registers.publicRegisters.length;
 
-    if (totalRegisterCount > readonlyRegisterCount) {
-        throw new Error(`Too many readonly register definitions: ${readonlyRegisterCount} registers expected`);
-    }
-    else if (totalRegisterCount < readonlyRegisterCount) {
-        throw new Error(`Missing readonly register definitions: ${readonlyRegisterCount} registers expected`);
+    if (totalRegisterCount !== readonlyRegisterCount) {
+        throw new Error(`expected ${readonlyRegisterCount} readonly registers, but ${totalRegisterCount} defined`);
     }
 }
 

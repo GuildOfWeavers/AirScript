@@ -6,11 +6,13 @@ import { lexerErrorMessageProvider } from "./errors";
 // LITERALS, REGISTERS, and IDENTIFIERS
 // ================================================================================================
 export const IntegerLiteral     = createToken({ name: "IntegerLiteral",   pattern: /0|[1-9]\d*/    })
-export const MutableRegister    = createToken({ name: "MutableRegister",  pattern: /\$[rn]\d{1,2}/ });
-export const StaticRegister     = createToken({ name: "StaticRegister",   pattern: /\$k\d{1,2}/    });
-export const SecretRegister     = createToken({ name: "SecretRegister",   pattern: /\$s\d{1,2}/    });
-export const PublicRegister     = createToken({ name: "PublicRegister",   pattern: /\$p\d{1,2}/    });
 export const Identifier         = createToken({ name: "Identifier",       pattern: /[a-zA-Z]\w*/   });
+
+export const RegisterRef        = createToken({ name: "RegisterRef",      pattern: Lexer.NA });
+export const MutableRegister    = createToken({ name: "MutableRegister",  pattern: /\$[rn]\d{1,2}/,  categories: RegisterRef });
+export const ReadonlyRegister   = createToken({ name: "ReadonlyRegister", pattern: /\$[kps]\d{1,2}/, categories: RegisterRef });
+export const InitRegister       = createToken({ name: "InitRegister",     pattern: /\$\i\d{1,2}/,    categories: RegisterRef });
+export const RegisterBank       = createToken({ name: "RegisterBank",     pattern: /\$[rnkps]/ });
 
 // KEYWORDS
 // ================================================================================================
@@ -22,21 +24,20 @@ export const Field       = createToken({ name: "Field",       pattern: /field/, 
 
 export const Transition  = createToken({ name: "Transition",  pattern: /transition/,    longer_alt: Identifier });
 export const Registers   = createToken({ name: "Registers",   pattern: /registers?/,    longer_alt: Identifier });
-export const In          = createToken({ name: "In",          pattern: /in/,            longer_alt: Identifier });
-export const Steps       = createToken({ name: "Steps",       pattern: /steps?/,        longer_alt: Identifier });
 
 export const Enforce     = createToken({ name: "Enforce",     pattern: /enforce/,       longer_alt: Identifier });
 export const Constraints = createToken({ name: "Constraints", pattern: /constraints?/,  longer_alt: Identifier });
-export const Of          = createToken({ name: "Of",          pattern: /of/,            longer_alt: Identifier });
-export const Degree      = createToken({ name: "Degree",      pattern: /degree/,        longer_alt: Identifier });
 
 export const For         = createToken({ name: "For",         pattern: /for/,           longer_alt: Identifier });
+export const Each        = createToken({ name: "Each",        pattern: /each/,          longer_alt: Identifier });
+export const Init        = createToken({ name: "Init",        pattern: /init/,          longer_alt: Identifier });
+export const Steps       = createToken({ name: "Steps",       pattern: /steps?/,        longer_alt: Identifier });
 export const Do          = createToken({ name: "Do",          pattern: /do/,            longer_alt: Identifier });
 export const With        = createToken({ name: "With",        pattern: /with/,          longer_alt: Identifier });
 export const Nothing     = createToken({ name: "Nothing",     pattern: /nothing/,       longer_alt: Identifier });
-export const Out         = createToken({ name: "Out",         pattern: /out/,           longer_alt: Identifier });
 export const When        = createToken({ name: "When",        pattern: /when/,          longer_alt: Identifier });
 export const Else        = createToken({ name: "Else",        pattern: /else/,          longer_alt: Identifier });
+export const All         = createToken({ name: "All",         pattern: /all/,           longer_alt: Identifier });
 
 export const Using       = createToken({ name: "Using",       pattern: /using/,         longer_alt: Identifier });
 export const Readonly    = createToken({ name: "Readonly",    pattern: /readonly/,      longer_alt: Identifier });
@@ -60,6 +61,9 @@ export const Pound      = createToken({ name: "Pound",      pattern: /#/,   cate
 
 export const ExpOp      = createToken({ name: "ExpOp",      pattern: /\^/ });
 
+export const Equals     = createToken({ name: "Equals",     pattern: /=/ });
+export const AssignOp   = createToken({ name: "AssignOp",   pattern: /<-/ });
+
 // SYMBOLS
 // ================================================================================================
 export const LCurly     = createToken({ name: "LCurly",     pattern: /{/        });
@@ -77,6 +81,8 @@ export const Tilde      = createToken({ name: 'Tilde',      pattern: /~/        
 export const Ampersand  = createToken({ name: 'Ampersand',  pattern: /&/        });
 export const QMark      = createToken({ name: 'QMark',      pattern: /\?/       });
 export const EMark      = createToken({ name: 'EMark',      pattern: /!/        });
+
+export const DoubleDot  = createToken({ name: 'DoubleDot',  pattern: /\.\./, longer_alt: Ellipsis });
 
 // WHITESPACE AND COMMENTS
 // ================================================================================================
@@ -97,17 +103,17 @@ export const Comment = createToken({
 export const allTokens = [
     WhiteSpace, Comment,
     
-    Define, Over, Prime, Binary, Field, Transition, Registers, In, Steps, Enforce, Constraints, Of,
-    Degree, For, Do, With, Nothing, When, Else, Out, Repeat, Spread, Using, Readonly, Import, From, As,
+    Define, Over, Prime, Binary, Field, Transition, Registers, Steps, Enforce, Constraints, For, Each,
+     Do, With, Nothing, When, Else, Repeat, Spread, Using, Readonly, Import, From, As, All, Init,
 
-    Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
+    Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp, AssignOp, Equals,
 
-    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, Pipe,
-    Tilde, Ampersand, QMark, EMark,
+    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, DoubleDot,
+    Pipe, Tilde, Ampersand, QMark, EMark,
 
     Identifier,
 
-    MutableRegister, StaticRegister, SecretRegister, PublicRegister,
+    MutableRegister, ReadonlyRegister, InitRegister, RegisterRef, RegisterBank,
 
     IntegerLiteral
 ];

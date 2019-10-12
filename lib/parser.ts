@@ -2,10 +2,10 @@
 // ================================================================================================
 import { CstParser } from "chevrotain";
 import {
-    allTokens, Identifier, Define, Over, Prime, Field, LParen, RParen, IntegerLiteral, LCurly, RCurly,
-    ExpOp, MulOp, AddOp, Transition, Registers, In, Steps, Enforce, Constraints, Of, Degree, Out, 
-    MutableRegister, StaticRegister, SecretRegister, PublicRegister, LSquare, RSquare, Comma, Using,
-    Readonly, Repeat, Spread, Ellipsis, Colon, Semicolon, QMark, Pipe, Binary, When, Else
+    allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, LParen, RParen, LCurly, RCurly, LSquare, RSquare,
+    ExpOp, MulOp, AddOp, AssignOp, Transition, Registers, Steps, Enforce, Constraints,  When, Else,
+    RegisterRef, ReadonlyRegister, InitRegister, Comma, Using, DoubleDot, Colon, Semicolon, Equals,
+    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash, QMark, For, All, Each, Init
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -17,6 +17,8 @@ class AirParser extends CstParser {
         this.performSelfAnalysis();
     }
 
+    // SCRIPT
+    // --------------------------------------------------------------------------------------------
     public script = this.RULE('script', () => {
         this.CONSUME(Define);
         this.CONSUME(Identifier,                             { LABEL: 'starkName'             });
@@ -26,26 +28,23 @@ class AirParser extends CstParser {
         this.MANY(() => {
             this.OR([
                 { ALT: () => {
-                    this.SUBRULE(this.constantDeclaration,   { LABEL: 'staticConstants'       });
+                    this.SUBRULE(this.constantDeclaration,   { LABEL: 'globalConstants'       });
                 }},
                 { ALT: () => {
                     this.CONSUME(Transition);
-                    this.SUBRULE2(this.literalExpression,    { LABEL: 'mutableRegisterCount'  });
+                    this.SUBRULE1(this.literalExpression,    { LABEL: 'mutableRegisterCount'  });
                     this.CONSUME1(Registers);
-                    this.CONSUME(In);
-                    this.SUBRULE3(this.literalExpression,    { LABEL: 'steps'                 });
-                    this.CONSUME(Steps);
                     this.SUBRULE(this.transitionFunction,    { LABEL: 'transitionFunction'    });
                 }},
                 { ALT: () => {
                     this.CONSUME(Enforce);
-                    this.SUBRULE4(this.literalExpression,    { LABEL: 'constraintCount'       });
+                    this.SUBRULE2(this.literalExpression,    { LABEL: 'constraintCount'       });
                     this.CONSUME(Constraints);
                     this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
                 }},
                 { ALT: () => {
                     this.CONSUME(Using);
-                    this.SUBRULE6(this.literalExpression,    { LABEL: 'readonlyRegisterCount' });
+                    this.SUBRULE3(this.literalExpression,    { LABEL: 'readonlyRegisterCount' });
                     this.CONSUME(Readonly);
                     this.CONSUME2(Registers);
                     this.SUBRULE(this.readonlyRegisters,     { LABEL: 'readonlyRegisters'     });
@@ -60,18 +59,20 @@ class AirParser extends CstParser {
     private fieldDeclaration = this.RULE('fieldDeclaration', () => {
         this.CONSUME(Prime);
         this.CONSUME(Field);
-        this.SUBRULE(this.literalParenExpression, { LABEL: 'modulus' });
+        this.CONSUME(LParen);
+        this.SUBRULE(this.literalExpression, { LABEL: 'modulus' });
+        this.CONSUME(RParen);
     });
 
-    // STATIC CONSTANTS
+    // GLOBAL CONSTANTS
     // --------------------------------------------------------------------------------------------
     private constantDeclaration = this.RULE('constantDeclaration', () => {
         this.CONSUME(Identifier, { LABEL: 'constantName' });
         this.CONSUME(Colon);
         this.OR([
-            { ALT: () => this.SUBRULE(this.literalAddExpression, { LABEL: 'value'  }) },
-            { ALT: () => this.SUBRULE(this.literalVector,        { LABEL: 'vector' }) },
-            { ALT: () => this.SUBRULE(this.literalMatrix,        { LABEL: 'matrix' }) }
+            { ALT: () => this.SUBRULE(this.literalExpression, { LABEL: 'value'  }) },
+            { ALT: () => this.SUBRULE(this.literalVector,     { LABEL: 'vector' }) },
+            { ALT: () => this.SUBRULE(this.literalMatrix,     { LABEL: 'matrix' }) }
         ]);
         this.CONSUME(Semicolon);
     });
@@ -107,65 +108,28 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private readonlyRegisters = this.RULE('readonlyRegisters', () => {
         this.CONSUME(LCurly);
-        this.AT_LEAST_ONE(() => {
-            this.OR([
-                { ALT: () => {
-                    this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'staticRegisters' })
-                }},
-                { ALT: () => {
-                    this.SUBRULE(this.secretRegisterDefinition, { LABEL: 'secretRegisters' })
-                }},
-                { ALT: () => {
-                    this.SUBRULE(this.publicRegisterDefinition, { LABEL: 'publicRegisters' })
-                }}
-            ]);
-        });
+        this.AT_LEAST_ONE(() => this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registers' }));
         this.CONSUME(RCurly);
     });
 
-    private staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
-        this.CONSUME1(StaticRegister, { LABEL: 'name' });
+    private readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
+        this.CONSUME1(ReadonlyRegister,          { LABEL: 'name' });
         this.CONSUME(Colon);
-        this.OR([
-            { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
-            { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
+        this.OR1([
+            { ALT: () => this.CONSUME2(Repeat,   { LABEL: 'pattern' }) },
+            { ALT: () => this.CONSUME2(Spread,   { LABEL: 'pattern' }) }
         ]);
-        this.OPTION(() => {
-            this.CONSUME(Binary,         { LABEL: 'binary' });
-        });
-        this.SUBRULE(this.literalVector, { LABEL: 'values' });
-        this.CONSUME(Semicolon);
-    });
-
-    private secretRegisterDefinition = this.RULE('secretRegisterDefinition', () => {
-        this.CONSUME1(SecretRegister, { LABEL: 'name' });
-        this.CONSUME(Colon);
-        this.OR([
-            { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
-            { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
-        ]);
-        this.OPTION(() => {
-            this.CONSUME(Binary,         { LABEL: 'binary' });
-        });
-        this.CONSUME(LSquare);
-        this.CONSUME(Ellipsis);
-        this.CONSUME(RSquare);
-        this.CONSUME(Semicolon);
-    });
-
-    private publicRegisterDefinition = this.RULE('publicRegisterDefinition', () => {
-        this.CONSUME1(PublicRegister, { LABEL: 'name' });
-        this.CONSUME(Colon);
-        this.OR([
-            { ALT: () => { this.CONSUME2(Repeat, { LABEL: 'pattern' }) }},
-            { ALT: () => { this.CONSUME2(Spread, { LABEL: 'pattern' }) }}
-        ]);
-        this.OPTION(() => {
-            this.CONSUME(Binary,         { LABEL: 'binary' });
-        });
-        this.CONSUME(LSquare);
-        this.CONSUME(Ellipsis);
-        this.CONSUME(RSquare);
+        this.OPTION(() => this.CONSUME(Binary,   { LABEL: 'binary'  }) );
+        this.OR2([
+            { ALT: () => {
+                this.CONSUME(LSquare);
+                this.CONSUME(Ellipsis);
+                this.CONSUME(RSquare);
+            }},
+            { ALT: () => {
+                this.SUBRULE(this.literalVector, { LABEL: 'values' });
+            }}
+        ]);        
         this.CONSUME(Semicolon);
     });
 
@@ -173,14 +137,7 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private transitionFunction = this.RULE('transitionFunction', () => {
         this.CONSUME(LCurly);
-        this.OR([
-            { ALT: () => {
-                this.SUBRULE(this.statementBlock,   { LABEL: 'statements' });
-            }},
-            { ALT: () => {
-                this.SUBRULE(this.whenStatement,    { LABEL: 'statements' });
-            }}
-        ]);
+        this.SUBRULE(this.inputBlock,             { LABEL: 'inputBlock' });
         this.CONSUME(RCurly);
     });
 
@@ -188,84 +145,150 @@ class AirParser extends CstParser {
         this.CONSUME(LCurly);
         this.OR([
             { ALT: () => {
-                this.SUBRULE(this.statementBlock,   { LABEL: 'statements' });
+                this.SUBRULE(this.inputBlock,     { LABEL: 'inputBlock' });
             }},
             { ALT: () => {
-                this.SUBRULE(this.whenStatement,    { LABEL: 'statements' });
+                this.CONSUME(For);
+                this.CONSUME(All);
+                this.CONSUME(Steps);
+                this.SUBRULE(this.statementBlock, { LABEL: 'allStepBlock' })
             }}
         ]);
         this.CONSUME(RCurly);
     });
 
+    // LOOPS
+    // --------------------------------------------------------------------------------------------
+    private inputBlock = this.RULE('inputBlock', () => {
+        this.CONSUME(For);
+        this.CONSUME(Each);
+        this.CONSUME(LParen);
+        this.AT_LEAST_ONE_SEP({
+            SEP: Comma,
+            DEF: () => this.CONSUME(InitRegister,           { LABEL: 'registers' })
+        });
+        this.CONSUME(RParen);
+        this.CONSUME(LCurly);
+        this.SUBRULE(this.transitionInit,                   { LABEL: 'initExpression' });
+        this.OR2([
+            { ALT: () => this.SUBRULE(this.inputBlock,      { LABEL: 'inputBlock'     })},
+            { ALT: () => {
+                this.AT_LEAST_ONE(() => {
+                    this.SUBRULE(this.segmentLoop,          { LABEL: 'segmentLoops'    });
+                });
+            }}
+        ]);
+        this.CONSUME(RCurly);
+    });
+
+    private transitionInit = this.RULE('transitionInit', () => {
+        this.CONSUME(Init);
+        this.OR([
+            { ALT: () => this.SUBRULE(this.statementBlock,  { LABEL: 'expression' })},
+            { ALT: () => {
+                this.SUBRULE(this.expression,               { LABEL: 'expression' });
+                this.CONSUME(Semicolon);
+            }}
+        ]);
+    });
+
+    private segmentLoop = this.RULE('segmentLoop', () => {
+        this.CONSUME(For);
+        this.CONSUME(Steps);
+        this.CONSUME(LSquare);
+        this.AT_LEAST_ONE_SEP({
+            SEP: Comma,
+            DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
+        });
+        this.CONSUME(RSquare);
+        this.SUBRULE(this.statementBlock,                        { LABEL: 'statements' });
+    });
+
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     public statementBlock = this.RULE('statementBlock', () => {
+        this.CONSUME(LCurly);
         this.MANY(() => {
-            this.SUBRULE(this.statement, { LABEL: 'statements'})
+            this.SUBRULE(this.statement,         { LABEL: 'statements' });
         });
-        this.SUBRULE(this.outStatement);
+        this.SUBRULE1(this.assignableExpression, { LABEL: 'expression' });
+        this.OPTION1(() => {
+            this.CONSUME(Equals);
+            this.SUBRULE2(this.expression,       { LABEL: 'constraint' });
+        });
+        this.OPTION2(() => {
+            this.CONSUME(Semicolon);
+        });
+        this.CONSUME(RCurly);
     });
 
     private statement = this.RULE('statement', () => {
-        this.CONSUME(Identifier, { LABEL: 'variableName' });
-        this.CONSUME(Colon);
-        this.OR([
-            { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
-            { ALT: () => this.SUBRULE(this.vector,      { LABEL: 'expression' }) },
-            { ALT: () => this.SUBRULE(this.matrix,      { LABEL: 'expression' }) }
-        ]);
+        this.CONSUME(Identifier,                { LABEL: 'variableName' });
+        this.CONSUME(AssignOp);
+        this.SUBRULE(this.assignableExpression, { LABEL: 'expression' });
         this.CONSUME(Semicolon);
     });
 
-    private outStatement = this.RULE('outStatement', () => {
-        this.CONSUME(Out);
-        this.CONSUME(Colon);
+    private assignableExpression = this.RULE('assignableExpression', () => {
         this.OR([
-            { ALT: () => this.SUBRULE(this.expression,  { LABEL: 'expression' }) },
-            { ALT: () => this.SUBRULE(this.vector,      { LABEL: 'vector'     }) }
+            {
+                GATE: this.BACKTRACK(this.matrix),
+                ALT : () => this.SUBRULE(this.matrix,        { LABEL: 'expression' })
+            },
+            {
+                GATE: this.BACKTRACK(this.whenExpression),
+                ALT: () => this.SUBRULE(this.whenExpression, { LABEL: 'expression' })
+            },
+            {
+                ALT : () => this.SUBRULE(this.expression,    { LABEL: 'expression' }) 
+            },
+            {
+                ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'expression' })
+            }
         ]);
-        this.CONSUME(Semicolon);
     });
 
-    // WHEN STATEMENT
+    // WHEN...ELSE EXPRESSION
     // --------------------------------------------------------------------------------------------
-    private whenStatement = this.RULE('whenStatement', () => {
-        this.CONSUME(When);
-        this.CONSUME(LParen);
-        this.OR1([
+    private whenExpression = this.RULE('whenExpression', () => {
+        this.OR([
             { ALT: () => {
-                this.CONSUME(StaticRegister,        { LABEL: 'condition'   });
+                this.CONSUME(When);
+                this.SUBRULE1(this.whenCondition,   { LABEL: 'condition'   });
+                this.SUBRULE1(this.statementBlock,  { LABEL: 'tExpression' });
+                this.CONSUME(Else);
+                this.SUBRULE2(this.statementBlock,  { LABEL: 'fExpression' });
             }},
             { ALT: () => {
-                this.CONSUME(SecretRegister,        { LABEL: 'condition'   });
-            }},
-            { ALT: () => {
-                this.CONSUME(PublicRegister,        { LABEL: 'condition'   });
+                this.SUBRULE2(this.whenCondition,   { LABEL: 'condition'   });
+                this.CONSUME(QMark);
+                this.SUBRULE1(this.expression,      { LABEL: 'tExpression' });
+                this.CONSUME(Colon);
+                this.SUBRULE2(this.expression,      { LABEL: 'fExpression' });
             }}
         ]);
-        this.CONSUME(RParen);
-        this.CONSUME1(LCurly);
-        this.OR2([
-            { ALT: () => {
-                this.SUBRULE1(this.statementBlock,  { LABEL: 'tBlock' });
-            }},
-            { ALT: () => {
-                this.SUBRULE2(this.whenStatement,   { LABEL: 'tBlock' });
-            }}
-        ]);
-        this.CONSUME1(RCurly);
-        this.CONSUME(Else);
-        this.CONSUME2(LCurly);
-        this.OR3([
-            { ALT: () => {
-                this.SUBRULE3(this.statementBlock,  { LABEL: 'fBlock' });
-            }},
-            { ALT: () => {
-                this.SUBRULE4(this.whenStatement,   { LABEL: 'fBlock' });
-            }}
-        ]);
-        this.CONSUME2(RCurly);
+    });
 
+    private whenCondition = this.RULE('whenCondition', () => {
+        this.OR([
+            { ALT: () => {
+                this.CONSUME(LParen);
+                this.CONSUME1(RegisterRef,  { LABEL: 'register' });
+                this.CONSUME(RParen);
+            }},
+            { ALT: () => {
+                this.CONSUME2(RegisterRef,  { LABEL: 'register' });
+            }}
+        ]);
+    });
+
+    // TRANSITION CALL EXPRESSION
+    // --------------------------------------------------------------------------------------------
+    private transitionCall = this.RULE('transitionCall', () => {
+        this.CONSUME(Transition);
+        this.CONSUME(LParen);
+        this.CONSUME(RegisterBank,  { LABEL: 'registers' });
+        this.CONSUME(RParen);
     });
 
     // VECTORS AND MATRIXES
@@ -286,7 +309,7 @@ class AirParser extends CstParser {
 
     private vectorDestructuring = this.RULE('vectorDestructuring', () => {
         this.CONSUME(Ellipsis);
-        this.CONSUME(Identifier, { LABEL: 'vectorName' });
+        this.SUBRULE(this.vectorExpression, { LABEL: 'vector' });
     });
 
     private matrix = this.RULE('matrix', () => {
@@ -310,78 +333,73 @@ class AirParser extends CstParser {
     // EXPRESSIONS
     // --------------------------------------------------------------------------------------------
     private expression = this.RULE('expression', () => {
-        this.SUBRULE(this.addExpression);
-    });
-
-    private addExpression = this.RULE('addExpression', () => {
-        this.SUBRULE(this.mulExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.mulExpression,     { LABEL: 'lhs' });
         this.MANY(() => {
             this.CONSUME(AddOp);
-            this.SUBRULE2(this.mulExpression, { LABEL: 'rhs'});
+            this.SUBRULE2(this.mulExpression, { LABEL: 'rhs' });
         });
     });
 
     private mulExpression = this.RULE('mulExpression', () => {
-        this.SUBRULE(this.expExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.expExpression,     { LABEL: 'lhs' });
         this.MANY(() => {
             this.CONSUME(MulOp);
-            this.SUBRULE2(this.expExpression, { LABEL: 'rhs'});
+            this.SUBRULE2(this.expExpression, { LABEL: 'rhs' });
         });
     });
 
     private expExpression = this.RULE('expExpression', () => {
-        this.SUBRULE(this.atomicExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.vectorExpression,     { LABEL: 'base' });
         this.MANY(() => {
             this.CONSUME(ExpOp);
-            this.SUBRULE2(this.atomicExpression, { LABEL: 'rhs' });  
+            this.SUBRULE2(this.atomicExpression, { LABEL: 'exponent' });  
+        });
+    });
+
+    private vectorExpression = this.RULE('vectorExpression', () => {
+        this.SUBRULE(this.atomicExpression,         { LABEL: 'expression' });
+        this.OPTION(() => {
+            this.CONSUME(LSquare);
+            this.OR([
+                { ALT: () => {
+                    this.CONSUME1(IntegerLiteral,   { LABEL: 'rangeStart' });
+                    this.CONSUME(DoubleDot);
+                    this.CONSUME2(IntegerLiteral,   { LABEL: 'rangeEnd'   });
+                }},
+                { ALT: () => {
+                    this.CONSUME3(IntegerLiteral,   { LABEL: 'index'      });
+                }}
+            ]);
+            this.CONSUME(RSquare);
         });
     });
 
     private atomicExpression = this.RULE('atomicExpression', () => {
-        this.OR([
-            { ALT: () => this.SUBRULE(this.parenExpression)         },
-            { ALT: () => this.SUBRULE(this.conditionalExpression)   },
-            { ALT: () => this.CONSUME(Identifier)                   },
-            { ALT: () => this.CONSUME(MutableRegister)              },
-            { ALT: () => this.CONSUME(StaticRegister)               },
-            { ALT: () => this.CONSUME(SecretRegister)               },
-            { ALT: () => this.CONSUME(PublicRegister)               },
-            { ALT: () => this.CONSUME(IntegerLiteral)               }
-        ]);
-    });
-
-    private parenExpression = this.RULE('parenExpression', () => {
-        this.CONSUME(LParen);
-        this.SUBRULE(this.expression);
-        this.CONSUME(RParen);
-    });
-
-    private conditionalExpression = this.RULE('conditionalExpression', () => {
-        this.OR([
+        this.OPTION(() => {
+            this.OR1([
+                { ALT: () => this.CONSUME(Minus,     { LABEL: 'neg' })},
+                { ALT: () => this.CONSUME(Slash,     { LABEL: 'inv' })}
+            ])
+        });
+        this.OR2([
             { ALT: () => {
-                this.CONSUME(StaticRegister,   { LABEL: 'register'   });
+                this.CONSUME(LParen);
+                this.SUBRULE(this.expression,               { LABEL: 'expression' });
+                this.CONSUME(RParen);
             }},
-            { ALT: () => {
-                this.CONSUME(SecretRegister,   { LABEL: 'register'   });
-            }},
-            { ALT: () => {
-                this.CONSUME(PublicRegister,   { LABEL: 'register'   });
-            }}
+            { ALT: () => this.SUBRULE(this.vector,          { LABEL: 'expression' })},
+            { ALT: () => this.SUBRULE(this.transitionCall,  { LABEL: 'expression' })},
+            { ALT: () => this.CONSUME(Identifier,           { LABEL: 'symbol'     })},
+            { ALT: () => this.CONSUME(RegisterRef,          { LABEL: 'symbol'     })},
+            { ALT: () => this.CONSUME(RegisterBank,         { LABEL: 'symbol'     })},
+            { ALT: () => this.CONSUME(IntegerLiteral,       { LABEL: 'literal'    })}
         ]);
-        this.CONSUME(QMark);
-        this.SUBRULE1(this.expression, { LABEL: 'tExpression' });
-        this.CONSUME(Pipe);
-        this.SUBRULE2(this.expression, { LABEL: 'fExpression' });
     });
 
     // LITERAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------
     private literalExpression = this.RULE('literalExpression', () => {
-        this.SUBRULE(this.literalAddExpression);
-    });
-
-    private literalAddExpression = this.RULE('literalAddExpression', () => {
-        this.SUBRULE(this.literalMulExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.literalMulExpression,     { LABEL: 'lhs' });
         this.MANY(() => {
             this.CONSUME(AddOp);
             this.SUBRULE2(this.literalMulExpression, { LABEL: 'rhs'});
@@ -389,7 +407,7 @@ class AirParser extends CstParser {
     });
 
     private literalMulExpression = this.RULE('literalMulExpression', () => {
-        this.SUBRULE(this.literalExpExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.literalExpExpression,     { LABEL: 'lhs' });
         this.MANY(() => {
             this.CONSUME(MulOp);
             this.SUBRULE2(this.literalExpExpression, { LABEL: 'rhs'});
@@ -397,24 +415,38 @@ class AirParser extends CstParser {
     });
 
     private literalExpExpression = this.RULE('literalExpExpression', () => {
-        this.SUBRULE(this.literalAtomicExpression, { LABEL: 'lhs' });
+        this.SUBRULE1(this.literalAtomicExpression,     { LABEL: 'base' });
         this.MANY(() => {
             this.CONSUME(ExpOp);
-            this.SUBRULE2(this.literalAtomicExpression, { LABEL: 'rhs' });  
+            this.SUBRULE2(this.literalAtomicExpression, { LABEL: 'exponent' });  
         });
     });
 
     private literalAtomicExpression = this.RULE('literalAtomicExpression', () => {
-        this.OR([
-            { ALT: () => this.SUBRULE(this.literalParenExpression) },
-            { ALT: () => this.CONSUME(IntegerLiteral) },
+        this.OPTION(() => {
+            this.OR1([
+                { ALT: () => this.CONSUME(Minus,     { LABEL: 'neg' })},
+                { ALT: () => this.CONSUME(Slash,     { LABEL: 'inv' })}
+            ])
+        });
+        this.OR2([
+            { ALT: () => {
+                this.CONSUME(LParen);
+                this.SUBRULE(this.literalExpression, { LABEL: 'expression' });
+                this.CONSUME(RParen);        
+            }},
+            { ALT: () => {
+                this.CONSUME(IntegerLiteral,         { LABEL: 'literal' });
+            }}
         ]);
     });
 
-    private literalParenExpression = this.RULE('literalParenExpression', () => {
-        this.CONSUME(LParen);
-        this.SUBRULE(this.literalExpression);
-        this.CONSUME(RParen);
+    private literalRangeExpression = this.RULE('literalRangeExpression', () => {
+        this.CONSUME1(IntegerLiteral,       { LABEL: 'start' });
+        this.OPTION(() => {
+            this.CONSUME(DoubleDot);
+            this.CONSUME2(IntegerLiteral,   { LABEL: 'end'   });
+        });
     });
 }
 

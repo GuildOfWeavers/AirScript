@@ -1,0 +1,1 @@
+export { generateJsModule } from './jsGenerator';

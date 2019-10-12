@@ -29,6 +29,6 @@
   },
   "dependencies": {
     "@guildofweavers/galois": "0.4.x",
-    "chevrotain": "4.8.x"
+    "chevrotain": "6.5.x"
   }
 }
