@@ -495,8 +495,7 @@ function buildControlRegisterSpecs(traceShape, traceLength) {
         for (let i = 0; i < mask.length; i++) {
             for (let j = 0; j < loopCount; j++) {
                 if (mask[i] === 1) {
-                    values[j][i] = (key.charAt(j) === '0') ? f.one : f.zero;
-                    ;
+                    values[j][i] = (key.charAt(j) === '0') ? f.zero : f.one;
                 }
             }
         }
@@ -561,7 +560,7 @@ exports.removeRepeatingCycles = removeRepeatingCycles;
 function populateControlValues(cRegisters, cValues, position) {
     let cPeriod = 1;
     cValues.fill(f.one);
-    for (let i = 0; i < cRegisters.length; i++) {
+    for (let i = cRegisters.length - 1; i >= 0; i--) {
         let j = 0;
         let value = cRegisters[i](position);
         for (; j < cPeriod; j++) {
@@ -576,6 +575,7 @@ function populateControlValues(cRegisters, cValues, position) {
             cValues[j] = cValues[j - cPeriod];
         }
     }
+    cValues.reverse();
 }
 exports.populateControlValues = populateControlValues;
 function isPowerOf2(value) {

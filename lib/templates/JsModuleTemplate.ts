@@ -575,7 +575,7 @@ export function buildControlRegisterSpecs(traceShape: number[], traceLength: num
         for (let i = 0; i < mask.length; i++) {
             for (let j = 0; j < loopCount; j++) {
                 if (mask[i] === 1) {
-                    values[j][i] = (key.charAt(j) === '0') ? f.one : f.zero;;
+                    values[j][i] = (key.charAt(j) === '0') ? f.zero : f.one;
                 }
             }
         }
@@ -647,7 +647,7 @@ export function populateControlValues<T extends number | bigint>(cRegisters: Rea
     let cPeriod = 1;
     cValues.fill(f.one);
 
-    for (let i = 0; i < cRegisters.length; i++) {
+    for (let i = cRegisters.length - 1; i >= 0; i--) {
         let j = 0;
 
         let value = cRegisters[i](position);
@@ -665,6 +665,8 @@ export function populateControlValues<T extends number | bigint>(cRegisters: Rea
             cValues[j] = cValues[j - cPeriod];
         }
     }
+
+    cValues.reverse();
 }
 
 export function isPowerOf2(value: number){
