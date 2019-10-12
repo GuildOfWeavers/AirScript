@@ -53,20 +53,21 @@ export function parseScript(script: string, options: ScriptOptions = {}): AirMod
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function validateExtensionFactor(maxConstraintDegree: number, extensionFactor?: number): number {
+function validateExtensionFactor(constraintDegree: number, extensionFactor?: number): number {
+    const minExtensionFactor = 2**Math.ceil(Math.log2(constraintDegree)) * 2;
+
     if (extensionFactor === undefined) {
-        extensionFactor = 2**Math.ceil(Math.log2(maxConstraintDegree)) * 2;
-        if (extensionFactor * 2 < maxConstraintDegree) {
+        extensionFactor = minExtensionFactor;
+        if (extensionFactor * 2 < constraintDegree) {
             extensionFactor = extensionFactor * 2;
         }
     }
     else {
         if (!Number.isInteger(extensionFactor)) throw new TypeError('extension factor must be an integer');
         if (!isPowerOf2(extensionFactor)) throw new Error('extension factor must be a power of 2');
-    }
-
-    if (extensionFactor < maxConstraintDegree) {
-        throw new Error(`extension factor must be greater than max constraint degree`);
+        if (extensionFactor < minExtensionFactor) {
+            throw new Error(`extension factor cannot be smaller than ${minExtensionFactor}`);
+        }
     }
 
     return extensionFactor;

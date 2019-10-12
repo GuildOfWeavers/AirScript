@@ -46,10 +46,11 @@ function parseScript(script, options = {}) {
 exports.parseScript = parseScript;
 // HELPER FUNCTIONS
 // ================================================================================================
-function validateExtensionFactor(maxConstraintDegree, extensionFactor) {
+function validateExtensionFactor(constraintDegree, extensionFactor) {
+    const minExtensionFactor = 2 ** Math.ceil(Math.log2(constraintDegree)) * 2;
     if (extensionFactor === undefined) {
-        extensionFactor = 2 ** Math.ceil(Math.log2(maxConstraintDegree)) * 2;
-        if (extensionFactor * 2 < maxConstraintDegree) {
+        extensionFactor = minExtensionFactor;
+        if (extensionFactor * 2 < constraintDegree) {
             extensionFactor = extensionFactor * 2;
         }
     }
@@ -58,9 +59,9 @@ function validateExtensionFactor(maxConstraintDegree, extensionFactor) {
             throw new TypeError('extension factor must be an integer');
         if (!utils_1.isPowerOf2(extensionFactor))
             throw new Error('extension factor must be a power of 2');
-    }
-    if (extensionFactor < maxConstraintDegree) {
-        throw new Error(`extension factor must be greater than max constraint degree`);
+        if (extensionFactor < minExtensionFactor) {
+            throw new Error(`extension factor cannot be smaller than ${minExtensionFactor}`);
+        }
     }
     return extensionFactor;
 }

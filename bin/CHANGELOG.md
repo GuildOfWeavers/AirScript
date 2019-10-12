@@ -1,6 +1,10 @@
 # Release History
 
-### v0.5 - XXX
+### v0.5.1 - October 11, 2019
+
+* Minor bugfixes
+
+### v0.5 - October 11, 2019
 
 * Added support for unary operators (additive and multiplicative inverses)
 * [breaking] Changed assignment operator from `:` to `<-`

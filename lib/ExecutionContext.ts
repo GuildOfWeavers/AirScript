@@ -213,7 +213,7 @@ export class ExecutionContext {
             return this.mutableRegisterCount
         }
         else if (loopFrame && this.loopFrames.length === 1) {
-            throw new Error('TODO');
+            throw new Error(`$${bankName} registers cannot be accessed in the init clause of a top-level input loop`);
         }
         else if (bankName === 'r')  return this.mutableRegisterCount;
         else if (bankName === 'k')  return this.staticRegisters.length;

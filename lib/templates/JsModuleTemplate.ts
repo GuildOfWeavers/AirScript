@@ -285,14 +285,16 @@ export function initProof(initValues: bigint[], pInputs: bigint[][], sInputs: bi
     // --------------------------------------------------------------------------------------------
     return {
         field                       : f,
-        traceShape                  : traceShape,   // TODO: rename
+        traceShape                  : traceShape,
         traceLength                 : traceLength,
         extensionFactor             : extensionFactor,
         rootOfUnity                 : rootOfUnity,
         stateWidth                  : stateWidth,
         constraintCount             : constraints.length,
-        secretInputCount            : registerSpecs.secretRegisters.length,
-        publicInputCount            : registerSpecs.publicRegisters.length,
+        iRegisterCount              : loops.registerDepths.length,
+        sRegisterCount              : registerSpecs.secretRegisters.length,
+        pRegisterCount              : registerSpecs.publicRegisters.length,
+        kRegisterCount              : registerSpecs.secretRegisters.length,
         executionDomain             : executionDomain,
         evaluationDomain            : evaluationDomain,
         compositionDomain           : compositionDomain,
@@ -416,8 +418,10 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
         rootOfUnity                 : rootOfUnity,
         stateWidth                  : stateWidth,
         constraintCount             : constraints.length,
-        secretInputCount            : registerSpecs.secretRegisters.length,
-        publicInputCount            : registerSpecs.publicRegisters.length,
+        iRegisterCount              : loops.registerDepths.length,
+        sRegisterCount              : registerSpecs.secretRegisters.length,
+        pRegisterCount              : registerSpecs.publicRegisters.length,
+        kRegisterCount              : registerSpecs.secretRegisters.length,
         evaluateConstraintsAt       : evaluateConstraintsAt
     };
 }

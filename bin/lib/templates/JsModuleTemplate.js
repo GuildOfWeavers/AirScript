@@ -238,8 +238,10 @@ function initProof(initValues, pInputs, sInputs) {
         rootOfUnity: rootOfUnity,
         stateWidth: stateWidth,
         constraintCount: constraints.length,
-        secretInputCount: registerSpecs.secretRegisters.length,
-        publicInputCount: registerSpecs.publicRegisters.length,
+        iRegisterCount: loops.registerDepths.length,
+        sRegisterCount: registerSpecs.secretRegisters.length,
+        pRegisterCount: registerSpecs.publicRegisters.length,
+        kRegisterCount: registerSpecs.secretRegisters.length,
         executionDomain: executionDomain,
         evaluationDomain: evaluationDomain,
         compositionDomain: compositionDomain,
@@ -347,8 +349,10 @@ function initVerification(traceShape, pInputs) {
         rootOfUnity: rootOfUnity,
         stateWidth: stateWidth,
         constraintCount: constraints.length,
-        secretInputCount: registerSpecs.secretRegisters.length,
-        publicInputCount: registerSpecs.publicRegisters.length,
+        iRegisterCount: loops.registerDepths.length,
+        sRegisterCount: registerSpecs.secretRegisters.length,
+        pRegisterCount: registerSpecs.publicRegisters.length,
+        kRegisterCount: registerSpecs.secretRegisters.length,
         evaluateConstraintsAt: evaluateConstraintsAt
     };
 }

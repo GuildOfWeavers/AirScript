@@ -25,10 +25,11 @@ function generateJsModule(specs, limits, extensionFactor) {
     code += `name: \`${specs.name}\`,\n`;
     code += `field: f,\n`;
     code += `stateWidth: stateWidth,\n`;
-    code += `kRegisterCount: ${specs.staticRegisters.length},\n`;
+    code += `iRegisterCount: ${specs.inputRegisterCount},\n`;
     code += `pRegisterCount: ${specs.publicRegisters.length},\n`;
     code += `sRegisterCount: ${specs.secretRegisters.length},\n`;
-    code += `iRegisterCount: ${specs.inputRegisterCount},\n`;
+    code += `kRegisterCount: ${specs.staticRegisters.length},\n`;
+    code += `constraints: constraints,\n`;
     code += `maxConstraintDegree: ${specs.maxTransitionConstraintDegree},\n`;
     code += `extensionFactor: extensionFactor,\n`;
     code += `initProof,\n`;

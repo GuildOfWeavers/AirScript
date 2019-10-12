@@ -79,8 +79,10 @@ declare module '@guildofweavers/air-script' {
         readonly rootOfUnity        : bigint;
         readonly stateWidth         : number;
         readonly constraintCount    : number;
-        readonly secretInputCount   : number;
-        readonly publicInputCount   : number;
+        readonly iRegisterCount     : number;
+        readonly pRegisterCount     : number;
+        readonly sRegisterCount     : number;
+        readonly kRegisterCount     : number;
     }
 
     export interface VerificationObject extends AirObject {
