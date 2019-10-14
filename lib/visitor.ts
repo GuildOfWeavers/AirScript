@@ -320,6 +320,7 @@ class AirVisitor extends BaseCstVisitor {
     // WHEN...ELSE EXPRESSION
     // --------------------------------------------------------------------------------------------
     whenExpression(ctx: any, exc: ExecutionContext): Expression {
+        const id = exc.getNextConditionalBlockId();
         const condition = this.visit(ctx.condition, exc);
 
         // build subroutines for true and false conditions
@@ -331,7 +332,7 @@ class AirVisitor extends BaseCstVisitor {
         const fBlock: StatementBlock = this.visit(ctx.fExpression, exc);
         exc.destroyVariableFrame();
 
-        return new expressions.WhenExpression(condition, tBlock, fBlock);
+        return new expressions.WhenExpression(id, condition, tBlock, fBlock);
     }
 
     whenCondition(ctx: any, exc: ExecutionContext): Expression {

@@ -14,7 +14,7 @@ const ONE = new SymbolReference_1.SymbolReference('f.one', [0, 0], 0n);
 class WhenExpression extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(condition, tBranch, fBranch) {
+    constructor(id, condition, tBranch, fBranch) {
         if (!tBranch.isSameDimensions(fBranch)) {
             throw new Error(`when...else statement branches must evaluate to values of same dimensions`);
         }
@@ -22,6 +22,7 @@ class WhenExpression extends Expression_1.Expression {
         const fDegree = utils_1.sumDegree(fBranch.degree, condition.degree);
         const degree = utils_1.maxDegree(tDegree, fDegree);
         super(tBranch.dimensions, degree);
+        this.id = id;
         this.condition = condition;
         this.tBranch = tBranch;
         this.fBranch = fBranch;
@@ -31,7 +32,7 @@ class WhenExpression extends Expression_1.Expression {
     toJsCode(assignTo, options = {}) {
         if (!assignTo)
             throw new Error('when..else expression cannot be converted to pure code');
-        const tVal = 'tVal', fVal = 'fVal';
+        const tVal = `tVal${this.id}`, fVal = `fVal${this.id}`, tCon = `tCon${this.id}`;
         // evaluate when and else branches
         let code = `let ${tVal}, ${fVal};\n`;
         code += `${this.tBranch.toJsCode(tVal)}`;
@@ -44,8 +45,8 @@ class WhenExpression extends Expression_1.Expression {
             tMod = this.condition;
         }
         else {
-            code += `${this.condition.toJsCode('let tCon')}`;
-            tMod = new SymbolReference_1.SymbolReference('tCon', this.condition.dimensions, this.condition.degree);
+            code += this.condition.toJsCode(`let ${tCon}`);
+            tMod = new SymbolReference_1.SymbolReference(tCon, this.condition.dimensions, this.condition.degree);
         }
         const fMod = BinaryOperation_1.BinaryOperation.sub(ONE, tMod);
         // compute the result

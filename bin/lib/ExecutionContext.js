@@ -19,6 +19,7 @@ class ExecutionContext {
             this.tFunctionDegree = specs.transitionFunctionDegree;
         }
         this.loopFrames = [];
+        this.conditionalBlockCounter = -1;
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -207,6 +208,12 @@ class ExecutionContext {
         }
         const dimensions = [this.mutableRegisterCount, 0];
         return new expressions_1.SubroutineCall('applyTransition', ['r', 'k', 's', 'p', 'c', 'i'], dimensions, this.tFunctionDegree);
+    }
+    // CONDITIONAL EXPRESSIONS
+    // --------------------------------------------------------------------------------------------
+    getNextConditionalBlockId() {
+        this.conditionalBlockCounter++;
+        return this.conditionalBlockCounter;
     }
 }
 exports.ExecutionContext = ExecutionContext;

@@ -20,6 +20,8 @@ export class ExecutionContext {
 
     readonly loopFrames             : (Set<number> | undefined)[];
 
+    private conditionalBlockCounter : number;
+
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(specs: ScriptSpecs) {
@@ -34,6 +36,7 @@ export class ExecutionContext {
             this.tFunctionDegree = specs.transitionFunctionDegree;
         }
         this.loopFrames = [];
+        this.conditionalBlockCounter = -1;
     }
 
     // ACCESSORS
@@ -233,5 +236,12 @@ export class ExecutionContext {
         }
         const dimensions: Dimensions = [this.mutableRegisterCount, 0];
         return new SubroutineCall('applyTransition', ['r', 'k', 's', 'p', 'c', 'i'], dimensions, this.tFunctionDegree!);
+    }
+
+    // CONDITIONAL EXPRESSIONS
+    // --------------------------------------------------------------------------------------------
+    getNextConditionalBlockId(): number {
+        this.conditionalBlockCounter++;
+        return this.conditionalBlockCounter;
     }
 }

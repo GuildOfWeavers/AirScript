@@ -256,6 +256,7 @@ class AirVisitor extends BaseCstVisitor {
     // WHEN...ELSE EXPRESSION
     // --------------------------------------------------------------------------------------------
     whenExpression(ctx, exc) {
+        const id = exc.getNextConditionalBlockId();
         const condition = this.visit(ctx.condition, exc);
         // build subroutines for true and false conditions
         exc.createNewVariableFrame();
@@ -264,7 +265,7 @@ class AirVisitor extends BaseCstVisitor {
         exc.createNewVariableFrame();
         const fBlock = this.visit(ctx.fExpression, exc);
         exc.destroyVariableFrame();
-        return new expressions.WhenExpression(condition, tBlock, fBlock);
+        return new expressions.WhenExpression(id, condition, tBlock, fBlock);
     }
     whenCondition(ctx, exc) {
         const registerName = ctx.register[0].image;

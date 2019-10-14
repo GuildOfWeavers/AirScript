@@ -13,13 +13,14 @@ const ONE = new SymbolReference('f.one', [0, 0], 0n);
 // ================================================================================================
 export class WhenExpression extends Expression {
 
+    readonly id         : number;
     readonly condition  : Expression;
     readonly tBranch    : Expression;
-    readonly fBranch     : Expression;
+    readonly fBranch    : Expression;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(condition: Expression, tBranch: Expression, fBranch: Expression) {
+    constructor(id: number, condition: Expression, tBranch: Expression, fBranch: Expression) {
         if (!tBranch.isSameDimensions(fBranch)) {
             throw new Error(`when...else statement branches must evaluate to values of same dimensions`);
         }
@@ -29,6 +30,7 @@ export class WhenExpression extends Expression {
         const degree = maxDegree(tDegree, fDegree);
 
         super(tBranch.dimensions, degree);
+        this.id = id;
         this.condition = condition;
         this.tBranch = tBranch;
         this.fBranch = fBranch;
@@ -39,7 +41,7 @@ export class WhenExpression extends Expression {
     toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
         if (!assignTo) throw new Error('when..else expression cannot be converted to pure code');
 
-        const tVal = 'tVal', fVal = 'fVal';
+        const tVal = `tVal${this.id}`, fVal = `fVal${this.id}`, tCon = `tCon${this.id}`;
 
         // evaluate when and else branches
         let code = `let ${tVal}, ${fVal};\n`;
@@ -54,8 +56,8 @@ export class WhenExpression extends Expression {
             tMod = this.condition;
         }
         else {
-            code += `${this.condition.toJsCode('let tCon')}`;
-            tMod = new SymbolReference('tCon', this.condition.dimensions, this.condition.degree);
+            code += this.condition.toJsCode(`let ${tCon}`);
+            tMod = new SymbolReference(tCon, this.condition.dimensions, this.condition.degree);
         }
         const fMod = BinaryOperation.sub(ONE, tMod);
 
