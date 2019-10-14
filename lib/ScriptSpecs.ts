@@ -159,6 +159,7 @@ export class ScriptSpecs {
 // VALIDATORS
 // ================================================================================================
 function validateMutableRegisterCount(registerCount: number | bigint, limits: StarkLimits): number {
+    registerCount = registerCount || 0;
     if (registerCount > limits.maxMutableRegisters) {
         throw new Error(`Number of mutable registers cannot exceed ${limits.maxMutableRegisters}`);
     }
@@ -176,6 +177,7 @@ function validateMutableRegisterCount(registerCount: number | bigint, limits: St
 }
 
 function validateReadonlyRegisterCount(registerCount: number | bigint, limits: StarkLimits): number {
+    registerCount = registerCount || 0;
     if (registerCount > limits.maxReadonlyRegisters) {
         throw new Error(`Number of readonly registers cannot exceed ${limits.maxReadonlyRegisters}`);
     }

@@ -121,6 +121,7 @@ exports.ScriptSpecs = ScriptSpecs;
 // VALIDATORS
 // ================================================================================================
 function validateMutableRegisterCount(registerCount, limits) {
+    registerCount = registerCount || 0;
     if (registerCount > limits.maxMutableRegisters) {
         throw new Error(`Number of mutable registers cannot exceed ${limits.maxMutableRegisters}`);
     }
@@ -136,6 +137,7 @@ function validateMutableRegisterCount(registerCount, limits) {
     return registerCount;
 }
 function validateReadonlyRegisterCount(registerCount, limits) {
+    registerCount = registerCount || 0;
     if (registerCount > limits.maxReadonlyRegisters) {
         throw new Error(`Number of readonly registers cannot exceed ${limits.maxReadonlyRegisters}`);
     }
