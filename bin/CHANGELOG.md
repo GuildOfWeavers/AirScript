@@ -1,5 +1,9 @@
 # Release History
 
+### v0.5.2 - October 14, 2019
+
+* Updated dependencies
+
 ### v0.5.1 - October 11, 2019
 
 * Minor bugfixes
