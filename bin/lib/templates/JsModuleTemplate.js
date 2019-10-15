@@ -31,8 +31,8 @@ function initProof(initValues, pInputs, sInputs) {
     const eSkip = extensionFactor;
     const executionDomain = f.pluckVector(evaluationDomain, eSkip, traceLength);
     const cSkip = extensionFactor / compositionFactor;
-    const compositionDomainLength = traceLength * compositionFactor;
-    const compositionDomain = f.pluckVector(evaluationDomain, cSkip, compositionDomainLength);
+    const compositionDomainSize = traceLength * compositionFactor;
+    const compositionDomain = f.pluckVector(evaluationDomain, cSkip, compositionDomainSize);
     // create a variable to hold secret register traces
     const hiddenRegisterTraces = [];
     // build readonly registers
@@ -178,14 +178,14 @@ function initProof(initValues, pInputs, sInputs) {
                     s.values = s.values.concat(s.values);
                 }
                 // build the polynomial describing cyclic values
-                const skip = compositionDomainLength / s.values.length;
+                const skip = evaluationDomainSize / s.values.length;
                 const ys = f.newVectorFrom(s.values);
-                const xs = f.pluckVector(compositionDomain, skip, ys.length);
+                const xs = f.pluckVector(evaluationDomain, skip, ys.length);
                 const poly = f.interpolateRoots(xs, ys);
                 // evaluate the polynomial over a subset of composition domain
-                const length2 = s.values.length * compositionFactor;
-                const skip2 = compositionDomainLength / length2;
-                const xs2 = f.pluckVector(compositionDomain, skip2, length2);
+                const length2 = s.values.length * extensionFactor;
+                const skip2 = evaluationDomainSize / length2;
+                const xs2 = f.pluckVector(evaluationDomain, skip2, length2);
                 const evaluations = f.evalPolyAtRoots(poly, xs2);
                 // if the register is secret, build its trace over evaluation domain
                 if (isHidden) {
@@ -194,7 +194,8 @@ function initProof(initValues, pInputs, sInputs) {
                     hiddenRegisterTraces.push((i > 0) ? f.duplicateVector(evaluations, i) : evaluations);
                 }
                 // return evaluator function
-                return (position) => evaluations.getValue(position % evaluations.length);
+                const skip3 = evaluationDomainSize / compositionDomainSize;
+                return (position) => evaluations.getValue((position * skip3) % evaluations.length);
             }
             else if (s.pattern === 'spread') {
                 // create trace mask
