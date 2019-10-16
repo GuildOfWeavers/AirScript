@@ -14,7 +14,7 @@ class SegmentLoopBlock extends Expression_1.Expression {
     // --------------------------------------------------------------------------------------------
     constructor(loops) {
         // determine dimensions and degree for the block
-        const dimensions = loops[0].statements.dimensions;
+        const dimensions = loops[0].body.dimensions;
         let degree = 0n;
         for (let loop of loops) {
             degree = utils_2.maxDegree(loop.degree, degree);

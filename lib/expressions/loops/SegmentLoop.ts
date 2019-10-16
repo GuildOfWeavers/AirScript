@@ -1,7 +1,6 @@
 // IMPORTS
 // ================================================================================================
 import { Expression, JsCodeOptions } from '../Expression';
-import { StatementBlock } from '../StatementBlock';
 import { SymbolReference } from '../SymbolReference';
 import { BinaryOperation } from '../operations/BinaryOperation';
 import { sumDegree } from '../utils';
@@ -15,16 +14,16 @@ type Interval = [number, number];
 export class SegmentLoop extends Expression {
 
     readonly controller : Expression;
-    readonly statements : StatementBlock;
+    readonly body       : Expression;
     readonly traceMask  : number[];
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(statements: StatementBlock, intervals: Interval[], controller: Expression) {
-        const degree = sumDegree(statements.degree, controller.degree);
-        super(statements.dimensions, degree);
+    constructor(body: Expression, intervals: Interval[], controller: Expression) {
+        const degree = sumDegree(body.degree, controller.degree);
+        super(body.dimensions, degree);
         this.controller = controller;
-        this.statements = statements;
+        this.body = body;
         this.traceMask = parseIntervals(intervals);
     }
 
@@ -33,10 +32,10 @@ export class SegmentLoop extends Expression {
     toJsCode(assignTo?: string, options?: JsCodeOptions): string {
         if (!assignTo) throw new Error('segment loop cannot be reduced to unassigned code');
 
-        let code = this.statements.toJsCode(assignTo);
+        let code = this.body.toJsCode(assignTo);
 
         // apply control modifier
-        const resRef = new SymbolReference(assignTo, this.statements.dimensions, this.statements.degree);
+        const resRef = new SymbolReference(assignTo, this.body.dimensions, this.body.degree);
         code += BinaryOperation.mul(resRef, this.controller).toJsCode(assignTo, options);
 
         return code;

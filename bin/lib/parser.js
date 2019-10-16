@@ -182,7 +182,14 @@ class AirParser extends chevrotain_1.CstParser {
                 DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
             });
             this.CONSUME(lexer_1.RSquare);
-            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+            this.OR([
+                { ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'body' }) },
+                { ALT: () => {
+                        this.CONSUME(lexer_1.ResolveOp);
+                        this.SUBRULE(this.expression, { LABEL: 'body' });
+                        this.CONSUME(lexer_1.Semicolon);
+                    } }
+            ]);
         });
         // STATEMENTS
         // --------------------------------------------------------------------------------------------

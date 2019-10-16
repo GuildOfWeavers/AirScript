@@ -63,6 +63,7 @@ export const ExpOp      = createToken({ name: "ExpOp",      pattern: /\^/ });
 
 export const Equals     = createToken({ name: "Equals",     pattern: /=/ });
 export const AssignOp   = createToken({ name: "AssignOp",   pattern: /<-/ });
+export const ResolveOp  = createToken({ name: "ResolveOp",  pattern: /->/ });
 
 // SYMBOLS
 // ================================================================================================
@@ -82,7 +83,7 @@ export const Ampersand  = createToken({ name: 'Ampersand',  pattern: /&/        
 export const QMark      = createToken({ name: 'QMark',      pattern: /\?/       });
 export const EMark      = createToken({ name: 'EMark',      pattern: /!/        });
 
-export const DoubleDot  = createToken({ name: 'DoubleDot',  pattern: /\.\./, longer_alt: Ellipsis });
+export const DoubleDot  = createToken({ name: 'DoubleDot',  pattern: /\.\./     });
 
 // WHITESPACE AND COMMENTS
 // ================================================================================================
@@ -104,9 +105,9 @@ export const allTokens = [
     WhiteSpace, Comment,
     
     Define, Over, Prime, Binary, Field, Transition, Registers, Steps, Enforce, Constraints, For, Each,
-     Do, With, Nothing, When, Else, Repeat, Spread, Using, Readonly, Import, From, As, All, Init,
+    Do, With, Nothing, When, Else, Repeat, Spread, Using, Readonly, Import, From, As, All, Init,
 
-    Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp, AssignOp, Equals,
+    AssignOp, ResolveOp, Equals, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 
     LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, DoubleDot,
     Pipe, Tilde, Ampersand, QMark, EMark,

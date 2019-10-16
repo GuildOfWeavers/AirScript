@@ -5,7 +5,7 @@ import {
     allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, LParen, RParen, LCurly, RCurly, LSquare, RSquare,
     ExpOp, MulOp, AddOp, AssignOp, Transition, Registers, Steps, Enforce, Constraints,  When, Else,
     RegisterRef, ReadonlyRegister, InitRegister, Comma, Using, DoubleDot, Colon, Semicolon, Equals,
-    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash, QMark, For, All, Each, Init
+    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash, QMark, For, All, Each, Init, ResolveOp
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -201,7 +201,14 @@ class AirParser extends CstParser {
             DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
         });
         this.CONSUME(RSquare);
-        this.SUBRULE(this.statementBlock,                        { LABEL: 'statements' });
+        this.OR([
+            { ALT: () => this.SUBRULE(this.statementBlock,       { LABEL: 'body' })},
+            { ALT: () => {
+                this.CONSUME(ResolveOp);
+                this.SUBRULE(this.expression,                    { LABEL: 'body' });
+                this.CONSUME(Semicolon);
+            }}
+        ]);
     });
 
     // STATEMENTS

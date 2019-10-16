@@ -8,9 +8,8 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
         for each ($i0) {
             init { $i0 }
     
-            for steps [1..63] {
-                $r0^3 + $k0
-            }
+            for steps [1..31] -> $r0^3 + $k0;
+            for steps [32..63] { $r0^2 + $k0; }
         }
     }
 
@@ -44,13 +43,19 @@ const qEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomai
 
 console.log('done!');
 
-console.log(test(3n, 63) === trace.toValues()[0][63]);
-console.log(test(4n, 63) === trace.toValues()[0][127]);
+console.log(test(3n, 31, 63) === trace.toValues()[0][63]);
+console.log(test(4n, 31, 63) === trace.toValues()[0][127]);
 
-function test(input: bigint, steps: number) {
+function test(input: bigint, s1: number, s2: number) {
     const k = [ 42n, 43n, 170n, 2209n, 16426n, 78087n, 279978n, 823517n, 2097194n, 4782931n, 10000042n, 19487209n, 35831850n, 62748495n, 105413546n, 170859333n ];
-    for (let i = 0; i < steps; i++) {
+    let i = 0;
+    for (; i < s1; i++) {
         input = air.field.add(air.field.exp(input, 3n), k[i % k.length] );
     }
+
+    for (; i < s2; i++) {
+        input = air.field.add(air.field.exp(input, 2n), k[i % k.length] );
+    }
+
     return input;
 }

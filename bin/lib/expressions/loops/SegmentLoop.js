@@ -11,11 +11,11 @@ const utils_1 = require("../utils");
 class SegmentLoop extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(statements, intervals, controller) {
-        const degree = utils_1.sumDegree(statements.degree, controller.degree);
-        super(statements.dimensions, degree);
+    constructor(body, intervals, controller) {
+        const degree = utils_1.sumDegree(body.degree, controller.degree);
+        super(body.dimensions, degree);
         this.controller = controller;
-        this.statements = statements;
+        this.body = body;
         this.traceMask = parseIntervals(intervals);
     }
     // PUBLIC MEMBERS
@@ -23,9 +23,9 @@ class SegmentLoop extends Expression_1.Expression {
     toJsCode(assignTo, options) {
         if (!assignTo)
             throw new Error('segment loop cannot be reduced to unassigned code');
-        let code = this.statements.toJsCode(assignTo);
+        let code = this.body.toJsCode(assignTo);
         // apply control modifier
-        const resRef = new SymbolReference_1.SymbolReference(assignTo, this.statements.dimensions, this.statements.degree);
+        const resRef = new SymbolReference_1.SymbolReference(assignTo, this.body.dimensions, this.body.degree);
         code += BinaryOperation_1.BinaryOperation.mul(resRef, this.controller).toJsCode(assignTo, options);
         return code;
     }

@@ -224,9 +224,9 @@ class AirVisitor extends BaseCstVisitor {
     segmentLoop(ctx, exc) {
         const intervals = ctx.ranges.map((range) => this.visit(range));
         const controlIndex = exc.addLoopFrame();
-        const statements = this.visit(ctx.statements, exc);
+        const body = this.visit(ctx.body, exc);
         const controller = exc.getControlReference(controlIndex);
-        return new expressions_1.SegmentLoop(statements, intervals, controller);
+        return new expressions_1.SegmentLoop(body, intervals, controller);
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
