@@ -1,6 +1,7 @@
 // IMPORTS
 // ================================================================================================
-import { AirModule, StarkLimits, ScriptOptions } from '@guildofweavers/air-script';
+import { AirModule, StarkLimits, ScriptOptions, WasmOptions } from '@guildofweavers/air-script';
+import { promises as fs } from 'fs';
 import { lexer } from './lib/lexer';
 import { parser } from './lib/parser';
 import { visitor } from './lib/visitor';
@@ -21,10 +22,44 @@ const DEFAULT_LIMITS: StarkLimits = {
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function parseScript(script: string, options: ScriptOptions = {}): AirModule {
+export async function instantiate(scriptOrPath: Buffer | string, options: ScriptOptions = {}): Promise<AirModule> {
+
+    let script: string;
+    if (Buffer.isBuffer(scriptOrPath)) {
+        script = scriptOrPath.toString('utf8');
+    }
+    else {
+        if (typeof scriptOrPath !== 'string') {
+            throw new TypeError(`script path '${scriptOrPath}' is invalid`);
+        }
+
+        try {
+            script = await fs.readFile(scriptOrPath, { encoding: 'utf8' });
+        }
+        catch (error) {
+            throw new AirScriptError([error]);
+        }
+    }
+
     // apply default limits
     const limits = {...DEFAULT_LIMITS, ...options.limits };
     const wasmOptions = options.wasmOptions;
+
+    // build AIR module
+    try {
+        const specs = parseScript(script, limits, wasmOptions);
+        const extensionFactor = validateExtensionFactor(specs.maxTransitionConstraintDegree, options.extensionFactor);
+        const air = generators.instantiateJsModule(specs, limits, extensionFactor);
+        return air;
+    }
+    catch (error) {
+        throw new AirScriptError([error]);
+    }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+function parseScript(script: string, limits: StarkLimits, wasmOptions?: Partial<WasmOptions> | boolean): ScriptSpecs {
 
     // tokenize input
     const lexResult = lexer.tokenize(script);
@@ -39,20 +74,10 @@ export function parseScript(script: string, options: ScriptOptions = {}): AirMod
         throw new AirScriptError(parser.errors);
     }
 
-    // build AIR module
-    try {
-        const specs: ScriptSpecs = visitor.visit(cst, { limits, wasmOptions });
-        const extensionFactor = validateExtensionFactor(specs.maxTransitionConstraintDegree, options.extensionFactor);
-        const air = generators.generateJsModule(specs, limits, extensionFactor);
-        return air;
-    }
-    catch (error) {
-        throw new AirScriptError([error]);
-    }
+    // build and return script specs
+    return visitor.visit(cst, { limits, wasmOptions });
 }
 
-// HELPER FUNCTIONS
-// ================================================================================================
 function validateExtensionFactor(constraintDegree: number, extensionFactor?: number): number {
     const minExtensionFactor = 2**Math.ceil(Math.log2(constraintDegree)) * 2;
 

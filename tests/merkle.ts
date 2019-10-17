@@ -1,6 +1,6 @@
-import { parseScript } from '../index';
+import { instantiate } from '../index';
 
-const script = `
+const script = Buffer.from(`
 define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
 
     alpha: 3;
@@ -106,47 +106,51 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
              8582267286539513308, 13903972190091769637, 17428182081597550586,  9464705238429071998
         ];
     }
-}`;
+}`);
 
 const extensionFactor = 16;
-const air = parseScript(script, { extensionFactor });
-console.log(`degree: ${air.maxConstraintDegree}`);
 
-const gStart = Date.now();
-let start = Date.now();
-const pObject = air.initProof([[42n, [1n, 2n, 3n, 4n]]], [[0n, 1n, 0n, 1n]], []);
-console.log(`Initialized proof object in ${Date.now() - start} ms`);
+(async function run() {
+    const air = await instantiate(script, { extensionFactor });
+    console.log(`degree: ${air.maxConstraintDegree}`);
 
-start = Date.now();
-const trace = pObject.generateExecutionTrace();
-console.log(`Execution trace generated in ${Date.now() - start} ms`);
+    const gStart = Date.now();
+    let start = Date.now();
+    const pObject = air.initProof([[42n, [1n, 2n, 3n, 4n]]], [[0n, 1n, 0n, 1n]], []);
+    console.log(`Initialized proof object in ${Date.now() - start} ms`);
 
-start = Date.now();
-const pPolys = air.field.interpolateRoots(pObject.executionDomain, trace);
-console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
+    start = Date.now();
+    const trace = pObject.generateExecutionTrace();
+    console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
-start = Date.now();
-const pEvaluations = air.field.evalPolysAtRoots(pPolys, pObject.evaluationDomain);
-console.log(`Extended execution trace in ${Date.now() - start} ms`);
+    start = Date.now();
+    const pPolys = air.field.interpolateRoots(pObject.executionDomain, trace);
+    console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
 
-start = Date.now();
-const cEvaluations = pObject.evaluateTracePolynomials(pPolys);
-console.log(`Constraints evaluated in ${Date.now() - start} ms`);
+    start = Date.now();
+    const pEvaluations = air.field.evalPolysAtRoots(pPolys, pObject.evaluationDomain);
+    console.log(`Extended execution trace in ${Date.now() - start} ms`);
 
-const hRegisterValues = pObject.hiddenRegisterTraces;
+    start = Date.now();
+    const cEvaluations = pObject.evaluateTracePolynomials(pPolys);
+    console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 
-start = Date.now();
-const qPolys = air.field.interpolateRoots(pObject.compositionDomain, cEvaluations);
-const qEvaluations = air.field.evalPolysAtRoots(qPolys, pObject.evaluationDomain);
-console.log(`Extended constraints in ${Date.now() - start} ms`);
-console.log(`Total time: ${Date.now() - gStart} ms`);
+    const hRegisterValues = pObject.hiddenRegisterTraces;
 
-const vContext = air.initVerification(pObject.traceShape, [[0n, 1n, 0n, 1n]]);
+    start = Date.now();
+    const qPolys = air.field.interpolateRoots(pObject.compositionDomain, cEvaluations);
+    const qEvaluations = air.field.evalPolysAtRoots(qPolys, pObject.evaluationDomain);
+    console.log(`Extended constraints in ${Date.now() - start} ms`);
+    console.log(`Total time: ${Date.now() - gStart} ms`);
 
-const x = air.field.exp(vContext.rootOfUnity, 2n);
-const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2)];
-const nValues = [pEvaluations.getValue(0, 18), pEvaluations.getValue(1, 18), pEvaluations.getValue(2, 18), pEvaluations.getValue(3, 18)];
-const hValues = [hRegisterValues[0].getValue(2), hRegisterValues[1].getValue(2)];
-const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, hValues);
+    const vContext = air.initVerification(pObject.traceShape, [[0n, 1n, 0n, 1n]]);
 
-console.log(qEvaluations.getValue(0, 2) === qValues[0]);
+    const x = air.field.exp(vContext.rootOfUnity, 2n);
+    const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2)];
+    const nValues = [pEvaluations.getValue(0, 18), pEvaluations.getValue(1, 18), pEvaluations.getValue(2, 18), pEvaluations.getValue(3, 18)];
+    const hValues = [hRegisterValues[0].getValue(2), hRegisterValues[1].getValue(2)];
+    const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, hValues);
+
+    console.log(qEvaluations.getValue(0, 2) === qValues[0]);
+
+})().then(() => console.log('done!'));

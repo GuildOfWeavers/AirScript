@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const jsTemplate = require("../templates/JsModuleTemplate");
+const jsTemplate = require("./JsModuleTemplate");
 // PUBLIC FUNCTIONS
 // ================================================================================================
-function generateJsModule(specs, limits, extensionFactor) {
+function instantiateModule(specs, limits, extensionFactor) {
     let code = `'use strict';\n\n`;
     // set up module variables
     const maxConstraintDegree = specs.maxTransitionConstraintDegree;
@@ -39,5 +39,5 @@ function generateJsModule(specs, limits, extensionFactor) {
     const buildModule = new Function('f', 'g', 'registerSpecs', 'loops', 'constraints', code);
     return buildModule(specs.field, specs.constantBindings, specs.readonlyRegisters, specs.inputBlock, specs.transitionConstraintsSpecs);
 }
-exports.generateJsModule = generateJsModule;
+exports.instantiateModule = instantiateModule;
 //# sourceMappingURL=jsGenerator.js.map

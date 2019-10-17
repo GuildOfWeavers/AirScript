@@ -20,6 +20,7 @@ function compile(cb) {
 }
 
 function copyFiles(cb) {
+  gulp.src('./tests/scripts/*').pipe(gulp.dest('./bin/tests/scripts'));
   gulp.src('./package.json').pipe(gulp.dest('./bin'));
   gulp.src('./package-lock.json').pipe(gulp.dest('./bin'));
   gulp.src('./air-script.d.ts').pipe(gulp.dest('./bin'));

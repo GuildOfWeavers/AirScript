@@ -115,7 +115,8 @@ declare module '@guildofweavers/air-script' {
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
-    export function parseScript(script: string, options?: ScriptOptions): AirModule;
+    export function instantiate(path: string, options?: ScriptOptions): Promise<AirModule>;
+    export function instantiate(script: Buffer, options?: ScriptOptions): Promise<AirModule>;
 
     // INTERNAL INTERFACES
     // --------------------------------------------------------------------------------------------

@@ -1,1 +1,1 @@
-export { generateJsModule } from './jsGenerator';
+export { instantiateModule as instantiateJsModule } from './jsGenerator';

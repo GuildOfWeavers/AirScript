@@ -1,6 +1,6 @@
-import { parseScript } from '../index';
+import { instantiate } from '../index';
 
-const script = `
+const script = Buffer.from(`
 define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
     // constants used in transition function and constraint computations
@@ -31,50 +31,54 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
             10000042, 19487209, 35831850, 62748495, 105413546, 170859333
         ];
     }
-}`;
+}`);
 
 const extensionFactor = 16;
-const air = parseScript(script, { extensionFactor, wasmOptions: true });
-console.log(`degree: ${air.maxConstraintDegree}`);
 
-const gStart = Date.now();
+(async function run() {
+    const air = await instantiate(script, { extensionFactor, wasmOptions: true });
+    console.log(`degree: ${air.maxConstraintDegree}`);
 
-let start = Date.now();
-const pObject = air.initProof([[3n]], [], []);
-console.log(`Initialized proof object in ${Date.now() - start} ms`);
+    const gStart = Date.now();
 
-start = Date.now();
-const trace = pObject.generateExecutionTrace();
-console.log(`Execution trace generated in ${Date.now() - start} ms`);
+    let start = Date.now();
+    const pObject = air.initProof([[3n]], [], []);
+    console.log(`Initialized proof object in ${Date.now() - start} ms`);
 
-start = Date.now();
-const pPolys = air.field.interpolateRoots(pObject.executionDomain, trace);
-console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
+    start = Date.now();
+    const trace = pObject.generateExecutionTrace();
+    console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
-start = Date.now();
-const pEvaluations = air.field.evalPolysAtRoots(pPolys, pObject.evaluationDomain);
-console.log(`Extended execution trace in ${Date.now() - start} ms`);
+    start = Date.now();
+    const pPolys = air.field.interpolateRoots(pObject.executionDomain, trace);
+    console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
 
-start = Date.now();
-const cEvaluations = pObject.evaluateTracePolynomials(pPolys);
-console.log(`Constraints evaluated in ${Date.now() - start} ms`);
+    start = Date.now();
+    const pEvaluations = air.field.evalPolysAtRoots(pPolys, pObject.evaluationDomain);
+    console.log(`Extended execution trace in ${Date.now() - start} ms`);
 
-start = Date.now();
-const qPolys = air.field.interpolateRoots(pObject.compositionDomain, cEvaluations);
-const qEvaluations = air.field.evalPolysAtRoots(qPolys, pObject.evaluationDomain);
-console.log(`Extended constraints in ${Date.now() - start} ms`);
-console.log(`Total time: ${Date.now() - gStart} ms`);
+    start = Date.now();
+    const cEvaluations = pObject.evaluateTracePolynomials(pPolys);
+    console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 
-const hEvaluations = pObject.hiddenRegisterTraces[0];
+    start = Date.now();
+    const qPolys = air.field.interpolateRoots(pObject.compositionDomain, cEvaluations);
+    const qEvaluations = air.field.evalPolysAtRoots(qPolys, pObject.evaluationDomain);
+    console.log(`Extended constraints in ${Date.now() - start} ms`);
+    console.log(`Total time: ${Date.now() - gStart} ms`);
 
-start = Date.now();
-const vObject = air.initVerification(pObject.traceShape, []);
-console.log(`Initialized verification object in ${Date.now() - start} ms`);
+    const hEvaluations = pObject.hiddenRegisterTraces[0];
 
-const x = air.field.exp(vObject.rootOfUnity, 2n);
-const rValues = [pEvaluations.getValue(0, 2)];
-const nValues = [pEvaluations.getValue(0, 18)];
-const hValues = [hEvaluations.getValue(2)];
-const qValues = vObject.evaluateConstraintsAt(x, rValues, nValues, hValues);
+    start = Date.now();
+    const vObject = air.initVerification(pObject.traceShape, []);
+    console.log(`Initialized verification object in ${Date.now() - start} ms`);
 
-console.log(qEvaluations.getValue(0, 2) === qValues[0]);
+    const x = air.field.exp(vObject.rootOfUnity, 2n);
+    const rValues = [pEvaluations.getValue(0, 2)];
+    const nValues = [pEvaluations.getValue(0, 18)];
+    const hValues = [hEvaluations.getValue(2)];
+    const qValues = vObject.evaluateConstraintsAt(x, rValues, nValues, hValues);
+
+    console.log(qEvaluations.getValue(0, 2) === qValues[0]);
+
+})().then(() => console.log('done!'));

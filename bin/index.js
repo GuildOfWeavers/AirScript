@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const fs_1 = require("fs");
 const lexer_1 = require("./lib/lexer");
 const parser_1 = require("./lib/parser");
 const visitor_1 = require("./lib/visitor");
@@ -17,10 +18,40 @@ const DEFAULT_LIMITS = {
 };
 // PUBLIC FUNCTIONS
 // ================================================================================================
-function parseScript(script, options = {}) {
+async function instantiate(scriptOrPath, options = {}) {
+    let script;
+    if (Buffer.isBuffer(scriptOrPath)) {
+        script = scriptOrPath.toString('utf8');
+    }
+    else {
+        if (typeof scriptOrPath !== 'string') {
+            throw new TypeError(`script path '${scriptOrPath}' is invalid`);
+        }
+        try {
+            script = await fs_1.promises.readFile(scriptOrPath, { encoding: 'utf8' });
+        }
+        catch (error) {
+            throw new errors_1.AirScriptError([error]);
+        }
+    }
     // apply default limits
     const limits = { ...DEFAULT_LIMITS, ...options.limits };
     const wasmOptions = options.wasmOptions;
+    // build AIR module
+    try {
+        const specs = parseScript(script, limits, wasmOptions);
+        const extensionFactor = validateExtensionFactor(specs.maxTransitionConstraintDegree, options.extensionFactor);
+        const air = generators.instantiateJsModule(specs, limits, extensionFactor);
+        return air;
+    }
+    catch (error) {
+        throw new errors_1.AirScriptError([error]);
+    }
+}
+exports.instantiate = instantiate;
+// HELPER FUNCTIONS
+// ================================================================================================
+function parseScript(script, limits, wasmOptions) {
     // tokenize input
     const lexResult = lexer_1.lexer.tokenize(script);
     if (lexResult.errors.length > 0) {
@@ -32,20 +63,9 @@ function parseScript(script, options = {}) {
     if (parser_1.parser.errors.length > 0) {
         throw new errors_1.AirScriptError(parser_1.parser.errors);
     }
-    // build AIR module
-    try {
-        const specs = visitor_1.visitor.visit(cst, { limits, wasmOptions });
-        const extensionFactor = validateExtensionFactor(specs.maxTransitionConstraintDegree, options.extensionFactor);
-        const air = generators.generateJsModule(specs, limits, extensionFactor);
-        return air;
-    }
-    catch (error) {
-        throw new errors_1.AirScriptError([error]);
-    }
+    // build and return script specs
+    return visitor_1.visitor.visit(cst, { limits, wasmOptions });
 }
-exports.parseScript = parseScript;
-// HELPER FUNCTIONS
-// ================================================================================================
 function validateExtensionFactor(constraintDegree, extensionFactor) {
     const minExtensionFactor = 2 ** Math.ceil(Math.log2(constraintDegree)) * 2;
     if (extensionFactor === undefined) {
