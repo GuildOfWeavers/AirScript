@@ -11,7 +11,7 @@ export const Identifier         = createToken({ name: "Identifier",       patter
 export const RegisterRef        = createToken({ name: "RegisterRef",      pattern: Lexer.NA });
 export const MutableRegister    = createToken({ name: "MutableRegister",  pattern: /\$[rn]\d{1,2}/,  categories: RegisterRef });
 export const ReadonlyRegister   = createToken({ name: "ReadonlyRegister", pattern: /\$[kps]\d{1,2}/, categories: RegisterRef });
-export const InitRegister       = createToken({ name: "InitRegister",     pattern: /\$\i\d{1,2}/,    categories: RegisterRef });
+export const InputRegister      = createToken({ name: "InputRegister",    pattern: /\$\i\d{1,2}/,    categories: RegisterRef });
 export const RegisterBank       = createToken({ name: "RegisterBank",     pattern: /\$[rnkps]/ });
 
 // KEYWORDS
@@ -39,8 +39,11 @@ export const When        = createToken({ name: "When",        pattern: /when/,  
 export const Else        = createToken({ name: "Else",        pattern: /else/,          longer_alt: Identifier });
 export const All         = createToken({ name: "All",         pattern: /all/,           longer_alt: Identifier });
 
+export const Require     = createToken({ name: "Require",     pattern: /require/,       longer_alt: Identifier });
+export const Inputs      = createToken({ name: "Inputs",      pattern: /inputs?/,       longer_alt: Identifier });
 export const Using       = createToken({ name: "Using",       pattern: /using/,         longer_alt: Identifier });
-export const Readonly    = createToken({ name: "Readonly",    pattern: /readonly/,      longer_alt: Identifier });
+export const Readonly    = createToken({ name: "Readonly",    pattern: /readonly/,      longer_alt: Identifier });  // TODO: replace with static
+export const Expand      = createToken({ name: "Expand",      pattern: /expand/,        longer_alt: Identifier });
 export const Repeat      = createToken({ name: "Repeat",      pattern: /repeat/,        longer_alt: Identifier });
 export const Spread      = createToken({ name: "Spread",      pattern: /spread/,        longer_alt: Identifier });
 
@@ -73,17 +76,18 @@ export const LSquare    = createToken({ name: "LSquare",    pattern: /\[/       
 export const RSquare    = createToken({ name: "RSquare",    pattern: /]/        });
 export const LParen     = createToken({ name: "LParen",     pattern: /\(/       });
 export const RParen     = createToken({ name: "RParen",     pattern: /\)/       });
+export const LWedge     = createToken({ name: 'LWedge',     pattern: /</        });
+export const RWedge     = createToken({ name: 'RWedge',     pattern: />/        });
 export const Comma      = createToken({ name: "Comma",      pattern: /,/        });
 export const Colon      = createToken({ name: "Colon",      pattern: /:/        });
 export const Semicolon  = createToken({ name: "Semicolon",  pattern: /;/        });
 export const Ellipsis   = createToken({ name: 'Ellipsis',   pattern: /\.\.\./   });
+export const DoubleDot  = createToken({ name: 'DoubleDot',  pattern: /\.\./     });
 export const Pipe       = createToken({ name: 'Pipe',       pattern: /\|/       });
 export const Tilde      = createToken({ name: 'Tilde',      pattern: /~/        });
 export const Ampersand  = createToken({ name: 'Ampersand',  pattern: /&/        });
 export const QMark      = createToken({ name: 'QMark',      pattern: /\?/       });
 export const EMark      = createToken({ name: 'EMark',      pattern: /!/        });
-
-export const DoubleDot  = createToken({ name: 'DoubleDot',  pattern: /\.\./     });
 
 // WHITESPACE AND COMMENTS
 // ================================================================================================
@@ -105,16 +109,17 @@ export const allTokens = [
     WhiteSpace, Comment,
     
     Define, Over, Prime, Binary, Field, Transition, Registers, Steps, Enforce, Constraints, For, Each,
-    Do, With, Nothing, When, Else, Repeat, Spread, Using, Readonly, Import, From, As, All, Init,
+    Do, With, Nothing, When, Else, Expand, Repeat, Spread, Using, Require, Inputs, Readonly,
+    Import, From, As, All, Init,
 
     AssignOp, ResolveOp, Equals, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 
-    LCurly, RCurly, LSquare, RSquare, LParen, RParen, Comma, Colon, Semicolon, Ellipsis, DoubleDot,
-    Pipe, Tilde, Ampersand, QMark, EMark,
+    LCurly, RCurly, LSquare, RSquare, LParen, RParen, LWedge, RWedge, Comma, Colon, Semicolon,
+    Ellipsis, DoubleDot, Pipe, Tilde, Ampersand, QMark, EMark,
 
     Identifier,
 
-    MutableRegister, ReadonlyRegister, InitRegister, RegisterRef, RegisterBank,
+    MutableRegister, ReadonlyRegister, InputRegister, RegisterRef, RegisterBank,
 
     IntegerLiteral
 ];

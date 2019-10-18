@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import {
-    StarkLimits, ReadonlyRegisterGroup, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField, InputBlockDescriptor
+    StarkLimits, ReadonlyRegisterGroup, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField, InputBlockDescriptor, InputRegisterSpecs2
 } from '@guildofweavers/air-script';
 import { ConstantDeclaration } from './visitor';
 import { Expression, LiteralExpression, TransitionFunctionBody, TransitionConstraintsBody } from './expressions';
@@ -21,6 +21,7 @@ export class ScriptSpecs {
 
     mutableRegisterCount!       : number;
     readonlyRegisterCount!      : number;
+    inputRegisters!             : InputRegisterSpecs2[];
     staticRegisters!            : ReadonlyRegisterSpecs[];
     secretRegisters!            : InputRegisterSpecs[];
     publicRegisters!            : InputRegisterSpecs[];
@@ -87,12 +88,56 @@ export class ScriptSpecs {
 
     // PROPERTY SETTERS
     // --------------------------------------------------------------------------------------------
-    setMutableRegisterCount(value: bigint): void {
-        this.mutableRegisterCount = validateMutableRegisterCount(value, this.limits);
+    setInputRegisterCount(value: any): void {
+        const registerCount = Number.parseInt(value);
+        if (!Number.isInteger(registerCount))
+            throw new Error(`number of input registers '${value}' is not an integer`);
+        else if (registerCount <= 0)
+            throw new Error('number of input registers must be greater than');
+        else if (registerCount > this.limits.maxInputRegisters)
+            throw new Error(`number of input registers cannot exceed ${this.limits.maxInputRegisters}`);
+        else if (this.inputRegisters)
+            throw new Error(`number of input registers has already been set`);
+
+        this.inputRegisters = new Array(registerCount);
     }
 
-    setReadonlyRegisterCount(value: bigint): void {
-        this.readonlyRegisterCount = validateReadonlyRegisterCount(value, this.limits);
+    setInputRegisters(registers: InputRegisterSpecs2[]): void {
+        if (this.inputRegisters.length !== registers.length) {
+            throw new Error(`expected ${this.inputRegisters.length} input registers, but ${registers.length} defined`);
+        }
+
+        for (let i = 0; i < registers.length; i++) {
+            this.inputRegisters[i] = registers[i];
+        }
+    }
+
+    setMutableRegisterCount(value: any): void {
+        const registerCount = Number.parseInt(value);
+        if (!Number.isInteger(registerCount))
+            throw new Error(`number of state registers '${value}' is not an integer`);
+        else if (registerCount <= 0)
+            throw new Error('number of state registers must be greater than 0');
+        else if (registerCount > this.limits.maxMutableRegisters)
+            throw new Error(`number of state registers cannot exceed ${this.limits.maxMutableRegisters}`);
+        else if (this.mutableRegisterCount)
+            throw new Error(`number of state registers has already been set`);
+
+        this.mutableRegisterCount = registerCount
+    }
+
+    setReadonlyRegisterCount(value: any): void {
+        const registerCount = Number.parseInt(value || 0);
+        if (!Number.isInteger(registerCount))
+            throw new Error(`number of static registers '${value}' is not an integer`);
+        else if (registerCount < 0)
+            throw new Error('number of static registers must be positive');
+        else if (registerCount > this.limits.maxReadonlyRegisters)
+            throw new Error(`number of static registers cannot exceed ${this.limits.maxReadonlyRegisters}`);
+        else if (this.readonlyRegisterCount)
+            throw new Error(`number of static registers has already been set`);
+
+        this.readonlyRegisterCount = registerCount;
     }
 
     setReadonlyRegisters(registers: ReadonlyRegisterGroup): void {
@@ -102,14 +147,24 @@ export class ScriptSpecs {
         this.publicRegisters = registers.publicRegisters;
     }
 
-    setConstraintCount(value: bigint): void {
-        this.constraintCount = validateConstraintCount(value, this.limits);
+    setConstraintCount(value: any): void {
+        const constraintCount = Number.parseInt(value);
+        if (!Number.isInteger(constraintCount))
+            throw new Error(`number of transition constraints '${value}' is not an integer`);
+        else if (constraintCount <= 0)
+            throw new Error('number of transition constraints must be greater than 0');
+        else if (constraintCount > this.limits.maxConstraintCount)
+            throw new Error(`number of transition constraints cannot exceed ${this.limits.maxConstraintCount}`);
+        else if (this.constraintCount)
+            throw new Error(`number of transition constraints has already been set`);
+       
+        this.constraintCount = constraintCount;
     }
 
     setGlobalConstants(declarations: ConstantDeclaration[]): void {
         for (let constant of declarations) {
             if (this.globalConstants.has(constant.name)) {
-                throw new Error(`Static constant '${constant.name}' is defined more than once`);
+                throw new Error(`global constant '${constant.name}' is defined more than once`);
             }
             let constExpression = new LiteralExpression(constant.value, constant.name);
             this.globalConstants.set(constant.name, constExpression);
@@ -158,39 +213,6 @@ export class ScriptSpecs {
 
 // VALIDATORS
 // ================================================================================================
-function validateMutableRegisterCount(registerCount: number | bigint, limits: StarkLimits): number {
-    registerCount = registerCount || 0;
-    if (registerCount > limits.maxMutableRegisters) {
-        throw new Error(`Number of mutable registers cannot exceed ${limits.maxMutableRegisters}`);
-    }
-    else if (registerCount < 0) {
-        throw new Error('Number of mutable registers must be positive');
-    }
-    else if (registerCount == 0) {
-        throw new Error('You must define at least one mutable register');
-    }
-    else if (typeof registerCount === 'bigint') {
-        registerCount = Number.parseInt(registerCount as any);
-    }
-
-    return registerCount;
-}
-
-function validateReadonlyRegisterCount(registerCount: number | bigint, limits: StarkLimits): number {
-    registerCount = registerCount || 0;
-    if (registerCount > limits.maxReadonlyRegisters) {
-        throw new Error(`Number of readonly registers cannot exceed ${limits.maxReadonlyRegisters}`);
-    }
-    else if (registerCount < 0) {
-        throw new Error('Number of readonly registers must be positive');
-    }
-    else if (typeof registerCount === 'bigint') {
-        registerCount = Number.parseInt(registerCount as any);
-    }
-
-    return registerCount;
-}
-
 function validateReadonlyRegisterCounts(registers: ReadonlyRegisterGroup, readonlyRegisterCount: number): void {
 
     const totalRegisterCount = 
@@ -201,21 +223,4 @@ function validateReadonlyRegisterCounts(registers: ReadonlyRegisterGroup, readon
     if (totalRegisterCount !== readonlyRegisterCount) {
         throw new Error(`expected ${readonlyRegisterCount} readonly registers, but ${totalRegisterCount} defined`);
     }
-}
-
-function validateConstraintCount(constraintCount: number | bigint, limits: StarkLimits): number {
-    if (constraintCount > limits.maxConstraintCount) {
-        throw new Error(`Number of transition constraints cannot exceed ${limits.maxConstraintCount}`);
-    }
-    else if (constraintCount < 0) {
-        throw new Error('Number of transition constraints must be positive');
-    }
-    else if (constraintCount == 0) {
-        throw new Error('You must define at least one transition constraint');
-    }
-    else if (typeof constraintCount === 'bigint') {
-        constraintCount = Number.parseInt(constraintCount as any);
-    }
-
-    return constraintCount;
 }

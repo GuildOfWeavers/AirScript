@@ -21,20 +21,23 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     script(ctx, config) {
         const starkName = ctx.starkName[0].image;
+        validateScriptSections(ctx);
         // set up the field
         const field = this.visit(ctx.fieldDeclaration, config.wasmOptions);
         // build script specs
         const specs = new ScriptSpecs_1.ScriptSpecs(starkName, field, config.limits);
+        specs.setInputRegisterCount(this.visit(ctx.inputRegisterCount));
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
         if (ctx.globalConstants) {
             specs.setGlobalConstants(ctx.globalConstants.map((element) => this.visit(element, field)));
         }
+        // build input registers
+        specs.setInputRegisters(this.visit(ctx.inputRegisters));
         // build readonly registers
         let readonlyRegisters;
         if (specs.readonlyRegisterCount > 0) {
-            validateReadonlyRegisterDefinitions(ctx.readonlyRegisters);
             readonlyRegisters = this.visit(ctx.readonlyRegisters, specs);
         }
         else {
@@ -42,12 +45,8 @@ class AirVisitor extends BaseCstVisitor {
         }
         specs.setReadonlyRegisters(readonlyRegisters);
         // parse transition function and transition constraints
-        validateTransitionFunction(ctx.transitionFunction);
-        const tFunctionBody = this.visit(ctx.transitionFunction, specs);
-        specs.setTransitionFunction(tFunctionBody);
-        validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraintsBody = this.visit(ctx.transitionConstraints, specs);
-        specs.setTransitionConstraints(tConstraintsBody);
+        specs.setTransitionFunction(this.visit(ctx.transitionFunction, specs));
+        specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
         // build and return AIR config
         return specs;
     }
@@ -112,6 +111,32 @@ class AirVisitor extends BaseCstVisitor {
             row[i] = element;
         }
         return row;
+    }
+    // INPUT REGISTERS
+    // --------------------------------------------------------------------------------------------
+    inputRegisters(ctx, specs) {
+        const registerNames = new Set();
+        const registers = [];
+        ctx.registers.forEach((declaration) => {
+            let register = this.visit(declaration, specs);
+            if (registerNames.has(register.name)) {
+                throw new Error(`input register ${register.name} is defined more than once`);
+            }
+            registerNames.add(register.name);
+            if (register.index !== registers.length) {
+                throw new Error(`input register ${register.name} is defined out of order`);
+            }
+            registers.push(register);
+        });
+        return registers;
+    }
+    inputRegisterDefinition(ctx) {
+        const registerName = ctx.name[0].image;
+        const registerIndex = Number.parseInt(registerName.slice(2), 10);
+        const pattern = ctx.pattern[0].image;
+        const binary = ctx.binary ? true : false;
+        const rank = Number.parseInt(ctx.rank[0].image, 10);
+        return { name: registerName, index: registerIndex, pattern, binary, rank };
     }
     // READONLY REGISTERS
     // --------------------------------------------------------------------------------------------
@@ -469,25 +494,33 @@ class AirVisitor extends BaseCstVisitor {
 exports.visitor = new AirVisitor();
 // HELPER FUNCTIONS
 // ================================================================================================
-function validateTransitionFunction(value) {
-    if (!value || value.length === 0) {
+function validateScriptSections(ctx) {
+    // make sure exactly one input register section is present
+    if (!ctx.inputRegisters || ctx.inputRegisters.length === 0) {
+        throw new Error('input registers section is missing');
+    }
+    else if (ctx.inputRegisters.length > 1) {
+        throw new Error('input registers section is defined more than once');
+    }
+    // make sure exactly one transition function is present
+    if (!ctx.transitionFunction || ctx.transitionFunction.length === 0) {
         throw new Error('transition function section is missing');
     }
-    else if (value.length > 1) {
+    else if (ctx.transitionFunction.length > 1) {
         throw new Error('transition function section is defined more than once');
     }
-}
-function validateTransitionConstraints(value) {
-    if (!value || value.length === 0) {
+    // make sure exactly one transition constraints section is present
+    if (!ctx.transitionConstraints || ctx.transitionConstraints.length === 0) {
         throw new Error('transition constraints section is missing');
     }
-    else if (value.length > 1) {
+    else if (ctx.transitionConstraints.length > 1) {
         throw new Error('transition constraints section is defined more than once');
     }
-}
-function validateReadonlyRegisterDefinitions(value) {
-    if (value.length > 1) {
-        throw new Error('readonly registers section is defined more than once');
+    // make sure at most one static register section is present
+    if (ctx.readonlyRegisters) { // TODO: rename to staticRegisters
+        if (ctx.readonlyRegisters.length > 1) {
+            throw new Error('static registers section is defined more than once');
+        }
     }
 }
 //# sourceMappingURL=visitor.js.map

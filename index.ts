@@ -14,6 +14,7 @@ import { isPowerOf2 } from './lib/utils';
 // ================================================================================================
 const DEFAULT_LIMITS: StarkLimits = {
     maxTraceLength          : 2**20,
+    maxInputRegisters       : 32,
     maxMutableRegisters     : 64,
     maxReadonlyRegisters    : 64,
     maxConstraintCount      : 1024,

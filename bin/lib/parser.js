@@ -24,23 +24,29 @@ class AirParser extends chevrotain_1.CstParser {
                             this.SUBRULE(this.constantDeclaration, { LABEL: 'globalConstants' });
                         } },
                     { ALT: () => {
+                            this.CONSUME(lexer_1.Require);
+                            this.SUBRULE1(this.literalExpression, { LABEL: 'inputRegisterCount' });
+                            this.CONSUME(lexer_1.Inputs);
+                            this.SUBRULE(this.inputRegisters, { LABEL: 'inputRegisters' });
+                        } },
+                    { ALT: () => {
                             this.CONSUME(lexer_1.Transition);
-                            this.SUBRULE1(this.literalExpression, { LABEL: 'mutableRegisterCount' });
+                            this.SUBRULE2(this.literalExpression, { LABEL: 'mutableRegisterCount' }); // TODO: rename to stateRegisterCount
                             this.CONSUME1(lexer_1.Registers);
                             this.SUBRULE(this.transitionFunction, { LABEL: 'transitionFunction' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Enforce);
-                            this.SUBRULE2(this.literalExpression, { LABEL: 'constraintCount' });
+                            this.SUBRULE3(this.literalExpression, { LABEL: 'constraintCount' });
                             this.CONSUME(lexer_1.Constraints);
                             this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Using);
-                            this.SUBRULE3(this.literalExpression, { LABEL: 'readonlyRegisterCount' });
+                            this.SUBRULE4(this.literalExpression, { LABEL: 'readonlyRegisterCount' }); // TODO: rename to staticRegisterCount
                             this.CONSUME(lexer_1.Readonly);
                             this.CONSUME2(lexer_1.Registers);
-                            this.SUBRULE(this.readonlyRegisters, { LABEL: 'readonlyRegisters' });
+                            this.SUBRULE(this.readonlyRegisters, { LABEL: 'readonlyRegisters' }); // TODO: rename to staticRegisters
                         } }
                 ]);
             });
@@ -90,6 +96,27 @@ class AirParser extends chevrotain_1.CstParser {
                 DEF: () => this.SUBRULE(this.literalExpression, { LABEL: 'elements' })
             });
             this.CONSUME(lexer_1.RSquare);
+        });
+        // INPUT REGISTERS
+        // --------------------------------------------------------------------------------------------
+        this.inputRegisters = this.RULE('inputRegisters', () => {
+            this.CONSUME(lexer_1.LCurly);
+            this.AT_LEAST_ONE(() => this.SUBRULE(this.inputRegisterDefinition, { LABEL: 'registers' }));
+            this.CONSUME(lexer_1.RCurly);
+        });
+        this.inputRegisterDefinition = this.RULE('inputRegisterDefinition', () => {
+            this.CONSUME(lexer_1.InputRegister, { LABEL: 'name' });
+            this.CONSUME(lexer_1.Colon);
+            this.OR([
+                { ALT: () => this.CONSUME(lexer_1.Repeat, { LABEL: 'pattern' }) },
+                { ALT: () => this.CONSUME(lexer_1.Spread, { LABEL: 'pattern' }) },
+                { ALT: () => this.CONSUME(lexer_1.Expand, { LABEL: 'pattern' }) }
+            ]);
+            this.OPTION(() => this.CONSUME(lexer_1.Binary, { LABEL: 'binary' }));
+            this.CONSUME(lexer_1.LWedge);
+            this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'rank' });
+            this.CONSUME(lexer_1.RWedge);
+            this.CONSUME(lexer_1.Semicolon);
         });
         // READONLY REGISTERS
         // --------------------------------------------------------------------------------------------
@@ -148,7 +175,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.LParen);
             this.AT_LEAST_ONE_SEP({
                 SEP: lexer_1.Comma,
-                DEF: () => this.CONSUME(lexer_1.InitRegister, { LABEL: 'registers' })
+                DEF: () => this.CONSUME(lexer_1.InputRegister, { LABEL: 'registers' })
             });
             this.CONSUME(lexer_1.RParen);
             this.CONSUME(lexer_1.LCurly);

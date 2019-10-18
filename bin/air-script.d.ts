@@ -18,6 +18,9 @@ declare module '@guildofweavers/air-script' {
         /** Maximum number of steps in an execution trace; defaults to 2^20 */
         maxTraceLength: number;
 
+        /** Maximum number of input registers; defaults to 32 */
+        maxInputRegisters: number;
+
         /** Maximum number of mutable registers; defaults to 64 */
         maxMutableRegisters: number;
 
@@ -122,7 +125,15 @@ declare module '@guildofweavers/air-script' {
     // --------------------------------------------------------------------------------------------
     export type ReadonlyRegisterEvaluator<T extends bigint | number> = (x: T) => bigint;
 
-    export type ReadonlyValuePattern = 'repeat' | 'spread';
+    export type ReadonlyValuePattern = 'expand' | 'repeat' | 'spread';
+
+    export interface InputRegisterSpecs2 {
+        name    : string;
+        index   : number;
+        pattern : ReadonlyValuePattern;
+        binary  : boolean;
+        rank    : number;
+    }
 
     export interface InputRegisterSpecs {
         pattern : ReadonlyValuePattern;

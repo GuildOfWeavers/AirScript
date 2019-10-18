@@ -2,10 +2,11 @@
 // ================================================================================================
 import { CstParser } from "chevrotain";
 import {
-    allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, LParen, RParen, LCurly, RCurly, LSquare, RSquare,
-    ExpOp, MulOp, AddOp, AssignOp, Transition, Registers, Steps, Enforce, Constraints,  When, Else,
-    RegisterRef, ReadonlyRegister, InitRegister, Comma, Using, DoubleDot, Colon, Semicolon, Equals,
-    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash, QMark, For, All, Each, Init, ResolveOp
+    allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, Require, Inputs, Transition,
+    Registers, Readonly, Expand, Repeat, Spread, Binary, RegisterBank, For, All, Each, Init,
+    LParen, RParen, LCurly, RCurly, LSquare, RSquare, LWedge, RWedge, Slash, QMark, Comma, Colon, Semicolon,
+    ExpOp, MulOp, AddOp, AssignOp, ResolveOp, Minus, Ellipsis, DoubleDot, Equals,
+    Steps, Enforce, Constraints,  When, Else, RegisterRef, ReadonlyRegister, InputRegister, Using, 
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -31,23 +32,29 @@ class AirParser extends CstParser {
                     this.SUBRULE(this.constantDeclaration,   { LABEL: 'globalConstants'       });
                 }},
                 { ALT: () => {
+                    this.CONSUME(Require);
+                    this.SUBRULE1(this.literalExpression,    { LABEL: 'inputRegisterCount'    });
+                    this.CONSUME(Inputs);
+                    this.SUBRULE(this.inputRegisters,        { LABEL: 'inputRegisters'        });
+                }},
+                { ALT: () => {
                     this.CONSUME(Transition);
-                    this.SUBRULE1(this.literalExpression,    { LABEL: 'mutableRegisterCount'  });
+                    this.SUBRULE2(this.literalExpression,    { LABEL: 'mutableRegisterCount'  });   // TODO: rename to stateRegisterCount
                     this.CONSUME1(Registers);
                     this.SUBRULE(this.transitionFunction,    { LABEL: 'transitionFunction'    });
                 }},
                 { ALT: () => {
                     this.CONSUME(Enforce);
-                    this.SUBRULE2(this.literalExpression,    { LABEL: 'constraintCount'       });
+                    this.SUBRULE3(this.literalExpression,    { LABEL: 'constraintCount'       });
                     this.CONSUME(Constraints);
                     this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
                 }},
                 { ALT: () => {
                     this.CONSUME(Using);
-                    this.SUBRULE3(this.literalExpression,    { LABEL: 'readonlyRegisterCount' });
+                    this.SUBRULE4(this.literalExpression,    { LABEL: 'readonlyRegisterCount' });   // TODO: rename to staticRegisterCount
                     this.CONSUME(Readonly);
                     this.CONSUME2(Registers);
-                    this.SUBRULE(this.readonlyRegisters,     { LABEL: 'readonlyRegisters'     });
+                    this.SUBRULE(this.readonlyRegisters,     { LABEL: 'readonlyRegisters'     });   // TODO: rename to staticRegisters
                 }}
             ]);
         });
@@ -103,6 +110,29 @@ class AirParser extends CstParser {
         })
         this.CONSUME(RSquare);
     })
+
+    // INPUT REGISTERS
+    // --------------------------------------------------------------------------------------------
+    private inputRegisters = this.RULE('inputRegisters', () => {
+        this.CONSUME(LCurly);
+        this.AT_LEAST_ONE(() => this.SUBRULE(this.inputRegisterDefinition, { LABEL: 'registers' }));
+        this.CONSUME(RCurly);
+    });
+
+    private inputRegisterDefinition = this.RULE('inputRegisterDefinition', () => {
+        this.CONSUME(InputRegister,             { LABEL: 'name'    });
+        this.CONSUME(Colon);
+        this.OR([
+            { ALT: () => this.CONSUME(Repeat,   { LABEL: 'pattern' }) },
+            { ALT: () => this.CONSUME(Spread,   { LABEL: 'pattern' }) },
+            { ALT: () => this.CONSUME(Expand,   { LABEL: 'pattern' }) }
+        ]);
+        this.OPTION(() => this.CONSUME(Binary,  { LABEL: 'binary'  }) );
+        this.CONSUME(LWedge);
+        this.CONSUME(IntegerLiteral,            { LABEL: 'rank'    });
+        this.CONSUME(RWedge);
+        this.CONSUME(Semicolon);
+    });
 
     // READONLY REGISTERS
     // --------------------------------------------------------------------------------------------
@@ -165,7 +195,7 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP: Comma,
-            DEF: () => this.CONSUME(InitRegister,           { LABEL: 'registers' })
+            DEF: () => this.CONSUME(InputRegister,           { LABEL: 'registers' })
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);

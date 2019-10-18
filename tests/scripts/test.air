@@ -1,5 +1,9 @@
 define Test over prime field (2^128 - 9 * 2^32 + 1) {
 
+    require 1 input {
+        $i0: expand <0>;
+    }
+
     // transition function definition
     transition 1 registers {
         for each ($i0) {

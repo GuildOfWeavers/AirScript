@@ -11,7 +11,7 @@ exports.Identifier = chevrotain_1.createToken({ name: "Identifier", pattern: /[a
 exports.RegisterRef = chevrotain_1.createToken({ name: "RegisterRef", pattern: chevrotain_1.Lexer.NA });
 exports.MutableRegister = chevrotain_1.createToken({ name: "MutableRegister", pattern: /\$[rn]\d{1,2}/, categories: exports.RegisterRef });
 exports.ReadonlyRegister = chevrotain_1.createToken({ name: "ReadonlyRegister", pattern: /\$[kps]\d{1,2}/, categories: exports.RegisterRef });
-exports.InitRegister = chevrotain_1.createToken({ name: "InitRegister", pattern: /\$\i\d{1,2}/, categories: exports.RegisterRef });
+exports.InputRegister = chevrotain_1.createToken({ name: "InputRegister", pattern: /\$\i\d{1,2}/, categories: exports.RegisterRef });
 exports.RegisterBank = chevrotain_1.createToken({ name: "RegisterBank", pattern: /\$[rnkps]/ });
 // KEYWORDS
 // ================================================================================================
@@ -34,8 +34,11 @@ exports.Nothing = chevrotain_1.createToken({ name: "Nothing", pattern: /nothing/
 exports.When = chevrotain_1.createToken({ name: "When", pattern: /when/, longer_alt: exports.Identifier });
 exports.Else = chevrotain_1.createToken({ name: "Else", pattern: /else/, longer_alt: exports.Identifier });
 exports.All = chevrotain_1.createToken({ name: "All", pattern: /all/, longer_alt: exports.Identifier });
+exports.Require = chevrotain_1.createToken({ name: "Require", pattern: /require/, longer_alt: exports.Identifier });
+exports.Inputs = chevrotain_1.createToken({ name: "Inputs", pattern: /inputs?/, longer_alt: exports.Identifier });
 exports.Using = chevrotain_1.createToken({ name: "Using", pattern: /using/, longer_alt: exports.Identifier });
-exports.Readonly = chevrotain_1.createToken({ name: "Readonly", pattern: /readonly/, longer_alt: exports.Identifier });
+exports.Readonly = chevrotain_1.createToken({ name: "Readonly", pattern: /readonly/, longer_alt: exports.Identifier }); // TODO: replace with static
+exports.Expand = chevrotain_1.createToken({ name: "Expand", pattern: /expand/, longer_alt: exports.Identifier });
 exports.Repeat = chevrotain_1.createToken({ name: "Repeat", pattern: /repeat/, longer_alt: exports.Identifier });
 exports.Spread = chevrotain_1.createToken({ name: "Spread", pattern: /spread/, longer_alt: exports.Identifier });
 exports.Import = chevrotain_1.createToken({ name: "Import", pattern: /import/, longer_alt: exports.Identifier });
@@ -62,16 +65,18 @@ exports.LSquare = chevrotain_1.createToken({ name: "LSquare", pattern: /\[/ });
 exports.RSquare = chevrotain_1.createToken({ name: "RSquare", pattern: /]/ });
 exports.LParen = chevrotain_1.createToken({ name: "LParen", pattern: /\(/ });
 exports.RParen = chevrotain_1.createToken({ name: "RParen", pattern: /\)/ });
+exports.LWedge = chevrotain_1.createToken({ name: 'LWedge', pattern: /</ });
+exports.RWedge = chevrotain_1.createToken({ name: 'RWedge', pattern: />/ });
 exports.Comma = chevrotain_1.createToken({ name: "Comma", pattern: /,/ });
 exports.Colon = chevrotain_1.createToken({ name: "Colon", pattern: /:/ });
 exports.Semicolon = chevrotain_1.createToken({ name: "Semicolon", pattern: /;/ });
 exports.Ellipsis = chevrotain_1.createToken({ name: 'Ellipsis', pattern: /\.\.\./ });
+exports.DoubleDot = chevrotain_1.createToken({ name: 'DoubleDot', pattern: /\.\./ });
 exports.Pipe = chevrotain_1.createToken({ name: 'Pipe', pattern: /\|/ });
 exports.Tilde = chevrotain_1.createToken({ name: 'Tilde', pattern: /~/ });
 exports.Ampersand = chevrotain_1.createToken({ name: 'Ampersand', pattern: /&/ });
 exports.QMark = chevrotain_1.createToken({ name: 'QMark', pattern: /\?/ });
 exports.EMark = chevrotain_1.createToken({ name: 'EMark', pattern: /!/ });
-exports.DoubleDot = chevrotain_1.createToken({ name: 'DoubleDot', pattern: /\.\./ });
 // WHITESPACE AND COMMENTS
 // ================================================================================================
 exports.WhiteSpace = chevrotain_1.createToken({
@@ -89,12 +94,13 @@ exports.Comment = chevrotain_1.createToken({
 exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Enforce, exports.Constraints, exports.For, exports.Each,
-    exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Spread, exports.Using, exports.Readonly, exports.Import, exports.From, exports.As, exports.All, exports.Init,
+    exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Expand, exports.Repeat, exports.Spread, exports.Using, exports.Require, exports.Inputs, exports.Readonly,
+    exports.Import, exports.From, exports.As, exports.All, exports.Init,
     exports.AssignOp, exports.ResolveOp, exports.Equals, exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
-    exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.Comma, exports.Colon, exports.Semicolon, exports.Ellipsis, exports.DoubleDot,
-    exports.Pipe, exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
+    exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.LWedge, exports.RWedge, exports.Comma, exports.Colon, exports.Semicolon,
+    exports.Ellipsis, exports.DoubleDot, exports.Pipe, exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,
-    exports.MutableRegister, exports.ReadonlyRegister, exports.InitRegister, exports.RegisterRef, exports.RegisterBank,
+    exports.MutableRegister, exports.ReadonlyRegister, exports.InputRegister, exports.RegisterRef, exports.RegisterBank,
     exports.IntegerLiteral
 ];
 // EXPORT LEXER INSTANCE

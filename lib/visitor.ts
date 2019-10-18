@@ -1,7 +1,8 @@
 // IMPORTS
 // ================================================================================================
 import {
-    StarkLimits, ReadonlyRegisterSpecs, ReadonlyRegisterGroup, InputRegisterSpecs, ReadonlyValuePattern
+    StarkLimits, ReadonlyRegisterSpecs, ReadonlyRegisterGroup, InputRegisterSpecs, ReadonlyValuePattern,
+    InputRegisterSpecs2
 } from '@guildofweavers/air-script';
 import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
@@ -48,12 +49,14 @@ class AirVisitor extends BaseCstVisitor {
     script(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): ScriptSpecs {
 
         const starkName = ctx.starkName[0].image;
+        validateScriptSections(ctx);
 
         // set up the field
         const field: FiniteField = this.visit(ctx.fieldDeclaration, config.wasmOptions);
 
         // build script specs
         const specs = new ScriptSpecs(starkName, field, config.limits);
+        specs.setInputRegisterCount(this.visit(ctx.inputRegisterCount));
         specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
         specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
@@ -61,10 +64,12 @@ class AirVisitor extends BaseCstVisitor {
             specs.setGlobalConstants(ctx.globalConstants.map((element: any) => this.visit(element, field)));
         }
 
+        // build input registers
+        specs.setInputRegisters(this.visit(ctx.inputRegisters));
+
         // build readonly registers
         let readonlyRegisters: ReadonlyRegisterGroup;
         if (specs.readonlyRegisterCount > 0) {
-            validateReadonlyRegisterDefinitions(ctx.readonlyRegisters);
             readonlyRegisters = this.visit(ctx.readonlyRegisters, specs);
         }
         else {
@@ -73,13 +78,8 @@ class AirVisitor extends BaseCstVisitor {
         specs.setReadonlyRegisters(readonlyRegisters);
 
         // parse transition function and transition constraints
-        validateTransitionFunction(ctx.transitionFunction);
-        const tFunctionBody: TransitionFunctionBody = this.visit(ctx.transitionFunction, specs);
-        specs.setTransitionFunction(tFunctionBody);
-        
-        validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraintsBody: TransitionConstraintsBody = this.visit(ctx.transitionConstraints, specs);
-        specs.setTransitionConstraints(tConstraintsBody);
+        specs.setTransitionFunction(this.visit(ctx.transitionFunction, specs));
+        specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
 
         // build and return AIR config
         return specs;
@@ -153,6 +153,38 @@ class AirVisitor extends BaseCstVisitor {
             row[i] = element;
         }
         return row;
+    }
+
+    // INPUT REGISTERS
+    // --------------------------------------------------------------------------------------------
+    inputRegisters(ctx: any, specs: ScriptSpecs): InputRegisterSpecs2[] {
+
+        const registerNames = new Set<string>();
+        const registers: InputRegisterSpecs2[] = [];
+
+        ctx.registers.forEach((declaration: any) => {
+            let register: InputRegisterSpecs2 = this.visit(declaration, specs);
+            if (registerNames.has(register.name)) {
+                throw new Error(`input register ${register.name} is defined more than once`);
+            }
+            registerNames.add(register.name);
+
+            if (register.index !== registers.length) {
+                throw new Error(`input register ${register.name} is defined out of order`);
+            }
+            registers.push(register);
+        });
+
+        return registers;
+    }
+
+    inputRegisterDefinition(ctx: any): InputRegisterSpecs2 {
+        const registerName = ctx.name[0].image;
+        const registerIndex = Number.parseInt(registerName.slice(2), 10);
+        const pattern = ctx.pattern[0].image;
+        const binary = ctx.binary ? true : false;
+        const rank = Number.parseInt(ctx.rank[0].image, 10);
+        return { name: registerName, index: registerIndex, pattern, binary, rank };
     }
 
     // READONLY REGISTERS
@@ -564,26 +596,35 @@ export const visitor = new AirVisitor();
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function validateTransitionFunction(value: any[] | undefined) {
-    if (!value || value.length === 0) {
+function validateScriptSections(ctx: any) {
+    // make sure exactly one input register section is present
+    if (!ctx.inputRegisters || ctx.inputRegisters.length === 0) {
+        throw new Error('input registers section is missing');
+    }
+    else if (ctx.inputRegisters.length > 1) {
+        throw new Error('input registers section is defined more than once');
+    }
+
+    // make sure exactly one transition function is present
+    if (!ctx.transitionFunction || ctx.transitionFunction.length === 0) {
         throw new Error('transition function section is missing');
     }
-    else if (value.length > 1) {
+    else if (ctx.transitionFunction.length > 1) {
         throw new Error('transition function section is defined more than once');
     }
-}
 
-function validateTransitionConstraints(value: any[] | undefined) {
-    if (!value || value.length === 0) {
+    // make sure exactly one transition constraints section is present
+    if (!ctx.transitionConstraints || ctx.transitionConstraints.length === 0) {
         throw new Error('transition constraints section is missing');
     }
-    else if (value.length > 1) {
+    else if (ctx.transitionConstraints.length > 1) {
         throw new Error('transition constraints section is defined more than once');
     }
-}
 
-function validateReadonlyRegisterDefinitions(value: any[]) {
-    if (value.length > 1) {
-        throw new Error('readonly registers section is defined more than once');
+    // make sure at most one static register section is present
+    if (ctx.readonlyRegisters) {    // TODO: rename to staticRegisters
+        if (ctx.readonlyRegisters.length > 1) {
+            throw new Error('static registers section is defined more than once');
+        }
     }
 }
