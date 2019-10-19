@@ -42,7 +42,7 @@ const extensionFactor = 16;
     const gStart = Date.now();
 
     let start = Date.now();
-    const pObject = air.initProof([[3n]], [], []);
+    const pObject = air.initProof([3n]);
     console.log(`Initialized proof object in ${Date.now() - start} ms`);
 
     start = Date.now();
@@ -67,7 +67,7 @@ const extensionFactor = 16;
     console.log(`Extended constraints in ${Date.now() - start} ms`);
     console.log(`Total time: ${Date.now() - gStart} ms`);
 
-    const hEvaluations = pObject.hiddenRegisterTraces[0];
+    const hEvaluations = pObject.secretRegisterTraces[0];
 
     start = Date.now();
     const vObject = air.initVerification(pObject.traceShape, []);

@@ -25,10 +25,8 @@ function instantiateModule(specs, limits, extensionFactor) {
     code += `name: \`${specs.name}\`,\n`;
     code += `field: f,\n`;
     code += `stateWidth: stateWidth,\n`;
-    code += `iRegisterCount: ${specs.inputRegisterCount},\n`;
-    code += `pRegisterCount: 0,\n`; // TODO
-    code += `sRegisterCount: 0,\n`; // TODO
-    code += `kRegisterCount: ${specs.staticRegisters.length},\n`;
+    code += `inputRegisters: inputRegisters,\n`;
+    code += `staticRegisters: staticRegisters,\n`;
     code += `constraints: constraints,\n`;
     code += `maxConstraintDegree: ${specs.maxTransitionConstraintDegree},\n`;
     code += `initProof,\n`;

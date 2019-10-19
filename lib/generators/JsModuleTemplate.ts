@@ -255,16 +255,14 @@ export function initProof(inputs: any[]): ProofObject {
         rootOfUnity                 : rootOfUnity,
         stateWidth                  : stateWidth,
         constraintCount             : constraints.length,
-        iRegisterCount              : inputRegisters.length,
-        sRegisterCount              : 0,    // TODO
-        pRegisterCount              : 0,    // TODO
-        kRegisterCount              : staticRegisters.length,
+        inputRegisterCount          : inputRegisters.length,
+        staticRegisterCount         : staticRegisters.length,
         executionDomain             : executionDomain,
         evaluationDomain            : evaluationDomain,
         compositionDomain           : compositionDomain,
         generateExecutionTrace      : generateExecutionTrace,
         evaluateTracePolynomials    : evaluateTracePolynomials,
-        hiddenRegisterTraces        : secretRegisterTraces  // TODO: rename
+        secretRegisterTraces        : secretRegisterTraces
     };
 }
 
@@ -273,8 +271,8 @@ export function initProof(inputs: any[]): ProofObject {
 export function initVerification(traceShape: number[], pInputs: bigint[][]): VerificationObject {
     
     const traceLength = validateTraceShape(traceShape);
+    processPublicInputs(pInputs, traceLength);
     validateStaticRegisterValues(traceLength);
-    validateInputRegisterValues(pInputs, traceLength, 'public');
     const cRegisterSpecs = buildControlRegisterSpecs(traceShape, traceLength);
         
     const evaluationDomainSize = traceLength * extensionFactor;
@@ -295,16 +293,12 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
             kValues[i] = kRegisters[i](x);
         }
 
-        // get values of public inputs for the current position
-        const pValues: bigint[] = []; // TODO
-
         // get values of control for the current position
         const cValues = new Array<bigint>(2**cRegisters.length);
         populateControlValues(cValues, cRegisters, x);
 
         // split hidden values into secret and init register values
-        const sValues = hValues.slice(0, iRegistersOffset);
-        const iValues = hValues.slice(iRegistersOffset);
+        const iValues = hValues.slice(iRegistersOffset);    // TODO: integrate public inputs
 
         // populate qValues with constraint evaluations
         const qValues = evaluateConstraints(rValues, nValues, kValues, iValues, cValues);
@@ -368,10 +362,8 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
         rootOfUnity                 : rootOfUnity,
         stateWidth                  : stateWidth,
         constraintCount             : constraints.length,
-        iRegisterCount              : loops.registerDepths.length,
-        sRegisterCount              : 0,    // TODO
-        pRegisterCount              : 0,    // TODO
-        kRegisterCount              : staticRegisters.length,
+        inputRegisterCount          : inputRegisters.length,
+        staticRegisterCount         : staticRegisters.length,
         evaluateConstraintsAt       : evaluateConstraintsAt
     };
 }
@@ -379,6 +371,8 @@ export function initVerification(traceShape: number[], pInputs: bigint[][]): Ver
 // HELPER FUNCTIONS
 // ================================================================================================
 export function processInputs(inputs: any[]): { traceLength: number, traceShape: number[], iRegisterSpecs: ReadonlyRegisterSpecs[] } {
+
+    // TODO: process all types of inputs (repeat, spread, etc.)
 
     const traceShape: number[] = [1];
     const iRegisterValues = new Array<bigint[]>(inputRegisters.length);
@@ -407,6 +401,35 @@ export function processInputs(inputs: any[]): { traceLength: number, traceShape:
     return { traceLength, traceShape, iRegisterSpecs };
 }
 
+export function processPublicInputs(inputs: bigint[][], traceLength: number): void {
+    if (!inputs) throw new TypeError(`public inputs are undefined`);
+    if (!Array.isArray(inputs)) throw new TypeError(`public inputs parameter must be an array`);
+
+    const registers = inputRegisters.filter(register => !register.secret);
+
+    const expectedInputCount = 0; // TODO: type === 'public' ? registerSpecs.publicRegisters.length : registerSpecs.secretRegisters.length;
+    if (inputs.length !== expectedInputCount) {
+        throw new Error(`public inputs array must contain exactly ${expectedInputCount} elements`);
+    }
+
+    for (let i = 0; i < expectedInputCount; i++) {
+        let input = inputs[i];
+        if (!Array.isArray(input)) {
+            throw new TypeError(`public input ${i} is invalid: an input must contain an array of values`);
+        }
+
+        if (traceLength % input.length !== 0) {
+            throw new Error(`public input ${i} is invalid: number of values must be a divisor of ${traceLength}`);
+        }
+
+        for (let j = 0; j < input.length; j++) {
+            if (typeof input[j] !== 'bigint') {
+                throw new TypeError(`public input ${i} is invalid: value '${input[j]}' is not a BigInt`);
+            }
+        }
+    }
+}
+
 export function validateTraceShape(traceShape: number[]): number {
     if (traceShape === undefined) throw new Error('trace shape was not provided');
     if (!Array.isArray(traceShape)) throw new Error('trace shape must be an array');
@@ -432,33 +455,6 @@ export function validateStaticRegisterValues(traceLength: number): void {
     for (let i = 0; i < staticRegisters.length; i++) {
         if (traceLength % staticRegisters[i].values.length !== 0) {
             throw new Error(`invalid definition for static register $k${i}: number of values must be a divisor of ${traceLength}`);
-        }
-    }
-}
-
-export function validateInputRegisterValues(inputs: bigint[][], traceLength: number, type: 'public' | 'secret'): void {
-    if (!inputs) throw new TypeError(`${type} inputs are undefined`);
-    if (!Array.isArray(inputs)) throw new TypeError(`${type} inputs parameter must be an array`);
-
-    const expectedInputCount = 0; // TODO: type === 'public' ? registerSpecs.publicRegisters.length : registerSpecs.secretRegisters.length;
-    if (inputs.length !== expectedInputCount) {
-        throw new Error(`${type} inputs array must contain exactly ${expectedInputCount} elements`);
-    }
-
-    for (let i = 0; i < expectedInputCount; i++) {
-        let input = inputs[i];
-        if (!Array.isArray(input)) {
-            throw new TypeError(`${type} input ${i} is invalid: an input must contain an array of values`);
-        }
-
-        if (traceLength % input.length !== 0) {
-            throw new Error(`${type} input ${i} is invalid: number of values must be a divisor of ${traceLength}`);
-        }
-
-        for (let j = 0; j < input.length; j++) {
-            if (typeof input[j] !== 'bigint') {
-                throw new TypeError(`${type} input ${i} is invalid: value '${input[j]}' is not a BigInt`);
-            }
         }
     }
 }

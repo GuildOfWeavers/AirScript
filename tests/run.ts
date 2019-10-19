@@ -5,7 +5,7 @@ const extensionFactor = 32;
 (async function run() {
 
     const air = await instantiate('./tests/scripts/test.air', { extensionFactor });
-    const pContext = air.initProof([3n], [], []);
+    const pContext = air.initProof([3n]);
     console.time('generate trace');
     const trace = pContext.generateExecutionTrace();
     console.timeEnd('generate trace');

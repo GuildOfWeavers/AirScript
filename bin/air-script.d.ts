@@ -39,27 +39,23 @@ declare module '@guildofweavers/air-script' {
         readonly name                   : string;
         readonly field                  : FiniteField;
         readonly stateWidth             : number;
-        readonly iRegisterCount         : number;
-        readonly pRegisterCount         : number;
-        readonly sRegisterCount         : number;
-        readonly kRegisterCount         : number;
+        readonly inputRegisters         : InputRegisterSpecs[];
+        readonly staticRegisters        : StaticRegisterSpecs[];
         readonly constraints            : ConstraintSpecs[];
         readonly maxConstraintDegree    : number;
 
         /**
          * Creates proof object for the provided input values
-         * @param inputs values used to initialized $i registers
-         * @param auxPublicInputs values used to initialize $p registers
-         * @param auxSecretInputs values used to initialize $s registers
+         * @param inputs values for initializing input registers
          */
-        initProof(inputs: any[], auxPublicInputs: bigint[][], auxSecretInputs: bigint[][]): ProofObject;
+        initProof(inputs: any[]): ProofObject;
 
         /**
          * Creates verification object for the specified trace shape and public inputs
          * @param traceShape number of cycles of each depth of input loop
-         * @param auxPublicInputs values used to initialize $p registers
+         * @param publicInputs values for initialize public input registers
          */
-        initVerification(traceShape: number[], auxPublicInputs: bigint[][]): VerificationObject;
+        initVerification(traceShape: number[], publicInputs: any[]): VerificationObject;
     }
 
     export class AirScriptError {
@@ -81,10 +77,8 @@ declare module '@guildofweavers/air-script' {
         readonly rootOfUnity        : bigint;
         readonly stateWidth         : number;
         readonly constraintCount    : number;
-        readonly iRegisterCount     : number;
-        readonly pRegisterCount     : number;
-        readonly sRegisterCount     : number;
-        readonly kRegisterCount     : number;
+        readonly inputRegisterCount : number;
+        readonly staticRegisterCount: number;
     }
 
     export interface VerificationObject extends AirObject {
@@ -108,8 +102,8 @@ declare module '@guildofweavers/air-script' {
         /** Domain of the low-degree extended composition polynomial */
         readonly compositionDomain: Vector;
 
-        /** Values of hidden registers evaluated over execution domain */
-        readonly hiddenRegisterTraces: Vector[];
+        /** Values of secret registers evaluated over execution domain */
+        readonly secretRegisterTraces: Vector[];
 
         generateExecutionTrace(): Matrix;
         evaluateTracePolynomials(polynomials: Matrix): Matrix;

@@ -176,7 +176,7 @@ const extensionFactor = 32;
 
     const gStart = Date.now();
     let start = Date.now();
-    const pObject = air.initProof([[42n, 43n, [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n], [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n]]], [[0n, 1n, 0n, 1n, 0n, 1n, 0n, 1n]], []);
+    const pObject = air.initProof([[42n, 43n, [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n], [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n]]]);    // TODO
     console.log(`Initialized proof object in ${Date.now() - start} ms`);
 
     start = Date.now();
@@ -195,7 +195,7 @@ const extensionFactor = 32;
     const cEvaluations = pObject.evaluateTracePolynomials(pPolys);
     console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 
-    const hRegisterValues = pObject.hiddenRegisterTraces;
+    const hRegisterValues = pObject.secretRegisterTraces;
 
     start = Date.now();
     const qPolys = air.field.interpolateRoots(pObject.compositionDomain, cEvaluations);
