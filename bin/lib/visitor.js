@@ -27,27 +27,18 @@ class AirVisitor extends BaseCstVisitor {
         // build script specs
         const specs = new ScriptSpecs_1.ScriptSpecs(starkName, field, config.limits);
         specs.setInputRegisterCount(this.visit(ctx.inputRegisterCount));
-        specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
-        specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
+        specs.setStateRegisterCount(this.visit(ctx.stateRegisterCount));
+        specs.setStaticRegisterCount(this.visit(ctx.staticRegisterCount));
         specs.setConstraintCount(this.visit(ctx.constraintCount));
         if (ctx.globalConstants) {
             specs.setGlobalConstants(ctx.globalConstants.map((element) => this.visit(element, field)));
         }
-        // build input registers
-        specs.setInputRegisters(this.visit(ctx.inputRegisters));
-        // build readonly registers
-        let readonlyRegisters;
-        if (specs.readonlyRegisterCount > 0) {
-            readonlyRegisters = this.visit(ctx.readonlyRegisters, specs);
-        }
-        else {
-            readonlyRegisters = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
-        }
-        specs.setReadonlyRegisters(readonlyRegisters);
+        // build input and static registers
+        specs.setInputRegisters(this.visit(ctx.inputRegisters) || []);
+        specs.setStaticRegisters(this.visit(ctx.staticRegisters) || []);
         // parse transition function and transition constraints
         specs.setTransitionFunction(this.visit(ctx.transitionFunction, specs));
         specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
-        // build and return AIR config
         return specs;
     }
     // FINITE FIELD
@@ -136,73 +127,45 @@ class AirVisitor extends BaseCstVisitor {
         const pattern = ctx.pattern[0].image;
         const binary = ctx.binary ? true : false;
         const rank = Number.parseInt(ctx.rank[0].image, 10);
-        return { name: registerName, index: registerIndex, pattern, binary, rank };
+        return { name: registerName, index: registerIndex, pattern, binary, rank, secret: true }; // TODO
     }
-    // READONLY REGISTERS
+    // STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
-    readonlyRegisters(ctx, specs) {
+    staticRegisters(ctx, specs) {
         const registerNames = new Set();
-        const staticRegisters = [];
-        const secretRegisters = [];
-        const publicRegisters = [];
+        const registers = [];
         if (ctx.registers) {
             ctx.registers.forEach((declaration) => {
                 let register = this.visit(declaration, specs);
                 if (registerNames.has(register.name)) {
-                    throw new Error(`readonly register ${register.name} is defined more than once`);
+                    throw new Error(`static register ${register.name} is defined more than once`);
                 }
                 registerNames.add(register.name);
-                let insertIndex;
-                if (register.type === 'k') {
-                    staticRegisters.push({ pattern: register.pattern, values: register.values, binary: register.binary });
-                    insertIndex = staticRegisters.length - 1;
+                if (register.index !== registers.length) {
+                    throw new Error(`static register ${register.name} is defined out of order`);
                 }
-                else if (register.type === 'p') {
-                    publicRegisters.push({ pattern: register.pattern, binary: register.binary });
-                    insertIndex = publicRegisters.length - 1;
-                }
-                else if (register.type === 's') {
-                    secretRegisters.push({ pattern: register.pattern, binary: register.binary });
-                    insertIndex = secretRegisters.length - 1;
-                }
-                if (register.index !== insertIndex) {
-                    throw new Error(`readonly register ${register.name} is declared out of order`);
-                }
+                registers.push(register);
             });
         }
-        return { staticRegisters, secretRegisters, publicRegisters };
+        return registers;
     }
-    readonlyRegisterDefinition(ctx, specs) {
+    staticRegisterDefinition(ctx, specs) {
         const registerName = ctx.name[0].image;
-        const registerType = registerName.slice(1, 2);
         const registerIndex = Number.parseInt(registerName.slice(2), 10);
         const pattern = ctx.pattern[0].image;
         const binary = ctx.binary ? true : false;
-        let values;
-        if (registerType === 'k') {
-            // parse values for static registers
-            if (!ctx.values)
-                throw new Error(`invalid definition for static register ${registerName}: static values must be provided for the register`);
-            values = this.visit(ctx.values);
-            if (!utils_1.isPowerOf2(values.length)) {
-                throw new Error(`invalid definition for static register ${registerName}: number of values must be a power of 2`);
-            }
-            if (binary) {
-                for (let value of values) {
-                    if (value !== specs.field.zero && value !== specs.field.one) {
-                        throw new Error(`invalid definition for binary readonly register ${registerName}: the register contains non-binary values`);
-                    }
+        const values = this.visit(ctx.values);
+        if (!utils_1.isPowerOf2(values.length)) {
+            throw new Error(`invalid definition for static register ${registerName}: number of values must be a power of 2`);
+        }
+        if (binary) {
+            for (let value of values) {
+                if (value !== specs.field.zero && value !== specs.field.one) {
+                    throw new Error(`invalid definition for static register ${registerName}: the register cannot contain non-binary values`);
                 }
             }
         }
-        else if (registerType === 'p' || registerType === 's') {
-            if (ctx.values)
-                throw new Error(`invalid definition for input register ${registerName}: static values cannot be provided for the register`);
-        }
-        else {
-            throw new Error(`invalid readonly register definition: register name ${registerName} is invalid`);
-        }
-        return { name: registerName, type: registerType, index: registerIndex, pattern, binary, values };
+        return { name: registerName, index: registerIndex, pattern, binary, values, secret: false };
     }
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
@@ -517,8 +480,8 @@ function validateScriptSections(ctx) {
         throw new Error('transition constraints section is defined more than once');
     }
     // make sure at most one static register section is present
-    if (ctx.readonlyRegisters) { // TODO: rename to staticRegisters
-        if (ctx.readonlyRegisters.length > 1) {
+    if (ctx.staticRegisters) {
+        if (ctx.staticRegisters.length > 1) {
             throw new Error('static registers section is defined more than once');
         }
     }

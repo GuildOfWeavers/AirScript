@@ -11,10 +11,8 @@ class ExecutionContext {
         this.subroutines = new Map();
         this.localVariables = [new Map()];
         this.globalConstants = specs.globalConstants;
-        this.mutableRegisterCount = specs.mutableRegisterCount;
+        this.stateRegisterCount = specs.stateRegisterCount;
         this.staticRegisters = specs.staticRegisters;
-        this.secretRegisters = specs.secretRegisters;
-        this.publicRegisters = specs.publicRegisters;
         if (specs.transitionFunction) {
             this.tFunctionDegree = specs.transitionFunctionDegree;
         }
@@ -136,10 +134,6 @@ class ExecutionContext {
         const index = Number.parseInt(register.slice(2), 10);
         if (bankName === 'k')
             return this.staticRegisters[index].binary;
-        else if (bankName === 's')
-            return this.secretRegisters[index].binary;
-        else if (bankName === 'p')
-            return this.publicRegisters[index].binary;
         else
             throw new Error(`register ${register} cannot be restricted to binary values`);
     }
@@ -181,19 +175,15 @@ class ExecutionContext {
             if (this.inTransitionFunction) {
                 throw new Error(`$n registers cannot be accessed in transition function`);
             }
-            return this.mutableRegisterCount;
+            return this.stateRegisterCount;
         }
         else if (loopFrame && this.loopFrames.length === 1) {
             throw new Error(`$${bankName} registers cannot be accessed in the init clause of a top-level input loop`);
         }
         else if (bankName === 'r')
-            return this.mutableRegisterCount;
+            return this.stateRegisterCount;
         else if (bankName === 'k')
             return this.staticRegisters.length;
-        else if (bankName === 's')
-            return this.secretRegisters.length;
-        else if (bankName === 'p')
-            return this.publicRegisters.length;
         else
             throw new Error(`register bank name $${bankName} is invalid`);
     }
@@ -206,8 +196,8 @@ class ExecutionContext {
         else if (this.inInputBlock) {
             throw new Error(`transition function cannot be called from an input block`);
         }
-        const dimensions = [this.mutableRegisterCount, 0];
-        return new expressions_1.SubroutineCall('applyTransition', ['r', 'k', 's', 'p', 'c', 'i'], dimensions, this.tFunctionDegree);
+        const dimensions = [this.stateRegisterCount, 0];
+        return new expressions_1.SubroutineCall('applyTransition', ['r', 'k', 'i', 'c'], dimensions, this.tFunctionDegree);
     }
     // CONDITIONAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------

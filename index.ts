@@ -13,12 +13,12 @@ import { isPowerOf2 } from './lib/utils';
 // MODULE VARIABLES
 // ================================================================================================
 const DEFAULT_LIMITS: StarkLimits = {
-    maxTraceLength          : 2**20,
-    maxInputRegisters       : 32,
-    maxMutableRegisters     : 64,
-    maxReadonlyRegisters    : 64,
-    maxConstraintCount      : 1024,
-    maxConstraintDegree     : 16
+    maxTraceLength      : 2**20,
+    maxInputRegisters   : 32,
+    maxStateRegisters   : 64,
+    maxStaticRegisters  : 64,
+    maxConstraintCount  : 1024,
+    maxConstraintDegree : 16
 };
 
 // PUBLIC FUNCTIONS

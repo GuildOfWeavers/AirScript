@@ -3,10 +3,10 @@
 import { CstParser } from "chevrotain";
 import {
     allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, Require, Inputs, Transition,
-    Registers, Readonly, Expand, Repeat, Spread, Binary, RegisterBank, For, All, Each, Init,
+    Registers, Static, Expand, Repeat, Spread, Binary, RegisterBank, For, All, Each, Init,
     LParen, RParen, LCurly, RCurly, LSquare, RSquare, LWedge, RWedge, Slash, QMark, Comma, Colon, Semicolon,
     ExpOp, MulOp, AddOp, AssignOp, ResolveOp, Minus, Ellipsis, DoubleDot, Equals,
-    Steps, Enforce, Constraints,  When, Else, RegisterRef, ReadonlyRegister, InputRegister, Using, 
+    Steps, Enforce, Constraints,  When, Else, RegisterRef, StaticRegister, InputRegister, Using, 
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -39,7 +39,7 @@ class AirParser extends CstParser {
                 }},
                 { ALT: () => {
                     this.CONSUME(Transition);
-                    this.SUBRULE2(this.literalExpression,    { LABEL: 'mutableRegisterCount'  });   // TODO: rename to stateRegisterCount
+                    this.SUBRULE2(this.literalExpression,    { LABEL: 'stateRegisterCount'    });
                     this.CONSUME1(Registers);
                     this.SUBRULE(this.transitionFunction,    { LABEL: 'transitionFunction'    });
                 }},
@@ -51,10 +51,10 @@ class AirParser extends CstParser {
                 }},
                 { ALT: () => {
                     this.CONSUME(Using);
-                    this.SUBRULE4(this.literalExpression,    { LABEL: 'readonlyRegisterCount' });   // TODO: rename to staticRegisterCount
-                    this.CONSUME(Readonly);
+                    this.SUBRULE4(this.literalExpression,    { LABEL: 'staticRegisterCount'   });
+                    this.CONSUME(Static);
                     this.CONSUME2(Registers);
-                    this.SUBRULE(this.readonlyRegisters,     { LABEL: 'readonlyRegisters'     });   // TODO: rename to staticRegisters
+                    this.SUBRULE(this.staticRegisters,     { LABEL: 'staticRegisters'       });
                 }}
             ]);
         });
@@ -134,32 +134,23 @@ class AirParser extends CstParser {
         this.CONSUME(Semicolon);
     });
 
-    // READONLY REGISTERS
+    // STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
-    private readonlyRegisters = this.RULE('readonlyRegisters', () => {
+    private staticRegisters = this.RULE('staticRegisters', () => {
         this.CONSUME(LCurly);
-        this.AT_LEAST_ONE(() => this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registers' }));
+        this.AT_LEAST_ONE(() => this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'registers' }));
         this.CONSUME(RCurly);
     });
 
-    private readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
-        this.CONSUME1(ReadonlyRegister,          { LABEL: 'name' });
+    private staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
+        this.CONSUME(StaticRegister,            { LABEL: 'name' });
         this.CONSUME(Colon);
         this.OR1([
-            { ALT: () => this.CONSUME2(Repeat,   { LABEL: 'pattern' }) },
-            { ALT: () => this.CONSUME2(Spread,   { LABEL: 'pattern' }) }
+            { ALT: () => this.CONSUME(Repeat,   { LABEL: 'pattern' }) },
+            { ALT: () => this.CONSUME(Spread,   { LABEL: 'pattern' }) }
         ]);
-        this.OPTION(() => this.CONSUME(Binary,   { LABEL: 'binary'  }) );
-        this.OR2([
-            { ALT: () => {
-                this.CONSUME(LSquare);
-                this.CONSUME(Ellipsis);
-                this.CONSUME(RSquare);
-            }},
-            { ALT: () => {
-                this.SUBRULE(this.literalVector, { LABEL: 'values' });
-            }}
-        ]);        
+        this.OPTION(() => this.CONSUME(Binary,  { LABEL: 'binary'  }) );
+        this.SUBRULE(this.literalVector,        { LABEL: 'values' });   
         this.CONSUME(Semicolon);
     });
 

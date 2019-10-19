@@ -21,11 +21,11 @@ declare module '@guildofweavers/air-script' {
         /** Maximum number of input registers; defaults to 32 */
         maxInputRegisters: number;
 
-        /** Maximum number of mutable registers; defaults to 64 */
-        maxMutableRegisters: number;
+        /** Maximum number of state registers; defaults to 64 */
+        maxStateRegisters: number;
 
-        /** Maximum number of all readonly registers; defaults to 64 */
-        maxReadonlyRegisters: number;
+        /** Maximum number of all static registers; defaults to 64 */
+        maxStaticRegisters: number;
 
         /** Maximum number of transition constraints; defaults to 1024 */
         maxConstraintCount: number;
@@ -45,7 +45,6 @@ declare module '@guildofweavers/air-script' {
         readonly kRegisterCount         : number;
         readonly constraints            : ConstraintSpecs[];
         readonly maxConstraintDegree    : number;
-        readonly extensionFactor        : number;
 
         /**
          * Creates proof object for the provided input values
@@ -125,32 +124,27 @@ declare module '@guildofweavers/air-script' {
     // --------------------------------------------------------------------------------------------
     export type ReadonlyRegisterEvaluator<T extends bigint | number> = (x: T) => bigint;
 
-    export type ReadonlyValuePattern = 'expand' | 'repeat' | 'spread';
-
-    export interface InputRegisterSpecs2 {
-        name    : string;
-        index   : number;
-        pattern : ReadonlyValuePattern;
-        binary  : boolean;
-        rank    : number;
-    }
-
-    export interface InputRegisterSpecs {
-        pattern : ReadonlyValuePattern;
-        binary  : boolean;
-    }
-
     export interface ReadonlyRegisterSpecs {
-        pattern : ReadonlyValuePattern;
+        name    : string;
+        pattern : 'repeat' | 'spread';
+        secret  : boolean;
         binary  : boolean;
         values  : bigint[];
     }
 
-    export interface ReadonlyRegisterGroup {
-        staticRegisters : ReadonlyRegisterSpecs[];
-        secretRegisters : InputRegisterSpecs[];
-        publicRegisters : InputRegisterSpecs[];
+    export interface StaticRegisterSpecs extends ReadonlyRegisterSpecs {
+        index   : number;
+        secret  : false;
     }
+
+    export interface InputRegisterSpecs {
+        name    : string;
+        index   : number;
+        pattern : 'expand' | 'repeat' | 'spread';
+        binary  : boolean;
+        rank    : number;
+        secret  : boolean;
+    }    
 
     export interface InputBlockDescriptor {
         registerDepths  : number[];
@@ -160,28 +154,24 @@ declare module '@guildofweavers/air-script' {
 
     export interface TransitionFunction {
         /**
-         * @param r Array with values of mutable registers at the current step
+         * @param r Array with values of state registers at the current step
          * @param k Array with values of static registers at the current step
-         * @param s Array with values of secret inputs at the current step
-         * @param p Array with values of public inputs at the current step
+         * @param i Array with values of input registers at the current step
          * @param c Array with values of control registers at the current step
-         * @param i Array with values of init registers at the current step
          * @returns Array to hold values of mutable registers for the next step
          */
-        (r: bigint[], k: bigint[], s: bigint[], p: bigint[], c: bigint[], i: bigint[]): bigint[];
+        (r: bigint[], k: bigint[], i: bigint[], c: bigint[]): bigint[];
     }
     
     export interface ConstraintEvaluator {
         /**
-         * @param r Array with values of mutable registers at the current step
-         * @param n Array with values of mutable registers at the next step
+         * @param r Array with values of state registers at the current step
+         * @param n Array with values of state registers at the next step
          * @param k Array with values of static registers at the current step
-         * @param s Array with values of secret inputs at the current step
-         * @param p Array with values of public inputs at the current step
+         * @param i Array with values of input registers at the current step
          * @param c Array with values of control registers at the current step
-         * @param i Array with values of init registers at the current step
          * @readonly Array to hold values of constraint evaluated at the current step
          */
-        (r: bigint[], n: bigint[], k: bigint[], s: bigint[], p: bigint[], c: bigint[], i: bigint[]): bigint[];
+        (r: bigint[], n: bigint[], k: bigint[], i: bigint[], c: bigint[]): bigint[];
     }
 }

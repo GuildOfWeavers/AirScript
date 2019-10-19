@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import {
-    StarkLimits, ReadonlyRegisterGroup, ReadonlyRegisterSpecs, InputRegisterSpecs, ConstraintSpecs, FiniteField, InputBlockDescriptor, InputRegisterSpecs2
+    StarkLimits, ConstraintSpecs, FiniteField, InputBlockDescriptor, InputRegisterSpecs, StaticRegisterSpecs
 } from '@guildofweavers/air-script';
 import { ConstantDeclaration } from './visitor';
 import { Expression, LiteralExpression, TransitionFunctionBody, TransitionConstraintsBody } from './expressions';
@@ -11,7 +11,7 @@ import { isMatrix, isVector } from './utils';
 // ================================================================================================
 export class ScriptSpecs {
 
-    private readonly limits : StarkLimits;
+    private readonly limits     : StarkLimits;
 
     readonly name               : string;
     readonly field              : FiniteField;
@@ -19,14 +19,12 @@ export class ScriptSpecs {
     readonly globalConstants    : Map<string, Expression>;
     readonly constantBindings   : any;
 
-    mutableRegisterCount!       : number;
-    readonlyRegisterCount!      : number;
-    inputRegisters!             : InputRegisterSpecs2[];
-    staticRegisters!            : ReadonlyRegisterSpecs[];
-    secretRegisters!            : InputRegisterSpecs[];
-    publicRegisters!            : InputRegisterSpecs[];
+    stateRegisterCount!         : number;
     constraintCount!            : number;
-    
+
+    inputRegisters!             : InputRegisterSpecs[];
+    staticRegisters!            : StaticRegisterSpecs[];
+
     transitionFunction!         : TransitionFunctionBody;
     transitionConstraints!      : TransitionConstraintsBody;
 
@@ -66,14 +64,6 @@ export class ScriptSpecs {
         return result;
     }
 
-    get readonlyRegisters(): ReadonlyRegisterGroup {
-        return {
-            staticRegisters: this.staticRegisters,
-            secretRegisters: this.secretRegisters,
-            publicRegisters: this.publicRegisters
-        };        
-    }
-
     get inputBlock(): InputBlockDescriptor {
         return {
             registerDepths  : this.transitionFunction.inputRegisterSpecs,
@@ -102,7 +92,7 @@ export class ScriptSpecs {
         this.inputRegisters = new Array(registerCount);
     }
 
-    setInputRegisters(registers: InputRegisterSpecs2[]): void {
+    setInputRegisters(registers: InputRegisterSpecs[]): void {
         if (this.inputRegisters.length !== registers.length) {
             throw new Error(`expected ${this.inputRegisters.length} input registers, but ${registers.length} defined`);
         }
@@ -112,39 +102,42 @@ export class ScriptSpecs {
         }
     }
 
-    setMutableRegisterCount(value: any): void {
+    setStateRegisterCount(value: any): void {
         const registerCount = Number.parseInt(value);
         if (!Number.isInteger(registerCount))
             throw new Error(`number of state registers '${value}' is not an integer`);
         else if (registerCount <= 0)
             throw new Error('number of state registers must be greater than 0');
-        else if (registerCount > this.limits.maxMutableRegisters)
-            throw new Error(`number of state registers cannot exceed ${this.limits.maxMutableRegisters}`);
-        else if (this.mutableRegisterCount)
+        else if (registerCount > this.limits.maxStateRegisters)
+            throw new Error(`number of state registers cannot exceed ${this.limits.maxStateRegisters}`);
+        else if (this.stateRegisterCount)
             throw new Error(`number of state registers has already been set`);
 
-        this.mutableRegisterCount = registerCount
+        this.stateRegisterCount = registerCount
     }
 
-    setReadonlyRegisterCount(value: any): void {
+    setStaticRegisterCount(value: any): void {
         const registerCount = Number.parseInt(value || 0);
         if (!Number.isInteger(registerCount))
             throw new Error(`number of static registers '${value}' is not an integer`);
         else if (registerCount < 0)
             throw new Error('number of static registers must be positive');
-        else if (registerCount > this.limits.maxReadonlyRegisters)
-            throw new Error(`number of static registers cannot exceed ${this.limits.maxReadonlyRegisters}`);
-        else if (this.readonlyRegisterCount)
+        else if (registerCount > this.limits.maxStaticRegisters)
+            throw new Error(`number of static registers cannot exceed ${this.limits.maxStaticRegisters}`);
+        else if (this.staticRegisters)
             throw new Error(`number of static registers has already been set`);
 
-        this.readonlyRegisterCount = registerCount;
+        this.staticRegisters = new Array(registerCount);
     }
 
-    setReadonlyRegisters(registers: ReadonlyRegisterGroup): void {
-        validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
-        this.staticRegisters = registers.staticRegisters;
-        this.secretRegisters = registers.secretRegisters;
-        this.publicRegisters = registers.publicRegisters;
+    setStaticRegisters(registers: StaticRegisterSpecs[]): void {
+        if (this.staticRegisters.length !== registers.length) {
+            throw new Error(`expected ${this.inputRegisters.length} static registers, but ${registers.length} defined`);
+        }
+
+        for (let i = 0; i < registers.length; i++) {
+            this.staticRegisters[i] = registers[i];
+        }
     }
 
     setConstraintCount(value: any): void {
@@ -181,11 +174,11 @@ export class ScriptSpecs {
     }
 
     setTransitionFunction(tFunctionBody: TransitionFunctionBody): void {
-        if (tFunctionBody.dimensions[0] !== this.mutableRegisterCount) {
-            if (this.mutableRegisterCount === 1)
+        if (tFunctionBody.dimensions[0] !== this.stateRegisterCount) {
+            if (this.stateRegisterCount === 1)
                 throw new Error(`transition function must evaluate to scalar or to a vector of exactly 1 value`);
             else
-                throw new Error(`transition function must evaluate to a vector of exactly ${this.mutableRegisterCount} values`);
+                throw new Error(`transition function must evaluate to a vector of exactly ${this.stateRegisterCount} values`);
         }
         this.transitionFunction = tFunctionBody;
     }
@@ -208,19 +201,5 @@ export class ScriptSpecs {
             else if (degree === 0n)
                 throw new Error('degree of transition constraints cannot be 0');
         }
-    }
-}
-
-// VALIDATORS
-// ================================================================================================
-function validateReadonlyRegisterCounts(registers: ReadonlyRegisterGroup, readonlyRegisterCount: number): void {
-
-    const totalRegisterCount = 
-        registers.staticRegisters.length
-        + registers.secretRegisters.length
-        + registers.publicRegisters.length;
-
-    if (totalRegisterCount !== readonlyRegisterCount) {
-        throw new Error(`expected ${readonlyRegisterCount} readonly registers, but ${totalRegisterCount} defined`);
     }
 }

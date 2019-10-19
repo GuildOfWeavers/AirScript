@@ -38,13 +38,6 @@ class ScriptSpecs {
         }
         return result;
     }
-    get readonlyRegisters() {
-        return {
-            staticRegisters: this.staticRegisters,
-            secretRegisters: this.secretRegisters,
-            publicRegisters: this.publicRegisters
-        };
-    }
     get inputBlock() {
         return {
             registerDepths: this.transitionFunction.inputRegisterSpecs,
@@ -77,35 +70,37 @@ class ScriptSpecs {
             this.inputRegisters[i] = registers[i];
         }
     }
-    setMutableRegisterCount(value) {
+    setStateRegisterCount(value) {
         const registerCount = Number.parseInt(value);
         if (!Number.isInteger(registerCount))
             throw new Error(`number of state registers '${value}' is not an integer`);
         else if (registerCount <= 0)
             throw new Error('number of state registers must be greater than 0');
-        else if (registerCount > this.limits.maxMutableRegisters)
-            throw new Error(`number of state registers cannot exceed ${this.limits.maxMutableRegisters}`);
-        else if (this.mutableRegisterCount)
+        else if (registerCount > this.limits.maxStateRegisters)
+            throw new Error(`number of state registers cannot exceed ${this.limits.maxStateRegisters}`);
+        else if (this.stateRegisterCount)
             throw new Error(`number of state registers has already been set`);
-        this.mutableRegisterCount = registerCount;
+        this.stateRegisterCount = registerCount;
     }
-    setReadonlyRegisterCount(value) {
+    setStaticRegisterCount(value) {
         const registerCount = Number.parseInt(value || 0);
         if (!Number.isInteger(registerCount))
             throw new Error(`number of static registers '${value}' is not an integer`);
         else if (registerCount < 0)
             throw new Error('number of static registers must be positive');
-        else if (registerCount > this.limits.maxReadonlyRegisters)
-            throw new Error(`number of static registers cannot exceed ${this.limits.maxReadonlyRegisters}`);
-        else if (this.readonlyRegisterCount)
+        else if (registerCount > this.limits.maxStaticRegisters)
+            throw new Error(`number of static registers cannot exceed ${this.limits.maxStaticRegisters}`);
+        else if (this.staticRegisters)
             throw new Error(`number of static registers has already been set`);
-        this.readonlyRegisterCount = registerCount;
+        this.staticRegisters = new Array(registerCount);
     }
-    setReadonlyRegisters(registers) {
-        validateReadonlyRegisterCounts(registers, this.readonlyRegisterCount);
-        this.staticRegisters = registers.staticRegisters;
-        this.secretRegisters = registers.secretRegisters;
-        this.publicRegisters = registers.publicRegisters;
+    setStaticRegisters(registers) {
+        if (this.staticRegisters.length !== registers.length) {
+            throw new Error(`expected ${this.inputRegisters.length} static registers, but ${registers.length} defined`);
+        }
+        for (let i = 0; i < registers.length; i++) {
+            this.staticRegisters[i] = registers[i];
+        }
     }
     setConstraintCount(value) {
         const constraintCount = Number.parseInt(value);
@@ -138,11 +133,11 @@ class ScriptSpecs {
         }
     }
     setTransitionFunction(tFunctionBody) {
-        if (tFunctionBody.dimensions[0] !== this.mutableRegisterCount) {
-            if (this.mutableRegisterCount === 1)
+        if (tFunctionBody.dimensions[0] !== this.stateRegisterCount) {
+            if (this.stateRegisterCount === 1)
                 throw new Error(`transition function must evaluate to scalar or to a vector of exactly 1 value`);
             else
-                throw new Error(`transition function must evaluate to a vector of exactly ${this.mutableRegisterCount} values`);
+                throw new Error(`transition function must evaluate to a vector of exactly ${this.stateRegisterCount} values`);
         }
         this.transitionFunction = tFunctionBody;
     }
@@ -165,14 +160,4 @@ class ScriptSpecs {
     }
 }
 exports.ScriptSpecs = ScriptSpecs;
-// VALIDATORS
-// ================================================================================================
-function validateReadonlyRegisterCounts(registers, readonlyRegisterCount) {
-    const totalRegisterCount = registers.staticRegisters.length
-        + registers.secretRegisters.length
-        + registers.publicRegisters.length;
-    if (totalRegisterCount !== readonlyRegisterCount) {
-        throw new Error(`expected ${readonlyRegisterCount} readonly registers, but ${totalRegisterCount} defined`);
-    }
-}
 //# sourceMappingURL=ScriptSpecs.js.map

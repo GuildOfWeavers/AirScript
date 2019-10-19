@@ -12,8 +12,8 @@ const utils_1 = require("./lib/utils");
 const DEFAULT_LIMITS = {
     maxTraceLength: 2 ** 20,
     maxInputRegisters: 32,
-    maxMutableRegisters: 64,
-    maxReadonlyRegisters: 64,
+    maxStateRegisters: 64,
+    maxStaticRegisters: 64,
     maxConstraintCount: 1024,
     maxConstraintDegree: 16
 };

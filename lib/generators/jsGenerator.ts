@@ -14,14 +14,14 @@ export function instantiateModule(specs: ScriptSpecs, limits: StarkLimits, exten
     const maxConstraintDegree = specs.maxTransitionConstraintDegree;
     const compositionFactor = 2**Math.ceil(Math.log2(maxConstraintDegree));
 
-    code += `const stateWidth = ${specs.mutableRegisterCount};\n`;
+    code += `const stateWidth = ${specs.stateRegisterCount};\n`;
     code += `const extensionFactor = ${extensionFactor};\n`;
     code += `const compositionFactor = ${compositionFactor};\n`;
     code += `const maxTraceLength = ${limits.maxTraceLength};\n\n`;
 
     // build transition function and constraints
-    code += `function applyTransition(r, k, s, p, c, i) {\n${specs.transitionFunction.toJsCode()}}\n`;
-    code += `function evaluateConstraints(r, n, k, s, p, c, i) {\n${specs.transitionConstraints.toJsCode()}}\n\n`;
+    code += `function applyTransition(r, k, i, c) {\n${specs.transitionFunction.toJsCode()}}\n`;
+    code += `function evaluateConstraints(r, n, k, i, c) {\n${specs.transitionConstraints.toJsCode()}}\n\n`;
 
     // add functions from the template
     for (let prop in jsTemplate) {
@@ -35,22 +35,22 @@ export function instantiateModule(specs: ScriptSpecs, limits: StarkLimits, exten
     code += `field: f,\n`;
     code += `stateWidth: stateWidth,\n`;
     code += `iRegisterCount: ${specs.inputRegisterCount},\n`;
-    code += `pRegisterCount: ${specs.publicRegisters.length},\n`;
-    code += `sRegisterCount: ${specs.secretRegisters.length},\n`;
+    code += `pRegisterCount: 0,\n`; // TODO
+    code += `sRegisterCount: 0,\n`; // TODO
     code += `kRegisterCount: ${specs.staticRegisters.length},\n`;
     code += `constraints: constraints,\n`;
     code += `maxConstraintDegree: ${specs.maxTransitionConstraintDegree},\n`;
-    code += `extensionFactor: extensionFactor,\n`;
     code += `initProof,\n`;
     code += `initVerification\n`;
     code += '};';
 
     // create and execute module builder function
-    const buildModule = new Function('f', 'g', 'registerSpecs', 'loops', 'constraints', code);
+    const buildModule = new Function('f', 'g', 'inputRegisters', 'staticRegisters', 'loops', 'constraints', code);
     return buildModule(
         specs.field,
         specs.constantBindings,
-        specs.readonlyRegisters,
+        specs.inputRegisters,
+        specs.staticRegisters,
         specs.inputBlock,
         specs.transitionConstraintsSpecs,
     );

@@ -4,9 +4,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // ================================================================================================
 const f = undefined;
 const stateWidth = 0;
-const registerSpecs = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
 const loops = { registerDepths: [], baseCycleMasks: [], baseCycleLength: 0 };
 const constraints = [];
+const inputRegisters = [];
+const staticRegisters = [];
 const compositionFactor = 0;
 const extensionFactor = 0;
 const maxTraceLength = 0;
@@ -16,12 +17,10 @@ const applyTransition = function () { return []; };
 const evaluateConstraints = function () { return []; };
 // PROOF OBJECT GENERATOR
 // ================================================================================================
-function initProof(initValues, pInputs, sInputs) {
+function initProof(inputs) {
     // validate inputs
-    const { traceLength, traceShape, iRegisterSpecs } = validateInitValues(initValues);
+    const { traceLength, traceShape, iRegisterSpecs } = processInputs(inputs);
     validateStaticRegisterValues(traceLength);
-    validateInputRegisterValues(pInputs, traceLength, 'public');
-    validateInputRegisterValues(sInputs, traceLength, 'secret');
     const cRegisterSpecs = buildControlRegisterSpecs(traceShape, traceLength);
     // build evaluation domain
     const evaluationDomainSize = traceLength * extensionFactor;
@@ -34,29 +33,25 @@ function initProof(initValues, pInputs, sInputs) {
     const compositionDomainSize = traceLength * compositionFactor;
     const compositionDomain = f.pluckVector(evaluationDomain, cSkip, compositionDomainSize);
     // create a variable to hold secret register traces
-    const hiddenRegisterTraces = [];
+    const secretRegisterTraces = [];
     // build readonly registers
-    const kRegisters = buildReadonlyRegisterEvaluators(registerSpecs.staticRegisters, false);
-    const pRegisters = buildInputRegisterEvaluators(pInputs, registerSpecs.publicRegisters, false);
-    const sRegisters = buildInputRegisterEvaluators(sInputs, registerSpecs.secretRegisters, true);
-    const cRegisters = buildReadonlyRegisterEvaluators(cRegisterSpecs, false);
-    const iRegisters = buildReadonlyRegisterEvaluators(iRegisterSpecs, true);
+    const kRegisters = buildReadonlyRegisterEvaluators(staticRegisters);
+    const cRegisters = buildReadonlyRegisterEvaluators(cRegisterSpecs);
+    const iRegisters = buildReadonlyRegisterEvaluators(iRegisterSpecs);
     // EXECUTION TRACE GENERATOR
     // --------------------------------------------------------------------------------------------
     function generateExecutionTrace() {
         const steps = traceLength - 1;
         const kValues = new Array(kRegisters.length).fill(f.zero);
-        const sValues = new Array(sRegisters.length).fill(f.zero);
-        const pValues = new Array(pRegisters.length).fill(f.zero);
-        const cValues = new Array(2 ** cRegisters.length).fill(f.zero);
         const iValues = new Array(iRegisters.length).fill(f.zero);
+        const cValues = new Array(2 ** cRegisters.length).fill(f.zero);
         // build the first row of the execution trace by execution transition function at the last step
         let rValues = new Array(stateWidth).fill(f.zero);
-        populateControlValues(cRegisters, cValues, steps * compositionFactor);
+        populateControlValues(cValues, cRegisters, steps * compositionFactor);
         for (let i = 0; i < iValues.length; i++) {
             iValues[i] = iRegisters[i](steps * compositionFactor);
         }
-        let nValues = applyTransition(rValues, kValues, sValues, pValues, cValues, iValues);
+        let nValues = applyTransition(rValues, kValues, iValues, cValues);
         // initialize execution trace and copy over the first row
         const traceValues = new Array(stateWidth);
         for (let register = 0; register < traceValues.length; register++) {
@@ -68,26 +63,18 @@ function initProof(initValues, pInputs, sInputs) {
         let step = 0;
         while (step < steps) {
             let position = step * compositionFactor;
-            // get values of readonly registers for the current step
+            // get values of static registers for the current step
             for (let i = 0; i < kValues.length; i++) {
                 kValues[i] = kRegisters[i](position);
             }
-            // get values of secret input registers for the current step
-            for (let i = 0; i < sValues.length; i++) {
-                sValues[i] = sRegisters[i](position);
-            }
-            // get values of public input registers for the current step
-            for (let i = 0; i < pValues.length; i++) {
-                pValues[i] = pRegisters[i](position);
-            }
-            // get values of control registers for the current step
-            populateControlValues(cRegisters, cValues, position);
-            // get values of init registers for the current step
+            // get values of input registers for the current step
             for (let i = 0; i < iValues.length; i++) {
                 iValues[i] = iRegisters[i](position);
             }
+            // get values of control registers for the current step
+            populateControlValues(cValues, cRegisters, position);
             // populate nValues with the next computation state
-            nValues = applyTransition(rValues, kValues, sValues, pValues, cValues, iValues);
+            nValues = applyTransition(rValues, kValues, iValues, cValues);
             // copy nValues to execution trace and update rValues for the next iteration
             step++;
             for (let register = 0; register < nValues.length; register++) {
@@ -115,10 +102,8 @@ function initProof(initValues, pInputs, sInputs) {
         const rValues = new Array(stateWidth);
         const nValues = new Array(stateWidth);
         const kValues = new Array(kRegisters.length);
-        const sValues = new Array(sRegisters.length);
-        const pValues = new Array(pRegisters.length);
-        const cValues = new Array(2 ** cRegisters.length);
         const iValues = new Array(iRegisters.length);
+        const cValues = new Array(2 ** cRegisters.length);
         // evaluate constraints for each position of the extended trace
         let qValues;
         for (let position = 0; position < domainSize; position++) {
@@ -132,22 +117,14 @@ function initProof(initValues, pInputs, sInputs) {
             for (let i = 0; i < kValues.length; i++) {
                 kValues[i] = kRegisters[i](position);
             }
-            // get values of secret input registers for the current position
-            for (let i = 0; i < sValues.length; i++) {
-                sValues[i] = sRegisters[i](position);
-            }
-            // get values of public input registers for the current position
-            for (let i = 0; i < pValues.length; i++) {
-                pValues[i] = pRegisters[i](position);
-            }
-            // get values of control registers for the current step
-            populateControlValues(cRegisters, cValues, position);
             // get values of init registers for the current step
             for (let i = 0; i < iValues.length; i++) {
                 iValues[i] = iRegisters[i](position);
             }
+            // get values of control registers for the current step
+            populateControlValues(cValues, cRegisters, position);
             // populate qValues with results of constraint evaluations
-            qValues = evaluateConstraints(rValues, nValues, kValues, sValues, pValues, cValues, iValues);
+            qValues = evaluateConstraints(rValues, nValues, kValues, iValues, cValues);
             // copy evaluations to the result, and also check that constraints evaluate to 0
             // at multiples of the extensions factor
             if (position % compositionFactor === 0 && position < nfSteps) {
@@ -170,64 +147,53 @@ function initProof(initValues, pInputs, sInputs) {
     }
     // REGISTER BUILDERS
     // --------------------------------------------------------------------------------------------
-    function buildReadonlyRegisterEvaluators(specs, isHidden) {
-        const registers = specs.map(s => {
-            if (s.pattern === 'repeat') {
+    function buildReadonlyRegisterEvaluators(specs) {
+        const registers = specs.map(r => {
+            if (r.pattern === 'repeat') {
                 // make sure the length of values is at least 4; this is needed for FFT interpolation
-                if (s.values.length === 2) {
-                    s.values = s.values.concat(s.values);
+                if (r.values.length === 2) {
+                    r.values = r.values.concat(r.values);
                 }
                 // build the polynomial describing cyclic values
-                const skip = evaluationDomainSize / s.values.length;
-                const ys = f.newVectorFrom(s.values);
+                const skip = evaluationDomainSize / r.values.length;
+                const ys = f.newVectorFrom(r.values);
                 const xs = f.pluckVector(evaluationDomain, skip, ys.length);
                 const poly = f.interpolateRoots(xs, ys);
                 // evaluate the polynomial over a subset of composition domain
-                const length2 = s.values.length * extensionFactor;
+                const length2 = r.values.length * extensionFactor;
                 const skip2 = evaluationDomainSize / length2;
                 const xs2 = f.pluckVector(evaluationDomain, skip2, length2);
                 const evaluations = f.evalPolyAtRoots(poly, xs2);
                 // if the register is secret, build its trace over evaluation domain
-                if (isHidden) {
+                if (r.secret) {
                     // figure out how many times the evaluations vector needs to be doubled to reach domain size
                     const i = Math.log2(evaluationDomain.length / evaluations.length);
-                    hiddenRegisterTraces.push((i > 0) ? f.duplicateVector(evaluations, i) : evaluations);
+                    secretRegisterTraces.push((i > 0) ? f.duplicateVector(evaluations, i) : evaluations);
                 }
                 // return evaluator function
                 const skip3 = evaluationDomainSize / compositionDomainSize;
                 return (position) => evaluations.getValue((position * skip3) % evaluations.length);
             }
-            else if (s.pattern === 'spread') {
+            else if (r.pattern === 'spread') {
                 // create trace mask
-                const traceValues = stretchRegisterValues(s.values, traceLength);
+                const traceValues = stretchRegisterValues(r.values, traceLength);
                 // build the polynomial describing spread values
                 const trace = f.newVectorFrom(traceValues);
                 const poly = f.interpolateRoots(executionDomain, trace);
                 // evaluate the polynomial over composition domain
                 const evaluations = f.evalPolyAtRoots(poly, compositionDomain);
                 // if the register is secret, build its trace over evaluation domain
-                if (isHidden) {
-                    hiddenRegisterTraces.push(f.evalPolyAtRoots(poly, evaluationDomain));
+                if (r.secret) {
+                    secretRegisterTraces.push(f.evalPolyAtRoots(poly, evaluationDomain));
                 }
                 // return evaluator function
                 return (position) => evaluations.getValue(position % evaluations.length);
             }
             else {
-                throw new TypeError(`Invalid value pattern '${s.pattern}'`);
+                throw new TypeError(`Invalid value pattern '${r.pattern}'`);
             }
         });
         return registers;
-    }
-    function buildInputRegisterEvaluators(inputs, specs, isHidden) {
-        const regSpecs = new Array(inputs.length);
-        for (let i = 0; i < inputs.length; i++) {
-            let binary = specs[i].binary;
-            if (binary) {
-                validateBinaryValues(inputs[i], isHidden, i);
-            }
-            regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern, binary };
-        }
-        return buildReadonlyRegisterEvaluators(regSpecs, isHidden);
     }
     // CONTEXT OBJECT
     // --------------------------------------------------------------------------------------------
@@ -239,16 +205,16 @@ function initProof(initValues, pInputs, sInputs) {
         rootOfUnity: rootOfUnity,
         stateWidth: stateWidth,
         constraintCount: constraints.length,
-        iRegisterCount: loops.registerDepths.length,
-        sRegisterCount: registerSpecs.secretRegisters.length,
-        pRegisterCount: registerSpecs.publicRegisters.length,
-        kRegisterCount: registerSpecs.secretRegisters.length,
+        iRegisterCount: inputRegisters.length,
+        sRegisterCount: 0,
+        pRegisterCount: 0,
+        kRegisterCount: staticRegisters.length,
         executionDomain: executionDomain,
         evaluationDomain: evaluationDomain,
         compositionDomain: compositionDomain,
         generateExecutionTrace: generateExecutionTrace,
         evaluateTracePolynomials: evaluateTracePolynomials,
-        hiddenRegisterTraces: hiddenRegisterTraces
+        hiddenRegisterTraces: secretRegisterTraces // TODO: rename
     };
 }
 exports.initProof = initProof;
@@ -262,10 +228,9 @@ function initVerification(traceShape, pInputs) {
     const evaluationDomainSize = traceLength * extensionFactor;
     const rootOfUnity = f.getRootOfUnity(evaluationDomainSize);
     // build static, public, and control register evaluators
-    const kRegisters = buildReadonlyRegisterEvaluators(registerSpecs.staticRegisters);
-    const pRegisters = buildInputRegisterEvaluators(pInputs, registerSpecs.publicRegisters);
+    const kRegisters = buildReadonlyRegisterEvaluators(staticRegisters);
     const cRegisters = buildReadonlyRegisterEvaluators(cRegisterSpecs);
-    const iRegistersOffset = registerSpecs.secretRegisters.length;
+    const iRegistersOffset = 0; // TODO: registerSpecs.secretRegisters.length;
     // CONSTRAINT EVALUATOR
     // --------------------------------------------------------------------------------------------
     function evaluateConstraintsAt(x, rValues, nValues, hValues) {
@@ -275,18 +240,15 @@ function initVerification(traceShape, pInputs) {
             kValues[i] = kRegisters[i](x);
         }
         // get values of public inputs for the current position
-        const pValues = new Array(pRegisters.length);
-        for (let i = 0; i < pValues.length; i++) {
-            pValues[i] = pRegisters[i](x);
-        }
+        const pValues = []; // TODO
         // get values of control for the current position
         const cValues = new Array(2 ** cRegisters.length);
-        populateControlValues(cRegisters, cValues, x);
+        populateControlValues(cValues, cRegisters, x);
         // split hidden values into secret and init register values
         const sValues = hValues.slice(0, iRegistersOffset);
         const iValues = hValues.slice(iRegistersOffset);
         // populate qValues with constraint evaluations
-        const qValues = evaluateConstraints(rValues, nValues, kValues, sValues, pValues, cValues, iValues);
+        const qValues = evaluateConstraints(rValues, nValues, kValues, iValues, cValues);
         return qValues;
     }
     // REGISTER EVALUATOR BUILDERS
@@ -329,17 +291,6 @@ function initVerification(traceShape, pInputs) {
         }));
         return registers;
     }
-    function buildInputRegisterEvaluators(inputs, specs) {
-        const regSpecs = new Array(inputs.length);
-        for (let i = 0; i < inputs.length; i++) {
-            let binary = specs[i].binary;
-            if (binary) {
-                validateBinaryValues(inputs[i], false, i);
-            }
-            regSpecs[i] = { values: inputs[i], pattern: specs[i].pattern, binary };
-        }
-        return buildReadonlyRegisterEvaluators(regSpecs);
-    }
     // CONTEXT OBJECT
     // --------------------------------------------------------------------------------------------
     return {
@@ -351,24 +302,22 @@ function initVerification(traceShape, pInputs) {
         stateWidth: stateWidth,
         constraintCount: constraints.length,
         iRegisterCount: loops.registerDepths.length,
-        sRegisterCount: registerSpecs.secretRegisters.length,
-        pRegisterCount: registerSpecs.publicRegisters.length,
-        kRegisterCount: registerSpecs.secretRegisters.length,
+        sRegisterCount: 0,
+        pRegisterCount: 0,
+        kRegisterCount: staticRegisters.length,
         evaluateConstraintsAt: evaluateConstraintsAt
     };
 }
 exports.initVerification = initVerification;
 // HELPER FUNCTIONS
 // ================================================================================================
-function validateInitValues(initValues) {
-    const registerDepths = loops.registerDepths;
-    const traceShape = [initValues.length];
-    const iRegisterValues = new Array(registerDepths.length).fill([]);
-    for (let value of initValues) {
-        for (let i = 0; i < registerDepths.length; i++) {
-            let uv = unrollRegisterValues(value[i], i, registerDepths[i], traceShape);
-            iRegisterValues[i] = iRegisterValues[i].concat(uv);
-        }
+function processInputs(inputs) {
+    const traceShape = [1];
+    const iRegisterValues = new Array(inputRegisters.length);
+    for (let i = 0; i < inputRegisters.length; i++) {
+        let register = inputRegisters[i];
+        let values = unrollRegisterValues(inputs[i], register.name, register.rank, traceShape);
+        iRegisterValues[i] = values;
     }
     const cycleCount = traceShape.reduce((p, c) => p * c, 1);
     for (let i = 0; i < iRegisterValues.length; i++) {
@@ -379,12 +328,13 @@ function validateInitValues(initValues) {
     if (traceLength > maxTraceLength) {
         throw new Error(`total trace length cannot exceed ${maxTraceLength}`);
     }
-    const iRegisterSpecs = iRegisterValues.map(v => {
-        return { values: v, binary: false, pattern: 'spread' };
+    const iRegisterSpecs = iRegisterValues.map((values, i) => {
+        let register = inputRegisters[i]; // TODO
+        return { name: register.name, values, binary: false, pattern: 'spread', secret: true };
     });
     return { traceLength, traceShape, iRegisterSpecs };
 }
-exports.validateInitValues = validateInitValues;
+exports.processInputs = processInputs;
 function validateTraceShape(traceShape) {
     if (traceShape === undefined)
         throw new Error('trace shape was not provided');
@@ -407,8 +357,8 @@ function validateTraceShape(traceShape) {
 }
 exports.validateTraceShape = validateTraceShape;
 function validateStaticRegisterValues(traceLength) {
-    for (let i = 0; i < registerSpecs.staticRegisters.length; i++) {
-        if (traceLength % registerSpecs.staticRegisters[i].values.length !== 0) {
+    for (let i = 0; i < staticRegisters.length; i++) {
+        if (traceLength % staticRegisters[i].values.length !== 0) {
             throw new Error(`invalid definition for static register $k${i}: number of values must be a divisor of ${traceLength}`);
         }
     }
@@ -419,7 +369,7 @@ function validateInputRegisterValues(inputs, traceLength, type) {
         throw new TypeError(`${type} inputs are undefined`);
     if (!Array.isArray(inputs))
         throw new TypeError(`${type} inputs parameter must be an array`);
-    const expectedInputCount = type === 'public' ? registerSpecs.publicRegisters.length : registerSpecs.secretRegisters.length;
+    const expectedInputCount = 0; // TODO: type === 'public' ? registerSpecs.publicRegisters.length : registerSpecs.secretRegisters.length;
     if (inputs.length !== expectedInputCount) {
         throw new Error(`${type} inputs array must contain exactly ${expectedInputCount} elements`);
     }
@@ -510,7 +460,9 @@ function buildControlRegisterSpecs(traceShape, traceLength) {
         values[i] = removeRepeatingCycles(values[i]);
     }
     // transform values into register specs and return
-    return values.map(v => ({ values: v, binary: true, pattern: 'repeat' }));
+    return values.map((values, i) => {
+        return { name: `c${i}`, values, binary: true, pattern: 'repeat', secret: false };
+    });
 }
 exports.buildControlRegisterSpecs = buildControlRegisterSpecs;
 function stretchRegisterValues(values, traceLength) {
@@ -526,23 +478,23 @@ exports.stretchRegisterValues = stretchRegisterValues;
 function unrollRegisterValues(value, register, depth, shape) {
     if (typeof value === 'bigint') {
         if (depth !== 0)
-            throw new Error(`values provided for register $i${register} do not match the expected template`);
+            throw new Error(`values provided for register ${register} do not match the expected signature`);
         return [value];
     }
     else {
         if (depth === 0)
-            throw new Error(`values provided for register $i${register} do not match the expected template`);
+            throw new Error(`values provided for register ${register} do not match the expected signature`);
         if (!Array.isArray(value))
-            throw new Error(`value provided for register $i${register} at depth ${depth} is invalid`);
+            throw new Error(`value provided for register ${register} at depth ${depth} is invalid`);
         else if (value.length === 0)
-            throw new Error(`number of values for register $i${register} at depth ${depth} must be greater than 0`);
+            throw new Error(`number of values for register ${register} at depth ${depth} must be greater than 0`);
         else if (!isPowerOf2(value.length))
-            throw new Error(`number of values for register $i${register} at depth ${depth} must be a power of 2`);
+            throw new Error(`number of values for register ${register} at depth ${depth} must be a power of 2`);
         if (shape[depth] === undefined) {
             shape[depth] = value.length;
         }
         else if (value.length !== shape[depth]) {
-            throw new Error(`values provided for register $i${register} do not match the expected template`);
+            throw new Error(`values provided for register $i${register} do not match the expected signature`);
         }
         let result = [];
         for (let i = 0; i < value.length; i++) {
@@ -562,7 +514,7 @@ function removeRepeatingCycles(values) {
     return removeRepeatingCycles(values.slice(halfLength));
 }
 exports.removeRepeatingCycles = removeRepeatingCycles;
-function populateControlValues(cRegisters, cValues, position) {
+function populateControlValues(cValues, cRegisters, position) {
     let cPeriod = 1;
     cValues.fill(f.one);
     for (let i = cRegisters.length - 1; i >= 0; i--) {

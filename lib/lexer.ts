@@ -9,10 +9,12 @@ export const IntegerLiteral     = createToken({ name: "IntegerLiteral",   patter
 export const Identifier         = createToken({ name: "Identifier",       pattern: /[a-zA-Z]\w*/   });
 
 export const RegisterRef        = createToken({ name: "RegisterRef",      pattern: Lexer.NA });
-export const MutableRegister    = createToken({ name: "MutableRegister",  pattern: /\$[rn]\d{1,2}/,  categories: RegisterRef });
-export const ReadonlyRegister   = createToken({ name: "ReadonlyRegister", pattern: /\$[kps]\d{1,2}/, categories: RegisterRef });
 export const InputRegister      = createToken({ name: "InputRegister",    pattern: /\$\i\d{1,2}/,    categories: RegisterRef });
+export const StateRegister      = createToken({ name: "StateRegister",    pattern: /\$[rn]\d{1,2}/,  categories: RegisterRef });
+export const StaticRegister     = createToken({ name: "StaticRegister",   pattern: /\$\k\d{1,2}/,    categories: RegisterRef });
 export const RegisterBank       = createToken({ name: "RegisterBank",     pattern: /\$[rnkps]/ });
+
+export const ReadonlyRegister   = createToken({ name: "ReadonlyRegister", pattern: /\$[ps]\d{1,2}/, categories: RegisterRef });
 
 // KEYWORDS
 // ================================================================================================
@@ -42,7 +44,7 @@ export const All         = createToken({ name: "All",         pattern: /all/,   
 export const Require     = createToken({ name: "Require",     pattern: /require/,       longer_alt: Identifier });
 export const Inputs      = createToken({ name: "Inputs",      pattern: /inputs?/,       longer_alt: Identifier });
 export const Using       = createToken({ name: "Using",       pattern: /using/,         longer_alt: Identifier });
-export const Readonly    = createToken({ name: "Readonly",    pattern: /readonly/,      longer_alt: Identifier });  // TODO: replace with static
+export const Static      = createToken({ name: "Static",      pattern: /static/,        longer_alt: Identifier });
 export const Expand      = createToken({ name: "Expand",      pattern: /expand/,        longer_alt: Identifier });
 export const Repeat      = createToken({ name: "Repeat",      pattern: /repeat/,        longer_alt: Identifier });
 export const Spread      = createToken({ name: "Spread",      pattern: /spread/,        longer_alt: Identifier });
@@ -109,7 +111,7 @@ export const allTokens = [
     WhiteSpace, Comment,
     
     Define, Over, Prime, Binary, Field, Transition, Registers, Steps, Enforce, Constraints, For, Each,
-    Do, With, Nothing, When, Else, Expand, Repeat, Spread, Using, Require, Inputs, Readonly,
+    Do, With, Nothing, When, Else, Expand, Repeat, Spread, Using, Require, Inputs, Static,
     Import, From, As, All, Init,
 
     AssignOp, ResolveOp, Equals, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
@@ -119,7 +121,7 @@ export const allTokens = [
 
     Identifier,
 
-    MutableRegister, ReadonlyRegister, InputRegister, RegisterRef, RegisterBank,
+    StateRegister, StaticRegister, ReadonlyRegister, InputRegister, RegisterRef, RegisterBank,
 
     IntegerLiteral
 ];

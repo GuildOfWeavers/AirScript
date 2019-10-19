@@ -31,7 +31,7 @@ class AirParser extends chevrotain_1.CstParser {
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Transition);
-                            this.SUBRULE2(this.literalExpression, { LABEL: 'mutableRegisterCount' }); // TODO: rename to stateRegisterCount
+                            this.SUBRULE2(this.literalExpression, { LABEL: 'stateRegisterCount' });
                             this.CONSUME1(lexer_1.Registers);
                             this.SUBRULE(this.transitionFunction, { LABEL: 'transitionFunction' });
                         } },
@@ -43,10 +43,10 @@ class AirParser extends chevrotain_1.CstParser {
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Using);
-                            this.SUBRULE4(this.literalExpression, { LABEL: 'readonlyRegisterCount' }); // TODO: rename to staticRegisterCount
-                            this.CONSUME(lexer_1.Readonly);
+                            this.SUBRULE4(this.literalExpression, { LABEL: 'staticRegisterCount' });
+                            this.CONSUME(lexer_1.Static);
                             this.CONSUME2(lexer_1.Registers);
-                            this.SUBRULE(this.readonlyRegisters, { LABEL: 'readonlyRegisters' }); // TODO: rename to staticRegisters
+                            this.SUBRULE(this.staticRegisters, { LABEL: 'staticRegisters' });
                         } }
                 ]);
             });
@@ -118,31 +118,22 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.RWedge);
             this.CONSUME(lexer_1.Semicolon);
         });
-        // READONLY REGISTERS
+        // STATIC REGISTERS
         // --------------------------------------------------------------------------------------------
-        this.readonlyRegisters = this.RULE('readonlyRegisters', () => {
+        this.staticRegisters = this.RULE('staticRegisters', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.AT_LEAST_ONE(() => this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registers' }));
+            this.AT_LEAST_ONE(() => this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'registers' }));
             this.CONSUME(lexer_1.RCurly);
         });
-        this.readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
-            this.CONSUME1(lexer_1.ReadonlyRegister, { LABEL: 'name' });
+        this.staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
+            this.CONSUME(lexer_1.StaticRegister, { LABEL: 'name' });
             this.CONSUME(lexer_1.Colon);
             this.OR1([
-                { ALT: () => this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }) },
-                { ALT: () => this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }) }
+                { ALT: () => this.CONSUME(lexer_1.Repeat, { LABEL: 'pattern' }) },
+                { ALT: () => this.CONSUME(lexer_1.Spread, { LABEL: 'pattern' }) }
             ]);
             this.OPTION(() => this.CONSUME(lexer_1.Binary, { LABEL: 'binary' }));
-            this.OR2([
-                { ALT: () => {
-                        this.CONSUME(lexer_1.LSquare);
-                        this.CONSUME(lexer_1.Ellipsis);
-                        this.CONSUME(lexer_1.RSquare);
-                    } },
-                { ALT: () => {
-                        this.SUBRULE(this.literalVector, { LABEL: 'values' });
-                    } }
-            ]);
+            this.SUBRULE(this.literalVector, { LABEL: 'values' });
             this.CONSUME(lexer_1.Semicolon);
         });
         // TRANSITION FUNCTION AND CONSTRAINTS

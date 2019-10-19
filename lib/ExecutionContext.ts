@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { ReadonlyRegisterSpecs, InputRegisterSpecs } from '@guildofweavers/air-script';
+import { ReadonlyRegisterSpecs, StaticRegisterSpecs } from '@guildofweavers/air-script';
 import { ScriptSpecs } from './ScriptSpecs';
 import { validateVariableName, Dimensions } from './utils';
 import { Expression, SymbolReference, SubroutineCall, ExtractVectorElement } from './expressions';
@@ -12,10 +12,8 @@ export class ExecutionContext {
     readonly globalConstants        : Map<string, Expression>;
     readonly localVariables         : Map<string, SymbolReference>[];
     readonly subroutines            : Map<string, string>;
-    readonly mutableRegisterCount   : number;
-    readonly staticRegisters        : ReadonlyRegisterSpecs[];
-    readonly secretRegisters        : InputRegisterSpecs[];
-    readonly publicRegisters        : InputRegisterSpecs[];
+    readonly stateRegisterCount     : number;
+    readonly staticRegisters        : StaticRegisterSpecs[];
     readonly tFunctionDegree?       : bigint[];
 
     readonly loopFrames             : (Set<number> | undefined)[];
@@ -28,10 +26,8 @@ export class ExecutionContext {
         this.subroutines = new Map();
         this.localVariables = [new Map()];
         this.globalConstants = specs.globalConstants;
-        this.mutableRegisterCount = specs.mutableRegisterCount;
+        this.stateRegisterCount = specs.stateRegisterCount;
         this.staticRegisters = specs.staticRegisters;
-        this.secretRegisters = specs.secretRegisters;
-        this.publicRegisters = specs.publicRegisters;
         if (specs.transitionFunction) {
             this.tFunctionDegree = specs.transitionFunctionDegree;
         }
@@ -170,8 +166,6 @@ export class ExecutionContext {
         const index = Number.parseInt(register.slice(2), 10);
 
         if (bankName === 'k')       return this.staticRegisters[index].binary;
-        else if (bankName === 's')  return this.secretRegisters[index].binary;
-        else if (bankName === 'p')  return this.publicRegisters[index].binary;
         else throw new Error(`register ${register} cannot be restricted to binary values`);
     }
 
@@ -213,15 +207,13 @@ export class ExecutionContext {
             if (this.inTransitionFunction) {
                 throw new Error(`$n registers cannot be accessed in transition function`);
             }
-            return this.mutableRegisterCount
+            return this.stateRegisterCount
         }
         else if (loopFrame && this.loopFrames.length === 1) {
             throw new Error(`$${bankName} registers cannot be accessed in the init clause of a top-level input loop`);
         }
-        else if (bankName === 'r')  return this.mutableRegisterCount;
+        else if (bankName === 'r')  return this.stateRegisterCount;
         else if (bankName === 'k')  return this.staticRegisters.length;
-        else if (bankName === 's')  return this.secretRegisters.length;
-        else if (bankName === 'p')  return this.publicRegisters.length;
         else throw new Error(`register bank name $${bankName} is invalid`);
     }
 
@@ -234,8 +226,8 @@ export class ExecutionContext {
         else if (this.inInputBlock) {
             throw new Error(`transition function cannot be called from an input block`);
         }
-        const dimensions: Dimensions = [this.mutableRegisterCount, 0];
-        return new SubroutineCall('applyTransition', ['r', 'k', 's', 'p', 'c', 'i'], dimensions, this.tFunctionDegree!);
+        const dimensions: Dimensions = [this.stateRegisterCount, 0];
+        return new SubroutineCall('applyTransition', ['r', 'k', 'i', 'c'], dimensions, this.tFunctionDegree!);
     }
 
     // CONDITIONAL EXPRESSIONS

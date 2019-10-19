@@ -9,10 +9,11 @@ const errors_1 = require("./errors");
 exports.IntegerLiteral = chevrotain_1.createToken({ name: "IntegerLiteral", pattern: /0|[1-9]\d*/ });
 exports.Identifier = chevrotain_1.createToken({ name: "Identifier", pattern: /[a-zA-Z]\w*/ });
 exports.RegisterRef = chevrotain_1.createToken({ name: "RegisterRef", pattern: chevrotain_1.Lexer.NA });
-exports.MutableRegister = chevrotain_1.createToken({ name: "MutableRegister", pattern: /\$[rn]\d{1,2}/, categories: exports.RegisterRef });
-exports.ReadonlyRegister = chevrotain_1.createToken({ name: "ReadonlyRegister", pattern: /\$[kps]\d{1,2}/, categories: exports.RegisterRef });
 exports.InputRegister = chevrotain_1.createToken({ name: "InputRegister", pattern: /\$\i\d{1,2}/, categories: exports.RegisterRef });
+exports.StateRegister = chevrotain_1.createToken({ name: "StateRegister", pattern: /\$[rn]\d{1,2}/, categories: exports.RegisterRef });
+exports.StaticRegister = chevrotain_1.createToken({ name: "StaticRegister", pattern: /\$\k\d{1,2}/, categories: exports.RegisterRef });
 exports.RegisterBank = chevrotain_1.createToken({ name: "RegisterBank", pattern: /\$[rnkps]/ });
+exports.ReadonlyRegister = chevrotain_1.createToken({ name: "ReadonlyRegister", pattern: /\$[ps]\d{1,2}/, categories: exports.RegisterRef });
 // KEYWORDS
 // ================================================================================================
 exports.Define = chevrotain_1.createToken({ name: "Define", pattern: /define/, longer_alt: exports.Identifier });
@@ -37,7 +38,7 @@ exports.All = chevrotain_1.createToken({ name: "All", pattern: /all/, longer_alt
 exports.Require = chevrotain_1.createToken({ name: "Require", pattern: /require/, longer_alt: exports.Identifier });
 exports.Inputs = chevrotain_1.createToken({ name: "Inputs", pattern: /inputs?/, longer_alt: exports.Identifier });
 exports.Using = chevrotain_1.createToken({ name: "Using", pattern: /using/, longer_alt: exports.Identifier });
-exports.Readonly = chevrotain_1.createToken({ name: "Readonly", pattern: /readonly/, longer_alt: exports.Identifier }); // TODO: replace with static
+exports.Static = chevrotain_1.createToken({ name: "Static", pattern: /static/, longer_alt: exports.Identifier });
 exports.Expand = chevrotain_1.createToken({ name: "Expand", pattern: /expand/, longer_alt: exports.Identifier });
 exports.Repeat = chevrotain_1.createToken({ name: "Repeat", pattern: /repeat/, longer_alt: exports.Identifier });
 exports.Spread = chevrotain_1.createToken({ name: "Spread", pattern: /spread/, longer_alt: exports.Identifier });
@@ -94,13 +95,13 @@ exports.Comment = chevrotain_1.createToken({
 exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Enforce, exports.Constraints, exports.For, exports.Each,
-    exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Expand, exports.Repeat, exports.Spread, exports.Using, exports.Require, exports.Inputs, exports.Readonly,
+    exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Expand, exports.Repeat, exports.Spread, exports.Using, exports.Require, exports.Inputs, exports.Static,
     exports.Import, exports.From, exports.As, exports.All, exports.Init,
     exports.AssignOp, exports.ResolveOp, exports.Equals, exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.LWedge, exports.RWedge, exports.Comma, exports.Colon, exports.Semicolon,
     exports.Ellipsis, exports.DoubleDot, exports.Pipe, exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,
-    exports.MutableRegister, exports.ReadonlyRegister, exports.InputRegister, exports.RegisterRef, exports.RegisterBank,
+    exports.StateRegister, exports.StaticRegister, exports.ReadonlyRegister, exports.InputRegister, exports.RegisterRef, exports.RegisterBank,
     exports.IntegerLiteral
 ];
 // EXPORT LEXER INSTANCE
