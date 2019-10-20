@@ -42,7 +42,7 @@ export class SegmentLoop extends Expression {
     }
 
     toAssembly(): string {
-        return `(mul ${this.statements.toAssembly()} ${this.controller.toAssembly()})\n`;
+        return `(mul ${this.body.toAssembly()} ${this.controller.toAssembly()})\n`;
     }
 }
 

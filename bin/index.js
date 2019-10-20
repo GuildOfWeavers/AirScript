@@ -67,7 +67,6 @@ function parseScript(script, limits, wasmOptions) {
     // build and return script specs
     return visitor_1.visitor.visit(cst, { limits, wasmOptions });
 }
-exports.parseScript = parseScript;
 function compile(script) {
     // tokenize input
     const lexResult = lexer_1.lexer.tokenize(script);

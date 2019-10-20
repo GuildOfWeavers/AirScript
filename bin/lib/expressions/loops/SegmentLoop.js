@@ -30,7 +30,7 @@ class SegmentLoop extends Expression_1.Expression {
         return code;
     }
     toAssembly() {
-        return `(mul ${this.statements.toAssembly()} ${this.controller.toAssembly()})\n`;
+        return `(mul ${this.body.toAssembly()} ${this.controller.toAssembly()})\n`;
     }
 }
 exports.SegmentLoop = SegmentLoop;
