@@ -12,8 +12,7 @@ exports.RegisterRef = chevrotain_1.createToken({ name: "RegisterRef", pattern: c
 exports.InputRegister = chevrotain_1.createToken({ name: "InputRegister", pattern: /\$\i\d{1,2}/, categories: exports.RegisterRef });
 exports.StateRegister = chevrotain_1.createToken({ name: "StateRegister", pattern: /\$[rn]\d{1,2}/, categories: exports.RegisterRef });
 exports.StaticRegister = chevrotain_1.createToken({ name: "StaticRegister", pattern: /\$\k\d{1,2}/, categories: exports.RegisterRef });
-exports.RegisterBank = chevrotain_1.createToken({ name: "RegisterBank", pattern: /\$[rnkps]/ });
-exports.ReadonlyRegister = chevrotain_1.createToken({ name: "ReadonlyRegister", pattern: /\$[ps]\d{1,2}/, categories: exports.RegisterRef });
+exports.RegisterBank = chevrotain_1.createToken({ name: "RegisterBank", pattern: /\$[rnk]/ });
 // KEYWORDS
 // ================================================================================================
 exports.Define = chevrotain_1.createToken({ name: "Define", pattern: /define/, longer_alt: exports.Identifier });
@@ -101,7 +100,7 @@ exports.allTokens = [
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.LWedge, exports.RWedge, exports.Comma, exports.Colon, exports.Semicolon,
     exports.Ellipsis, exports.DoubleDot, exports.Pipe, exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,
-    exports.StateRegister, exports.StaticRegister, exports.ReadonlyRegister, exports.InputRegister, exports.RegisterRef, exports.RegisterBank,
+    exports.StateRegister, exports.InputRegister, exports.StaticRegister, exports.RegisterRef, exports.RegisterBank,
     exports.IntegerLiteral
 ];
 // EXPORT LEXER INSTANCE

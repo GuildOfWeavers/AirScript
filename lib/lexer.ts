@@ -12,9 +12,7 @@ export const RegisterRef        = createToken({ name: "RegisterRef",      patter
 export const InputRegister      = createToken({ name: "InputRegister",    pattern: /\$\i\d{1,2}/,    categories: RegisterRef });
 export const StateRegister      = createToken({ name: "StateRegister",    pattern: /\$[rn]\d{1,2}/,  categories: RegisterRef });
 export const StaticRegister     = createToken({ name: "StaticRegister",   pattern: /\$\k\d{1,2}/,    categories: RegisterRef });
-export const RegisterBank       = createToken({ name: "RegisterBank",     pattern: /\$[rnkps]/ });
-
-export const ReadonlyRegister   = createToken({ name: "ReadonlyRegister", pattern: /\$[ps]\d{1,2}/, categories: RegisterRef });
+export const RegisterBank       = createToken({ name: "RegisterBank",     pattern: /\$[rnk]/ });
 
 // KEYWORDS
 // ================================================================================================
@@ -121,7 +119,7 @@ export const allTokens = [
 
     Identifier,
 
-    StateRegister, StaticRegister, ReadonlyRegister, InputRegister, RegisterRef, RegisterBank,
+    StateRegister, InputRegister, StaticRegister, RegisterRef, RegisterBank,
 
     IntegerLiteral
 ];

@@ -1,9 +1,23 @@
 // IMPORTS
 // ================================================================================================
-import { ReadonlyRegisterSpecs, StaticRegisterSpecs } from '@guildofweavers/air-script';
+import { InputRegisterSpecs, StaticRegisterSpecs } from '@guildofweavers/air-script';
 import { ScriptSpecs } from './ScriptSpecs';
 import { validateVariableName, Dimensions } from './utils';
 import { Expression, SymbolReference, SubroutineCall, ExtractVectorElement } from './expressions';
+
+// INTERFACES
+// ================================================================================================
+interface RegisterBankInfo {
+    name        : string;
+    reference   : SymbolReference;
+    future      : boolean;
+}
+
+interface RegisterInfo {
+    name        : string;
+    bank        : RegisterBankInfo;
+    reference   : Expression;
+}
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -13,12 +27,17 @@ export class ExecutionContext {
     readonly localVariables         : Map<string, SymbolReference>[];
     readonly subroutines            : Map<string, string>;
     readonly stateRegisterCount     : number;
-    readonly staticRegisters        : StaticRegisterSpecs[];
     readonly tFunctionDegree?       : bigint[];
+
+    readonly staticRegisters        : StaticRegisterSpecs[];
 
     readonly loopFrames             : (Set<number> | undefined)[];
 
     private conditionalBlockCounter : number;
+
+
+    private readonly registerBankMap: Map<string, RegisterBankInfo>;
+    private readonly registerMap    : Map<string, RegisterInfo>;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -33,6 +52,10 @@ export class ExecutionContext {
         }
         this.loopFrames = [];
         this.conditionalBlockCounter = -1;
+
+        this.registerBankMap = new Map();
+        this.registerMap = new Map();
+        buildRegisterMaps(specs, this.registerBankMap, this.registerMap);
     }
 
     // ACCESSORS
@@ -53,7 +76,7 @@ export class ExecutionContext {
                 return this.getRegisterReference(symbol);
             }
             else {
-                return this.getRegisterBankReference(symbol);
+                return this.getRegisterBank(symbol);
             }
         }
         else {
@@ -189,12 +212,6 @@ export class ExecutionContext {
         return new ExtractVectorElement(bankRef, index);
     }
 
-    private getRegisterBankReference(reference: string): Expression {
-        const bankName = reference.slice(1, 2);
-        const bankLength = this.getRegisterBankLength(bankName);
-        return new SymbolReference(bankName, [bankLength, 0], new Array(bankLength).fill(1n));
-    }
-
     private getRegisterBankLength(bankName: string): number {
         const loopFrame = this.loopFrames[this.loopFrames.length - 1];
         if (bankName === 'i') {
@@ -217,6 +234,14 @@ export class ExecutionContext {
         else throw new Error(`register bank name $${bankName} is invalid`);
     }
 
+    private getRegisterBank(bankName: string): Expression {
+        const bank = this.registerBankMap.get(bankName);
+        if (!bank) {
+            throw new Error(`register bank name ${bankName} is invalid`);
+        }
+        return bank.reference;
+    }
+
     // SUBROUTINES
     // --------------------------------------------------------------------------------------------
     getTransitionFunctionCall(): SubroutineCall {
@@ -235,5 +260,53 @@ export class ExecutionContext {
     getNextConditionalBlockId(): number {
         this.conditionalBlockCounter++;
         return this.conditionalBlockCounter;
+    }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+function buildRegisterMaps(specs: ScriptSpecs, registerBankMap: Map<string, RegisterBankInfo>, registerMap: Map<string, RegisterInfo>): void {
+
+    // build state register info
+    const stateWidth = specs.stateRegisterCount;
+    const rRegisterBank = new SymbolReference('r', [stateWidth, 0], new Array(stateWidth).fill(1n));
+    const rBankInfo = { name: `$r`, reference: rRegisterBank, future: false };
+    registerBankMap.set(rBankInfo.name, rBankInfo);
+
+    const nRegisterBank = new SymbolReference('n', [stateWidth, 0], new Array(stateWidth).fill(1n));
+    const nBankInfo = { name: `$n`, reference: nRegisterBank, future: true };
+    registerBankMap.set(nBankInfo.name, nBankInfo);
+
+    for (let i = 0; i < stateWidth; i++) {
+        const rRef = new ExtractVectorElement(rBankInfo.reference, i);
+        registerMap.set(`$r${i}`, { name: `$r${i}`, reference: rRef, bank: rBankInfo });
+
+        const nRef = new ExtractVectorElement(nBankInfo.reference, i);
+        registerMap.set(`$n${i}`, { name: `$n${i}`, reference: nRef, bank: nBankInfo });
+    }
+
+    // build static register info
+    const kBankSize = specs.staticRegisters.length;
+    const kRegisterBank = new SymbolReference('k', [kBankSize, 0], new Array(kBankSize).fill(1n));
+    const kBankInfo = { name: `$k`, reference: kRegisterBank, future: false };
+    registerBankMap.set(kBankInfo.name, kBankInfo);
+
+    for (let i = 0; i < kBankSize; i++) {
+        let register = specs.staticRegisters[i];
+        let reference = new ExtractVectorElement(kBankInfo.reference, i);
+        registerMap.set(register.name, { name: register.name, reference, bank: kBankInfo });
+    }
+
+    // build input register info
+    const iBankSize = specs.inputRegisters.length, iBankDegree = new Array(iBankSize);
+    const iRegisterBank = new SymbolReference('i', [iBankSize, 0], iBankDegree);
+    const iBankInfo = { name: `$i`, reference: iRegisterBank, future: false };
+    registerBankMap.set(iBankInfo.name, iBankInfo);
+
+    for (let i = 0; i < iBankSize; i++) {
+        let register = specs.inputRegisters[i];
+        let reference = new ExtractVectorElement(iBankInfo.reference, i);
+        registerMap.set(register.name, { name: register.name, reference, bank: iBankInfo });
+        iBankDegree[i] = (register.rank === 0) ? 0n : 1n;
     }
 }
