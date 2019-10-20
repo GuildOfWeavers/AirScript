@@ -56,6 +56,10 @@ class WhenExpression extends Expression_1.Expression {
         code += `${e3.toJsCode(assignTo, options)}`;
         return `{\n${code}}\n`;
     }
+    toAssembly() {
+        const c = this.condition.toAssembly();
+        return `(add (mul ${c} ${this.tBranch.toAssembly()}) (mul (sub 1 ${c}) ${this.fBranch.toAssembly()}))`;
+    }
 }
 exports.WhenExpression = WhenExpression;
 //# sourceMappingURL=WhenExpression.js.map

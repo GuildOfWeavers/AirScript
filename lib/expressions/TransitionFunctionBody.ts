@@ -47,4 +47,8 @@ export class TransitionFunctionBody extends Expression {
 
         return code;
     }
+
+    toAssembly(): string {
+        return `(transition ${this.inputBlock.toAssembly()})\n`;
+    }
 }

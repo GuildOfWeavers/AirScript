@@ -36,6 +36,9 @@ class CreateVector extends Expression_1.Expression {
         }
         return code;
     }
+    toAssembly() {
+        return `(vector ${this.elements.map(e => e.toAssembly()).join(' ')})`;
+    }
 }
 exports.CreateVector = CreateVector;
 //# sourceMappingURL=CreateVector.js.map

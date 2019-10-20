@@ -27,6 +27,7 @@ export abstract class Expression {
     // ABSTRACT METHODS
     // --------------------------------------------------------------------------------------------
     abstract toJsCode(assignTo?: string, options?: JsCodeOptions): string;
+    abstract toAssembly(): string;
 
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------

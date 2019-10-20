@@ -33,4 +33,8 @@ export class SubroutineCall extends Expression {
         }
         return code;
     }
+
+    toAssembly(): string {
+        return `(${this.subroutine} ${this.parameters.join(' ')})`;
+    }
 }

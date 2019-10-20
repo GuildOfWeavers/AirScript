@@ -54,4 +54,8 @@ export class InputBlock extends Expression {
 
         return `{\n${code}}\n`;
     }
+
+    toAssembly(): string {
+        return `(add (mul ${this.initExpression.toAssembly()} ${this.controller.toAssembly()}) ${this.bodyExpression.toAssembly()})\n`;
+    }
 }

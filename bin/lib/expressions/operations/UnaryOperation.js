@@ -3,6 +3,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const Expression_1 = require("../Expression");
+// INTERFACES
+// ================================================================================================
+var OperationType;
+(function (OperationType) {
+    OperationType[OperationType["neg"] = 1] = "neg";
+    OperationType[OperationType["inv"] = 2] = "inv";
+})(OperationType || (OperationType = {}));
 // CLASS DEFINITION
 // ================================================================================================
 class UnaryOperation extends Expression_1.Expression {
@@ -17,14 +24,14 @@ class UnaryOperation extends Expression_1.Expression {
         if (operand.isList) {
             throw new Error('cannot negate destructured list');
         }
-        return new UnaryOperation(1 /* neg */, operand, operand.dimensions, operand.degree);
+        return new UnaryOperation(OperationType.neg, operand, operand.dimensions, operand.degree);
     }
     static inv(operand) {
         if (operand.isList) {
             throw new Error('cannot invert destructured list');
         }
         const degree = operand.degree; // TODO: incorrect
-        return new UnaryOperation(2 /* inv */, operand, operand.dimensions, degree);
+        return new UnaryOperation(OperationType.inv, operand, operand.dimensions, degree);
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
@@ -39,13 +46,17 @@ class UnaryOperation extends Expression_1.Expression {
         }
         return code;
     }
+    toAssembly() {
+        const op = OperationType[this.operation];
+        return `(${op} ${this.operand.toAssembly()})`;
+    }
 }
 exports.UnaryOperation = UnaryOperation;
 // HELPER FUNCTIONS
 // ================================================================================================
 function getOpFunction(op, e) {
     switch (op) {
-        case 1 /* neg */: {
+        case OperationType.neg: {
             if (e.isScalar)
                 return `neg`;
             else if (e.isVector)
@@ -53,7 +64,7 @@ function getOpFunction(op, e) {
             else
                 return 'negMatrixElements';
         }
-        case 2 /* inv */: {
+        case OperationType.inv: {
             if (e.isScalar)
                 return `inv`;
             else if (e.isVector)

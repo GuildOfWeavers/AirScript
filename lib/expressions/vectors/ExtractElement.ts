@@ -1,6 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { Expression } from "../Expression";
+import { SymbolReference } from "../SymbolReference";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -33,5 +34,14 @@ export class ExtractVectorElement extends Expression {
             code = `${assignTo} = ${code};\n`;
         }
         return code;
+    }
+
+    toAssembly(): string {
+        if (this.source instanceof SymbolReference && this.source.isRegisterBank) {
+            return `$${this.source.symbol}${this.index}`;
+        }
+        else {
+            return `(extract ${this.source.toAssembly()} ${this.index})`;
+        }
     }
 }

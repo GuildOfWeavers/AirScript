@@ -9,7 +9,7 @@ import {
 
 // INTERFACES
 // ================================================================================================
-const enum OperationType {
+enum OperationType {
     add = 1, sub = 2, mul = 3, div = 4, exp = 5, prod = 6
 }
 
@@ -144,6 +144,11 @@ export class BinaryOperation extends Expression {
             code = `${assignTo} = ${code};\n`;
         }
         return code;
+    }
+
+    toAssembly(): string {
+        const op = OperationType[this.operation];
+        return `(${op} ${this.lhs.toAssembly()} ${this.rhs.toAssembly()})`;
     }
 }
 

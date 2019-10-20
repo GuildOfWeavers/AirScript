@@ -30,4 +30,8 @@ export class DestructureVector extends Expression {
         if (assignTo) throw new Error('cannot assign a destructured value');
         return `...${this.source.toJsCode(undefined, { vectorAsArray: true })}`;
     }
+
+    toAssembly(): string {
+        return this.source.toAssembly();
+    }
 }

@@ -38,6 +38,9 @@ class InputBlock extends Expression_1.Expression {
         code += result.toJsCode(assignTo, options);
         return `{\n${code}}\n`;
     }
+    toAssembly() {
+        return `(add (mul ${this.initExpression.toAssembly()} ${this.controller.toAssembly()}) ${this.bodyExpression.toAssembly()})\n`;
+    }
 }
 exports.InputBlock = InputBlock;
 //# sourceMappingURL=InputBlock.js.map

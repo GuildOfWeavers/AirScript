@@ -41,6 +41,9 @@ class SliceVector extends Expression_1.Expression {
         }
         return code;
     }
+    toAssembly() {
+        return `(extract ${this.source.toAssembly()} ${this.start} ${this.end})`;
+    }
 }
 exports.SliceVector = SliceVector;
 //# sourceMappingURL=SliceVector.js.map

@@ -44,6 +44,29 @@ function parseScript(script, options = {}) {
     }
 }
 exports.parseScript = parseScript;
+function compile(script) {
+    // tokenize input
+    const lexResult = lexer_1.lexer.tokenize(script);
+    if (lexResult.errors.length > 0) {
+        throw new errors_1.AirScriptError(lexResult.errors);
+    }
+    // apply grammar rules
+    parser_1.parser.input = lexResult.tokens;
+    const cst = parser_1.parser.script();
+    if (parser_1.parser.errors.length > 0) {
+        throw new errors_1.AirScriptError(parser_1.parser.errors);
+    }
+    // build AIR module
+    try {
+        const specs = visitor_1.visitor.visit(cst, { limits: DEFAULT_LIMITS });
+        const air = generators.generateAssembly(specs, DEFAULT_LIMITS, 16);
+        return air;
+    }
+    catch (error) {
+        throw new errors_1.AirScriptError([error]);
+    }
+}
+exports.compile = compile;
 // HELPER FUNCTIONS
 // ================================================================================================
 function validateExtensionFactor(constraintDegree, extensionFactor) {

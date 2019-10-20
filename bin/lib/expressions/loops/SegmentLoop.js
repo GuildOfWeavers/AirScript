@@ -29,6 +29,9 @@ class SegmentLoop extends Expression_1.Expression {
         code += BinaryOperation_1.BinaryOperation.mul(resRef, this.controller).toJsCode(assignTo, options);
         return code;
     }
+    toAssembly() {
+        return `(mul ${this.statements.toAssembly()} ${this.controller.toAssembly()})\n`;
+    }
 }
 exports.SegmentLoop = SegmentLoop;
 // HELPER FUNCTIONS

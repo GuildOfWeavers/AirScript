@@ -5,6 +5,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Expression_1 = require("../Expression");
 const LiteralExpression_1 = require("../LiteralExpression");
 const utils_1 = require("../utils");
+// INTERFACES
+// ================================================================================================
+var OperationType;
+(function (OperationType) {
+    OperationType[OperationType["add"] = 1] = "add";
+    OperationType[OperationType["sub"] = 2] = "sub";
+    OperationType[OperationType["mul"] = 3] = "mul";
+    OperationType[OperationType["div"] = 4] = "div";
+    OperationType[OperationType["exp"] = 5] = "exp";
+    OperationType[OperationType["prod"] = 6] = "prod";
+})(OperationType || (OperationType = {}));
 // CLASS DEFINITION
 // ================================================================================================
 class BinaryOperation extends Expression_1.Expression {
@@ -24,7 +35,7 @@ class BinaryOperation extends Expression_1.Expression {
             throw new Error(`cannot add {${lhs.dimensions}} value to {${rhs.dimensions}} value`);
         }
         const degree = utils_1.maxDegree(lhs.degree, rhs.degree);
-        return new BinaryOperation(1 /* add */, lhs, rhs, lhs.dimensions, degree);
+        return new BinaryOperation(OperationType.add, lhs, rhs, lhs.dimensions, degree);
     }
     static sub(lhs, rhs) {
         if (rhs.isList || lhs.isList) {
@@ -34,7 +45,7 @@ class BinaryOperation extends Expression_1.Expression {
             throw new Error(`cannot subtract {${rhs.dimensions}} value from {${lhs.dimensions}} value`);
         }
         const degree = utils_1.maxDegree(lhs.degree, rhs.degree);
-        return new BinaryOperation(2 /* sub */, lhs, rhs, lhs.dimensions, degree);
+        return new BinaryOperation(OperationType.sub, lhs, rhs, lhs.dimensions, degree);
     }
     static mul(lhs, rhs) {
         if (rhs.isList || lhs.isList) {
@@ -44,7 +55,7 @@ class BinaryOperation extends Expression_1.Expression {
             throw new Error(`cannot multiply {${lhs.dimensions}} value by {${rhs.dimensions}} value`);
         }
         const degree = utils_1.sumDegree(lhs.degree, rhs.degree);
-        return new BinaryOperation(3 /* mul */, lhs, rhs, lhs.dimensions, degree);
+        return new BinaryOperation(OperationType.mul, lhs, rhs, lhs.dimensions, degree);
     }
     static div(lhs, rhs) {
         if (rhs.isList || lhs.isList) {
@@ -54,7 +65,7 @@ class BinaryOperation extends Expression_1.Expression {
             throw new Error(`cannot divide {${lhs.dimensions}} value by {${rhs.dimensions}} value`);
         }
         const degree = utils_1.sumDegree(lhs.degree, rhs.degree); // TODO: incorrect
-        return new BinaryOperation(4 /* div */, lhs, rhs, lhs.dimensions, degree);
+        return new BinaryOperation(OperationType.div, lhs, rhs, lhs.dimensions, degree);
     }
     static exp(lhs, rhs) {
         if (lhs.isList || rhs.isList) {
@@ -68,7 +79,7 @@ class BinaryOperation extends Expression_1.Expression {
         }
         const rhsValue = rhs.value;
         const degree = utils_1.mulDegree(lhs.degree, rhsValue);
-        return new BinaryOperation(5 /* exp */, lhs, rhs, lhs.dimensions, degree);
+        return new BinaryOperation(OperationType.exp, lhs, rhs, lhs.dimensions, degree);
     }
     static prod(lhs, rhs) {
         const d1 = lhs.dimensions;
@@ -101,7 +112,7 @@ class BinaryOperation extends Expression_1.Expression {
         else {
             throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
         }
-        return new BinaryOperation(6 /* prod */, lhs, rhs, dimensions, degree);
+        return new BinaryOperation(OperationType.prod, lhs, rhs, dimensions, degree);
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
@@ -116,13 +127,17 @@ class BinaryOperation extends Expression_1.Expression {
         }
         return code;
     }
+    toAssembly() {
+        const op = OperationType[this.operation];
+        return `(${op} ${this.lhs.toAssembly()} ${this.rhs.toAssembly()})`;
+    }
 }
 exports.BinaryOperation = BinaryOperation;
 // HELPER FUNCTIONS
 // ================================================================================================
 function getOpFunction(op, e1, e2) {
     switch (op) {
-        case 1 /* add */: {
+        case OperationType.add: {
             if (e1.isScalar)
                 return `add`;
             else if (e1.isVector)
@@ -130,7 +145,7 @@ function getOpFunction(op, e1, e2) {
             else
                 return 'addMatrixElements';
         }
-        case 2 /* sub */: {
+        case OperationType.sub: {
             if (e1.isScalar)
                 return `sub`;
             else if (e1.isVector)
@@ -138,7 +153,7 @@ function getOpFunction(op, e1, e2) {
             else
                 return 'subMatrixElements';
         }
-        case 3 /* mul */: {
+        case OperationType.mul: {
             if (e1.isScalar)
                 return `mul`;
             else if (e1.isVector)
@@ -146,7 +161,7 @@ function getOpFunction(op, e1, e2) {
             else
                 return 'mulMatrixElements';
         }
-        case 4 /* div */: {
+        case OperationType.div: {
             if (e1.isScalar)
                 return `div`;
             else if (e1.isVector)
@@ -154,7 +169,7 @@ function getOpFunction(op, e1, e2) {
             else
                 return 'divMatrixElements';
         }
-        case 5 /* exp */: {
+        case OperationType.exp: {
             if (e1.isScalar)
                 return `exp`;
             else if (e1.isVector)
@@ -162,7 +177,7 @@ function getOpFunction(op, e1, e2) {
             else
                 return 'expMatrixElements';
         }
-        case 6 /* prod */: {
+        case OperationType.prod: {
             if (e1.isVector && e2.isVector)
                 return `combineVectors`;
             else if (e1.isMatrix && e2.isVector)

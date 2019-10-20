@@ -16,7 +16,7 @@ export class SymbolReference extends Expression {
         this.symbol = symbol;
     }
 
-    // PUBLIC MEMBERS
+    // ACCESSORS
     // --------------------------------------------------------------------------------------------
     get isRegisterBank(): boolean {
         return (this.symbol.length === 1);
@@ -26,6 +26,8 @@ export class SymbolReference extends Expression {
         return (this.symbol.startsWith('$'));
     }
 
+    // PUBLIC MEMBERS
+    // --------------------------------------------------------------------------------------------
     toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
         let code = this.symbol;
 
@@ -42,5 +44,9 @@ export class SymbolReference extends Expression {
             code = `${assignTo} = ${code};\n`;
         }
         return code;
+    }
+
+    toAssembly(): string {
+        return this.symbol;
     }
 }

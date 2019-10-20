@@ -49,4 +49,8 @@ export class SliceVector extends Expression {
         }
         return code;
     }
+
+    toAssembly(): string {
+        return `(extract ${this.source.toAssembly()} ${this.start} ${this.end})`;
+    }
 }
