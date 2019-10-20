@@ -43,6 +43,10 @@ export class TransitionConstraintsBody extends Expression {
 
         return code;
     }
+
+    toAssembly(): string {
+        return `(evaluate ${this.root.toAssembly()})\n`;
+    }
 }
 
 // HELPER FUNCTIONS

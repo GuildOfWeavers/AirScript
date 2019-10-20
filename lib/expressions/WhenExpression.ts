@@ -69,4 +69,9 @@ export class WhenExpression extends Expression {
 
         return `{\n${code}}\n`;
     }
+
+    toAssembly(): string {
+        const c = this.condition.toAssembly();
+        return `(add (mul ${c} ${this.tBranch.toAssembly()}) (mul (sub 1 ${c}) ${this.fBranch.toAssembly()}))`;
+    }
 }

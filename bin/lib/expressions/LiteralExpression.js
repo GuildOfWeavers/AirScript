@@ -44,11 +44,14 @@ class LiteralExpression extends Expression_1.Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo) {
-        let code = (typeof this.value === 'bigint') ? `${this.value}n` : `g.${this.valueName}`;
+        let code = this.isScalar ? `${this.value}n` : `g.${this.valueName}`;
         if (assignTo) {
             code = `${assignTo} = ${code};\n`;
         }
         return code;
+    }
+    toAssembly() {
+        return this.isScalar ? `${this.value}` : `${this.valueName}`;
     }
 }
 exports.LiteralExpression = LiteralExpression;

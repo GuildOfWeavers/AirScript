@@ -35,6 +35,9 @@ class TransitionConstraintsBody extends Expression_1.Expression {
         code += this.root.isScalar ? `return [result];\n` : `return result.toValues();\n`;
         return code;
     }
+    toAssembly() {
+        return `(evaluate ${this.root.toAssembly()})\n`;
+    }
 }
 exports.TransitionConstraintsBody = TransitionConstraintsBody;
 // HELPER FUNCTIONS

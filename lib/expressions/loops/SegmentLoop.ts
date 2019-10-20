@@ -40,6 +40,10 @@ export class SegmentLoop extends Expression {
 
         return code;
     }
+
+    toAssembly(): string {
+        return `(mul ${this.statements.toAssembly()} ${this.controller.toAssembly()})\n`;
+    }
 }
 
 // HELPER FUNCTIONS

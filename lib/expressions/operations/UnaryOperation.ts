@@ -5,7 +5,7 @@ import { Dimensions } from "../../utils";
 
 // INTERFACES
 // ================================================================================================
-const enum OperationType {
+enum OperationType {
     neg = 1, inv = 2
 }
 
@@ -54,6 +54,11 @@ export class UnaryOperation extends Expression {
             code = `${assignTo} = ${code};\n`;
         }
         return code;
+    }
+
+    toAssembly(): string {
+        const op = OperationType[this.operation];
+        return `(${op} ${this.operand.toAssembly()})`;
     }
 }
 

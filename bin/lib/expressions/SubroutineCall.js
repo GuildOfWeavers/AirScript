@@ -28,6 +28,9 @@ class SubroutineCall extends Expression_1.Expression {
         }
         return code;
     }
+    toAssembly() {
+        return `(${this.subroutine} ${this.parameters.join(' ')})`;
+    }
 }
 exports.SubroutineCall = SubroutineCall;
 //# sourceMappingURL=SubroutineCall.js.map

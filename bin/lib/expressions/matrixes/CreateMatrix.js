@@ -41,6 +41,10 @@ class CreateMatrix extends Expression_1.Expression {
         const rows = this.elements.map(r => `[${r.map(e => e.toJsCode()).join(', ')}]`);
         return `${assignTo} = f.newMatrixFrom([${rows.join(', ')}])`;
     }
+    toAssembly() {
+        const rows = this.elements.map(r => `(${r.map(e => e.toAssembly()).join(' ')})`);
+        return `(matrix ${rows.join(' ')})`;
+    }
 }
 exports.CreateMatrix = CreateMatrix;
 //# sourceMappingURL=CreateMatrix.js.map

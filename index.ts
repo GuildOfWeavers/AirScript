@@ -79,6 +79,34 @@ function parseScript(script: string, limits: StarkLimits, wasmOptions?: Partial<
     return visitor.visit(cst, { limits, wasmOptions });
 }
 
+export function compile(script: string,) {
+    
+    // tokenize input
+    const lexResult = lexer.tokenize(script);
+    if(lexResult.errors.length > 0) {
+        throw new AirScriptError(lexResult.errors);
+    }
+
+    // apply grammar rules
+    parser.input = lexResult.tokens;
+    const cst = parser.script();
+    if (parser.errors.length > 0) {
+        throw new AirScriptError(parser.errors);
+    }
+
+    // build AIR module
+    try {
+        const specs: ScriptSpecs = visitor.visit(cst, { limits: DEFAULT_LIMITS });
+        const air = generators.generateAssembly(specs, DEFAULT_LIMITS, 16);
+        return air;
+    }
+    catch (error) {
+        throw new AirScriptError([error]);
+    }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
 function validateExtensionFactor(constraintDegree: number, extensionFactor?: number): number {
     const minExtensionFactor = 2**Math.ceil(Math.log2(constraintDegree)) * 2;
 

@@ -1,36 +1,31 @@
-import { instantiate } from '../index';
+import { compile } from '../index';
 
-const extensionFactor = 32;
+const script = `
+define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
-(async function run() {
+    alpha: 3;
 
-    const air = await instantiate('./tests/scripts/test.air', { extensionFactor });
-    const pContext = air.initProof([3n]);
-    console.time('generate trace');
-    const trace = pContext.generateExecutionTrace();
-    console.timeEnd('generate trace');
-    const tPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
-
-    console.time('evaluate constraints');
-    const cEvaluations = pContext.evaluateTracePolynomials(tPolys);
-    console.timeEnd('evaluate constraints');
-
-    const pPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
-    const qEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
-
-    console.log(test(3n, 31, 63) === trace.toValues()[0][63]);
-
-    function test(input: bigint, s1: number, s2: number) {
-        const k = [ 42n, 43n, 170n, 2209n, 16426n, 78087n, 279978n, 823517n, 2097194n, 4782931n, 10000042n, 19487209n, 35831850n, 62748495n, 105413546n, 170859333n ];
-        let i = 0;
-        for (; i < s1; i++) {
-            input = air.field.add(air.field.exp(input, 3n), k[i % k.length] );
-        }
+    // transition function definition
+    transition 1 registers {
+        for each ($i0) {
+            init { $i0 }
     
-        for (; i < s2; i++) {
-            input = air.field.add(air.field.exp(input, 2n), k[i % k.length] );
+            for steps [1..63] {
+                $r0^alpha + $k0
+            }
         }
-    
-        return input;
     }
-})().then(() => console.log('done!'));
+    // transition constraint definition
+    enforce 1 constraint {
+        for all steps {
+            transition($r) = $n
+        }
+    }
+    // readonly registers accessible in transition function and constraints
+    using 1 readonly register {
+        $k0: repeat [ 42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931, 10000042, 19487209, 35831850, 62748495, 105413546, 170859333 ];
+    }
+}`;
+
+const air = compile(script);
+console.log(air);

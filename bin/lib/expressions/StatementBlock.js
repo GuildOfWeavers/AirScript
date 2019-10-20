@@ -47,6 +47,16 @@ class StatementBlock extends Expression_1.Expression {
         // return statement block
         return `{\n${code}}\n`;
     }
+    toAssembly() {
+        let code = '';
+        if (this.statements) {
+            for (let { variable, expression } of this.statements) {
+                code += `(set ${variable} ${expression.toAssembly()})\n`;
+            }
+        }
+        code += this.outExpression.toAssembly();
+        return code;
+    }
 }
 exports.StatementBlock = StatementBlock;
 //# sourceMappingURL=StatementBlock.js.map

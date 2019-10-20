@@ -53,6 +53,14 @@ export class SegmentLoopBlock extends Expression {
 
         return `{\n${code}}\n`;
     }
+
+    toAssembly(): string {
+        let code = this.loops[0].toAssembly();
+        for (let i = 1; i < this.loops.length; i++) {
+            code = `(add ${code} ${this.loops[i].toAssembly()})`;
+        }
+        return code;
+    }
 }
 
 // HELPER FUNCTIONS

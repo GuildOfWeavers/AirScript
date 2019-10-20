@@ -64,4 +64,17 @@ export class StatementBlock extends Expression {
         // return statement block
         return `{\n${code}}\n`;
     }
+
+    toAssembly(): string {
+        let code = '';
+        if (this.statements) {
+            for (let { variable, expression } of this.statements) {
+                code += `(set ${variable} ${expression.toAssembly()})\n`;
+            }
+        }
+        
+        code += this.outExpression.toAssembly();
+
+        return code;
+    }
 }

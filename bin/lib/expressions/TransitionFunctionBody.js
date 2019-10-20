@@ -39,6 +39,9 @@ class TransitionFunctionBody extends Expression_1.Expression {
         code += this.inputBlock.isScalar ? `return [result];\n` : `return result.toValues();\n`;
         return code;
     }
+    toAssembly() {
+        return `(transition ${this.inputBlock.toAssembly()})\n`;
+    }
 }
 exports.TransitionFunctionBody = TransitionFunctionBody;
 //# sourceMappingURL=TransitionFunctionBody.js.map

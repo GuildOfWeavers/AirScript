@@ -43,4 +43,8 @@ export class CreateVector extends Expression {
         }
         return code;
     }
+
+    toAssembly(): string {
+        return `(vector ${this.elements.map(e => e.toAssembly()).join(' ')})`;
+    }
 }

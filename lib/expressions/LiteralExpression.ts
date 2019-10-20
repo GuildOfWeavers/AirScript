@@ -57,10 +57,14 @@ export class LiteralExpression extends Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo?: string): string {
-        let code = (typeof this.value === 'bigint') ? `${this.value}n` : `g.${this.valueName}`;
+        let code = this.isScalar ? `${this.value}n` : `g.${this.valueName}`;
         if (assignTo) {
             code = `${assignTo} = ${code};\n`;
         }
         return code;
+    }
+
+    toAssembly(): string {
+        return this.isScalar ? `${this.value}` : `${this.valueName}`;
     }
 }

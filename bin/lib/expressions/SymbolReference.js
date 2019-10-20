@@ -12,7 +12,7 @@ class SymbolReference extends Expression_1.Expression {
         super(dimensions, degree);
         this.symbol = symbol;
     }
-    // PUBLIC MEMBERS
+    // ACCESSORS
     // --------------------------------------------------------------------------------------------
     get isRegisterBank() {
         return (this.symbol.length === 1);
@@ -20,6 +20,8 @@ class SymbolReference extends Expression_1.Expression {
     get isVariable() {
         return (this.symbol.startsWith('$'));
     }
+    // PUBLIC MEMBERS
+    // --------------------------------------------------------------------------------------------
     toJsCode(assignTo, options = {}) {
         let code = this.symbol;
         if (this.isRegisterBank) {
@@ -34,6 +36,9 @@ class SymbolReference extends Expression_1.Expression {
             code = `${assignTo} = ${code};\n`;
         }
         return code;
+    }
+    toAssembly() {
+        return this.symbol;
     }
 }
 exports.SymbolReference = SymbolReference;

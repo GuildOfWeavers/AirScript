@@ -43,6 +43,13 @@ class SegmentLoopBlock extends Expression_1.Expression {
         code += `${result.toJsCode(assignTo)}`;
         return `{\n${code}}\n`;
     }
+    toAssembly() {
+        let code = this.loops[0].toAssembly();
+        for (let i = 1; i < this.loops.length; i++) {
+            code = `(add ${code} ${this.loops[i].toAssembly()})`;
+        }
+        return code;
+    }
 }
 exports.SegmentLoopBlock = SegmentLoopBlock;
 // HELPER FUNCTIONS
