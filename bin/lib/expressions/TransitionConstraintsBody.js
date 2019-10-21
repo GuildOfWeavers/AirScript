@@ -10,21 +10,23 @@ class TransitionConstraintsBody extends Expression_1.Expression {
     // --------------------------------------------------------------------------------------------
     constructor(root, template) {
         if (root.isScalar) {
-            super([1, 0], [root.degree]);
+            super([1, 0], [root.degree], [root]);
         }
         else if (root.isVector) {
-            super(root.dimensions, root.degree);
+            super(root.dimensions, root.degree, [root]);
         }
         else {
             throw new Error(`transition constraints must evaluate to a scalar or to a vector`);
         }
-        this.root = root;
         if (root instanceof InputBlock_1.InputBlock) {
             const blockStructure = utils_1.getInputBlockStructure(root);
             validateRegisterDepths(template.registerDepths, blockStructure.registerDepths);
             validateBaseCycleMasks(template.baseCycleMasks, blockStructure.baseCycleMasks);
         }
     }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get root() { return this.children[0]; }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo) {

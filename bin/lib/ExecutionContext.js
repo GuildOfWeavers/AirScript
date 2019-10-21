@@ -8,14 +8,9 @@ class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(specs) {
-        this.subroutines = new Map();
         this.localVariables = [new Map()];
         this.globalConstants = specs.globalConstants;
-        this.stateRegisterCount = specs.stateRegisterCount;
-        this.staticRegisters = specs.staticRegisters;
-        if (specs.transitionFunction) {
-            this.tFunctionDegree = specs.transitionFunctionDegree;
-        }
+        this.transitionFunction = specs.transitionFunction;
         this.loopFrames = [];
         this.conditionalBlockCounter = -1;
         this.registerBankMap = new Map();
@@ -25,7 +20,7 @@ class ExecutionContext {
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
     get inTransitionFunction() {
-        return (this.tFunctionDegree === undefined);
+        return (this.transitionFunction === undefined);
     }
     get inInputBlock() {
         return (this.loopFrames.length !== 0);
@@ -91,17 +86,17 @@ class ExecutionContext {
             if (!sExpression.isSameDimensions(expression)) {
                 throw new Error(`dimensions of variable '${variable}' cannot be changed`);
             }
-            if (sExpression.degree !== expression.degree) {
-                sExpression = new expressions_1.SymbolReference(refCode, expression.dimensions, expression.degree);
-                localVariables.set(variable, sExpression);
-            }
+            const counter = Number.parseInt(sExpression.symbol.split('$')[1]);
+            const refName = `${variable}$${counter + 1}`;
+            sExpression = new expressions_1.SymbolReference(refName, expression.dimensions, expression.degree);
+            localVariables.set(variable, sExpression);
         }
         else {
             if (this.getVariableReference(variable)) {
                 throw new Error(`value of variable '${variable}' cannot be changed out of scope`);
             }
             utils_1.validateVariableName(variable, expression.dimensions);
-            sExpression = new expressions_1.SymbolReference(refCode, expression.dimensions, expression.degree);
+            sExpression = new expressions_1.SymbolReference(`${variable}$0`, expression.dimensions, expression.degree);
             localVariables.set(variable, sExpression);
         }
         return sExpression;
@@ -132,64 +127,28 @@ class ExecutionContext {
     }
     // REGISTERS
     // --------------------------------------------------------------------------------------------
-    isBinaryRegister(register) {
-        const bankName = register.slice(1, 2);
-        const index = Number.parseInt(register.slice(2), 10);
-        if (bankName === 'k')
-            return this.staticRegisters[index].binary;
-        else
-            throw new Error(`register ${register} cannot be restricted to binary values`);
+    isBinaryRegister(regName) {
+        const register = this.registerMap.get(regName);
+        if (!register)
+            throw new Error(`invalid register reference ${regName}: register ${regName} has not been defined`);
+        if (typeof register.binary !== 'boolean')
+            throw new Error(`register ${regName} cannot be restricted to binary values`);
+        return register.binary;
     }
-    getRegisterReference(reference) {
-        const bankName = reference.slice(1, 2);
-        const index = Number.parseInt(reference.slice(2), 10);
-        const bankLength = this.getRegisterBankLength(bankName);
-        if (index >= bankLength) {
-            if (bankLength === 0)
-                throw new Error(`invalid register reference ${reference}: no $${bankName} registers have been defined`);
-            else if (bankLength === 1)
-                throw new Error(`invalid register reference ${reference}: only 1 $${bankName} register has been defined`);
-            else
-                throw new Error(`invalid register reference ${reference}: only ${bankLength} $${bankName} registers have been defined`);
-        }
-        else if (bankName === 'i') {
-            const lastFrame = this.loopFrames[this.loopFrames.length - 1];
-            if (!lastFrame.has(index)) {
-                throw new Error(`register ${reference} is out of scope`);
-            }
-        }
-        const bankRef = new expressions_1.SymbolReference(bankName, [bankLength, 0], new Array(bankLength).fill(1n));
-        return new expressions_1.ExtractVectorElement(bankRef, index);
-    }
-    getRegisterBankLength(bankName) {
-        const loopFrame = this.loopFrames[this.loopFrames.length - 1];
-        if (bankName === 'i') {
-            if (!loopFrame) {
-                throw new Error(`$i registers cannot be accessed outside of init block`);
-            }
-            return this.loopFrames[0].size;
-        }
-        else if (bankName === 'n') {
-            if (this.inTransitionFunction) {
-                throw new Error(`$n registers cannot be accessed in transition function`);
-            }
-            return this.stateRegisterCount;
-        }
-        else if (loopFrame && this.loopFrames.length === 1) {
-            throw new Error(`$${bankName} registers cannot be accessed in the init clause of a top-level input loop`);
-        }
-        else if (bankName === 'r')
-            return this.stateRegisterCount;
-        else if (bankName === 'k')
-            return this.staticRegisters.length;
-        else
-            throw new Error(`register bank name $${bankName} is invalid`);
+    getRegisterReference(regName) {
+        const register = this.registerMap.get(regName);
+        if (!register)
+            throw new Error(`invalid register reference ${regName}: register ${regName} has not been defined`);
+        else if (register.bank.future && this.inTransitionFunction)
+            throw new Error(`$n registers cannot be accessed in transition function`);
+        return register.reference;
     }
     getRegisterBank(bankName) {
         const bank = this.registerBankMap.get(bankName);
-        if (!bank) {
+        if (!bank)
             throw new Error(`register bank name ${bankName} is invalid`);
-        }
+        else if (bank.future && this.inTransitionFunction)
+            throw new Error(`$n registers cannot be accessed in transition function`);
         return bank.reference;
     }
     // SUBROUTINES
@@ -201,8 +160,9 @@ class ExecutionContext {
         else if (this.inInputBlock) {
             throw new Error(`transition function cannot be called from an input block`);
         }
-        const dimensions = [this.stateRegisterCount, 0];
-        return new expressions_1.SubroutineCall('applyTransition', ['r', 'k', 'i', 'c'], dimensions, this.tFunctionDegree);
+        const dimensions = this.transitionFunction.dimensions;
+        const degree = this.transitionFunction.degree;
+        return new expressions_1.SubroutineCall('applyTransition', ['r', 'k', 'i', 'c'], dimensions, degree);
     }
     // CONDITIONAL EXPRESSIONS
     // --------------------------------------------------------------------------------------------
@@ -237,7 +197,7 @@ function buildRegisterMaps(specs, registerBankMap, registerMap) {
     for (let i = 0; i < kBankSize; i++) {
         let register = specs.staticRegisters[i];
         let reference = new expressions_1.ExtractVectorElement(kBankInfo.reference, i);
-        registerMap.set(register.name, { name: register.name, reference, bank: kBankInfo });
+        registerMap.set(register.name, { name: register.name, reference, binary: register.binary, bank: kBankInfo });
     }
     // build input register info
     const iBankSize = specs.inputRegisters.length, iBankDegree = new Array(iBankSize);
@@ -246,9 +206,9 @@ function buildRegisterMaps(specs, registerBankMap, registerMap) {
     registerBankMap.set(iBankInfo.name, iBankInfo);
     for (let i = 0; i < iBankSize; i++) {
         let register = specs.inputRegisters[i];
-        let reference = new expressions_1.ExtractVectorElement(iBankInfo.reference, i);
-        registerMap.set(register.name, { name: register.name, reference, bank: iBankInfo });
         iBankDegree[i] = (register.rank === 0) ? 0n : 1n;
+        let reference = new expressions_1.ExtractVectorElement(iBankInfo.reference, i);
+        registerMap.set(register.name, { name: register.name, reference, binary: register.binary, bank: iBankInfo });
     }
 }
 //# sourceMappingURL=ExecutionContext.js.map

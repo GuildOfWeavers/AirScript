@@ -18,10 +18,12 @@ class ExtractVectorElement extends Expression_1.Expression {
         if (index < 0 || index >= sourceLength) {
             throw new Error(`vector index ${index} is out of bounds; expected to be within [${0}, ${sourceLength})`);
         }
-        super([0, 0], source.degree[index]);
-        this.source = source;
+        super([0, 0], source.degree[index], [source]);
         this.index = index;
     }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get source() { return this.children[0]; }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo) {

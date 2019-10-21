@@ -6,7 +6,6 @@ import { Expression, JsCodeOptions } from "../Expression";
 // ================================================================================================
 export class SliceVector extends Expression {
 
-    readonly source : Expression;
     readonly start  : number;
     readonly end    : number;
 
@@ -26,11 +25,14 @@ export class SliceVector extends Expression {
         }
 
         const length = end - start + 1;
-        super([length, 0], (source.degree as bigint[]).slice(start, end + 1));
-        this.source = source;
+        super([length, 0], (source.degree as bigint[]).slice(start, end + 1), [source]);
         this.start = start;
         this.end = end;
     }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get source(): Expression { return this.children[0]; }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

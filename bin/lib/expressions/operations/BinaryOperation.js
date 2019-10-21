@@ -22,10 +22,8 @@ class BinaryOperation extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
     constructor(operation, lhs, rhs, dimensions, degree) {
-        super(dimensions, degree);
+        super(dimensions, degree, [lhs, rhs]);
         this.operation = operation;
-        this.lhs = lhs;
-        this.rhs = rhs;
     }
     static add(lhs, rhs) {
         if (rhs.isList || lhs.isList) {
@@ -114,7 +112,11 @@ class BinaryOperation extends Expression_1.Expression {
         }
         return new BinaryOperation(OperationType.prod, lhs, rhs, dimensions, degree);
     }
-    // PUBLIC MEMBERS
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get lhs() { return this.children[0]; }
+    get rhs() { return this.children[1]; }
+    // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo, options = {}) {
         const opFunction = getOpFunction(this.operation, this.lhs, this.rhs);

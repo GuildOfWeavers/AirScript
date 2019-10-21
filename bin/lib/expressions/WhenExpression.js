@@ -21,12 +21,14 @@ class WhenExpression extends Expression_1.Expression {
         const tDegree = utils_1.sumDegree(tBranch.degree, condition.degree);
         const fDegree = utils_1.sumDegree(fBranch.degree, condition.degree);
         const degree = utils_1.maxDegree(tDegree, fDegree);
-        super(tBranch.dimensions, degree);
+        super(tBranch.dimensions, degree, [condition, tBranch, fBranch]);
         this.id = id;
-        this.condition = condition;
-        this.tBranch = tBranch;
-        this.fBranch = fBranch;
     }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get condition() { return this.children[0]; }
+    get tBranch() { return this.children[1]; }
+    get fBranch() { return this.children[2]; }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo, options = {}) {

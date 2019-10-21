@@ -13,19 +13,20 @@ type Interval = [number, number];
 // ================================================================================================
 export class SegmentLoop extends Expression {
 
-    readonly controller : Expression;
-    readonly body       : Expression;
     readonly traceMask  : number[];
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
     constructor(body: Expression, intervals: Interval[], controller: Expression) {
         const degree = sumDegree(body.degree, controller.degree);
-        super(body.dimensions, degree);
-        this.controller = controller;
-        this.body = body;
+        super(body.dimensions, degree, [controller, body]);
         this.traceMask = parseIntervals(intervals);
     }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get controller(): Expression { return this.children[0]; }
+    get body(): Expression { return this.children[1]; }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

@@ -14,9 +14,6 @@ const ONE = new SymbolReference('f.one', [0, 0], 0n);
 export class WhenExpression extends Expression {
 
     readonly id         : number;
-    readonly condition  : Expression;
-    readonly tBranch    : Expression;
-    readonly fBranch    : Expression;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -29,12 +26,15 @@ export class WhenExpression extends Expression {
         const fDegree = sumDegree(fBranch.degree, condition.degree);
         const degree = maxDegree(tDegree, fDegree);
 
-        super(tBranch.dimensions, degree);
+        super(tBranch.dimensions, degree, [condition, tBranch, fBranch]);
         this.id = id;
-        this.condition = condition;
-        this.tBranch = tBranch;
-        this.fBranch = fBranch;
     }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get condition(): Expression { return this.children[0]; }
+    get tBranch()  : Expression { return this.children[1]; }
+    get fBranch()  : Expression { return this.children[2]; }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

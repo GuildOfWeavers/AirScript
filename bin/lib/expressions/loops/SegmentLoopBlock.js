@@ -23,10 +23,13 @@ class SegmentLoopBlock extends Expression_1.Expression {
                 throw new Error('all loop expressions must resolve to values of same dimensions');
             }
         }
-        super(dimensions, degree);
-        this.loops = loops;
+        super(dimensions, degree, loops);
         this.masks = validateMasks(loops);
     }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get loops() { return this.children; }
+    ;
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo) {

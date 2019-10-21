@@ -16,13 +16,15 @@ class InputBlock extends Expression_1.Expression {
             throw new Error(`init and body expressions must resolve to values of same dimensions`);
         }
         const degree = utils_1.maxDegree(utils_1.sumDegree(initExpression.degree, controller.degree), bodyExpression.degree);
-        super(initExpression.dimensions, degree);
+        super(initExpression.dimensions, degree, [controller, initExpression, bodyExpression]);
         this.id = id;
-        this.controller = controller;
-        this.initExpression = initExpression;
-        this.bodyExpression = bodyExpression;
         this.registers = registers;
     }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get controller() { return this.children[0]; }
+    get initExpression() { return this.children[1]; }
+    get bodyExpression() { return this.children[2]; }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo, options = {}) {

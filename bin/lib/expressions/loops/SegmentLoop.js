@@ -13,11 +13,13 @@ class SegmentLoop extends Expression_1.Expression {
     // --------------------------------------------------------------------------------------------
     constructor(body, intervals, controller) {
         const degree = utils_1.sumDegree(body.degree, controller.degree);
-        super(body.dimensions, degree);
-        this.controller = controller;
-        this.body = body;
+        super(body.dimensions, degree, [controller, body]);
         this.traceMask = parseIntervals(intervals);
     }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get controller() { return this.children[0]; }
+    get body() { return this.children[1]; }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo, options) {

@@ -11,7 +11,6 @@ import { SegmentLoop } from './SegmentLoop';
 // ================================================================================================
 export class SegmentLoopBlock extends Expression {
 
-    readonly loops  : SegmentLoop[];
     readonly masks  : number[][];
 
     // CONSTRUCTORS
@@ -30,10 +29,13 @@ export class SegmentLoopBlock extends Expression {
             }
         }
 
-        super(dimensions, degree);
-        this.loops = loops;
+        super(dimensions, degree, loops);
         this.masks = validateMasks(loops);
     }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get loops(): SegmentLoop[] { return this.children as SegmentLoop[]; };
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

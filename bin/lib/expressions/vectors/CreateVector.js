@@ -21,9 +21,11 @@ class CreateVector extends Expression_1.Expression {
                 throw new Error('vector elements must be scalars');
             }
         }
-        super([degree.length, 0], degree);
-        this.elements = elements;
+        super([degree.length, 0], degree, elements);
     }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get elements() { return this.children; }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo, options = {}) {

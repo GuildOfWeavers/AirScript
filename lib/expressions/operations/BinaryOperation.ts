@@ -18,16 +18,12 @@ enum OperationType {
 export class BinaryOperation extends Expression {
 
     readonly operation  : OperationType;
-    readonly lhs        : Expression;
-    readonly rhs        : Expression;
-
+    
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
     private constructor(operation: OperationType, lhs: Expression, rhs: Expression, dimensions: Dimensions, degree: ExpressionDegree) {
-        super(dimensions, degree);
+        super(dimensions, degree, [lhs, rhs]);
         this.operation = operation;
-        this.lhs = lhs;
-        this.rhs = rhs;
     }
 
     static add(lhs: Expression, rhs: Expression): BinaryOperation {
@@ -130,7 +126,12 @@ export class BinaryOperation extends Expression {
         return new BinaryOperation(OperationType.prod, lhs, rhs, dimensions, degree);
     }
 
-    // PUBLIC MEMBERS
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get lhs(): Expression { return this.children[0]; }
+    get rhs(): Expression { return this.children[1]; }
+
+    // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
         const opFunction = getOpFunction(this.operation, this.lhs, this.rhs);

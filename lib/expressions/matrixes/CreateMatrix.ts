@@ -6,14 +6,13 @@ import { Expression } from "../Expression";
 // ================================================================================================
 export class CreateMatrix extends Expression {
 
-    readonly elements : Expression[][];
-
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(elements: Expression[][]) {
         
         const rowCount = elements.length;
         const colCount = elements[0].length;
+        const children: Expression[] = [];
 
         let degree: bigint[][] = [];
         for (let row of elements) {
@@ -28,6 +27,7 @@ export class CreateMatrix extends Expression {
                 else {
                     throw new Error('matrix elements must be scalars');
                 }
+                children.push(element);
             }
 
             if (rowDegree.length !== colCount) {
@@ -37,12 +37,22 @@ export class CreateMatrix extends Expression {
             degree.push(rowDegree);
         }
 
-        super([rowCount, colCount], degree);
-        this.elements = elements;
+        super([rowCount, colCount], degree, children);
+    }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get elements(): Expression[][] {
+        const rows: Expression[][] = [];
+        const [rowCount, colCount] = this.dimensions;
+        for (let i = 0; i < rowCount; i++) {
+            rows.push(this.children.slice(i * colCount, (i + 1) * colCount));
+        }
+        return rows;
     }
 
     // PUBLIC MEMBERS
-    // --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------   
     toJsCode(assignTo?: string): string {
         if (!assignTo) throw new Error('matrix instantiation cannot be converted to pure code');
         const rows = this.elements.map(r => `[${r.map(e => e.toJsCode()).join(', ')}]`);

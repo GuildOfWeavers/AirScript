@@ -16,9 +16,8 @@ class UnaryOperation extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
     constructor(operation, operand, dimensions, degree) {
-        super(dimensions, degree);
+        super(dimensions, degree, [operand]);
         this.operation = operation;
-        this.operand = operand;
     }
     static neg(operand) {
         if (operand.isList) {
@@ -33,6 +32,9 @@ class UnaryOperation extends Expression_1.Expression {
         const degree = operand.degree; // TODO: incorrect
         return new UnaryOperation(OperationType.inv, operand, operand.dimensions, degree);
     }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get operand() { return this.children[0]; }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo, options = {}) {

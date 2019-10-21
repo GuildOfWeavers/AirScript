@@ -5,8 +5,6 @@ import { Expression } from "../Expression";
 // CLASS DEFINITION
 // ================================================================================================
 export class DestructureVector extends Expression {
-
-    readonly source : Expression;
     
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -16,9 +14,12 @@ export class DestructureVector extends Expression {
         if (source.isList) throw new Error('cannot destructure a destructured value');
         
         const sourceLength = source.dimensions[0];
-        super([sourceLength, 0], source.degree);
-        this.source = source;
+        super([sourceLength, 0], source.degree, [source]);
     }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get source(): Expression { return this.children[0]; }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

@@ -21,11 +21,13 @@ class SliceVector extends Expression_1.Expression {
             throw new Error(`slice end index ${start} is out of bounds; expected to be within [${start}, ${sourceLength})`);
         }
         const length = end - start + 1;
-        super([length, 0], source.degree.slice(start, end + 1));
-        this.source = source;
+        super([length, 0], source.degree.slice(start, end + 1), [source]);
         this.start = start;
         this.end = end;
     }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get source() { return this.children[0]; }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toJsCode(assignTo, options = {}) {

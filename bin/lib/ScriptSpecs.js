@@ -96,7 +96,7 @@ class ScriptSpecs {
     }
     setStaticRegisters(registers) {
         if (this.staticRegisters.length !== registers.length) {
-            throw new Error(`expected ${this.inputRegisters.length} static registers, but ${registers.length} defined`);
+            throw new Error(`expected ${this.staticRegisters.length} static registers, but ${registers.length} defined`);
         }
         for (let i = 0; i < registers.length; i++) {
             this.staticRegisters[i] = registers[i];

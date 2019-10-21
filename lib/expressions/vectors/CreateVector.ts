@@ -6,8 +6,6 @@ import { Expression, JsCodeOptions } from "../Expression";
 // ================================================================================================
 export class CreateVector extends Expression {
 
-    readonly elements : Expression[];
-
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(elements: Expression[]) {
@@ -25,9 +23,12 @@ export class CreateVector extends Expression {
             }
         }
 
-        super([degree.length, 0], degree);
-        this.elements = elements;
+        super([degree.length, 0], degree, elements);
     }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get elements(): Expression[] { return this.children; }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

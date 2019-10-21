@@ -7,7 +7,6 @@ import { SymbolReference } from "../SymbolReference";
 // ================================================================================================
 export class ExtractVectorElement extends Expression {
 
-    readonly source : Expression;
     readonly index  : number;
 
     // CONSTRUCTOR
@@ -21,10 +20,13 @@ export class ExtractVectorElement extends Expression {
             throw new Error(`vector index ${index} is out of bounds; expected to be within [${0}, ${sourceLength})`);
         }
         
-        super([0, 0], (source.degree as bigint[])[index]);
-        this.source = source;
+        super([0, 0], (source.degree as bigint[])[index], [source]);
         this.index = index;
     }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get source(): Expression { return this.children[0]; }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

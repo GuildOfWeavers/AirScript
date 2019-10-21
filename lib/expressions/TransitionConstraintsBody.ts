@@ -8,22 +8,19 @@ import { getInputBlockStructure } from './utils';
 // CLASS DEFINITION
 // ================================================================================================
 export class TransitionConstraintsBody extends Expression {
-
-    readonly root : Expression;
     
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
     constructor(root: Expression, template: InputBlockDescriptor) {
         if (root.isScalar) {
-            super([1, 0], [root.degree as bigint]);
+            super([1, 0], [root.degree as bigint], [root]);
         }
         else if (root.isVector) {
-            super(root.dimensions, root.degree);
+            super(root.dimensions, root.degree, [root]);
         }
         else {
             throw new Error(`transition constraints must evaluate to a scalar or to a vector`);
         }
-        this.root = root;
 
         if (root instanceof InputBlock) {
             const blockStructure = getInputBlockStructure(root);
@@ -31,6 +28,10 @@ export class TransitionConstraintsBody extends Expression {
             validateBaseCycleMasks(template.baseCycleMasks, blockStructure.baseCycleMasks);
         }
     }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get root(): Expression { return this.children[0]; }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

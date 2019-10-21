@@ -14,20 +14,44 @@ export interface JsCodeOptions {
 // ================================================================================================
 export abstract class Expression {
 
-    readonly dimensions: Dimensions;
-    readonly degree    : ExpressionDegree;
+    readonly dimensions : Dimensions;
+    readonly degree     : ExpressionDegree;
+    readonly children   : Expression[]
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(dimensions: Dimensions, degree: ExpressionDegree) {
+    constructor(dimensions: Dimensions, degree: ExpressionDegree, children: Expression[] = []) {
         this.dimensions = dimensions;
         this.degree = degree
+        this.children = children;
     }
 
     // ABSTRACT METHODS
     // --------------------------------------------------------------------------------------------
     abstract toJsCode(assignTo?: string, options?: JsCodeOptions): string;
     abstract toAssembly(): string;
+
+    // PUBLIC METHODS
+    // --------------------------------------------------------------------------------------------
+    collectVariableReferences(result: Map<string, number>): void {
+        this.children.forEach(c => c.collectVariableReferences(result));
+    }
+
+    replaceVariableReference(variable: string, expression: Expression): void {
+        for (let i = 0; i < this.children.length; i++) {
+            let child = this.children[i];
+            if (child.isVariable && (child as any).symbol === variable) {
+                this.children[i] = expression;
+            }
+            else {
+                child.replaceVariableReference(variable, expression);
+            }
+        }
+    }
+
+    get isVariable(): boolean {
+        return false;
+    }
 
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------

@@ -15,9 +15,6 @@ type BlockBody = InputBlock | SegmentLoopBlock;
 export class InputBlock extends Expression {
 
     readonly id             : number;
-    readonly controller     : Expression;
-    readonly initExpression : Expression;
-    readonly bodyExpression : InputBlock | SegmentLoopBlock;
     readonly registers      : Set<number>;
 
     // CONSTRUCTORS
@@ -27,13 +24,16 @@ export class InputBlock extends Expression {
             throw new Error(`init and body expressions must resolve to values of same dimensions`);
         }
         const degree = maxDegree(sumDegree(initExpression.degree, controller.degree), bodyExpression.degree);
-        super(initExpression.dimensions, degree);
+        super(initExpression.dimensions, degree, [controller, initExpression, bodyExpression]);
         this.id = id;
-        this.controller = controller;
-        this.initExpression = initExpression;
-        this.bodyExpression = bodyExpression;
         this.registers = registers;
     }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get controller()    : Expression { return this.children[0]; }
+    get initExpression(): Expression { return this.children[1]; }
+    get bodyExpression(): InputBlock | SegmentLoopBlock { return this.children[2] as any; }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

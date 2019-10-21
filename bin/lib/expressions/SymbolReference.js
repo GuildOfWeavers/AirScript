@@ -18,10 +18,16 @@ class SymbolReference extends Expression_1.Expression {
         return (this.symbol.length === 1);
     }
     get isVariable() {
-        return (this.symbol.startsWith('$'));
+        return (this.symbol.includes('$'));
     }
-    // PUBLIC MEMBERS
+    // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
+    collectVariableReferences(result) {
+        if (this.isVariable) {
+            let count = result.get(this.symbol) || 0;
+            result.set(this.symbol, count + 1);
+        }
+    }
     toJsCode(assignTo, options = {}) {
         let code = this.symbol;
         if (this.isRegisterBank) {

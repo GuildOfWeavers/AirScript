@@ -14,14 +14,12 @@ enum OperationType {
 export class UnaryOperation extends Expression {
 
     readonly operation  : OperationType;
-    readonly operand    : Expression;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
     private constructor(operation: OperationType, operand: Expression, dimensions: Dimensions, degree: ExpressionDegree) {
-        super(dimensions, degree);
+        super(dimensions, degree, [operand]);
         this.operation = operation;
-        this.operand = operand;
     }
 
     static neg(operand: Expression): UnaryOperation {
@@ -39,6 +37,10 @@ export class UnaryOperation extends Expression {
         const degree = operand.degree; // TODO: incorrect
         return new UnaryOperation(OperationType.inv, operand, operand.dimensions, degree);
     }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get operand(): Expression { return this.children[0]; }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------

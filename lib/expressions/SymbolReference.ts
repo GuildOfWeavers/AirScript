@@ -23,11 +23,18 @@ export class SymbolReference extends Expression {
     }
 
     get isVariable(): boolean {
-        return (this.symbol.startsWith('$'));
+        return (this.symbol.includes('$'));
     }
 
-    // PUBLIC MEMBERS
+    // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
+    collectVariableReferences(result: Map<string, number>): void {
+        if (this.isVariable) {
+            let count = result.get(this.symbol) || 0;
+            result.set(this.symbol, count + 1);
+        }
+    }
+
     toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
         let code = this.symbol;
 

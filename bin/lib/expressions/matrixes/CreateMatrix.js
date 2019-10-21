@@ -11,6 +11,7 @@ class CreateMatrix extends Expression_1.Expression {
     constructor(elements) {
         const rowCount = elements.length;
         const colCount = elements[0].length;
+        const children = [];
         let degree = [];
         for (let row of elements) {
             let rowDegree = [];
@@ -24,17 +25,27 @@ class CreateMatrix extends Expression_1.Expression {
                 else {
                     throw new Error('matrix elements must be scalars');
                 }
+                children.push(element);
             }
             if (rowDegree.length !== colCount) {
                 throw new Error('all matrix rows must have the same number of columns');
             }
             degree.push(rowDegree);
         }
-        super([rowCount, colCount], degree);
-        this.elements = elements;
+        super([rowCount, colCount], degree, children);
+    }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get elements() {
+        const rows = [];
+        const [rowCount, colCount] = this.dimensions;
+        for (let i = 0; i < rowCount; i++) {
+            rows.push(this.children.slice(i * colCount, (i + 1) * colCount));
+        }
+        return rows;
     }
     // PUBLIC MEMBERS
-    // --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------   
     toJsCode(assignTo) {
         if (!assignTo)
             throw new Error('matrix instantiation cannot be converted to pure code');

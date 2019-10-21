@@ -54,7 +54,7 @@ class AirVisitor extends BaseCstVisitor {
 
         // build input and static registers
         specs.setInputRegisters(this.visit(ctx.inputRegisters) || []);
-        specs.setStaticRegisters(this.visit(ctx.staticRegisters) || []);
+        specs.setStaticRegisters(this.visit(ctx.staticRegisters, specs) || []);
 
         // parse transition function and transition constraints
         specs.setTransitionFunction(this.visit(ctx.transitionFunction, specs));

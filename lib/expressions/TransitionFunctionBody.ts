@@ -8,7 +8,6 @@ import { getInputBlockStructure } from './utils';
 // ================================================================================================
 export class TransitionFunctionBody extends Expression {
 
-    readonly inputBlock         : Expression;
     readonly inputRegisterSpecs : number[];
     readonly baseCycleMasks     : number[][];
 
@@ -16,15 +15,14 @@ export class TransitionFunctionBody extends Expression {
     // --------------------------------------------------------------------------------------------
     constructor(inputBlock: InputBlock) {
         if (inputBlock.isScalar) {
-            super([1, 0], [inputBlock.degree as bigint]);
+            super([1, 0], [inputBlock.degree as bigint], [inputBlock]);
         }
         else if (inputBlock.isVector) {
-            super(inputBlock.dimensions, inputBlock.degree);
+            super(inputBlock.dimensions, inputBlock.degree, [inputBlock]);
         }
         else {
             throw new Error(`transition function must evaluate to a scalar or to a vector`);
         }
-        this.inputBlock = inputBlock;
         const blockStructure = getInputBlockStructure(inputBlock);
         this.inputRegisterSpecs = blockStructure.registerDepths;
         this.baseCycleMasks = blockStructure.baseCycleMasks;
@@ -32,6 +30,8 @@ export class TransitionFunctionBody extends Expression {
 
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
+    get inputBlock(): Expression { return this.children[0]; }
+    
     get baseCycleLength(): number {
         return this.baseCycleMasks[0].length;
     }
