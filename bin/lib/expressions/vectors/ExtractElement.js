@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const Expression_1 = require("../Expression");
-const SymbolReference_1 = require("../SymbolReference");
 // CLASS DEFINITION
 // ================================================================================================
 class ExtractVectorElement extends Expression_1.Expression {
@@ -34,12 +33,7 @@ class ExtractVectorElement extends Expression_1.Expression {
         return code;
     }
     toAssembly() {
-        if (this.source instanceof SymbolReference_1.SymbolReference && this.source.isRegisterBank) {
-            return `$${this.source.symbol}${this.index}`;
-        }
-        else {
-            return `(extract ${this.source.toAssembly()} ${this.index})`;
-        }
+        return `(get ${this.source.toAssembly()} ${this.index})`;
     }
 }
 exports.ExtractVectorElement = ExtractVectorElement;

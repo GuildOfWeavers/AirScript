@@ -38,8 +38,9 @@ class CreateVector extends Expression_1.Expression {
         }
         return code;
     }
-    toAssembly() {
-        return `(vector ${this.elements.map(e => e.toAssembly()).join(' ')})`;
+    toAssembly(options = {}) {
+        const list = this.elements.map(e => e.toAssembly({ vectorAsList: true })).join(' ');
+        return options.vectorAsList ? list : `(vector ${list})`;
     }
 }
 exports.CreateVector = CreateVector;

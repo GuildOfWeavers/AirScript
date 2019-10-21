@@ -39,11 +39,6 @@ export class ExtractVectorElement extends Expression {
     }
 
     toAssembly(): string {
-        if (this.source instanceof SymbolReference && this.source.isRegisterBank) {
-            return `$${this.source.symbol}${this.index}`;
-        }
-        else {
-            return `(extract ${this.source.toAssembly()} ${this.index})`;
-        }
+        return `(get ${this.source.toAssembly()} ${this.index})`;
     }
 }

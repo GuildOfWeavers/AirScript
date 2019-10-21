@@ -54,6 +54,11 @@ export class SymbolReference extends Expression {
     }
 
     toAssembly(): string {
-        return this.symbol;
+        if (this.isRegisterBank) {
+            return `$${this.symbol}`;
+        }
+        else {
+            return `(load.local ${this.symbol})`;
+        }
     }
 }

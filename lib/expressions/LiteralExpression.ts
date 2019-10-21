@@ -65,6 +65,6 @@ export class LiteralExpression extends Expression {
     }
 
     toAssembly(): string {
-        return this.isScalar ? `${this.value}` : `${this.valueName}`;
+        return this.isScalar ? `${this.value}` : `(load.global ${this.valueName})`;
     }
 }

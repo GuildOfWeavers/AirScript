@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression } from "../Expression";
+import { Expression, AssemblyOptions } from "../Expression";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -32,7 +32,7 @@ export class DestructureVector extends Expression {
         return `...${this.source.toJsCode(undefined, { vectorAsArray: true })}`;
     }
 
-    toAssembly(): string {
-        return this.source.toAssembly();
+    toAssembly(options?: AssemblyOptions): string {
+        return this.source.toAssembly(options);
     }
 }

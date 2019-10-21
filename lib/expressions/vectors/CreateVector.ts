@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, JsCodeOptions } from "../Expression";
+import { Expression, JsCodeOptions, AssemblyOptions } from "../Expression";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -45,7 +45,8 @@ export class CreateVector extends Expression {
         return code;
     }
 
-    toAssembly(): string {
-        return `(vector ${this.elements.map(e => e.toAssembly()).join(' ')})`;
+    toAssembly(options: AssemblyOptions = {}): string {
+        const list = this.elements.map(e => e.toAssembly({ vectorAsList: true })).join(' ');
+        return options.vectorAsList ? list : `(vector ${list})`;
     }
 }

@@ -10,6 +10,10 @@ export interface JsCodeOptions {
     vectorAsArray?: boolean;
 }
 
+export interface AssemblyOptions {
+    vectorAsList?: boolean;
+}
+
 // CLASS DEFINITION
 // ================================================================================================
 export abstract class Expression {
@@ -29,7 +33,7 @@ export abstract class Expression {
     // ABSTRACT METHODS
     // --------------------------------------------------------------------------------------------
     abstract toJsCode(assignTo?: string, options?: JsCodeOptions): string;
-    abstract toAssembly(): string;
+    abstract toAssembly(options?: AssemblyOptions): string;
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------

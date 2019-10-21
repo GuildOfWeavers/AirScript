@@ -53,6 +53,6 @@ export class SliceVector extends Expression {
     }
 
     toAssembly(): string {
-        return `(extract ${this.source.toAssembly()} ${this.start} ${this.end})`;
+        return `(slice ${this.source.toAssembly()} ${this.start} ${this.end})`;
     }
 }
