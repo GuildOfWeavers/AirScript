@@ -46,7 +46,7 @@ class StatementBlock extends Expression_1.Expression {
     toAssembly() {
         let code = '';
         for (let i = 0; i < this.variables.length; i++) {
-            code += `(store.local ${this.variables[i]} ${this.children[i].toAssembly()})\n`;
+            code += `(save.local ${this.variables[i]} ${this.children[i].toAssembly()})\n`;
         }
         code += this.outExpression.toAssembly();
         return code;

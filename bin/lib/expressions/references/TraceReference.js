@@ -1,66 +1,61 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree, JsCodeOptions } from './Expression';
-import { Dimensions } from '../utils';
-
+const Expression_1 = require("../Expression");
 // CLASS DEFINITION
 // ================================================================================================
-export class SymbolReference extends Expression {
-
-    readonly symbol: string;
-
+class TraceReference extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
-    constructor(symbol: string, dimensions: Dimensions, degree: ExpressionDegree) {
+    constructor(symbol, dimensions, degree) {
         super(dimensions, degree);
         this.symbol = symbol;
     }
-
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    get isRegisterBank(): boolean {
+    get isRegisterBank() {
         return (this.symbol.length === 1);
     }
-
-    get isVariable(): boolean {
+    get isVariable() {
         return (this.symbol.includes('$'));
     }
-
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    collectVariableReferences(result: Map<string, number>): void {
+    collectVariableReferences(result) {
         if (this.isVariable) {
             let count = result.get(this.symbol) || 0;
             result.set(this.symbol, count + 1);
         }
     }
-
-    toJsCode(assignTo?: string, options: JsCodeOptions = {}): string {
+    toJsCode(assignTo, options = {}) {
         let code = this.symbol;
-
         if (this.isRegisterBank) {
             if (!options.vectorAsArray) {
-                code = `f.newVectorFrom(${code})`
+                code = `f.newVectorFrom(${code})`;
             }
         }
         else if (this.isVector && options.vectorAsArray) {
             code = `${code}.toValues()`;
         }
-
         if (assignTo) {
             code = `${assignTo} = ${code};\n`;
         }
         return code;
     }
-
-    toAssembly(): string {
+    toAssembly() {
         if (this.isRegisterBank) {
-            if (this.symbol === 'r') return `(load.trace 0)`;
-            else if (this.symbol === 'n') return `(load.trace 1)`;
-            else return `(load.const 0)`;
+            if (this.symbol === 'r')
+                return `(load.trace 0)`;
+            else if (this.symbol === 'n')
+                return `(load.trace 1)`;
+            else
+                return `(load.const 0)`;
         }
         else {
             return `(load.local ${this.symbol})`;
         }
     }
 }
+exports.TraceReference = TraceReference;
+//# sourceMappingURL=TraceReference.js.map

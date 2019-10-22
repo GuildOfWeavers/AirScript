@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Dimensions } from "../utils";
+import { Dimensions } from "../../utils";
 
 // INTERFACES
 // ================================================================================================
@@ -32,30 +32,7 @@ export abstract class Expression {
 
     // ABSTRACT METHODS
     // --------------------------------------------------------------------------------------------
-    abstract toJsCode(assignTo?: string, options?: JsCodeOptions): string;
-    abstract toAssembly(options?: AssemblyOptions): string;
-
-    // VARIABLE METHOD AND ACCESSORS
-    // --------------------------------------------------------------------------------------------
-    collectVariableReferences(result: Map<string, number>): void {
-        this.children.forEach(c => c.collectVariableReferences(result));
-    }
-
-    replaceVariableReference(variable: string, expression: Expression): void {
-        for (let i = 0; i < this.children.length; i++) {
-            let child = this.children[i];
-            if (child.isVariable && (child as any).symbol === variable) {
-                this.children[i] = expression;
-            }
-            else {
-                child.replaceVariableReference(variable, expression);
-            }
-        }
-    }
-
-    get isVariable(): boolean {
-        return false;
-    }
+    abstract toString(options?: AssemblyOptions): string;
 
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -63,12 +40,8 @@ export abstract class Expression {
         return (this.dimensions[0] === 0 && this.dimensions[1] === 0);
     }
 
-    get isList(): boolean {
-        return false;
-    }
-
     get isVector(): boolean {
-        return (!this.isList && this.dimensions[0] > 0 && this.dimensions[1] === 0);
+        return (this.dimensions[0] > 0 && this.dimensions[1] === 0);
     }
 
     get isMatrix(): boolean {
@@ -77,7 +50,19 @@ export abstract class Expression {
 
     isSameDimensions(e: Expression) {
         return this.dimensions[0] === e.dimensions[0]
-            && this.dimensions[1] === e.dimensions[1]
-            && this.isList === e.isList;
+            && this.dimensions[1] === e.dimensions[1];
+    }
+}
+
+// NOOP EXPRESSION
+// ================================================================================================
+export class NoopExpression extends Expression {
+
+    constructor(dimensions: Dimensions, degree: ExpressionDegree) {
+        super(dimensions, degree);
+    }
+
+    toString(): string {
+        return ``;
     }
 }

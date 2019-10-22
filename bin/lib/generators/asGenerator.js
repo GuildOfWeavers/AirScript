@@ -8,8 +8,8 @@ function generateAssembly(specs, limits, extensionFactor) {
     const field = `(field prime ${specs.field.modulus})\n`;
     // global constants
     let constants = '';
-    for (let [name, expression] of specs.globalConstants) {
-        constants += `(const ${expression.toAssembly()})\n`;
+    for (let cName in specs.constantBindings) {
+        constants += `(const ${specs.constantBindings[cName]})\n`;
     }
     // inputs
     let inputs = '';
@@ -20,15 +20,14 @@ function generateAssembly(specs, limits, extensionFactor) {
     const tFunction = specs.transitionFunction.toAssembly();
     const tConstraints = specs.transitionConstraints.toAssembly();
     // static section
-    let kRegisters = '';
+    let fixedRegisters = '';
     if (specs.staticRegisters.length > 0) {
         for (let register of specs.staticRegisters) {
             let binary = register.binary ? ' binary' : '';
-            kRegisters += `  (${register.pattern}${binary} (${register.values.join(' ')}))\n`;
+            fixedRegisters += `  (fixed ${register.pattern}${binary} (${register.values.join(' ')}))\n`;
         }
-        kRegisters = `(static\n${kRegisters})`;
     }
-    return `(stark ${name}${field}${constants}${inputs}${tFunction}${tConstraints}${kRegisters})`;
+    return `(stark ${name}${field}${constants}${inputs}${tFunction}${tConstraints}${fixedRegisters})`;
 }
 exports.generateAssembly = generateAssembly;
 //# sourceMappingURL=asGenerator.js.map

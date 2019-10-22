@@ -45,7 +45,12 @@ class SymbolReference extends Expression_1.Expression {
     }
     toAssembly() {
         if (this.isRegisterBank) {
-            return `$${this.symbol}`;
+            if (this.symbol === 'r')
+                return `(load.trace 0)`;
+            else if (this.symbol === 'n')
+                return `(load.trace 1)`;
+            else
+                return `(load.const 0)`;
         }
         else {
             return `(load.local ${this.symbol})`;

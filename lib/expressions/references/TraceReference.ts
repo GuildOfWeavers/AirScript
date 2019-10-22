@@ -1,11 +1,11 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree, JsCodeOptions } from './Expression';
-import { Dimensions } from '../utils';
+import { Expression, ExpressionDegree, JsCodeOptions } from '../Expression';
+import { Dimensions } from '../../utils';
 
 // CLASS DEFINITION
 // ================================================================================================
-export class SymbolReference extends Expression {
+export class TraceReference extends Expression {
 
     readonly symbol: string;
 
