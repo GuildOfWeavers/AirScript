@@ -21,26 +21,27 @@ class AirParser extends CstParser {
     public module = this.RULE('module', () => {
         this.CONSUME1(LParen);
         this.CONSUME(Module);
-        this.SUBRULE(this.fieldDeclaration,                             { LABEL: 'field'              });
-        this.MANY(() => this.OR([
-            { ALT: () => this.SUBRULE(this.constantDeclaration,         { LABEL: 'constants'          })},
-            { ALT: () => this.SUBRULE(this.staticRegister,              { LABEL: 'staticRegisters'    })},
-            { ALT: () => this.SUBRULE(this.inputRegister,               { LABEL: 'inputRegisters'     })},
-            { ALT: () => {
-                this.CONSUME2(LParen);
-                this.CONSUME(Transition);
-                this.SUBRULE1(this.transitionSignature,                 { LABEL: 'tFunctionSignature' });
-                this.AT_LEAST_ONE1(() => this.SUBRULE1(this.expression, { LABEL: 'tFunctionBody'      }));
-                this.CONSUME2(RParen);
-            }},
-            { ALT: () => {
-                this.CONSUME3(LParen);
-                this.CONSUME(Evaluation);
-                this.SUBRULE2(this.transitionSignature,                 { LABEL: 'tConstraintsSignature' });
-                this.AT_LEAST_ONE2(() => this.SUBRULE2(this.expression, { LABEL: 'tConstraintsBody'      }));
-                this.CONSUME3(RParen);
-            }},
-        ]));
+        this.SUBRULE(this.fieldDeclaration,                     { LABEL: 'field'              });
+        this.MANY1(() => this.SUBRULE(this.constantDeclaration, { LABEL: 'constants'          }));
+        this.MANY2(() => this.SUBRULE(this.staticRegister,      { LABEL: 'staticRegisters'    }));
+        this.MANY3(() => this.SUBRULE(this.inputRegister,       { LABEL: 'inputRegisters'     }));
+
+        // transition function
+        this.CONSUME2(LParen);
+        this.CONSUME(Transition);
+        this.SUBRULE1(this.transitionSignature,                 { LABEL: 'tFunctionSignature' });
+        this.MANY4(() => this.SUBRULE1(this.saveExpression,     { LABEL: 'tFunctionBody'      }));
+        this.SUBRULE1(this.expression,                          { LABEL: 'tFunctionReturn'    });
+        this.CONSUME2(RParen);
+
+        // transition constraints
+        this.CONSUME3(LParen);
+        this.CONSUME(Evaluation);
+        this.SUBRULE2(this.transitionSignature,                 { LABEL: 'tConstraintsSignature' });
+        this.MANY5(() => this.SUBRULE2(this.saveExpression,     { LABEL: 'tConstraintsBody'      }));
+        this.SUBRULE2(this.expression,                          { LABEL: 'tConstraintsReturn'    });
+        this.CONSUME3(RParen);
+
         this.CONSUME1(RParen);
     });
 
@@ -158,7 +159,6 @@ class AirParser extends CstParser {
             { ALT: () => this.SUBRULE(this.sliceExpression,     { LABEL: 'content' })},
             { ALT: () => this.SUBRULE(this.matrixExpression,    { LABEL: 'content' })},
             { ALT: () => this.SUBRULE(this.loadExpression,      { LABEL: 'content' })},
-            { ALT: () => this.SUBRULE(this.saveExpression,      { LABEL: 'content' })},
             { ALT: () => this.CONSUME(Literal,                  { LABEL: 'value'   })}
         ]);
     });

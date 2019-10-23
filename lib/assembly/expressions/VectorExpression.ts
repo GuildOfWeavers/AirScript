@@ -19,7 +19,7 @@ export class VectorExpression extends Expression {
                 degree = degree.concat(element.degree as bigint[]);
             }
             else {
-                throw new Error('vector elements must be scalars'); // TODO
+                throw new Error('cannot build vector from matrix elements');
             }
         }
 

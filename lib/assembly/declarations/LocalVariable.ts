@@ -34,7 +34,7 @@ export class LocalVariable {
     }
 
     setValue(value: Expression, index: number) {
-        if (areSameDimensions(this.dimensions, value.dimensions)) {
+        if (!areSameDimensions(this.dimensions, value.dimensions)) {
             const vd = value.dimensions;
             throw new Error(`cannot store ${vd[0]}x${vd[1]} value in local variable ${index}`);
         }

@@ -30,9 +30,14 @@ class AirVisitor extends BaseCstVisitor {
         const tFunctionSig = this.visit(ctx.tFunctionSignature);
         const tConstraintsSig = this.visit(ctx.tConstraintsSignature);
         const mi = new ModuleInfo_1.ModuleInfo(field, constants, sRegisters, iRegisters, tFunctionSig, tConstraintsSig);
-        // TODO: change bodies to arrays of expressions
-        mi.transitionFunctionBody = this.visit(ctx.tFunctionBody, mi);
-        mi.transitionConstraintsBody = this.visit(ctx.tConstraintsBody, mi);
+        mi.transitionFunctionBody = {
+            statements: ctx.tFunctionBody ? ctx.tFunctionBody.map((s) => this.visit(s, mi)) : [],
+            output: this.visit(ctx.tFunctionReturn, mi)
+        };
+        mi.transitionConstraintsBody = {
+            statements: ctx.tConstraintsBody ? ctx.tConstraintsBody.map((s) => this.visit(s, mi)) : [],
+            output: this.visit(ctx.tConstraintsReturn, mi)
+        };
         return mi;
     }
     // FINITE FIELD

@@ -18,7 +18,7 @@ class VectorExpression extends Expression_1.Expression {
                 degree = degree.concat(element.degree);
             }
             else {
-                throw new Error('vector elements must be scalars'); // TODO
+                throw new Error('cannot build vector from matrix elements');
             }
         }
         super([degree.length, 0], degree, elements);

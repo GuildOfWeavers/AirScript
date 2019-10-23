@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // ================================================================================================
 const Expression_1 = require("./Expression");
 const targets = {
-    'load.local': 'local'
+    'save.local': 'local'
 };
 // CLASS DEFINITION
 // ================================================================================================
@@ -23,7 +23,7 @@ class StoreOperation extends Expression_1.Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toString() {
-        return `(store.${this.target} ${this.index})`;
+        return `(store.${this.target} ${this.index} ${this.value.toString()})`;
     }
 }
 exports.StoreOperation = StoreOperation;

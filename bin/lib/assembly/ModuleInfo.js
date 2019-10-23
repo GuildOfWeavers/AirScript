@@ -41,9 +41,9 @@ class ModuleInfo {
     set transitionFunctionBody(value) {
         if (this.tFunctionBody)
             throw new Error(`transition function body has already been set`);
-        else if (!value.isVector)
+        else if (!value.output.isVector)
             throw new Error(`transition function must evaluate to a vector`);
-        else if (value.dimensions[0] !== this.stateWidth)
+        else if (value.output.dimensions[0] !== this.stateWidth)
             throw new Error(`transition function must evaluate to a vector of ${this.stateWidth} elements`);
         this.tFunctionBody = value;
     }
@@ -55,9 +55,9 @@ class ModuleInfo {
     set transitionConstraintsBody(value) {
         if (this.tConstraintsBody)
             throw new Error(`transition constraints body has already been set`);
-        else if (!value.isVector)
+        else if (!value.output.isVector)
             throw new Error(`transition constraints must evaluate to a vector`);
-        else if (value.dimensions[0] !== this.constraintCount)
+        else if (value.output.dimensions[0] !== this.constraintCount)
             throw new Error(`transition constraints must evaluate to a vector of ${this.constraintCount} elements`);
         this.tConstraintsBody = value;
     }
@@ -112,24 +112,30 @@ class ModuleInfo {
             code += '\n  ' + this.constants.map(c => `(const ${c.toString()})`).join(' ');
         }
         if (this.staticRegisters.length > 0) {
-            code += '\n  ' + this.staticRegisters.map(r => r.toString()).join(' ');
+            code += `\n  ${this.staticRegisters.map(r => r.toString()).join(' ')}`;
         }
         if (this.inputRegisters.length > 0) {
-            code += '\n  ' + this.inputRegisters.map(r => r.toString()).join(' ');
+            code += `\n  ${this.inputRegisters.map(r => r.toString()).join(' ')}`;
         }
         // transition function
         let tFunction = `\n    (frame ${this.tFunctionSig.width} ${this.tFunctionSig.span})`;
         if (this.tFunctionSig.locals.length > 0) {
-            tFunction += '\n    ' + this.tFunctionSig.locals.map(v => v.toString()).join(' ');
+            tFunction += `\n    ${this.tFunctionSig.locals.map(v => v.toString()).join(' ')}`;
         }
-        tFunction += `\n    ${this.tFunctionBody.toString()}`;
+        for (let statement of this.tFunctionBody.statements) {
+            tFunction += `\n    ${statement.toString()}`;
+        }
+        tFunction += `\n    ${this.tFunctionBody.output.toString()}`;
         code += `\n  (transition${tFunction})`;
         // transition constraints
         let tConstraints = `\n    (frame ${this.tConstraintsSig.width} ${this.tConstraintsSig.span})`;
         if (this.tConstraintsSig.locals.length > 0) {
-            tConstraints += `\n    ` + this.tConstraintsSig.locals.map(v => v.toString()).join(' ');
+            tConstraints += `\n    ${this.tConstraintsSig.locals.map(v => v.toString()).join(' ')}`;
         }
-        tConstraints += `\n    ${this.tConstraintsBody.toString()}`;
+        for (let statement of this.tConstraintsBody.statements) {
+            tConstraints += `\n    ${statement.toString()}`;
+        }
+        tConstraints += `\n    ${this.tConstraintsBody.output.toString()}`;
         code += `\n  (evaluation${tConstraints})`;
         return `(module${code}\n)`;
     }

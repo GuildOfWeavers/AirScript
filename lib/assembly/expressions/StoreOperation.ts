@@ -7,7 +7,7 @@ import { Expression } from './Expression';
 type Target = 'local';
 
 const targets: { [index: string]: Target } = {
-    'load.local': 'local'
+    'save.local': 'local'
 };
 
 // CLASS DEFINITION
@@ -34,6 +34,6 @@ export class StoreOperation extends Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toString(): string {
-        return `(store.${this.target} ${this.index})`;
+        return `(store.${this.target} ${this.index} ${this.value.toString()})`;
     }
 }

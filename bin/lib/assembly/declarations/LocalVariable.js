@@ -26,7 +26,7 @@ class LocalVariable {
         return this.value;
     }
     setValue(value, index) {
-        if (utils_1.areSameDimensions(this.dimensions, value.dimensions)) {
+        if (!utils_1.areSameDimensions(this.dimensions, value.dimensions)) {
             const vd = value.dimensions;
             throw new Error(`cannot store ${vd[0]}x${vd[1]} value in local variable ${index}`);
         }
