@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ConstantValue, ExpressionDegree, LoadOperation, NoopExpression, StoreOperation } from "./expressions";
-import { Dimensions, areSameDimensions, isScalar, isVector, isMatrix } from "../utils";
+import { Expression, ConstantValue, LoadOperation, NoopExpression, StoreOperation } from "./expressions";
+import { FieldDeclaration, StaticRegister, InputRegister, LocalVariable } from "./declarations";
 
 // INTERFACES
 // ================================================================================================
@@ -11,26 +11,11 @@ export interface TransitionSignature {
     locals      : LocalVariable[];
 }
 
-export interface LocalVariable {
-    dimensions  : Dimensions;
-    degree      : ExpressionDegree;
-    value?      : Expression;
-}
-
-export interface StaticRegister {
-    pattern : 'repeat' | 'spread';
-    binary  : boolean;
-    values  : bigint[];
-}
-
-export interface InputRegister {
-    binary  : boolean;
-    secret  : boolean;
-}
-
 // CLASS DEFINITION
 // ================================================================================================
 export class ModuleInfo {
+
+    readonly field                  : FieldDeclaration;
 
     readonly constants              : ConstantValue[];
     readonly staticRegisters        : StaticRegister[];
@@ -48,7 +33,12 @@ export class ModuleInfo {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(constants: ConstantValue[], sRegisters: StaticRegister[], iRegisters: InputRegister[], tFunctionSig: any, tConstraintsSig: any) {
+    constructor(
+        field: FieldDeclaration,
+        constants: ConstantValue[], sRegisters: StaticRegister[], iRegisters: InputRegister[],
+        tFunctionSig: TransitionSignature, tConstraintsSig: TransitionSignature
+    ) {
+        this.field = field;
         this.constants = constants;
         this.staticRegisters = sRegisters;
         this.inputRegisters = iRegisters;
@@ -123,18 +113,20 @@ export class ModuleInfo {
         }
         else if (operation === 'load.fixed') {
             this.validateFrameIndex(index);
+            if (this.staticRegisters.length === 0) 
+                throw new Error('static registers have not been defined');
             return new LoadOperation(operation, index, this.sRegistersExpression);
         }
         else if (operation === 'load.input') {
             this.validateFrameIndex(index);
+            if (this.staticRegisters.length === 0) 
+                throw new Error('input registers have not been defined');
             return new LoadOperation(operation, index, this.iRegistersExpression);
         }
         else if (operation === 'load.local') {
-            const localVar = this.getLocalVariable(index);
-            if (!localVar.value)
-                throw new Error(`local variable ${index} has not yet been set`);
-
-            return new LoadOperation(operation, index, localVar.value);
+            const variable = this.getLocalVariable(index);
+            const value = variable.getValue(index);
+            return new LoadOperation(operation, index, value);
         }
         else {
             throw new Error(`load operation '${operation}' is not valid`)
@@ -143,12 +135,8 @@ export class ModuleInfo {
 
     buildStoreOperation(operation: string, index: number, value: Expression): StoreOperation {
         if (operation === 'save.local') {
-            const localVar = this.getLocalVariable(index);
-            if (areSameDimensions(localVar.dimensions, value.dimensions)) {
-                const vd = value.dimensions;
-                throw new Error(`cannot store ${vd[0]}x${vd[1]} value in local variable ${index}`);
-            }
-            localVar.value = value;
+            const variable = this.getLocalVariable(index);
+            variable.setValue(value, index);
             return new StoreOperation(operation, index, value);
         }
         else {
@@ -159,32 +147,36 @@ export class ModuleInfo {
     // OUTPUT METHOD
     // --------------------------------------------------------------------------------------------
     toString() {
-        let code = '';
+        
+        let code = `\n  ${this.field.toString()}`;
 
-        // TODO: field
-        code += '\n' + this.constants.map(c => `(const ${c.toString()})`).join(' ');
-        code += '\n' + this.staticRegisters.map(r => 
-            `(static ${r.pattern}${r.binary ? ' binary' : ''} ${r.values.join(' ')})`).join(' ');
-        code += '\n' + this.inputRegisters.map(r => 
-            `(input${r.binary ? ' binary' : ''} ${r.secret ? 'secret' : 'public'})`).join(' ');
+        if (this.constants.length > 0) {
+            code += '\n  ' + this.constants.map(c => `(const ${c.toString()})`).join(' ');
+        }
+
+        if (this.staticRegisters.length > 0) {
+            code += '\n  ' + this.staticRegisters.map(r => r.toString()).join(' ');
+        }
+
+        if (this.inputRegisters.length > 0) {
+            code += '\n  ' + this.inputRegisters.map(r => r.toString()).join(' ');
+        }
         
         // transition function
-        const tfFrame = `(frame ${this.tFunctionSig.width} ${this.tFunctionSig.span})`;
-        const tfLocals = this.tFunctionSig.locals.map(v => {
-            if (isScalar(v.dimensions)) return `(local scalar)`;
-            else if (isVector(v.dimensions)) return `(local vector ${v.dimensions[0]})`;
-            else return `(local matrix ${v.dimensions[0]} ${v.dimensions[1]})`;
-        }).join(' ');
-        code += `\n(transition\n${tfFrame}\n${tfLocals})\n${this.tFunctionBody!.toString()}`;
+        let tFunction = `\n    (frame ${this.tFunctionSig.width} ${this.tFunctionSig.span})`;
+        if (this.tFunctionSig.locals.length > 0) {
+            tFunction += '\n    ' + this.tFunctionSig.locals.map(v => v.toString()).join(' ');
+        }
+        tFunction += `\n    ${this.tFunctionBody!.toString()}`;
+        code += `\n  (transition${tFunction})`;
 
         // transition constraints
-        const tcFrame = `(frame ${this.tConstraintsSig.width} ${this.tConstraintsSig.span})`;
-        const tcLocals = this.tConstraintsSig.locals.map(v => {
-            if (isScalar(v.dimensions)) return `(local scalar)`;
-            else if (isVector(v.dimensions)) return `(local vector ${v.dimensions[0]})`;
-            else return `(local matrix ${v.dimensions[0]} ${v.dimensions[1]})`;
-        }).join(' ');
-        code += `\n(evaluation\n${tcFrame}\n${tcLocals})\n${this.tConstraintsBody!.toString()}`;
+        let tConstraints = `\n    (frame ${this.tConstraintsSig.width} ${this.tConstraintsSig.span})`;
+        if (this.tConstraintsSig.locals.length > 0) {
+            tConstraints += `\n    ` + this.tConstraintsSig.locals.map(v => v.toString()).join(' ');
+        }
+        tConstraints += `\n    ${this.tConstraintsBody!.toString()}`;
+        code += `\n  (evaluation${tConstraints})`;
 
         return `(module${code}\n)`;
     }

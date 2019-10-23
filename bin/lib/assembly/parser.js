@@ -42,7 +42,7 @@ class AirParser extends chevrotain_1.CstParser {
         this.fieldDeclaration = this.RULE('fieldDeclaration', () => {
             this.CONSUME(lexer_1.LParen);
             this.CONSUME(lexer_1.Field);
-            this.CONSUME(lexer_1.Prime);
+            this.CONSUME(lexer_1.Prime, { LABEL: 'type' });
             this.CONSUME(lexer_1.Literal, { LABEL: 'modulus' });
             this.CONSUME(lexer_1.RParen);
         });
@@ -93,11 +93,11 @@ class AirParser extends chevrotain_1.CstParser {
         this.inputRegister = this.RULE('inputRegister', () => {
             this.CONSUME(lexer_1.LParen);
             this.CONSUME(lexer_1.Input);
-            this.OPTION(() => this.CONSUME(lexer_1.Binary, { LABEL: 'binary' }));
             this.OR([
                 { ALT: () => this.CONSUME(lexer_1.Secret, { LABEL: 'scope' }) },
                 { ALT: () => this.CONSUME(lexer_1.Public, { LABEL: 'scope' }) }
             ]);
+            this.OPTION(() => this.CONSUME(lexer_1.Binary, { LABEL: 'binary' }));
             this.CONSUME(lexer_1.RParen);
         });
         // TRANSITION SIGNATURE

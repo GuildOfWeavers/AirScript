@@ -1,11 +1,11 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits } from '@guildofweavers/air-script';
-import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galois';
-import { ModuleInfo, TransitionSignature, LocalVariable, StaticRegister, InputRegister } from './ModuleInfo';
+import { StarkLimits, WasmOptions, FiniteField } from '@guildofweavers/air-script';
+import { ModuleInfo, TransitionSignature } from './ModuleInfo';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Add, Sub, Mul, Div, Exp, Prod, Neg, Inv } from './lexer';
+import { FieldDeclaration, StaticRegister, InputRegister, LocalVariable } from './declarations';
 import {
     Expression, BinaryOperation, UnaryOperation, ConstantValue, LoadOperation,
     ExtractExpression, SliceExpression, VectorExpression, MatrixExpression, StoreOperation
@@ -26,14 +26,14 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     module(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): any {
 
-        const field = this.visit(ctx.field); // TODO
+        const field: FieldDeclaration = this.visit(ctx.field, config.wasmOptions);
 
         const constants: ConstantValue[] = (ctx.constants)
             ? ctx.constants.map((c: any) => this.visit(c))
             : [];
 
         const sRegisters: any[] = (ctx.staticRegisters)
-            ? ctx.staticRegisters.map((r: any) => this.visit(r))
+            ? ctx.staticRegisters.map((r: any) => this.visit(r, field.field))
             : [];
 
         const iRegisters: any[] = (ctx.inputRegisters)
@@ -42,7 +42,7 @@ class AirVisitor extends BaseCstVisitor {
 
         const tFunctionSig = this.visit(ctx.tFunctionSignature);
         const tConstraintsSig = this.visit(ctx.tConstraintsSignature);
-        const mi = new ModuleInfo(constants, sRegisters, iRegisters, tFunctionSig, tConstraintsSig);
+        const mi = new ModuleInfo(field, constants, sRegisters, iRegisters, tFunctionSig, tConstraintsSig);
         
         // TODO: change bodies to arrays of expressions
         mi.transitionFunctionBody = this.visit(ctx.tFunctionBody, mi);
@@ -53,7 +53,11 @@ class AirVisitor extends BaseCstVisitor {
 
     // FINITE FIELD
     // --------------------------------------------------------------------------------------------
-    fieldDeclaration(ctx: any): any { }
+    fieldDeclaration(ctx: any, wasmOptions?: WasmOptions): FieldDeclaration { 
+        const type: string = ctx.type[0].image;
+        const modulus = BigInt(ctx.modulus[0].image);
+        return new FieldDeclaration(type, modulus, wasmOptions);
+    }
 
     // GLOBAL CONSTANTS
     // --------------------------------------------------------------------------------------------
@@ -80,17 +84,17 @@ class AirVisitor extends BaseCstVisitor {
 
     // READONLY REGISTERS
     // --------------------------------------------------------------------------------------------
-    staticRegister(ctx: any): StaticRegister {
+    staticRegister(ctx: any, field: FiniteField): StaticRegister {
         const pattern = ctx.pattern[0].image;
         const binary = ctx.binary ? true : false;
         const values: bigint[] = ctx.values.map((v: any) => BigInt(v.image));
-        return { pattern, binary, values };
+        return new StaticRegister(pattern, binary, values, field);
     }
 
     inputRegister(ctx: any): InputRegister {
         const secret = ctx.secret ? true : false;
         const binary = ctx.binary ? true : false;
-        return { secret, binary };
+        return new InputRegister(secret, binary);
     }
 
     // TRANSITION SIGNATURE
@@ -106,17 +110,17 @@ class AirVisitor extends BaseCstVisitor {
         const type: string = ctx.type[0].image;
         
         if (type === 'scalar') {
-            return { dimensions: [0, 0], degree: 0n };
+            return new LocalVariable(0n);
         }
         else if (type === 'vector') {
             const length = Number.parseInt(ctx.length[0].image, 10);
-            return { dimensions: [length, 0], degree: new Array(length).fill(0n) };
+            return new LocalVariable(new Array(length).fill(0n));
         }
         else if (type === 'matrix') {
             const rowCount = Number.parseInt(ctx.rowCount[0].image, 10);
             const colCount = Number.parseInt(ctx.colCount[0].image, 10);
             const rowDegree = new Array(colCount).fill(0n);
-            return { dimensions: [rowCount, colCount], degree: new Array(rowCount).fill(rowDegree) };
+            return new LocalVariable(new Array(rowCount).fill(rowDegree));
         }
         else {
             throw new Error(`local variable type '${type}' is invalid`)

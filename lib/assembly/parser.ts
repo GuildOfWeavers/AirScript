@@ -49,7 +49,7 @@ class AirParser extends CstParser {
     private fieldDeclaration = this.RULE('fieldDeclaration', () => {
         this.CONSUME(LParen);
         this.CONSUME(Field);
-        this.CONSUME(Prime);
+        this.CONSUME(Prime,   { LABEL: 'type'    });
         this.CONSUME(Literal, { LABEL: 'modulus' });
         this.CONSUME(RParen);
     });
@@ -106,11 +106,11 @@ class AirParser extends CstParser {
     private inputRegister = this.RULE('inputRegister', () => {
         this.CONSUME(LParen);
         this.CONSUME(Input);
-        this.OPTION(() => this.CONSUME(Binary,          { LABEL: 'binary'  }) );
         this.OR([
             { ALT: () => this.CONSUME(Secret,           { LABEL: 'scope'   }) },
             { ALT: () => this.CONSUME(Public,           { LABEL: 'scope'   }) }
         ]);
+        this.OPTION(() => this.CONSUME(Binary,          { LABEL: 'binary'  }) );
         this.CONSUME(RParen);
     });
 

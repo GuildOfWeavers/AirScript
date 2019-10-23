@@ -3,13 +3,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const expressions_1 = require("./expressions");
-const utils_1 = require("../utils");
 // CLASS DEFINITION
 // ================================================================================================
 class ModuleInfo {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(constants, sRegisters, iRegisters, tFunctionSig, tConstraintsSig) {
+    constructor(field, constants, sRegisters, iRegisters, tFunctionSig, tConstraintsSig) {
+        this.field = field;
         this.constants = constants;
         this.staticRegisters = sRegisters;
         this.inputRegisters = iRegisters;
@@ -75,17 +75,20 @@ class ModuleInfo {
         }
         else if (operation === 'load.fixed') {
             this.validateFrameIndex(index);
+            if (this.staticRegisters.length === 0)
+                throw new Error('static registers have not been defined');
             return new expressions_1.LoadOperation(operation, index, this.sRegistersExpression);
         }
         else if (operation === 'load.input') {
             this.validateFrameIndex(index);
+            if (this.staticRegisters.length === 0)
+                throw new Error('input registers have not been defined');
             return new expressions_1.LoadOperation(operation, index, this.iRegistersExpression);
         }
         else if (operation === 'load.local') {
-            const localVar = this.getLocalVariable(index);
-            if (!localVar.value)
-                throw new Error(`local variable ${index} has not yet been set`);
-            return new expressions_1.LoadOperation(operation, index, localVar.value);
+            const variable = this.getLocalVariable(index);
+            const value = variable.getValue(index);
+            return new expressions_1.LoadOperation(operation, index, value);
         }
         else {
             throw new Error(`load operation '${operation}' is not valid`);
@@ -93,12 +96,8 @@ class ModuleInfo {
     }
     buildStoreOperation(operation, index, value) {
         if (operation === 'save.local') {
-            const localVar = this.getLocalVariable(index);
-            if (utils_1.areSameDimensions(localVar.dimensions, value.dimensions)) {
-                const vd = value.dimensions;
-                throw new Error(`cannot store ${vd[0]}x${vd[1]} value in local variable ${index}`);
-            }
-            localVar.value = value;
+            const variable = this.getLocalVariable(index);
+            variable.setValue(value, index);
             return new expressions_1.StoreOperation(operation, index, value);
         }
         else {
@@ -108,33 +107,30 @@ class ModuleInfo {
     // OUTPUT METHOD
     // --------------------------------------------------------------------------------------------
     toString() {
-        let code = '';
-        // TODO: field
-        code += '\n' + this.constants.map(c => `(const ${c.toString()})`).join(' ');
-        code += '\n' + this.staticRegisters.map(r => `(static ${r.pattern}${r.binary ? ' binary' : ''} ${r.values.join(' ')})`).join(' ');
-        code += '\n' + this.inputRegisters.map(r => `(input${r.binary ? ' binary' : ''} ${r.secret ? 'secret' : 'public'})`).join(' ');
+        let code = `\n  ${this.field.toString()}`;
+        if (this.constants.length > 0) {
+            code += '\n  ' + this.constants.map(c => `(const ${c.toString()})`).join(' ');
+        }
+        if (this.staticRegisters.length > 0) {
+            code += '\n  ' + this.staticRegisters.map(r => r.toString()).join(' ');
+        }
+        if (this.inputRegisters.length > 0) {
+            code += '\n  ' + this.inputRegisters.map(r => r.toString()).join(' ');
+        }
         // transition function
-        const tfFrame = `(frame ${this.tFunctionSig.width} ${this.tFunctionSig.span})`;
-        const tfLocals = this.tFunctionSig.locals.map(v => {
-            if (utils_1.isScalar(v.dimensions))
-                return `(local scalar)`;
-            else if (utils_1.isVector(v.dimensions))
-                return `(local vector ${v.dimensions[0]})`;
-            else
-                return `(local matrix ${v.dimensions[0]} ${v.dimensions[1]})`;
-        }).join(' ');
-        code += `\n(transition\n${tfFrame}\n${tfLocals})\n${this.tFunctionBody.toString()}`;
+        let tFunction = `\n    (frame ${this.tFunctionSig.width} ${this.tFunctionSig.span})`;
+        if (this.tFunctionSig.locals.length > 0) {
+            tFunction += '\n    ' + this.tFunctionSig.locals.map(v => v.toString()).join(' ');
+        }
+        tFunction += `\n    ${this.tFunctionBody.toString()}`;
+        code += `\n  (transition${tFunction})`;
         // transition constraints
-        const tcFrame = `(frame ${this.tConstraintsSig.width} ${this.tConstraintsSig.span})`;
-        const tcLocals = this.tConstraintsSig.locals.map(v => {
-            if (utils_1.isScalar(v.dimensions))
-                return `(local scalar)`;
-            else if (utils_1.isVector(v.dimensions))
-                return `(local vector ${v.dimensions[0]})`;
-            else
-                return `(local matrix ${v.dimensions[0]} ${v.dimensions[1]})`;
-        }).join(' ');
-        code += `\n(evaluation\n${tcFrame}\n${tcLocals})\n${this.tConstraintsBody.toString()}`;
+        let tConstraints = `\n    (frame ${this.tConstraintsSig.width} ${this.tConstraintsSig.span})`;
+        if (this.tConstraintsSig.locals.length > 0) {
+            tConstraints += `\n    ` + this.tConstraintsSig.locals.map(v => v.toString()).join(' ');
+        }
+        tConstraints += `\n    ${this.tConstraintsBody.toString()}`;
+        code += `\n  (evaluation${tConstraints})`;
         return `(module${code}\n)`;
     }
     // PRIVATE METHODS

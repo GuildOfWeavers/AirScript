@@ -62,7 +62,7 @@ exports.WhiteSpace = chevrotain_1.createToken({ name: "WhiteSpace", pattern: /[ 
 // ================================================================================================
 exports.allTokens = [
     exports.WhiteSpace,
-    exports.Module, exports.Field, exports.Prime, exports.Const, exports.Fixed, exports.Input, exports.Local, exports.Repeat, exports.Spread, exports.Secret, exports.Public,
+    exports.Module, exports.Field, exports.Prime, exports.Const, exports.Fixed, exports.Input, exports.Local, exports.Repeat, exports.Spread, exports.Secret, exports.Public, exports.Binary,
     exports.Transition, exports.Evaluation, exports.Frame,
     exports.Scalar, exports.Vector, exports.Matrix,
     exports.Get, exports.Slice, exports.BinaryOp, exports.Add, exports.Sub, exports.Mul, exports.Div, exports.Exp, exports.Prod, exports.UnaryOp, exports.Neg, exports.Inv,

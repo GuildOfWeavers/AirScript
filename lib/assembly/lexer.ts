@@ -76,7 +76,7 @@ export const WhiteSpace = createToken({ name: "WhiteSpace", pattern : /[ \t\n\r]
 export const allTokens = [
     WhiteSpace,
     
-    Module, Field, Prime, Const, Fixed, Input, Local, Repeat, Spread, Secret, Public,
+    Module, Field, Prime, Const, Fixed, Input, Local, Repeat, Spread, Secret, Public, Binary,
     Transition, Evaluation, Frame,
 
     Scalar, Vector, Matrix,

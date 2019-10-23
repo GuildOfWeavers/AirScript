@@ -4,6 +4,7 @@ const ModuleInfo_1 = require("./ModuleInfo");
 const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
+const declarations_1 = require("./declarations");
 const expressions_1 = require("./expressions");
 // MODULE VARIABLES
 // ================================================================================================
@@ -16,19 +17,19 @@ class AirVisitor extends BaseCstVisitor {
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
     module(ctx, config) {
-        const field = this.visit(ctx.field); // TODO
+        const field = this.visit(ctx.field, config.wasmOptions);
         const constants = (ctx.constants)
             ? ctx.constants.map((c) => this.visit(c))
             : [];
         const sRegisters = (ctx.staticRegisters)
-            ? ctx.staticRegisters.map((r) => this.visit(r))
+            ? ctx.staticRegisters.map((r) => this.visit(r, field.field))
             : [];
         const iRegisters = (ctx.inputRegisters)
             ? ctx.inputRegisters.map((r) => this.visit(r))
             : [];
         const tFunctionSig = this.visit(ctx.tFunctionSignature);
         const tConstraintsSig = this.visit(ctx.tConstraintsSignature);
-        const mi = new ModuleInfo_1.ModuleInfo(constants, sRegisters, iRegisters, tFunctionSig, tConstraintsSig);
+        const mi = new ModuleInfo_1.ModuleInfo(field, constants, sRegisters, iRegisters, tFunctionSig, tConstraintsSig);
         // TODO: change bodies to arrays of expressions
         mi.transitionFunctionBody = this.visit(ctx.tFunctionBody, mi);
         mi.transitionConstraintsBody = this.visit(ctx.tConstraintsBody, mi);
@@ -36,7 +37,11 @@ class AirVisitor extends BaseCstVisitor {
     }
     // FINITE FIELD
     // --------------------------------------------------------------------------------------------
-    fieldDeclaration(ctx) { }
+    fieldDeclaration(ctx, wasmOptions) {
+        const type = ctx.type[0].image;
+        const modulus = BigInt(ctx.modulus[0].image);
+        return new declarations_1.FieldDeclaration(type, modulus, wasmOptions);
+    }
     // GLOBAL CONSTANTS
     // --------------------------------------------------------------------------------------------
     constantDeclaration(ctx) {
@@ -58,16 +63,16 @@ class AirVisitor extends BaseCstVisitor {
     }
     // READONLY REGISTERS
     // --------------------------------------------------------------------------------------------
-    staticRegister(ctx) {
+    staticRegister(ctx, field) {
         const pattern = ctx.pattern[0].image;
         const binary = ctx.binary ? true : false;
         const values = ctx.values.map((v) => BigInt(v.image));
-        return { pattern, binary, values };
+        return new declarations_1.StaticRegister(pattern, binary, values, field);
     }
     inputRegister(ctx) {
         const secret = ctx.secret ? true : false;
         const binary = ctx.binary ? true : false;
-        return { secret, binary };
+        return new declarations_1.InputRegister(secret, binary);
     }
     // TRANSITION SIGNATURE
     // --------------------------------------------------------------------------------------------
@@ -80,17 +85,17 @@ class AirVisitor extends BaseCstVisitor {
     localDeclaration(ctx) {
         const type = ctx.type[0].image;
         if (type === 'scalar') {
-            return { dimensions: [0, 0], degree: 0n };
+            return new declarations_1.LocalVariable(0n);
         }
         else if (type === 'vector') {
             const length = Number.parseInt(ctx.length[0].image, 10);
-            return { dimensions: [length, 0], degree: new Array(length).fill(0n) };
+            return new declarations_1.LocalVariable(new Array(length).fill(0n));
         }
         else if (type === 'matrix') {
             const rowCount = Number.parseInt(ctx.rowCount[0].image, 10);
             const colCount = Number.parseInt(ctx.colCount[0].image, 10);
             const rowDegree = new Array(colCount).fill(0n);
-            return { dimensions: [rowCount, colCount], degree: new Array(rowCount).fill(rowDegree) };
+            return new declarations_1.LocalVariable(new Array(rowCount).fill(rowDegree));
         }
         else {
             throw new Error(`local variable type '${type}' is invalid`);
