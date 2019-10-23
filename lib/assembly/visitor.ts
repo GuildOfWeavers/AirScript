@@ -1,13 +1,14 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits, InputRegisterSpecs, StaticRegisterSpecs } from '@guildofweavers/air-script';
+import { StarkLimits } from '@guildofweavers/air-script';
 import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galois';
+import { ModuleInfo, TransitionSignature, LocalVariable, StaticRegister, InputRegister } from './ModuleInfo';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Add, Sub, Mul, Div, Exp, Prod, Neg, Inv } from './lexer';
 import {
-    Expression, BinaryOperation, UnaryOperation, ConstantValue, LoadOperation, NoopExpression,
-    ExtractExpression, SliceExpression
+    Expression, BinaryOperation, UnaryOperation, ConstantValue, LoadOperation,
+    ExtractExpression, SliceExpression, VectorExpression, MatrixExpression, StoreOperation
 } from './expressions';
 
 // MODULE VARIABLES
@@ -25,13 +26,29 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     module(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): any {
 
+        const field = this.visit(ctx.field); // TODO
+
         const constants: ConstantValue[] = (ctx.constants)
             ? ctx.constants.map((c: any) => this.visit(c))
             : [];
 
-        const tConstraints = this.visit(ctx.transitionConstraints);
+        const sRegisters: any[] = (ctx.staticRegisters)
+            ? ctx.staticRegisters.map((r: any) => this.visit(r))
+            : [];
 
-        const x = constants;
+        const iRegisters: any[] = (ctx.inputRegisters)
+            ? ctx.inputRegisters.map((r: any) => this.visit(r))
+            : [];
+
+        const tFunctionSig = this.visit(ctx.tFunctionSignature);
+        const tConstraintsSig = this.visit(ctx.tConstraintsSignature);
+        const mi = new ModuleInfo(constants, sRegisters, iRegisters, tFunctionSig, tConstraintsSig);
+        
+        // TODO: change bodies to arrays of expressions
+        mi.transitionFunctionBody = this.visit(ctx.tFunctionBody, mi);
+        mi.transitionConstraintsBody = this.visit(ctx.tConstraintsBody, mi);
+
+        return mi;
     }
 
     // FINITE FIELD
@@ -48,61 +65,78 @@ class AirVisitor extends BaseCstVisitor {
     }
 
     literalVector(ctx: any): bigint[] {
-        const vector = new Array<bigint>(ctx.elements.length);
-        for (let i = 0; i < ctx.elements.length; i++) {
-            vector[i] = BigInt(ctx.elements[i].image);
-        }
-        return vector;
+        return ctx.elements.map((e: any) => BigInt(e.image));
     }
 
     literalMatrix(ctx: any): bigint[][] {
         const result: bigint[][] = [];
-        for (let i = 0; i < ctx.rows.length; i++) {
-            result.push(this.visit(ctx.rows[i]));
-        }
+        ctx.rows.forEach((row: any) => result.push(this.visit(row)));
         return result;
     }
 
     literalMatrixRow(ctx: any): bigint[] {
-        const row = new Array<bigint>(ctx.elements.length);
-        for (let i = 0; i < ctx.elements.length; i++) {
-            row[i] = BigInt(ctx.elements[i].image);
-        }
-        return row;
+        return ctx.elements.map((e: any) => BigInt(e.image));
     }
 
     // READONLY REGISTERS
     // --------------------------------------------------------------------------------------------
-    staticRegister(ctx: any): any { }
+    staticRegister(ctx: any): StaticRegister {
+        const pattern = ctx.pattern[0].image;
+        const binary = ctx.binary ? true : false;
+        const values: bigint[] = ctx.values.map((v: any) => BigInt(v.image));
+        return { pattern, binary, values };
+    }
 
-    // TRANSITION FUNCTION AND CONSTRAINTS
+    inputRegister(ctx: any): InputRegister {
+        const secret = ctx.secret ? true : false;
+        const binary = ctx.binary ? true : false;
+        return { secret, binary };
+    }
+
+    // TRANSITION SIGNATURE
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any): any { }
-
-    transitionConstraints(ctx: any): any {
-        const body: Expression = this.visit(ctx.body);
+    transitionSignature(ctx: any): TransitionSignature {
+        const width = Number.parseInt(ctx.width[0].image, 10);
+        const span = Number.parseInt(ctx.span[0].image, 10);
+        const locals = (ctx.locals) ? ctx.locals.map((e: any) => this.visit(e)) : [];
+        return { width, span, locals }
     }
 
-    executionFrame(ctx: any): any {
+    localDeclaration(ctx: any): LocalVariable {
+        const type: string = ctx.type[0].image;
         
+        if (type === 'scalar') {
+            return { dimensions: [0, 0], degree: 0n };
+        }
+        else if (type === 'vector') {
+            const length = Number.parseInt(ctx.length[0].image, 10);
+            return { dimensions: [length, 0], degree: new Array(length).fill(0n) };
+        }
+        else if (type === 'matrix') {
+            const rowCount = Number.parseInt(ctx.rowCount[0].image, 10);
+            const colCount = Number.parseInt(ctx.colCount[0].image, 10);
+            const rowDegree = new Array(colCount).fill(0n);
+            return { dimensions: [rowCount, colCount], degree: new Array(rowCount).fill(rowDegree) };
+        }
+        else {
+            throw new Error(`local variable type '${type}' is invalid`)
+        }
     }
-
-    localDeclaration(ctx: any): any { }
 
     // EXPRESSIONS
     // --------------------------------------------------------------------------------------------
-    expression(ctx: any): Expression {
+    expression(ctx: any, mi: ModuleInfo): Expression {
         if (ctx.content) {
-            return this.visit(ctx.content);
+            return this.visit(ctx.content, mi);
         }
         else {
             return new ConstantValue(BigInt(ctx.value[0].image));
         }
     }
 
-    binaryOperation(ctx: any): Expression { 
-        const lhs: Expression = this.visit(ctx.lhs);
-        const rhs: Expression = this.visit(ctx.rhs);
+    binaryOperation(ctx: any, mi: ModuleInfo): Expression { 
+        const lhs: Expression = this.visit(ctx.lhs, mi);
+        const rhs: Expression = this.visit(ctx.rhs, mi);
         const opToken = ctx.operation[0];
 
         let result: Expression;
@@ -119,13 +153,13 @@ class AirVisitor extends BaseCstVisitor {
         else if (tokenMatcher(opToken, Prod))
             result = BinaryOperation.exp(lhs, rhs);
         else
-            throw new Error(`Invalid operator '${opToken.image}'`);
+            throw new Error(`invalid operator '${opToken.image}'`);
 
         return result;
     }
 
-    unaryExpression(ctx: any): Expression {
-        const operand: Expression = this.visit(ctx.operand);
+    unaryExpression(ctx: any, mi: ModuleInfo): Expression {
+        const operand: Expression = this.visit(ctx.operand, mi);
         const opToken = ctx.operation[0];
 
         let result: Expression;
@@ -134,42 +168,54 @@ class AirVisitor extends BaseCstVisitor {
         else if (tokenMatcher(opToken, Inv))
             result = UnaryOperation.inv(operand);
         else
-            throw new Error(`Invalid operator '${opToken.image}'`);
+            throw new Error(`invalid operator '${opToken.image}'`);
 
         return result;
     }    
 
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------
-    vectorExpression(ctx: any): any { }
+    vectorExpression(ctx: any, mi: ModuleInfo): VectorExpression {
+        const elements: Expression[] = ctx.elements.map((e: any) => this.visit(e, mi));
+        return new VectorExpression(elements);
+    }
 
-    extractExpression(ctx: any): ExtractExpression {
-        const source: Expression = this.visit(ctx.source);
+    extractExpression(ctx: any, mi: ModuleInfo): ExtractExpression {
+        const source: Expression = this.visit(ctx.source, mi);
         const index = Number.parseInt(ctx.index[0].image, 10);
         return new ExtractExpression(source, index);
     }
 
-    sliceExpression(ctx: any): SliceExpression {
-        const source: Expression = this.visit(ctx.source);
+    sliceExpression(ctx: any, mi: ModuleInfo): SliceExpression {
+        const source: Expression = this.visit(ctx.source, mi);
         const start = Number.parseInt(ctx.start[0].image, 10);
         const end = Number.parseInt(ctx.end[0].image, 10);
         return new SliceExpression(source, start, end);
     }
 
-    matrixExpression(ctx: any): any { }
-    matrixRow(ctx: any): any { }
+    matrixExpression(ctx: any, mi: ModuleInfo): MatrixExpression {
+        const rows: Expression[][] = ctx.rows.map((r: any) => this.visit(r, mi));
+        return new MatrixExpression(rows);
+    }
+
+    matrixRow(ctx: any, mi: ModuleInfo): Expression[] {
+        return ctx.elements.map((e: any) => this.visit(e, mi));
+    }
 
     // LOAD AND SAVE OPERATIONS
     // --------------------------------------------------------------------------------------------
-    loadExpression(ctx: any): LoadOperation {
+    loadExpression(ctx: any, mi: ModuleInfo): LoadOperation {
         const operation = ctx.operation[0].image;
         const index = Number.parseInt(ctx.index[0].image, 10);
-        const result = new LoadOperation(operation, index, new NoopExpression([8, 0], new Array(8).fill(1n)));
-        return result;
+        return mi.buildLoadOperation(operation, index);
     }
 
-
-    saveExpression(ctx: any): any { }
+    saveExpression(ctx: any, mi: ModuleInfo): StoreOperation {
+        const operation = ctx.operation[0].image;
+        const index = Number.parseInt(ctx.index[0].image, 10);
+        const value: Expression = this.visit(ctx.value, mi);
+        return mi.buildStoreOperation(operation, index, value);
+    }
 }
 
 // EXPORT VISITOR INSTANCE

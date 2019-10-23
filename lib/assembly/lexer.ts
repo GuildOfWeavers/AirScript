@@ -16,11 +16,14 @@ export const Prime      = createToken({ name: "Prime",          pattern: /prime/
 
 export const Const      = createToken({ name: "Const",          pattern: /const/            });
 export const Fixed      = createToken({ name: "Fixed",          pattern: /fixed/            });
+export const Input      = createToken({ name: "Input",          pattern: /input/            });
 export const Local      = createToken({ name: "Local",          pattern: /local/            });
 
 export const Repeat     = createToken({ name: "Repeat",         pattern: /repeat/           });
 export const Spread     = createToken({ name: "Spread",         pattern: /spread/           });
 export const Binary     = createToken({ name: "Binary",         pattern: /binary/           });
+export const Secret     = createToken({ name: "Secret",         pattern: /secret/           });
+export const Public     = createToken({ name: "Public",         pattern: /public/           });
 
 export const Transition = createToken({ name: "Transition",     pattern: /transition/       });
 export const Evaluation = createToken({ name: "Evaluation",     pattern: /evaluation/       });
@@ -54,6 +57,7 @@ export const LoadOp     = createToken({ name: "LoadOp",     pattern: Lexer.NA   
 export const LoadConst  = createToken({ name: "LoadConst",  pattern: /load.const/,  categories: LoadOp   });
 export const LoadTrace  = createToken({ name: "LoadTrace",  pattern: /load.trace/,  categories: LoadOp   });
 export const LoadFixed  = createToken({ name: "LoadFixed",  pattern: /load.fixed/,  categories: LoadOp   });
+export const LoadInput  = createToken({ name: "LoadInput",  pattern: /load.input/,  categories: LoadOp   });
 export const LoadLocal  = createToken({ name: "LoadLocal",  pattern: /load.local/,  categories: LoadOp   });
 
 export const SaveOp     = createToken({ name: "SaveLocal",  pattern: /save.local/ });
@@ -72,12 +76,13 @@ export const WhiteSpace = createToken({ name: "WhiteSpace", pattern : /[ \t\n\r]
 export const allTokens = [
     WhiteSpace,
     
-    Module, Field, Prime, Const, Fixed, Local, Repeat, Spread, Transition, Evaluation, Frame,
+    Module, Field, Prime, Const, Fixed, Input, Local, Repeat, Spread, Secret, Public,
+    Transition, Evaluation, Frame,
 
     Scalar, Vector, Matrix,
 
     Get, Slice, BinaryOp, Add, Sub, Mul, Div, Exp, Prod, UnaryOp, Neg, Inv,
-    LoadOp, LoadConst, LoadTrace, LoadFixed, LoadLocal, SaveOp,
+    LoadOp, LoadConst, LoadTrace, LoadFixed, LoadInput, LoadLocal, SaveOp,
 
     LParen, RParen,
 

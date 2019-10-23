@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const ModuleInfo_1 = require("./ModuleInfo");
 const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
@@ -15,11 +16,23 @@ class AirVisitor extends BaseCstVisitor {
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
     module(ctx, config) {
+        const field = this.visit(ctx.field); // TODO
         const constants = (ctx.constants)
             ? ctx.constants.map((c) => this.visit(c))
             : [];
-        const tConstraints = this.visit(ctx.transitionConstraints);
-        const x = constants;
+        const sRegisters = (ctx.staticRegisters)
+            ? ctx.staticRegisters.map((r) => this.visit(r))
+            : [];
+        const iRegisters = (ctx.inputRegisters)
+            ? ctx.inputRegisters.map((r) => this.visit(r))
+            : [];
+        const tFunctionSig = this.visit(ctx.tFunctionSignature);
+        const tConstraintsSig = this.visit(ctx.tConstraintsSignature);
+        const mi = new ModuleInfo_1.ModuleInfo(constants, sRegisters, iRegisters, tFunctionSig, tConstraintsSig);
+        // TODO: change bodies to arrays of expressions
+        mi.transitionFunctionBody = this.visit(ctx.tFunctionBody, mi);
+        mi.transitionConstraintsBody = this.visit(ctx.tConstraintsBody, mi);
+        return mi;
     }
     // FINITE FIELD
     // --------------------------------------------------------------------------------------------
@@ -33,51 +46,69 @@ class AirVisitor extends BaseCstVisitor {
         return new expressions_1.ConstantValue(value);
     }
     literalVector(ctx) {
-        const vector = new Array(ctx.elements.length);
-        for (let i = 0; i < ctx.elements.length; i++) {
-            vector[i] = BigInt(ctx.elements[i].image);
-        }
-        return vector;
+        return ctx.elements.map((e) => BigInt(e.image));
     }
     literalMatrix(ctx) {
         const result = [];
-        for (let i = 0; i < ctx.rows.length; i++) {
-            result.push(this.visit(ctx.rows[i]));
-        }
+        ctx.rows.forEach((row) => result.push(this.visit(row)));
         return result;
     }
     literalMatrixRow(ctx) {
-        const row = new Array(ctx.elements.length);
-        for (let i = 0; i < ctx.elements.length; i++) {
-            row[i] = BigInt(ctx.elements[i].image);
-        }
-        return row;
+        return ctx.elements.map((e) => BigInt(e.image));
     }
     // READONLY REGISTERS
     // --------------------------------------------------------------------------------------------
-    staticRegister(ctx) { }
-    // TRANSITION FUNCTION AND CONSTRAINTS
+    staticRegister(ctx) {
+        const pattern = ctx.pattern[0].image;
+        const binary = ctx.binary ? true : false;
+        const values = ctx.values.map((v) => BigInt(v.image));
+        return { pattern, binary, values };
+    }
+    inputRegister(ctx) {
+        const secret = ctx.secret ? true : false;
+        const binary = ctx.binary ? true : false;
+        return { secret, binary };
+    }
+    // TRANSITION SIGNATURE
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx) { }
-    transitionConstraints(ctx) {
-        const body = this.visit(ctx.body);
+    transitionSignature(ctx) {
+        const width = Number.parseInt(ctx.width[0].image, 10);
+        const span = Number.parseInt(ctx.span[0].image, 10);
+        const locals = (ctx.locals) ? ctx.locals.map((e) => this.visit(e)) : [];
+        return { width, span, locals };
     }
-    executionFrame(ctx) {
+    localDeclaration(ctx) {
+        const type = ctx.type[0].image;
+        if (type === 'scalar') {
+            return { dimensions: [0, 0], degree: 0n };
+        }
+        else if (type === 'vector') {
+            const length = Number.parseInt(ctx.length[0].image, 10);
+            return { dimensions: [length, 0], degree: new Array(length).fill(0n) };
+        }
+        else if (type === 'matrix') {
+            const rowCount = Number.parseInt(ctx.rowCount[0].image, 10);
+            const colCount = Number.parseInt(ctx.colCount[0].image, 10);
+            const rowDegree = new Array(colCount).fill(0n);
+            return { dimensions: [rowCount, colCount], degree: new Array(rowCount).fill(rowDegree) };
+        }
+        else {
+            throw new Error(`local variable type '${type}' is invalid`);
+        }
     }
-    localDeclaration(ctx) { }
     // EXPRESSIONS
     // --------------------------------------------------------------------------------------------
-    expression(ctx) {
+    expression(ctx, mi) {
         if (ctx.content) {
-            return this.visit(ctx.content);
+            return this.visit(ctx.content, mi);
         }
         else {
             return new expressions_1.ConstantValue(BigInt(ctx.value[0].image));
         }
     }
-    binaryOperation(ctx) {
-        const lhs = this.visit(ctx.lhs);
-        const rhs = this.visit(ctx.rhs);
+    binaryOperation(ctx, mi) {
+        const lhs = this.visit(ctx.lhs, mi);
+        const rhs = this.visit(ctx.rhs, mi);
         const opToken = ctx.operation[0];
         let result;
         if (chevrotain_1.tokenMatcher(opToken, lexer_1.Add))
@@ -93,11 +124,11 @@ class AirVisitor extends BaseCstVisitor {
         else if (chevrotain_1.tokenMatcher(opToken, lexer_1.Prod))
             result = expressions_1.BinaryOperation.exp(lhs, rhs);
         else
-            throw new Error(`Invalid operator '${opToken.image}'`);
+            throw new Error(`invalid operator '${opToken.image}'`);
         return result;
     }
-    unaryExpression(ctx) {
-        const operand = this.visit(ctx.operand);
+    unaryExpression(ctx, mi) {
+        const operand = this.visit(ctx.operand, mi);
         const opToken = ctx.operation[0];
         let result;
         if (chevrotain_1.tokenMatcher(opToken, lexer_1.Neg))
@@ -105,34 +136,46 @@ class AirVisitor extends BaseCstVisitor {
         else if (chevrotain_1.tokenMatcher(opToken, lexer_1.Inv))
             result = expressions_1.UnaryOperation.inv(operand);
         else
-            throw new Error(`Invalid operator '${opToken.image}'`);
+            throw new Error(`invalid operator '${opToken.image}'`);
         return result;
     }
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------
-    vectorExpression(ctx) { }
-    extractExpression(ctx) {
-        const source = this.visit(ctx.source);
+    vectorExpression(ctx, mi) {
+        const elements = ctx.elements.map((e) => this.visit(e, mi));
+        return new expressions_1.VectorExpression(elements);
+    }
+    extractExpression(ctx, mi) {
+        const source = this.visit(ctx.source, mi);
         const index = Number.parseInt(ctx.index[0].image, 10);
         return new expressions_1.ExtractExpression(source, index);
     }
-    sliceExpression(ctx) {
-        const source = this.visit(ctx.source);
+    sliceExpression(ctx, mi) {
+        const source = this.visit(ctx.source, mi);
         const start = Number.parseInt(ctx.start[0].image, 10);
         const end = Number.parseInt(ctx.end[0].image, 10);
         return new expressions_1.SliceExpression(source, start, end);
     }
-    matrixExpression(ctx) { }
-    matrixRow(ctx) { }
+    matrixExpression(ctx, mi) {
+        const rows = ctx.rows.map((r) => this.visit(r, mi));
+        return new expressions_1.MatrixExpression(rows);
+    }
+    matrixRow(ctx, mi) {
+        return ctx.elements.map((e) => this.visit(e, mi));
+    }
     // LOAD AND SAVE OPERATIONS
     // --------------------------------------------------------------------------------------------
-    loadExpression(ctx) {
+    loadExpression(ctx, mi) {
         const operation = ctx.operation[0].image;
         const index = Number.parseInt(ctx.index[0].image, 10);
-        const result = new expressions_1.LoadOperation(operation, index, new expressions_1.NoopExpression([8, 0], new Array(8).fill(1n)));
-        return result;
+        return mi.buildLoadOperation(operation, index);
     }
-    saveExpression(ctx) { }
+    saveExpression(ctx, mi) {
+        const operation = ctx.operation[0].image;
+        const index = Number.parseInt(ctx.index[0].image, 10);
+        const value = this.visit(ctx.value, mi);
+        return mi.buildStoreOperation(operation, index, value);
+    }
 }
 // EXPORT VISITOR INSTANCE
 // ================================================================================================

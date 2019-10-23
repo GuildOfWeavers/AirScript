@@ -13,16 +13,29 @@ class AirParser extends chevrotain_1.CstParser {
         // MODULE
         // --------------------------------------------------------------------------------------------
         this.module = this.RULE('module', () => {
-            this.CONSUME(lexer_1.LParen);
+            this.CONSUME1(lexer_1.LParen);
             this.CONSUME(lexer_1.Module);
             this.SUBRULE(this.fieldDeclaration, { LABEL: 'field' });
             this.MANY(() => this.OR([
                 { ALT: () => this.SUBRULE(this.constantDeclaration, { LABEL: 'constants' }) },
                 { ALT: () => this.SUBRULE(this.staticRegister, { LABEL: 'staticRegisters' }) },
-                { ALT: () => this.SUBRULE(this.transitionFunction, { LABEL: 'transitionFunction' }) },
-                { ALT: () => this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' }) },
+                { ALT: () => this.SUBRULE(this.inputRegister, { LABEL: 'inputRegisters' }) },
+                { ALT: () => {
+                        this.CONSUME2(lexer_1.LParen);
+                        this.CONSUME(lexer_1.Transition);
+                        this.SUBRULE1(this.transitionSignature, { LABEL: 'tFunctionSignature' });
+                        this.AT_LEAST_ONE1(() => this.SUBRULE1(this.expression, { LABEL: 'tFunctionBody' }));
+                        this.CONSUME2(lexer_1.RParen);
+                    } },
+                { ALT: () => {
+                        this.CONSUME3(lexer_1.LParen);
+                        this.CONSUME(lexer_1.Evaluation);
+                        this.SUBRULE2(this.transitionSignature, { LABEL: 'tConstraintsSignature' });
+                        this.AT_LEAST_ONE2(() => this.SUBRULE2(this.expression, { LABEL: 'tConstraintsBody' }));
+                        this.CONSUME3(lexer_1.RParen);
+                    } },
             ]));
-            this.CONSUME(lexer_1.RParen);
+            this.CONSUME1(lexer_1.RParen);
         });
         // FINITE FIELD
         // --------------------------------------------------------------------------------------------
@@ -77,41 +90,44 @@ class AirParser extends chevrotain_1.CstParser {
             this.AT_LEAST_ONE(() => this.CONSUME(lexer_1.Literal, { LABEL: 'values' }));
             this.CONSUME(lexer_1.RParen);
         });
-        // TRANSITION FUNCTION AND CONSTRAINTS
+        this.inputRegister = this.RULE('inputRegister', () => {
+            this.CONSUME(lexer_1.LParen);
+            this.CONSUME(lexer_1.Input);
+            this.OPTION(() => this.CONSUME(lexer_1.Binary, { LABEL: 'binary' }));
+            this.OR([
+                { ALT: () => this.CONSUME(lexer_1.Secret, { LABEL: 'scope' }) },
+                { ALT: () => this.CONSUME(lexer_1.Public, { LABEL: 'scope' }) }
+            ]);
+            this.CONSUME(lexer_1.RParen);
+        });
+        // TRANSITION SIGNATURE
         // --------------------------------------------------------------------------------------------
-        this.transitionFunction = this.RULE('transitionFunction', () => {
-            this.CONSUME(lexer_1.LParen);
-            this.CONSUME(lexer_1.Transition);
-            this.SUBRULE(this.executionFrame, { LABEL: 'frame' });
-            this.MANY(() => this.SUBRULE(this.localDeclaration, { LABEL: 'locals' }));
-            this.AT_LEAST_ONE(() => this.SUBRULE(this.expression, { LABEL: 'body' }));
-            this.CONSUME(lexer_1.RParen);
-        });
-        this.transitionConstraints = this.RULE('transitionConstraints', () => {
-            this.CONSUME(lexer_1.LParen);
-            this.CONSUME(lexer_1.Evaluation);
-            this.SUBRULE(this.executionFrame, { LABEL: 'frame' });
-            this.MANY(() => this.SUBRULE(this.localDeclaration, { LABEL: 'locals' }));
-            this.AT_LEAST_ONE(() => this.SUBRULE(this.expression, { LABEL: 'body' }));
-            this.CONSUME(lexer_1.RParen);
-        });
-        this.executionFrame = this.RULE('executionFrame', () => {
+        this.transitionSignature = this.RULE('transitionSignature', () => {
             this.CONSUME(lexer_1.LParen);
             this.CONSUME(lexer_1.Frame);
             this.CONSUME1(lexer_1.Literal, { LABEL: 'width' });
-            this.CONSUME2(lexer_1.Literal, { LABEL: 'height' });
+            this.CONSUME2(lexer_1.Literal, { LABEL: 'span' });
             this.CONSUME(lexer_1.RParen);
+            this.MANY({
+                GATE: this.BACKTRACK(this.localDeclaration),
+                DEF: () => this.SUBRULE(this.localDeclaration, { LABEL: 'locals' })
+            });
         });
         this.localDeclaration = this.RULE('localDeclaration', () => {
             this.CONSUME(lexer_1.LParen);
             this.CONSUME(lexer_1.Local);
             this.OR([
                 { ALT: () => this.CONSUME(lexer_1.Scalar, { LABEL: 'type' }) },
-                { ALT: () => this.CONSUME(lexer_1.Vector, { LABEL: 'type' }) },
-                { ALT: () => this.CONSUME(lexer_1.Matrix, { LABEL: 'type' }) }
+                { ALT: () => {
+                        this.CONSUME(lexer_1.Vector, { LABEL: 'type' });
+                        this.CONSUME1(lexer_1.Literal, { LABEL: 'length' });
+                    } },
+                { ALT: () => {
+                        this.CONSUME(lexer_1.Matrix, { LABEL: 'type' });
+                        this.CONSUME2(lexer_1.Literal, { LABEL: 'rowCount' });
+                        this.CONSUME3(lexer_1.Literal, { LABEL: 'colCount' });
+                    } }
             ]);
-            this.OPTION1(() => this.CONSUME1(lexer_1.Literal, { LABEL: 'rowCount' }));
-            this.OPTION2(() => this.CONSUME2(lexer_1.Literal, { LABEL: 'colCount' }));
             this.CONSUME(lexer_1.RParen);
         });
         // EXPRESSIONS
@@ -188,6 +204,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.LParen);
             this.CONSUME(lexer_1.SaveOp, { LABEL: 'operation' });
             this.CONSUME(lexer_1.Literal, { LABEL: 'index' });
+            this.SUBRULE(this.expression, { LABEL: 'value' });
             this.CONSUME(lexer_1.RParen);
         });
         this.performSelfAnalysis();

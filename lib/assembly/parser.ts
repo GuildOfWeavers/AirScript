@@ -2,8 +2,9 @@
 // ================================================================================================
 import { CstParser } from "chevrotain";
 import {
-    allTokens, LParen, RParen, Module, Field, Literal, Prime, Const, Vector, Matrix, Fixed, Repeat,
-    Spread, Binary, Frame, Scalar, Local, Get, Slice, BinaryOp, UnaryOp, LoadOp, SaveOp, Transition, Evaluation
+    allTokens, LParen, RParen, Module, Field, Literal, Prime, Const, Vector, Matrix, Fixed, Input,
+    Repeat, Spread, Binary, Frame, Scalar, Local, Get, Slice, BinaryOp, UnaryOp, LoadOp, SaveOp,
+    Transition, Evaluation, Secret, Public
 } from './lexer';
 import { parserErrorMessageProvider } from "../errors";
 
@@ -18,16 +19,29 @@ class AirParser extends CstParser {
     // MODULE
     // --------------------------------------------------------------------------------------------
     public module = this.RULE('module', () => {
-        this.CONSUME(LParen);
+        this.CONSUME1(LParen);
         this.CONSUME(Module);
-        this.SUBRULE(this.fieldDeclaration,                       { LABEL: 'field'                 });
+        this.SUBRULE(this.fieldDeclaration,                             { LABEL: 'field'              });
         this.MANY(() => this.OR([
-            { ALT: () => this.SUBRULE(this.constantDeclaration,   { LABEL: 'constants'             })},
-            { ALT: () => this.SUBRULE(this.staticRegister,        { LABEL: 'staticRegisters'       })},
-            { ALT: () => this.SUBRULE(this.transitionFunction,    { LABEL: 'transitionFunction'    })},
-            { ALT: () => this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' })},
+            { ALT: () => this.SUBRULE(this.constantDeclaration,         { LABEL: 'constants'          })},
+            { ALT: () => this.SUBRULE(this.staticRegister,              { LABEL: 'staticRegisters'    })},
+            { ALT: () => this.SUBRULE(this.inputRegister,               { LABEL: 'inputRegisters'     })},
+            { ALT: () => {
+                this.CONSUME2(LParen);
+                this.CONSUME(Transition);
+                this.SUBRULE1(this.transitionSignature,                 { LABEL: 'tFunctionSignature' });
+                this.AT_LEAST_ONE1(() => this.SUBRULE1(this.expression, { LABEL: 'tFunctionBody'      }));
+                this.CONSUME2(RParen);
+            }},
+            { ALT: () => {
+                this.CONSUME3(LParen);
+                this.CONSUME(Evaluation);
+                this.SUBRULE2(this.transitionSignature,                 { LABEL: 'tConstraintsSignature' });
+                this.AT_LEAST_ONE2(() => this.SUBRULE2(this.expression, { LABEL: 'tConstraintsBody'      }));
+                this.CONSUME3(RParen);
+            }},
         ]));
-        this.CONSUME(RParen);
+        this.CONSUME1(RParen);
     });
 
     // FINITE FIELD
@@ -89,44 +103,47 @@ class AirParser extends CstParser {
         this.CONSUME(RParen);
     });
 
-    // TRANSITION FUNCTION AND CONSTRAINTS
+    private inputRegister = this.RULE('inputRegister', () => {
+        this.CONSUME(LParen);
+        this.CONSUME(Input);
+        this.OPTION(() => this.CONSUME(Binary,          { LABEL: 'binary'  }) );
+        this.OR([
+            { ALT: () => this.CONSUME(Secret,           { LABEL: 'scope'   }) },
+            { ALT: () => this.CONSUME(Public,           { LABEL: 'scope'   }) }
+        ]);
+        this.CONSUME(RParen);
+    });
+
+    // TRANSITION SIGNATURE
     // --------------------------------------------------------------------------------------------
-    private transitionFunction = this.RULE('transitionFunction', () => {
-        this.CONSUME(LParen);
-        this.CONSUME(Transition);
-        this.SUBRULE(this.executionFrame,                       { LABEL: 'frame'  });
-        this.MANY(() => this.SUBRULE(this.localDeclaration,     { LABEL: 'locals' }));
-        this.AT_LEAST_ONE(() => this.SUBRULE(this.expression,   { LABEL: 'body' }));
-        this.CONSUME(RParen);
-    });
-
-    private transitionConstraints = this.RULE('transitionConstraints', () => {
-        this.CONSUME(LParen);
-        this.CONSUME(Evaluation);
-        this.SUBRULE(this.executionFrame,                       { LABEL: 'frame'  });
-        this.MANY(() => this.SUBRULE(this.localDeclaration,     { LABEL: 'locals' }));
-        this.AT_LEAST_ONE(() => this.SUBRULE(this.expression,   { LABEL: 'body'   }));
-        this.CONSUME(RParen);
-    });
-
-    private executionFrame = this.RULE('executionFrame', () => {
+    private transitionSignature = this.RULE('transitionSignature', () => {
         this.CONSUME(LParen);
         this.CONSUME(Frame);
         this.CONSUME1(Literal, { LABEL: 'width'  });
-        this.CONSUME2(Literal, { LABEL: 'height' });
+        this.CONSUME2(Literal, { LABEL: 'span'   });
         this.CONSUME(RParen);
+        this.MANY({
+            GATE: this.BACKTRACK(this.localDeclaration),
+            DEF : () => this.SUBRULE(this.localDeclaration, { LABEL: 'locals' })
+        });
     });
 
     private localDeclaration = this.RULE('localDeclaration', () => {
         this.CONSUME(LParen);
         this.CONSUME(Local);
         this.OR([
-            { ALT: () => this.CONSUME(Scalar,     { LABEL: 'type'     })},
-            { ALT: () => this.CONSUME(Vector,     { LABEL: 'type'     })},
-            { ALT: () => this.CONSUME(Matrix,     { LABEL: 'type'     })}
+            { ALT: () => this.CONSUME(Scalar,   { LABEL: 'type'     })},
+
+            { ALT: () => {
+                this.CONSUME(Vector,            { LABEL: 'type'     });
+                this.CONSUME1(Literal,          { LABEL: 'length'   });
+            }},
+            { ALT: () => {
+                this.CONSUME(Matrix,            { LABEL: 'type'     });
+                this.CONSUME2(Literal,          { LABEL: 'rowCount' });
+                this.CONSUME3(Literal,          { LABEL: 'colCount' });
+            }}
         ]);
-        this.OPTION1(() => this.CONSUME1(Literal, { LABEL: 'rowCount' }));
-        this.OPTION2(() => this.CONSUME2(Literal, { LABEL: 'colCount' }));
         this.CONSUME(RParen);
     });
 
@@ -213,6 +230,7 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.CONSUME(SaveOp,            { LABEL: 'operation' });
         this.CONSUME(Literal,           { LABEL: 'index'     });
+        this.SUBRULE(this.expression,   { LABEL: 'value'     });
         this.CONSUME(RParen);
     });
 }

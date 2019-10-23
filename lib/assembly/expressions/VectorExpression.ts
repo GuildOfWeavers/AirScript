@@ -15,8 +15,11 @@ export class VectorExpression extends Expression {
             if (element.isScalar) {
                 degree.push(element.degree as bigint);
             }
+            else if (element.isVector) {
+                degree = degree.concat(element.degree as bigint[]);
+            }
             else {
-                throw new Error('vector elements must be scalars');
+                throw new Error('vector elements must be scalars'); // TODO
             }
         }
 
