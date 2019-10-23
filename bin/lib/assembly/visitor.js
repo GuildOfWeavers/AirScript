@@ -173,18 +173,18 @@ class AirVisitor extends BaseCstVisitor {
     matrixRow(ctx, mi) {
         return ctx.elements.map((e) => this.visit(e, mi));
     }
-    // LOAD AND SAVE OPERATIONS
+    // LOAD AND STORE OPERATIONS
     // --------------------------------------------------------------------------------------------
     loadExpression(ctx, mi) {
         const operation = ctx.operation[0].image;
         const index = Number.parseInt(ctx.index[0].image, 10);
-        return mi.buildLoadOperation(operation, index);
+        return mi.buildLoadExpression(operation, index);
     }
-    saveExpression(ctx, mi) {
+    storeExpression(ctx, mi) {
         const operation = ctx.operation[0].image;
         const index = Number.parseInt(ctx.index[0].image, 10);
         const value = this.visit(ctx.value, mi);
-        return mi.buildStoreOperation(operation, index, value);
+        return mi.buildStoreExpression(operation, index, value);
     }
 }
 // EXPORT VISITOR INSTANCE

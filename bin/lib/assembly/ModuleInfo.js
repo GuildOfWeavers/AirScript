@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const expressions_1 = require("./expressions");
+const utils_1 = require("./expressions/utils");
 // CLASS DEFINITION
 // ================================================================================================
 class ModuleInfo {
@@ -63,45 +64,47 @@ class ModuleInfo {
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    buildLoadOperation(operation, index) {
-        if (operation === 'load.const') {
+    buildLoadExpression(operation, index) {
+        const source = utils_1.getLoadSource(operation);
+        if (source === 'const') {
             if (index <= this.constants.length)
                 throw new Error(`constant with index ${index} has not been defined`);
-            return new expressions_1.LoadOperation(operation, index, this.constants[index]);
+            return new expressions_1.LoadExpression(operation, index, this.constants[index]);
         }
-        else if (operation === 'load.trace') {
+        else if (source === 'trace') {
             this.validateFrameIndex(index);
-            return new expressions_1.LoadOperation(operation, index, this.tRegistersExpression);
+            return new expressions_1.LoadExpression(operation, index, this.tRegistersExpression);
         }
-        else if (operation === 'load.fixed') {
+        else if (source === 'static') {
             this.validateFrameIndex(index);
             if (this.staticRegisters.length === 0)
                 throw new Error('static registers have not been defined');
-            return new expressions_1.LoadOperation(operation, index, this.sRegistersExpression);
+            return new expressions_1.LoadExpression(operation, index, this.sRegistersExpression);
         }
-        else if (operation === 'load.input') {
+        else if (source === 'input') {
             this.validateFrameIndex(index);
             if (this.staticRegisters.length === 0)
                 throw new Error('input registers have not been defined');
-            return new expressions_1.LoadOperation(operation, index, this.iRegistersExpression);
+            return new expressions_1.LoadExpression(operation, index, this.iRegistersExpression);
         }
-        else if (operation === 'load.local') {
+        else if (source === 'local') {
             const variable = this.getLocalVariable(index);
             const value = variable.getValue(index);
-            return new expressions_1.LoadOperation(operation, index, value);
+            return new expressions_1.LoadExpression(operation, index, value);
         }
         else {
-            throw new Error(`load operation '${operation}' is not valid`);
+            throw new Error(`${operation} is not a valid load operation`);
         }
     }
-    buildStoreOperation(operation, index, value) {
-        if (operation === 'save.local') {
+    buildStoreExpression(operation, index, value) {
+        const target = utils_1.getStoreTarget(operation);
+        if (target === 'local') {
             const variable = this.getLocalVariable(index);
             variable.setValue(value, index);
-            return new expressions_1.StoreOperation(operation, index, value);
+            return new expressions_1.StoreExpression(operation, index, value);
         }
         else {
-            throw new Error(`store operation '${operation}' is not valid`);
+            throw new Error(`${operation} is not a valid store operation`);
         }
     }
     // OUTPUT METHOD

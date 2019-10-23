@@ -7,8 +7,8 @@ import { parser } from './parser';
 import { Add, Sub, Mul, Div, Exp, Prod, Neg, Inv } from './lexer';
 import { FieldDeclaration, StaticRegister, InputRegister, LocalVariable } from './declarations';
 import {
-    Expression, BinaryOperation, UnaryOperation, ConstantValue, LoadOperation,
-    ExtractExpression, SliceExpression, VectorExpression, MatrixExpression, StoreOperation
+    Expression, BinaryOperation, UnaryOperation, ConstantValue, LoadExpression, StoreExpression,
+    ExtractExpression, SliceExpression, VectorExpression, MatrixExpression,
 } from './expressions';
 
 // MODULE VARIABLES
@@ -211,19 +211,19 @@ class AirVisitor extends BaseCstVisitor {
         return ctx.elements.map((e: any) => this.visit(e, mi));
     }
 
-    // LOAD AND SAVE OPERATIONS
+    // LOAD AND STORE OPERATIONS
     // --------------------------------------------------------------------------------------------
-    loadExpression(ctx: any, mi: ModuleInfo): LoadOperation {
+    loadExpression(ctx: any, mi: ModuleInfo): LoadExpression {
         const operation = ctx.operation[0].image;
         const index = Number.parseInt(ctx.index[0].image, 10);
-        return mi.buildLoadOperation(operation, index);
+        return mi.buildLoadExpression(operation, index);
     }
 
-    saveExpression(ctx: any, mi: ModuleInfo): StoreOperation {
+    storeExpression(ctx: any, mi: ModuleInfo): StoreExpression {
         const operation = ctx.operation[0].image;
         const index = Number.parseInt(ctx.index[0].image, 10);
         const value: Expression = this.visit(ctx.value, mi);
-        return mi.buildStoreOperation(operation, index, value);
+        return mi.buildStoreExpression(operation, index, value);
     }
 }
 

@@ -3,28 +3,23 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const Expression_1 = require("./Expression");
-const targets = {
-    'save.local': 'local'
-};
+const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
-class StoreOperation extends Expression_1.Expression {
+class LoadExpression extends Expression_1.Expression {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
     constructor(operation, index, value) {
         super(value.dimensions, value.degree);
-        this.target = targets[operation];
+        this.source = utils_1.getLoadSource(operation);
         this.index = index;
         this.value = value;
-        if (!this.target) {
-            throw new Error(`${operation} is not a valid store operation`);
-        }
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toString() {
-        return `(store.${this.target} ${this.index} ${this.value.toString()})`;
+        return `(load.${this.source} ${this.index})`;
     }
 }
-exports.StoreOperation = StoreOperation;
-//# sourceMappingURL=StoreOperation.js.map
+exports.LoadExpression = LoadExpression;
+//# sourceMappingURL=LoadExpression.js.map

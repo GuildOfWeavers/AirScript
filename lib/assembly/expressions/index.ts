@@ -6,5 +6,5 @@ export { VectorExpression } from './VectorExpression';
 export { ExtractExpression } from './ExtractExpression';
 export { SliceExpression } from './SliceExpression';
 export { MatrixExpression } from './MatrixExpression';
-export { LoadOperation } from './LoadOperation';
-export { StoreOperation } from './StoreOperation';
+export { LoadExpression } from './LoadExpression';
+export { StoreExpression } from './StoreExpression';

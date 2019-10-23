@@ -15,7 +15,7 @@ export const Field      = createToken({ name: "Field",          pattern: /field/
 export const Prime      = createToken({ name: "Prime",          pattern: /prime/            });
 
 export const Const      = createToken({ name: "Const",          pattern: /const/            });
-export const Fixed      = createToken({ name: "Fixed",          pattern: /fixed/            });
+export const Static     = createToken({ name: "Static",         pattern: /static/            });
 export const Input      = createToken({ name: "Input",          pattern: /input/            });
 export const Local      = createToken({ name: "Local",          pattern: /local/            });
 
@@ -56,11 +56,11 @@ export const Inv        = createToken({ name: "Inv",        pattern: /inv/,     
 export const LoadOp     = createToken({ name: "LoadOp",     pattern: Lexer.NA   });
 export const LoadConst  = createToken({ name: "LoadConst",  pattern: /load.const/,  categories: LoadOp   });
 export const LoadTrace  = createToken({ name: "LoadTrace",  pattern: /load.trace/,  categories: LoadOp   });
-export const LoadFixed  = createToken({ name: "LoadFixed",  pattern: /load.fixed/,  categories: LoadOp   });
+export const LoadStatic = createToken({ name: "LoadStatic", pattern: /load.static/, categories: LoadOp   });
 export const LoadInput  = createToken({ name: "LoadInput",  pattern: /load.input/,  categories: LoadOp   });
 export const LoadLocal  = createToken({ name: "LoadLocal",  pattern: /load.local/,  categories: LoadOp   });
 
-export const SaveOp     = createToken({ name: "SaveLocal",  pattern: /save.local/ });
+export const StoreOp    = createToken({ name: "StoreLocal", pattern: /store.local/ });
 
 // SYMBOLS
 // ================================================================================================
@@ -76,13 +76,13 @@ export const WhiteSpace = createToken({ name: "WhiteSpace", pattern : /[ \t\n\r]
 export const allTokens = [
     WhiteSpace,
     
-    Module, Field, Prime, Const, Fixed, Input, Local, Repeat, Spread, Secret, Public, Binary,
+    Module, Field, Prime, Const, Static, Input, Local, Repeat, Spread, Secret, Public, Binary,
     Transition, Evaluation, Frame,
 
     Scalar, Vector, Matrix,
 
     Get, Slice, BinaryOp, Add, Sub, Mul, Div, Exp, Prod, UnaryOp, Neg, Inv,
-    LoadOp, LoadConst, LoadTrace, LoadFixed, LoadInput, LoadLocal, SaveOp,
+    LoadOp, LoadConst, LoadTrace, LoadStatic, LoadInput, LoadLocal, StoreOp,
 
     LParen, RParen,
 

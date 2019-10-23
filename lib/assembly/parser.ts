@@ -2,8 +2,8 @@
 // ================================================================================================
 import { CstParser } from "chevrotain";
 import {
-    allTokens, LParen, RParen, Module, Field, Literal, Prime, Const, Vector, Matrix, Fixed, Input,
-    Repeat, Spread, Binary, Frame, Scalar, Local, Get, Slice, BinaryOp, UnaryOp, LoadOp, SaveOp,
+    allTokens, LParen, RParen, Module, Field, Literal, Prime, Const, Vector, Matrix, Static, Input,
+    Repeat, Spread, Binary, Frame, Scalar, Local, Get, Slice, BinaryOp, UnaryOp, LoadOp, StoreOp,
     Transition, Evaluation, Secret, Public
 } from './lexer';
 import { parserErrorMessageProvider } from "../errors";
@@ -30,7 +30,7 @@ class AirParser extends CstParser {
         this.CONSUME2(LParen);
         this.CONSUME(Transition);
         this.SUBRULE1(this.transitionSignature,                 { LABEL: 'tFunctionSignature' });
-        this.MANY4(() => this.SUBRULE1(this.saveExpression,     { LABEL: 'tFunctionBody'      }));
+        this.MANY4(() => this.SUBRULE1(this.storeExpression,    { LABEL: 'tFunctionBody'      }));
         this.SUBRULE1(this.expression,                          { LABEL: 'tFunctionReturn'    });
         this.CONSUME2(RParen);
 
@@ -38,7 +38,7 @@ class AirParser extends CstParser {
         this.CONSUME3(LParen);
         this.CONSUME(Evaluation);
         this.SUBRULE2(this.transitionSignature,                 { LABEL: 'tConstraintsSignature' });
-        this.MANY5(() => this.SUBRULE2(this.saveExpression,     { LABEL: 'tConstraintsBody'      }));
+        this.MANY5(() => this.SUBRULE2(this.storeExpression,    { LABEL: 'tConstraintsBody'      }));
         this.SUBRULE2(this.expression,                          { LABEL: 'tConstraintsReturn'    });
         this.CONSUME3(RParen);
 
@@ -94,7 +94,7 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private staticRegister = this.RULE('staticRegister', () => {
         this.CONSUME(LParen);
-        this.CONSUME(Fixed);
+        this.CONSUME(Static);
         this.OR([
             { ALT: () => this.CONSUME(Repeat,           { LABEL: 'pattern' }) },
             { ALT: () => this.CONSUME(Spread,           { LABEL: 'pattern' }) }
@@ -217,7 +217,7 @@ class AirParser extends CstParser {
         this.CONSUME(RParen);
     })
 
-    // LOAD AND SAVE OPERATIONS
+    // LOAD AND STORE OPERATIONS
     // --------------------------------------------------------------------------------------------
     private loadExpression = this.RULE('loadExpression', () => {
         this.CONSUME(LParen);
@@ -226,9 +226,9 @@ class AirParser extends CstParser {
         this.CONSUME(RParen);
     });
 
-    private saveExpression = this.RULE('saveExpression', () => {
+    private storeExpression = this.RULE('storeExpression', () => {
         this.CONSUME(LParen);
-        this.CONSUME(SaveOp,            { LABEL: 'operation' });
+        this.CONSUME(StoreOp,           { LABEL: 'operation' });
         this.CONSUME(Literal,           { LABEL: 'index'     });
         this.SUBRULE(this.expression,   { LABEL: 'value'     });
         this.CONSUME(RParen);
