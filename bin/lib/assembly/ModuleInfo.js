@@ -107,7 +107,12 @@ class ModuleInfo {
             throw new Error(`${operation} is not a valid store operation`);
         }
     }
-    // OUTPUT METHOD
+    // OPTIMIZATION
+    // --------------------------------------------------------------------------------------------
+    compress() {
+        this.tFunctionBody.output.compress();
+    }
+    // CODE OUTPUT
     // --------------------------------------------------------------------------------------------
     toString() {
         let code = `\n  ${this.field.toString()}`;
@@ -125,9 +130,7 @@ class ModuleInfo {
         if (this.tFunctionSig.locals.length > 0) {
             tFunction += `\n    ${this.tFunctionSig.locals.map(v => v.toString()).join(' ')}`;
         }
-        for (let statement of this.tFunctionBody.statements) {
-            tFunction += `\n    ${statement.toString()}`;
-        }
+        tFunction += this.tFunctionBody.statements.map(s => `\n    ${s.toString()}`).join('');
         tFunction += `\n    ${this.tFunctionBody.output.toString()}`;
         code += `\n  (transition${tFunction})`;
         // transition constraints
@@ -135,9 +138,7 @@ class ModuleInfo {
         if (this.tConstraintsSig.locals.length > 0) {
             tConstraints += `\n    ${this.tConstraintsSig.locals.map(v => v.toString()).join(' ')}`;
         }
-        for (let statement of this.tConstraintsBody.statements) {
-            tConstraints += `\n    ${statement.toString()}`;
-        }
+        tConstraints += this.tConstraintsBody.statements.map(s => `\n    ${s.toString()}`).join('');
         tConstraints += `\n    ${this.tConstraintsBody.output.toString()}`;
         code += `\n  (evaluation${tConstraints})`;
         return `(module${code}\n)`;

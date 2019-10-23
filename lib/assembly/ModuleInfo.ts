@@ -152,7 +152,13 @@ export class ModuleInfo {
         }
     }
 
-    // OUTPUT METHOD
+    // OPTIMIZATION
+    // --------------------------------------------------------------------------------------------
+    compress(): void {
+        this.tFunctionBody!.output.compress();
+    }
+
+    // CODE OUTPUT
     // --------------------------------------------------------------------------------------------
     toString() {
         
@@ -175,9 +181,7 @@ export class ModuleInfo {
         if (this.tFunctionSig.locals.length > 0) {
             tFunction += `\n    ${this.tFunctionSig.locals.map(v => v.toString()).join(' ')}`;
         }
-        for (let statement of this.tFunctionBody!.statements) {
-            tFunction += `\n    ${statement.toString()}`;
-        }
+        tFunction += this.tFunctionBody!.statements.map(s => `\n    ${s.toString()}`).join('');
         tFunction += `\n    ${this.tFunctionBody!.output.toString()}`;
         code += `\n  (transition${tFunction})`;
 
@@ -186,9 +190,7 @@ export class ModuleInfo {
         if (this.tConstraintsSig.locals.length > 0) {
             tConstraints += `\n    ${this.tConstraintsSig.locals.map(v => v.toString()).join(' ')}`;
         }
-        for (let statement of this.tConstraintsBody!.statements) {
-            tConstraints += `\n    ${statement.toString()}`;
-        }
+        tConstraints += this.tConstraintsBody!.statements.map(s => `\n    ${s.toString()}`).join('');
         tConstraints += `\n    ${this.tConstraintsBody!.output.toString()}`;
         code += `\n  (evaluation${tConstraints})`;
 

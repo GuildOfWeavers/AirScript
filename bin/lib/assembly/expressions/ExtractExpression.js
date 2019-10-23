@@ -23,6 +23,8 @@ class ExtractExpression extends Expression_1.Expression {
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
     get source() { return this.children[0]; }
+    get start() { return this.index; }
+    get end() { return this.index; }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toString() {

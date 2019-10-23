@@ -34,6 +34,12 @@ export abstract class Expression {
     // --------------------------------------------------------------------------------------------
     abstract toString(options?: AssemblyOptions): string;
 
+    // PUBLIC METHODS
+    // --------------------------------------------------------------------------------------------
+    compress(): void {
+        this.children.forEach(child => child.compress());
+    }
+
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------
     get isScalar(): boolean {

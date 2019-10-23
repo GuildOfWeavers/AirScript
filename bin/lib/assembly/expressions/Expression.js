@@ -10,6 +10,11 @@ class Expression {
         this.degree = degree;
         this.children = children;
     }
+    // PUBLIC METHODS
+    // --------------------------------------------------------------------------------------------
+    compress() {
+        this.children.forEach(child => child.compress());
+    }
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------
     get isScalar() {

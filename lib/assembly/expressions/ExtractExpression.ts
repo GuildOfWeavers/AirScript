@@ -26,6 +26,9 @@ export class ExtractExpression extends Expression {
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
     get source(): Expression { return this.children[0]; }
+    
+    get start(): number { return this.index; }
+    get end(): number { return this.index; }
 
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
