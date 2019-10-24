@@ -8,15 +8,7 @@ class LocalVariable {
     // --------------------------------------------------------------------------------------------
     constructor(degree) {
         this.degree = degree;
-        if (typeof degree === 'bigint') {
-            this.dimensions = [0, 0];
-        }
-        else if (typeof degree[0] === 'bigint') {
-            this.dimensions = [degree.length, 0];
-        }
-        else {
-            this.dimensions = [degree.length, degree[0].length];
-        }
+        this.dimensions = utils_1.degreeToDimensions(degree);
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------

@@ -2,9 +2,7 @@
 // ================================================================================================
 import { StarkLimits, WasmOptions, FiniteField } from '@guildofweavers/air-script';
 import { ModuleInfo, TransitionSignature } from './ModuleInfo';
-import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
-import { Add, Sub, Mul, Div, Exp, Prod, Neg, Inv } from './lexer';
 import { FieldDeclaration, StaticRegister, InputRegister, LocalVariable } from './declarations';
 import {
     Expression, BinaryOperation, UnaryOperation, ConstantValue, LoadExpression, StoreExpression,
@@ -146,40 +144,12 @@ class AirVisitor extends BaseCstVisitor {
     binaryOperation(ctx: any, mi: ModuleInfo): Expression { 
         const lhs: Expression = this.visit(ctx.lhs, mi);
         const rhs: Expression = this.visit(ctx.rhs, mi);
-        const opToken = ctx.operation[0];
-
-        let result: Expression;
-        if (tokenMatcher(opToken, Add)) 
-            result = BinaryOperation.add(lhs, rhs);
-        else if (tokenMatcher(opToken, Sub))
-            result = BinaryOperation.sub(lhs, rhs);
-        else if (tokenMatcher(opToken, Mul))
-            result = BinaryOperation.mul(lhs, rhs);
-        else if (tokenMatcher(opToken, Div))
-            result = BinaryOperation.div(lhs, rhs);
-        else if (tokenMatcher(opToken, Exp))
-            result = BinaryOperation.exp(lhs, rhs);
-        else if (tokenMatcher(opToken, Prod))
-            result = BinaryOperation.exp(lhs, rhs);
-        else
-            throw new Error(`invalid operator '${opToken.image}'`);
-
-        return result;
+        return new BinaryOperation(ctx.operation[0].image, lhs, rhs);
     }
 
     unaryExpression(ctx: any, mi: ModuleInfo): Expression {
         const operand: Expression = this.visit(ctx.operand, mi);
-        const opToken = ctx.operation[0];
-
-        let result: Expression;
-        if (tokenMatcher(opToken, Neg)) 
-            result = UnaryOperation.neg(operand);
-        else if (tokenMatcher(opToken, Inv))
-            result = UnaryOperation.inv(operand);
-        else
-            throw new Error(`invalid operator '${opToken.image}'`);
-
-        return result;
+        return new UnaryOperation(ctx.operation[0].image, operand);
     }    
 
     // VECTORS AND MATRIXES

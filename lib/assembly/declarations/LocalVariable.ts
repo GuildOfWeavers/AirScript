@@ -1,7 +1,9 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree, StoreExpression } from "../expressions";
-import { Dimensions, isScalar, isVector, areSameDimensions } from "../../utils";
+import { StoreExpression } from "../expressions";
+import {
+    Dimensions, isScalar, isVector, areSameDimensions, ExpressionDegree, degreeToDimensions
+} from "../../utils";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -15,15 +17,7 @@ export class LocalVariable {
     // --------------------------------------------------------------------------------------------
     constructor(degree: ExpressionDegree) {
         this.degree = degree;
-        if (typeof degree === 'bigint') {
-            this.dimensions = [0, 0];
-        }
-        else if (typeof degree[0] === 'bigint') {
-            this.dimensions = [degree.length, 0];
-        }
-        else {
-            this.dimensions = [degree.length, degree[0].length];
-        }
+        this.dimensions = degreeToDimensions(degree);
     }
 
     // ACCESSORS

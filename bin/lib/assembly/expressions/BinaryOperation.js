@@ -3,96 +3,44 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const Expression_1 = require("./Expression");
-const utils_1 = require("../../expressions/utils");
+const utils_1 = require("../../utils");
+const utils_2 = require("../../expressions/utils");
 const ConstantValue_1 = require("./ConstantValue");
-// INTERFACES
-// ================================================================================================
-var OperationType;
-(function (OperationType) {
-    OperationType[OperationType["add"] = 1] = "add";
-    OperationType[OperationType["sub"] = 2] = "sub";
-    OperationType[OperationType["mul"] = 3] = "mul";
-    OperationType[OperationType["div"] = 4] = "div";
-    OperationType[OperationType["exp"] = 5] = "exp";
-    OperationType[OperationType["prod"] = 6] = "prod";
-})(OperationType || (OperationType = {}));
 // CLASS DEFINITION
 // ================================================================================================
 class BinaryOperation extends Expression_1.Expression {
-    // CONSTRUCTORS
+    // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(operation, lhs, rhs, dimensions, degree) {
-        super(dimensions, degree, [lhs, rhs]);
-        this.operation = operation;
-    }
-    static add(lhs, rhs) {
-        if (!rhs.isScalar && !lhs.isSameDimensions(rhs)) {
-            throw new Error(`cannot add {${lhs.dimensions}} value to {${rhs.dimensions}} value`);
+    constructor(operation, lhs, rhs) {
+        let degree;
+        if (operation === 'add' || operation === 'sub') {
+            checkDimensions(lhs, rhs, operation);
+            degree = utils_2.maxDegree(lhs.degree, rhs.degree);
         }
-        const degree = utils_1.maxDegree(lhs.degree, rhs.degree);
-        return new BinaryOperation(OperationType.add, lhs, rhs, lhs.dimensions, degree);
-    }
-    static sub(lhs, rhs) {
-        if (!rhs.isScalar && !lhs.isSameDimensions(rhs)) {
-            throw new Error(`cannot subtract {${rhs.dimensions}} value from {${lhs.dimensions}} value`);
+        else if (operation === 'mul') {
+            checkDimensions(lhs, rhs, operation);
+            degree = utils_2.sumDegree(lhs.degree, rhs.degree);
         }
-        const degree = utils_1.maxDegree(lhs.degree, rhs.degree);
-        return new BinaryOperation(OperationType.sub, lhs, rhs, lhs.dimensions, degree);
-    }
-    static mul(lhs, rhs) {
-        if (!rhs.isScalar && !lhs.isSameDimensions(rhs)) {
-            throw new Error(`cannot multiply {${lhs.dimensions}} value by {${rhs.dimensions}} value`);
+        else if (operation === 'div') {
+            checkDimensions(lhs, rhs, operation);
+            degree = utils_2.sumDegree(lhs.degree, rhs.degree); // TODO: incorrect
         }
-        const degree = utils_1.sumDegree(lhs.degree, rhs.degree);
-        return new BinaryOperation(OperationType.mul, lhs, rhs, lhs.dimensions, degree);
-    }
-    static div(lhs, rhs) {
-        if (!rhs.isScalar && !lhs.isSameDimensions(rhs)) {
-            throw new Error(`cannot divide {${lhs.dimensions}} value by {${rhs.dimensions}} value`);
+        else if (operation === 'exp') {
+            if (!rhs.isScalar)
+                throw new Error(`cannot raise to non-scalar power`);
+            else if (rhs instanceof ConstantValue_1.ConstantValue === false)
+                throw new Error(`cannot raise to non-constant power`);
+            const rhsValue = rhs.value;
+            degree = utils_2.mulDegree(lhs.degree, rhsValue);
         }
-        const degree = utils_1.sumDegree(lhs.degree, rhs.degree); // TODO: incorrect
-        return new BinaryOperation(OperationType.div, lhs, rhs, lhs.dimensions, degree);
-    }
-    static exp(lhs, rhs) {
-        if (!rhs.isScalar) {
-            throw new Error(`cannot raise to non-scalar power`);
-        }
-        else if (rhs instanceof ConstantValue_1.ConstantValue === false) {
-            throw new Error(`cannot raise to non-constant power`);
-        }
-        const rhsValue = rhs.value;
-        const degree = utils_1.mulDegree(lhs.degree, rhsValue);
-        return new BinaryOperation(OperationType.exp, lhs, rhs, lhs.dimensions, degree);
-    }
-    static prod(lhs, rhs) {
-        const d1 = lhs.dimensions;
-        const d2 = rhs.dimensions;
-        let dimensions, degree;
-        if (lhs.isVector && rhs.isVector) {
-            if (d1[0] !== d2[0]) {
-                throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
-            }
-            dimensions = [0, 0];
-            degree = utils_1.linearCombinationDegree(lhs.degree, rhs.degree);
-        }
-        else if (lhs.isMatrix && rhs.isVector) {
-            if (d1[1] !== d2[0]) {
-                throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
-            }
-            dimensions = [d1[0], 0];
-            degree = utils_1.matrixVectorProductDegree(lhs.degree, rhs.degree);
-        }
-        else if (lhs.isMatrix && rhs.isMatrix) {
-            if (d1[1] !== d2[0]) {
-                throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
-            }
-            dimensions = [d1[0], d2[1]];
-            degree = utils_1.matrixMatrixProductDegree(lhs.degree, rhs.degree);
+        else if (operation === 'prod') {
+            degree = getProductDegree(lhs, rhs);
         }
         else {
-            throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
+            throw new Error(`binary operation '${operation}' is not valid`);
         }
-        return new BinaryOperation(OperationType.prod, lhs, rhs, dimensions, degree);
+        super(utils_1.degreeToDimensions(degree), degree, [lhs, rhs]);
+        this.operation = operation;
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -101,9 +49,46 @@ class BinaryOperation extends Expression_1.Expression {
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     toString() {
-        const op = OperationType[this.operation];
-        return `(${op} ${this.lhs.toString()} ${this.rhs.toString()})`;
+        return `(${this.operation} ${this.lhs.toString()} ${this.rhs.toString()})`;
     }
 }
 exports.BinaryOperation = BinaryOperation;
+// HELPER FUNCTIONS
+// ================================================================================================
+function checkDimensions(lhs, rhs, operation) {
+    if (!rhs.isScalar && !lhs.isSameDimensions(rhs)) {
+        const d1 = `${lhs.dimensions[0]}x${lhs.dimensions[1]}`;
+        const d2 = `${rhs.dimensions[0]}x${rhs.dimensions[1]}`;
+        if (operation === 'add')
+            throw new Error(`cannot add {${d1}} value to {${d2}} value`);
+        else if (operation === 'sub')
+            throw new Error(`cannot subtract {${d2}} value from {${d1}} value`);
+        else if (operation === 'mul')
+            throw new Error(`cannot multiply {${d1}} value by {${d2}} value`);
+        else if (operation === 'div')
+            throw new Error(`cannot divide {${d1}} value by {${d2}} value`);
+    }
+}
+function getProductDegree(rhs, lhs) {
+    const d1 = lhs.dimensions;
+    const d2 = rhs.dimensions;
+    if (lhs.isVector && rhs.isVector) {
+        if (d1[0] !== d2[0])
+            throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
+        return utils_2.linearCombinationDegree(lhs.degree, rhs.degree);
+    }
+    else if (lhs.isMatrix && rhs.isVector) {
+        if (d1[1] !== d2[0])
+            throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
+        return utils_2.matrixVectorProductDegree(lhs.degree, rhs.degree);
+    }
+    else if (lhs.isMatrix && rhs.isMatrix) {
+        if (d1[1] !== d2[0])
+            throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
+        return utils_2.matrixMatrixProductDegree(lhs.degree, rhs.degree);
+    }
+    else {
+        throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
+    }
+}
 //# sourceMappingURL=BinaryOperation.js.map

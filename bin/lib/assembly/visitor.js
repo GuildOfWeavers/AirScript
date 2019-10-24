@@ -1,9 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const ModuleInfo_1 = require("./ModuleInfo");
-const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
-const lexer_1 = require("./lexer");
 const declarations_1 = require("./declarations");
 const expressions_1 = require("./expressions");
 // MODULE VARIABLES
@@ -119,35 +117,11 @@ class AirVisitor extends BaseCstVisitor {
     binaryOperation(ctx, mi) {
         const lhs = this.visit(ctx.lhs, mi);
         const rhs = this.visit(ctx.rhs, mi);
-        const opToken = ctx.operation[0];
-        let result;
-        if (chevrotain_1.tokenMatcher(opToken, lexer_1.Add))
-            result = expressions_1.BinaryOperation.add(lhs, rhs);
-        else if (chevrotain_1.tokenMatcher(opToken, lexer_1.Sub))
-            result = expressions_1.BinaryOperation.sub(lhs, rhs);
-        else if (chevrotain_1.tokenMatcher(opToken, lexer_1.Mul))
-            result = expressions_1.BinaryOperation.mul(lhs, rhs);
-        else if (chevrotain_1.tokenMatcher(opToken, lexer_1.Div))
-            result = expressions_1.BinaryOperation.div(lhs, rhs);
-        else if (chevrotain_1.tokenMatcher(opToken, lexer_1.Exp))
-            result = expressions_1.BinaryOperation.exp(lhs, rhs);
-        else if (chevrotain_1.tokenMatcher(opToken, lexer_1.Prod))
-            result = expressions_1.BinaryOperation.exp(lhs, rhs);
-        else
-            throw new Error(`invalid operator '${opToken.image}'`);
-        return result;
+        return new expressions_1.BinaryOperation(ctx.operation[0].image, lhs, rhs);
     }
     unaryExpression(ctx, mi) {
         const operand = this.visit(ctx.operand, mi);
-        const opToken = ctx.operation[0];
-        let result;
-        if (chevrotain_1.tokenMatcher(opToken, lexer_1.Neg))
-            result = expressions_1.UnaryOperation.neg(operand);
-        else if (chevrotain_1.tokenMatcher(opToken, lexer_1.Inv))
-            result = expressions_1.UnaryOperation.inv(operand);
-        else
-            throw new Error(`invalid operator '${opToken.image}'`);
-        return result;
+        return new expressions_1.UnaryOperation(ctx.operation[0].image, operand);
     }
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------

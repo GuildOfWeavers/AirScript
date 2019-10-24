@@ -1,4 +1,4 @@
-export { Expression, ExpressionDegree } from './Expression';
+export { Expression } from './Expression';
 export { ConstantValue } from './ConstantValue';
 export { BinaryOperation } from './BinaryOperation';
 export { UnaryOperation } from './UnaryOperation';

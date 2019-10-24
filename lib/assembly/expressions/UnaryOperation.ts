@@ -1,13 +1,10 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree } from "./Expression";
-import { Dimensions } from "../../utils";
+import { Expression } from "./Expression";
 
 // INTERFACES
 // ================================================================================================
-enum OperationType {
-    neg = 1, inv = 2
-}
+type OperationType = 'neg' | 'inv';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -15,21 +12,20 @@ export class UnaryOperation extends Expression {
 
     readonly operation  : OperationType;
 
-    // CONSTRUCTORS
+    // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    private constructor(operation: OperationType, operand: Expression, dimensions: Dimensions, degree: ExpressionDegree) {
-        super(dimensions, degree, [operand]);
+    constructor(operation: string, operand: Expression) {
+        if (operation === 'neg') {
+            super(operand.dimensions, operand.degree, [operand]);
+        }
+        else if (operation === 'inv') {
+            const degree = operand.degree; // TODO: incorrect
+            super(operand.dimensions, degree, [operand]);
+        }
+        else {
+            throw new Error(`unary operation '${operation}' is not valid`);
+        }
         this.operation = operation;
-    }
-
-    static neg(operand: Expression): UnaryOperation {
-        
-        return new UnaryOperation(OperationType.neg, operand, operand.dimensions, operand.degree);
-    }
-
-    static inv(operand: Expression): UnaryOperation {
-        const degree = operand.degree; // TODO: incorrect
-        return new UnaryOperation(OperationType.inv, operand, operand.dimensions, degree);
     }
 
     // ACCESSORS
@@ -39,7 +35,6 @@ export class UnaryOperation extends Expression {
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
     toString(): string {
-        const op = OperationType[this.operation];
-        return `(${op} ${this.operand.toString()})`;
+        return `(${this.operation} ${this.operand.toString()})`;
     }
 }

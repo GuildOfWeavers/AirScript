@@ -199,16 +199,16 @@ function cleanLocals(signature, body) {
     body.statements.forEach(s => signature.locals[s.index].bind(s, s.index));
     for (let i = 0; i < signature.locals.length; i++) {
         let variable = signature.locals[i];
-        if (!variable.isBound) {
-            let nextIdx = findNextNonEmptyLocal(signature.locals, i + 1);
-            if (nextIdx) {
-                signature.locals[i] = signature.locals[nextIdx];
-                signature.locals[nextIdx] = variable;
-            }
-            else {
-                signature.locals.length = i;
-                break;
-            }
+        if (variable.isBound)
+            continue;
+        let nextIdx = findNextNonEmptyLocal(signature.locals, i + 1);
+        if (nextIdx) {
+            signature.locals[i] = signature.locals[nextIdx];
+            signature.locals[nextIdx] = variable;
+        }
+        else {
+            signature.locals.length = i;
+            break;
         }
     }
 }

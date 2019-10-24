@@ -1,11 +1,10 @@
 // IMPORTS
 // ================================================================================================
-import { Dimensions } from "../../utils";
+import { Dimensions, ExpressionDegree } from "../../utils";
 import { LoadSource } from "./utils";
 
 // INTERFACES
 // ================================================================================================
-export type ExpressionDegree = bigint | bigint[] | bigint[][];
 
 export interface JsCodeOptions {
     vectorAsArray?: boolean;
