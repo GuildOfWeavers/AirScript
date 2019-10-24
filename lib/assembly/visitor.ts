@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits, WasmOptions, FiniteField } from '@guildofweavers/air-script';
+import { WasmOptions, FiniteField } from '@guildofweavers/air-script';
 import { ModuleInfo, TransitionSignature } from './ModuleInfo';
 import { parser } from './parser';
 import { FieldDeclaration, StaticRegister, InputRegister, LocalVariable } from './declarations';
@@ -22,9 +22,9 @@ class AirVisitor extends BaseCstVisitor {
 
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
-    module(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): any {
+    module(ctx: any, wasmOptions?: WasmOptions): ModuleInfo {
 
-        const field: FieldDeclaration = this.visit(ctx.field, config.wasmOptions);
+        const field: FieldDeclaration = this.visit(ctx.field, wasmOptions);
 
         const constants: ConstantValue[] = (ctx.constants)
             ? ctx.constants.map((c: any) => this.visit(c))

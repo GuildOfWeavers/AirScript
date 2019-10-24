@@ -1,7 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-// IMPORTS
-// ================================================================================================
 const expressions_1 = require("./expressions");
 const utils_1 = require("./expressions/utils");
 // CLASS DEFINITION
@@ -10,7 +8,7 @@ class ModuleInfo {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(field, constants, sRegisters, iRegisters, tFunctionSig, tConstraintsSig) {
-        this.field = field;
+        this.fieldDeclaration = field;
         this.constants = constants;
         this.staticRegisters = sRegisters;
         this.inputRegisters = iRegisters;
@@ -29,6 +27,12 @@ class ModuleInfo {
     }
     get constraintCount() {
         return this.tConstraintsSig.width;
+    }
+    get constraintDegrees() {
+        return this.tConstraintsBody.output.degree;
+    }
+    get maxConstraintDegree() {
+        return (this.constraintDegrees).reduce((p, c) => c > p ? c : p, 0n);
     }
     get inTransitionFunction() {
         return (this.tFunctionBody === undefined);
@@ -107,6 +111,18 @@ class ModuleInfo {
             throw new Error(`${operation} is not a valid store operation`);
         }
     }
+    validateLimits(limits) {
+        if (this.stateWidth > limits.maxStateRegisters)
+            throw new Error(`number of state registers cannot exceed ${limits.maxStateRegisters}`);
+        else if (this.inputRegisters.length > limits.maxInputRegisters)
+            throw new Error(`number of input registers cannot exceed ${limits.maxInputRegisters}`);
+        else if (this.staticRegisters.length > limits.maxStateRegisters)
+            throw new Error(`number of static registers cannot exceed ${limits.maxStaticRegisters}`);
+        else if (this.constraintCount > limits.maxConstraintCount)
+            throw new Error(`number of transition constraints cannot exceed ${limits.maxConstraintCount}`);
+        else if (this.maxConstraintDegree > limits.maxConstraintDegree)
+            throw new Error(`degree of transition constraints cannot exceed ${this.maxConstraintDegree}`);
+    }
     // OPTIMIZATION
     // --------------------------------------------------------------------------------------------
     compress() {
@@ -122,29 +138,25 @@ class ModuleInfo {
     // CODE OUTPUT
     // --------------------------------------------------------------------------------------------
     toString() {
-        let code = `\n  ${this.field.toString()}`;
-        if (this.constants.length > 0) {
+        // field, constants, static and input registers
+        let code = `\n  ${this.fieldDeclaration.toString()}`;
+        if (this.constants.length > 0)
             code += '\n  ' + this.constants.map(c => `(const ${c.toString()})`).join(' ');
-        }
-        if (this.staticRegisters.length > 0) {
+        if (this.staticRegisters.length > 0)
             code += `\n  ${this.staticRegisters.map(r => r.toString()).join(' ')}`;
-        }
-        if (this.inputRegisters.length > 0) {
+        if (this.inputRegisters.length > 0)
             code += `\n  ${this.inputRegisters.map(r => r.toString()).join(' ')}`;
-        }
         // transition function
         let tFunction = `\n    (frame ${this.tFunctionSig.width} ${this.tFunctionSig.span})`;
-        if (this.tFunctionSig.locals.length > 0) {
+        if (this.tFunctionSig.locals.length > 0)
             tFunction += `\n    ${this.tFunctionSig.locals.map(v => v.toString()).join(' ')}`;
-        }
         tFunction += this.tFunctionBody.statements.map(s => `\n    ${s.toString()}`).join('');
         tFunction += `\n    ${this.tFunctionBody.output.toString()}`;
         code += `\n  (transition${tFunction})`;
         // transition constraints
         let tConstraints = `\n    (frame ${this.tConstraintsSig.width} ${this.tConstraintsSig.span})`;
-        if (this.tConstraintsSig.locals.length > 0) {
+        if (this.tConstraintsSig.locals.length > 0)
             tConstraints += `\n    ${this.tConstraintsSig.locals.map(v => v.toString()).join(' ')}`;
-        }
         tConstraints += this.tConstraintsBody.statements.map(s => `\n    ${s.toString()}`).join('');
         tConstraints += `\n    ${this.tConstraintsBody.output.toString()}`;
         code += `\n  (evaluation${tConstraints})`;

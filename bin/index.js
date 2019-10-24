@@ -50,23 +50,6 @@ async function instantiate(scriptOrPath, options = {}) {
     }
 }
 exports.instantiate = instantiate;
-// HELPER FUNCTIONS
-// ================================================================================================
-function parseScript(script, limits, wasmOptions) {
-    // tokenize input
-    const lexResult = lexer_1.lexer.tokenize(script);
-    if (lexResult.errors.length > 0) {
-        throw new errors_1.AirScriptError(lexResult.errors);
-    }
-    // apply grammar rules
-    parser_1.parser.input = lexResult.tokens;
-    const cst = parser_1.parser.script();
-    if (parser_1.parser.errors.length > 0) {
-        throw new errors_1.AirScriptError(parser_1.parser.errors);
-    }
-    // build and return script specs
-    return visitor_1.visitor.visit(cst, { limits, wasmOptions });
-}
 function compile(script) {
     // tokenize input
     const lexResult = lexer_1.lexer.tokenize(script);
@@ -90,6 +73,23 @@ function compile(script) {
     }
 }
 exports.compile = compile;
+// HELPER FUNCTIONS
+// ================================================================================================
+function parseScript(script, limits, wasmOptions) {
+    // tokenize input
+    const lexResult = lexer_1.lexer.tokenize(script);
+    if (lexResult.errors.length > 0) {
+        throw new errors_1.AirScriptError(lexResult.errors);
+    }
+    // apply grammar rules
+    parser_1.parser.input = lexResult.tokens;
+    const cst = parser_1.parser.script();
+    if (parser_1.parser.errors.length > 0) {
+        throw new errors_1.AirScriptError(parser_1.parser.errors);
+    }
+    // build and return script specs
+    return visitor_1.visitor.visit(cst, { limits, wasmOptions });
+}
 // HELPER FUNCTIONS
 // ================================================================================================
 function validateExtensionFactor(constraintDegree, extensionFactor) {

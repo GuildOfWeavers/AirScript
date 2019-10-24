@@ -14,8 +14,8 @@ class AirVisitor extends BaseCstVisitor {
     }
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
-    module(ctx, config) {
-        const field = this.visit(ctx.field, config.wasmOptions);
+    module(ctx, wasmOptions) {
+        const field = this.visit(ctx.field, wasmOptions);
         const constants = (ctx.constants)
             ? ctx.constants.map((c) => this.visit(c))
             : [];

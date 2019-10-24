@@ -1,5 +1,6 @@
 // IMPORTS
 // ================================================================================================
+import { StarkLimits } from "@guildofweavers/air-script";
 import { Expression, ConstantValue, LoadExpression, RegisterBank, StoreExpression } from "./expressions";
 import { FieldDeclaration, StaticRegister, InputRegister, LocalVariable } from "./declarations";
 import { getLoadSource, getStoreTarget } from "./expressions/utils";
@@ -21,7 +22,7 @@ export interface TransitionBody {
 // ================================================================================================
 export class ModuleInfo {
 
-    readonly field                  : FieldDeclaration;
+    readonly fieldDeclaration       : FieldDeclaration;
 
     readonly constants              : ConstantValue[];
     readonly staticRegisters        : StaticRegister[];
@@ -44,7 +45,7 @@ export class ModuleInfo {
         constants: ConstantValue[], sRegisters: StaticRegister[], iRegisters: InputRegister[],
         tFunctionSig: TransitionSignature, tConstraintsSig: TransitionSignature
     ) {
-        this.field = field;
+        this.fieldDeclaration = field;
         this.constants = constants;
         this.staticRegisters = sRegisters;
         this.inputRegisters = iRegisters;
@@ -66,6 +67,14 @@ export class ModuleInfo {
 
     get constraintCount(): number {
         return this.tConstraintsSig.width;
+    }
+
+    get constraintDegrees(): bigint[] {
+        return this.tConstraintsBody!.output.degree as bigint[];
+    }
+
+    get maxConstraintDegree(): bigint {
+        return (this.constraintDegrees).reduce((p, c) => c > p ? c : p, 0n);
     }
 
     get inTransitionFunction(): boolean {
@@ -152,6 +161,19 @@ export class ModuleInfo {
         }
     }
 
+    validateLimits(limits: StarkLimits): void {
+        if (this.stateWidth > limits.maxStateRegisters)
+            throw new Error(`number of state registers cannot exceed ${limits.maxStateRegisters}`);
+        else if (this.inputRegisters.length > limits.maxInputRegisters)
+            throw new Error(`number of input registers cannot exceed ${limits.maxInputRegisters}`);
+        else if (this.staticRegisters.length > limits.maxStateRegisters)
+            throw new Error(`number of static registers cannot exceed ${limits.maxStaticRegisters}`);
+        else if (this.constraintCount > limits.maxConstraintCount)
+            throw new Error(`number of transition constraints cannot exceed ${limits.maxConstraintCount}`);
+        else if (this.maxConstraintDegree > limits.maxConstraintDegree)
+            throw new Error(`degree of transition constraints cannot exceed ${this.maxConstraintDegree}`);
+    }
+
     // OPTIMIZATION
     // --------------------------------------------------------------------------------------------
     compress(): void {
@@ -169,35 +191,27 @@ export class ModuleInfo {
     // CODE OUTPUT
     // --------------------------------------------------------------------------------------------
     toString() {
-        
-        let code = `\n  ${this.field.toString()}`;
-
-        if (this.constants.length > 0) {
+        // field, constants, static and input registers
+        let code = `\n  ${this.fieldDeclaration.toString()}`;
+        if (this.constants.length > 0)
             code += '\n  ' + this.constants.map(c => `(const ${c.toString()})`).join(' ');
-        }
-
-        if (this.staticRegisters.length > 0) {
+        if (this.staticRegisters.length > 0)
             code += `\n  ${this.staticRegisters.map(r => r.toString()).join(' ')}`;
-        }
-
-        if (this.inputRegisters.length > 0) {
+        if (this.inputRegisters.length > 0)
             code += `\n  ${this.inputRegisters.map(r => r.toString()).join(' ')}`;
-        }
         
         // transition function
         let tFunction = `\n    (frame ${this.tFunctionSig.width} ${this.tFunctionSig.span})`;
-        if (this.tFunctionSig.locals.length > 0) {
+        if (this.tFunctionSig.locals.length > 0)
             tFunction += `\n    ${this.tFunctionSig.locals.map(v => v.toString()).join(' ')}`;
-        }
         tFunction += this.tFunctionBody!.statements.map(s => `\n    ${s.toString()}`).join('');
         tFunction += `\n    ${this.tFunctionBody!.output.toString()}`;
         code += `\n  (transition${tFunction})`;
 
         // transition constraints
         let tConstraints = `\n    (frame ${this.tConstraintsSig.width} ${this.tConstraintsSig.span})`;
-        if (this.tConstraintsSig.locals.length > 0) {
+        if (this.tConstraintsSig.locals.length > 0)
             tConstraints += `\n    ${this.tConstraintsSig.locals.map(v => v.toString()).join(' ')}`;
-        }
         tConstraints += this.tConstraintsBody!.statements.map(s => `\n    ${s.toString()}`).join('');
         tConstraints += `\n    ${this.tConstraintsBody!.output.toString()}`;
         code += `\n  (evaluation${tConstraints})`;

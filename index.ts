@@ -58,27 +58,6 @@ export async function instantiate(scriptOrPath: Buffer | string, options: Script
     }
 }
 
-// HELPER FUNCTIONS
-// ================================================================================================
-function parseScript(script: string, limits: StarkLimits, wasmOptions?: Partial<WasmOptions> | boolean): ScriptSpecs {
-
-    // tokenize input
-    const lexResult = lexer.tokenize(script);
-    if(lexResult.errors.length > 0) {
-        throw new AirScriptError(lexResult.errors);
-    }
-
-    // apply grammar rules
-    parser.input = lexResult.tokens;
-    const cst = parser.script();
-    if (parser.errors.length > 0) {
-        throw new AirScriptError(parser.errors);
-    }
-
-    // build and return script specs
-    return visitor.visit(cst, { limits, wasmOptions });
-}
-
 export function compile(script: string,) {
     
     // tokenize input
@@ -103,6 +82,27 @@ export function compile(script: string,) {
     catch (error) {
         throw new AirScriptError([error]);
     }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+function parseScript(script: string, limits: StarkLimits, wasmOptions?: Partial<WasmOptions> | boolean): ScriptSpecs {
+
+    // tokenize input
+    const lexResult = lexer.tokenize(script);
+    if(lexResult.errors.length > 0) {
+        throw new AirScriptError(lexResult.errors);
+    }
+
+    // apply grammar rules
+    parser.input = lexResult.tokens;
+    const cst = parser.script();
+    if (parser.errors.length > 0) {
+        throw new AirScriptError(parser.errors);
+    }
+
+    // build and return script specs
+    return visitor.visit(cst, { limits, wasmOptions });
 }
 
 // HELPER FUNCTIONS
