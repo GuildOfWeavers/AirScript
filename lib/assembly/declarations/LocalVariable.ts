@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ExpressionDegree } from "../expressions";
+import { Expression, ExpressionDegree, StoreExpression } from "../expressions";
 import { Dimensions, isScalar, isVector, areSameDimensions } from "../../utils";
 
 // CLASS DEFINITION
@@ -9,7 +9,7 @@ export class LocalVariable {
 
     readonly dimensions : Dimensions;
     readonly degree     : ExpressionDegree;
-    private value?      : Expression;
+    private binding?    : StoreExpression;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -28,17 +28,25 @@ export class LocalVariable {
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    getValue(index: number): Expression {
-        if (!this.value) throw new Error(`local variable ${index} has not yet been set`);
-        return this.value;
+    get isBound(): boolean {
+        return this.binding !== undefined;
     }
 
-    setValue(value: Expression, index: number) {
+    getBinding(index: number): StoreExpression {
+        if (!this.binding) throw new Error(`local variable ${index} has not yet been set`);
+        return this.binding;
+    }
+
+    bind(value: StoreExpression, index: number) {
         if (!areSameDimensions(this.dimensions, value.dimensions)) {
             const vd = value.dimensions;
             throw new Error(`cannot store ${vd[0]}x${vd[1]} value in local variable ${index}`);
         }
-        this.value = value;
+        this.binding = value;
+    }
+
+    clearBinding() {
+        this.binding = undefined;
     }
 
     // PUBLIC METHODS

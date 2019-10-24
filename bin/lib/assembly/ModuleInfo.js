@@ -16,12 +16,11 @@ class ModuleInfo {
         this.inputRegisters = iRegisters;
         this.tFunctionSig = tFunctionSig;
         this.tConstraintsSig = tConstraintsSig;
-        const tRegistersDegree = new Array(this.stateWidth).fill(1n);
-        this.tRegistersExpression = new expressions_1.NoopExpression([this.stateWidth, 0], tRegistersDegree);
-        const sRegistersDegree = new Array(this.staticRegisters.length).fill(1n);
-        this.sRegistersExpression = new expressions_1.NoopExpression([this.staticRegisters.length, 0], sRegistersDegree);
-        const iRegistersDegree = new Array(this.inputRegisters.length).fill(1n);
-        this.iRegistersExpression = new expressions_1.NoopExpression([this.inputRegisters.length, 0], iRegistersDegree);
+        this.traceRegisterBank = new expressions_1.RegisterBank('trace', this.stateWidth);
+        if (this.staticRegisters.length > 0)
+            this.staticRegisterBank = new expressions_1.RegisterBank('static', this.staticRegisters.length);
+        if (this.inputRegisters.length > 0)
+            this.inputRegisterBank = new expressions_1.RegisterBank('input', this.inputRegisters.length);
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -69,28 +68,28 @@ class ModuleInfo {
         if (source === 'const') {
             if (index <= this.constants.length)
                 throw new Error(`constant with index ${index} has not been defined`);
-            return new expressions_1.LoadExpression(operation, index, this.constants[index]);
+            return new expressions_1.LoadExpression(this.constants[index], index);
         }
         else if (source === 'trace') {
             this.validateFrameIndex(index);
-            return new expressions_1.LoadExpression(operation, index, this.tRegistersExpression);
+            return new expressions_1.LoadExpression(this.traceRegisterBank, index);
         }
         else if (source === 'static') {
             this.validateFrameIndex(index);
-            if (this.staticRegisters.length === 0)
-                throw new Error('static registers have not been defined');
-            return new expressions_1.LoadExpression(operation, index, this.sRegistersExpression);
+            if (!this.staticRegisterBank)
+                throw new Error(`static registers have not been defined`);
+            return new expressions_1.LoadExpression(this.staticRegisterBank, index);
         }
         else if (source === 'input') {
             this.validateFrameIndex(index);
-            if (this.staticRegisters.length === 0)
-                throw new Error('input registers have not been defined');
-            return new expressions_1.LoadExpression(operation, index, this.iRegistersExpression);
+            if (!this.inputRegisterBank)
+                throw new Error(`input registers have not been defined`);
+            return new expressions_1.LoadExpression(this.inputRegisterBank, index);
         }
         else if (source === 'local') {
             const variable = this.getLocalVariable(index);
-            const value = variable.getValue(index);
-            return new expressions_1.LoadExpression(operation, index, value);
+            const binding = variable.getBinding(index);
+            return new expressions_1.LoadExpression(binding, index);
         }
         else {
             throw new Error(`${operation} is not a valid load operation`);
@@ -100,8 +99,9 @@ class ModuleInfo {
         const target = utils_1.getStoreTarget(operation);
         if (target === 'local') {
             const variable = this.getLocalVariable(index);
-            variable.setValue(value, index);
-            return new expressions_1.StoreExpression(operation, index, value);
+            const result = new expressions_1.StoreExpression(operation, index, value);
+            variable.bind(result, index);
+            return result;
         }
         else {
             throw new Error(`${operation} is not a valid store operation`);
@@ -110,7 +110,14 @@ class ModuleInfo {
     // OPTIMIZATION
     // --------------------------------------------------------------------------------------------
     compress() {
+        // compress transition function
+        cleanStatements(this.tFunctionBody);
+        cleanLocals(this.tFunctionSig, this.tFunctionBody);
         this.tFunctionBody.output.compress();
+        // compress transition constraints
+        cleanStatements(this.tConstraintsBody);
+        cleanLocals(this.tConstraintsSig, this.tConstraintsBody);
+        this.tConstraintsBody.output.compress();
     }
     // CODE OUTPUT
     // --------------------------------------------------------------------------------------------
@@ -165,4 +172,51 @@ class ModuleInfo {
     }
 }
 exports.ModuleInfo = ModuleInfo;
+// HELPER FUNCTIONS
+// ================================================================================================
+function cleanStatements(body) {
+    const expressions = [...body.statements, body.output];
+    const bindings = new Map();
+    expressions.forEach(e => e.collectLoadOperations('local', bindings));
+    const retainedStatements = [];
+    for (let i = 0; i < body.statements.length; i++) {
+        let statement = body.statements[i];
+        let dependents = bindings.get(statement);
+        if (!dependents)
+            continue;
+        if (dependents.length === 1) {
+            let dependent = dependents[0];
+            expressions.slice(i).forEach(e => e.replace(dependent, statement.value));
+        }
+        else if (dependents.length > 1) {
+            retainedStatements.push(statement);
+        }
+    }
+    body.statements = retainedStatements;
+}
+function cleanLocals(signature, body) {
+    signature.locals.forEach(v => v.clearBinding());
+    body.statements.forEach(s => signature.locals[s.index].bind(s, s.index));
+    for (let i = 0; i < signature.locals.length; i++) {
+        let variable = signature.locals[i];
+        if (!variable.isBound) {
+            let nextIdx = findNextNonEmptyLocal(signature.locals, i + 1);
+            if (nextIdx) {
+                signature.locals[i] = signature.locals[nextIdx];
+                signature.locals[nextIdx] = variable;
+            }
+            else {
+                signature.locals.length = i;
+                break;
+            }
+        }
+    }
+}
+function findNextNonEmptyLocal(locals, start) {
+    for (let i = start; i < locals.length; i++) {
+        if (locals[i].isBound)
+            return i;
+    }
+    return 0;
+}
 //# sourceMappingURL=ModuleInfo.js.map

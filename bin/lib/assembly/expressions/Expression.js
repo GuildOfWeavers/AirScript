@@ -15,6 +15,22 @@ class Expression {
     compress() {
         this.children.forEach(child => child.compress());
     }
+    collectLoadOperations(source, result) {
+        this.children.forEach(child => child.collectLoadOperations(source, result));
+    }
+    replace(oldExpression, newExpression) {
+        for (let i = 0; i < this.children.length; i++) {
+            if (this.children[i] === oldExpression) {
+                this.children[i] = newExpression;
+            }
+            else {
+                this.children[i].replace(oldExpression, newExpression);
+            }
+        }
+    }
+    updateLoadIndex(source, fromIdx, toIdx) {
+        this.children.forEach(child => child.updateLoadIndex(source, fromIdx, toIdx));
+    }
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------
     get isScalar() {
@@ -32,15 +48,4 @@ class Expression {
     }
 }
 exports.Expression = Expression;
-// NOOP EXPRESSION
-// ================================================================================================
-class NoopExpression extends Expression {
-    constructor(dimensions, degree) {
-        super(dimensions, degree);
-    }
-    toString() {
-        return ``;
-    }
-}
-exports.NoopExpression = NoopExpression;
 //# sourceMappingURL=Expression.js.map

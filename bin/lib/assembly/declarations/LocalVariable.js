@@ -20,17 +20,23 @@ class LocalVariable {
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    getValue(index) {
-        if (!this.value)
-            throw new Error(`local variable ${index} has not yet been set`);
-        return this.value;
+    get isBound() {
+        return this.binding !== undefined;
     }
-    setValue(value, index) {
+    getBinding(index) {
+        if (!this.binding)
+            throw new Error(`local variable ${index} has not yet been set`);
+        return this.binding;
+    }
+    bind(value, index) {
         if (!utils_1.areSameDimensions(this.dimensions, value.dimensions)) {
             const vd = value.dimensions;
             throw new Error(`cannot store ${vd[0]}x${vd[1]} value in local variable ${index}`);
         }
-        this.value = value;
+        this.binding = value;
+    }
+    clearBinding() {
+        this.binding = undefined;
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------

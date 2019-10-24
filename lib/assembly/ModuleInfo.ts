@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, ConstantValue, LoadExpression, NoopExpression, StoreExpression } from "./expressions";
+import { Expression, ConstantValue, LoadExpression, RegisterBank, StoreExpression } from "./expressions";
 import { FieldDeclaration, StaticRegister, InputRegister, LocalVariable } from "./declarations";
 import { getLoadSource, getStoreTarget } from "./expressions/utils";
 
@@ -33,9 +33,9 @@ export class ModuleInfo {
     private readonly tConstraintsSig: TransitionSignature;
     private tConstraintsBody?       : TransitionBody;
 
-    private tRegistersExpression    : Expression;
-    private sRegistersExpression    : Expression;
-    private iRegistersExpression    : Expression;
+    private traceRegisterBank       : RegisterBank;
+    private staticRegisterBank?     : RegisterBank;
+    private inputRegisterBank?      : RegisterBank;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -51,12 +51,11 @@ export class ModuleInfo {
         this.tFunctionSig = tFunctionSig;
         this.tConstraintsSig = tConstraintsSig;
 
-        const tRegistersDegree = new Array(this.stateWidth).fill(1n);
-        this.tRegistersExpression = new NoopExpression([this.stateWidth, 0], tRegistersDegree);
-        const sRegistersDegree = new Array(this.staticRegisters.length).fill(1n);
-        this.sRegistersExpression = new NoopExpression([this.staticRegisters.length, 0], sRegistersDegree);
-        const iRegistersDegree = new Array(this.inputRegisters.length).fill(1n);
-        this.iRegistersExpression = new NoopExpression([this.inputRegisters.length, 0], iRegistersDegree);
+        this.traceRegisterBank = new RegisterBank('trace', this.stateWidth);
+        if (this.staticRegisters.length > 0)
+            this.staticRegisterBank = new RegisterBank('static', this.staticRegisters.length);
+        if (this.inputRegisters.length > 0)
+            this.inputRegisterBank = new RegisterBank('input', this.inputRegisters.length);
     }
 
     // ACCESSORS
@@ -112,28 +111,28 @@ export class ModuleInfo {
         if (source === 'const') {
             if (index <= this.constants.length)
                 throw new Error(`constant with index ${index} has not been defined`);
-            return new LoadExpression(operation, index, this.constants[index]);
+            return new LoadExpression(this.constants[index], index);
         }
         else if (source === 'trace') {
             this.validateFrameIndex(index);
-            return new LoadExpression(operation, index, this.tRegistersExpression);
+            return new LoadExpression(this.traceRegisterBank, index);
         }
         else if (source === 'static') {
             this.validateFrameIndex(index);
-            if (this.staticRegisters.length === 0) 
-                throw new Error('static registers have not been defined');
-            return new LoadExpression(operation, index, this.sRegistersExpression);
+            if (!this.staticRegisterBank)
+                throw new Error(`static registers have not been defined`);
+            return new LoadExpression(this.staticRegisterBank, index);
         }
         else if (source === 'input') {
             this.validateFrameIndex(index);
-            if (this.staticRegisters.length === 0) 
-                throw new Error('input registers have not been defined');
-            return new LoadExpression(operation, index, this.iRegistersExpression);
+            if (!this.inputRegisterBank)
+                throw new Error(`input registers have not been defined`);
+            return new LoadExpression(this.inputRegisterBank, index);
         }
         else if (source === 'local') {
             const variable = this.getLocalVariable(index);
-            const value = variable.getValue(index);
-            return new LoadExpression(operation, index, value);
+            const binding = variable.getBinding(index);
+            return new LoadExpression(binding, index);
         }
         else {
             throw new Error(`${operation} is not a valid load operation`);
@@ -144,8 +143,9 @@ export class ModuleInfo {
         const target = getStoreTarget(operation);
         if (target === 'local') {
             const variable = this.getLocalVariable(index);
-            variable.setValue(value, index);
-            return new StoreExpression(operation, index, value);
+            const result = new StoreExpression(operation, index, value);
+            variable.bind(result, index);
+            return result;
         }
         else {
             throw new Error(`${operation} is not a valid store operation`);
@@ -155,7 +155,15 @@ export class ModuleInfo {
     // OPTIMIZATION
     // --------------------------------------------------------------------------------------------
     compress(): void {
+        // compress transition function
+        cleanStatements(this.tFunctionBody!);
+        cleanLocals(this.tFunctionSig, this.tFunctionBody!);
         this.tFunctionBody!.output.compress();
+
+        // compress transition constraints
+        cleanStatements(this.tConstraintsBody!);
+        cleanLocals(this.tConstraintsSig, this.tConstraintsBody!);
+        this.tConstraintsBody!.output.compress();
     }
 
     // CODE OUTPUT
@@ -220,4 +228,56 @@ export class ModuleInfo {
                 throw new Error('cannot access register states beyond the next step from transition constraints');
         }
     }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+function cleanStatements(body: TransitionBody): void {
+
+    const expressions = [...body.statements, body.output];
+
+    const bindings = new Map<Expression, Expression[]>();
+    expressions.forEach(e => e.collectLoadOperations('local', bindings));
+
+    const retainedStatements: StoreExpression[] = [];
+    for (let i = 0; i < body.statements.length; i++) {
+        let statement = body.statements[i];
+        let dependents = bindings.get(statement);
+        if (!dependents) continue;
+        if (dependents.length === 1) {
+            let dependent = dependents[0];
+            expressions.slice(i).forEach(e => e.replace(dependent, statement.value));
+        }
+        else if (dependents.length > 1) {
+            retainedStatements.push(statement);
+        }
+    }
+
+    body.statements = retainedStatements;
+}
+
+function cleanLocals(signature: TransitionSignature, body: TransitionBody) {
+    signature.locals.forEach(v => v.clearBinding());
+    body.statements.forEach(s => signature.locals[s.index].bind(s, s.index));
+
+    for (let i = 0; i < signature.locals.length; i++) {
+        let variable = signature.locals[i];
+        if (variable.isBound) continue;
+        let nextIdx = findNextNonEmptyLocal(signature.locals, i + 1);
+        if (nextIdx) {
+            signature.locals[i] = signature.locals[nextIdx];
+            signature.locals[nextIdx] = variable;
+        }
+        else {
+            signature.locals.length = i;
+            break;
+        }
+    }
+}
+
+function findNextNonEmptyLocal(locals: LocalVariable[], start: number): number {
+    for (let i = start; i < locals.length; i++) {
+        if (locals[i].isBound) return i;
+    }
+    return 0;
 }

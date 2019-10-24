@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var Expression_1 = require("./Expression");
 exports.Expression = Expression_1.Expression;
-exports.NoopExpression = Expression_1.NoopExpression;
 var ConstantValue_1 = require("./ConstantValue");
 exports.ConstantValue = ConstantValue_1.ConstantValue;
 var BinaryOperation_1 = require("./BinaryOperation");
@@ -21,4 +20,6 @@ var LoadExpression_1 = require("./LoadExpression");
 exports.LoadExpression = LoadExpression_1.LoadExpression;
 var StoreExpression_1 = require("./StoreExpression");
 exports.StoreExpression = StoreExpression_1.StoreExpression;
+var RegisterBank_1 = require("./RegisterBank");
+exports.RegisterBank = RegisterBank_1.RegisterBank;
 //# sourceMappingURL=index.js.map

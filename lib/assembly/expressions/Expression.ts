@@ -1,6 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { Dimensions } from "../../utils";
+import { LoadSource } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -40,6 +41,25 @@ export abstract class Expression {
         this.children.forEach(child => child.compress());
     }
 
+    collectLoadOperations(source: LoadSource, result: Map<Expression, Expression[]>): void {
+        this.children.forEach(child => child.collectLoadOperations(source, result));
+    }
+
+    replace(oldExpression: Expression, newExpression: Expression) {
+        for (let i = 0; i < this.children.length; i++) {
+            if (this.children[i] === oldExpression) {
+                this.children[i] = newExpression;
+            }
+            else {
+                this.children[i].replace(oldExpression, newExpression);
+            }
+        }
+    }
+
+    updateLoadIndex(source: LoadSource, fromIdx: number, toIdx: number): void {
+        this.children.forEach(child => child.updateLoadIndex(source, fromIdx, toIdx));
+    }
+
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------
     get isScalar(): boolean {
@@ -57,18 +77,5 @@ export abstract class Expression {
     isSameDimensions(e: Expression) {
         return this.dimensions[0] === e.dimensions[0]
             && this.dimensions[1] === e.dimensions[1];
-    }
-}
-
-// NOOP EXPRESSION
-// ================================================================================================
-export class NoopExpression extends Expression {
-
-    constructor(dimensions: Dimensions, degree: ExpressionDegree) {
-        super(dimensions, degree);
-    }
-
-    toString(): string {
-        return ``;
     }
 }
