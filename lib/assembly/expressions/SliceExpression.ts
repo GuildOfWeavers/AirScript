@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression } from "./Expression";
+import { Expression, JsCodeOptions } from "./Expression";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -38,5 +38,16 @@ export class SliceExpression extends Expression {
     // --------------------------------------------------------------------------------------------
     toString(): string {
         return `(slice ${this.source.toString()} ${this.start} ${this.end})`;
+    }
+
+    toJsCode(options: JsCodeOptions = {}): string {
+        let code = this.source.toJsCode({ vectorAsArray: true });
+        if (options.vectorAsArray) {
+            code = `${code}.slice(${this.start}, ${this.end + 1})`;
+        }
+        else {
+            code = `f.newVectorFrom(${code}.slice(${this.start}, ${this.end + 1}))`;
+        }
+        return code;
     }
 }

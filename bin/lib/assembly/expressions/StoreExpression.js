@@ -20,6 +20,9 @@ class StoreExpression extends Expression_1.Expression {
     toString() {
         return `(store.${this.target} ${this.index} ${this.value.toString()})`;
     }
+    toJsCode() {
+        return `v${this.index} = ${this.value.toJsCode()};\n`;
+    }
 }
 exports.StoreExpression = StoreExpression;
 //# sourceMappingURL=StoreExpression.js.map

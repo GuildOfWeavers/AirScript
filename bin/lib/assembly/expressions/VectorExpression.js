@@ -54,6 +54,17 @@ class VectorExpression extends Expression_1.Expression {
         const list = this.elements.map(e => e.toString({ vectorAsList: true })).join(' ');
         return options.vectorAsList ? list : `(vector ${list})`;
     }
+    toJsCode(options = {}) {
+        const elements = this.elements.map(e => {
+            let ec = e.toJsCode({ vectorAsArray: true });
+            return e.isVector ? `...${ec}` : ec;
+        });
+        let code = `[${elements.join(', ')}]`;
+        if (!options.vectorAsArray) {
+            code = `f.newVectorFrom(${code})`;
+        }
+        return code;
+    }
 }
 exports.VectorExpression = VectorExpression;
 // HELPER FUNCTIONS

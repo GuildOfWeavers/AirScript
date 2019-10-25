@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression } from './Expression';
+import { Expression, JsCodeOptions } from './Expression';
 import { LoadSource } from './utils';
 import { ConstantValue } from './ConstantValue';
 import { StoreExpression } from './StoreExpression';
@@ -56,5 +56,38 @@ export class LoadExpression extends Expression {
 
     toString(): string {
         return `(load.${this.source} ${this.index})`;
+    }
+
+    toJsCode(options: JsCodeOptions = {}): string {
+        // TODO: revisit
+        let code = '';
+        if (this.binding instanceof ConstantValue) {
+            code = `g[${this.index}]`;
+        }
+        else if (this.binding instanceof StoreExpression) {
+            code = `v${this.index}`;
+        }
+        else if (this.binding instanceof RegisterBank) {
+            if (this.binding.bank === 'input') {
+                code = 'i';
+            }
+            else if (this.binding.bank === 'static') {
+                code = 'k'
+            }
+            else if (this.binding.bank === 'trace') {
+                if (this.index === 0) {
+                    code = 'r'
+                }
+                else if (this.index === 1) {
+                    code = 'n';
+                }
+            }
+        }
+
+        if (this.isVector && options.vectorAsArray) {
+            code = `${code}.toValues()`;
+        }
+
+        return code;
     }
 }

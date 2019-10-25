@@ -33,6 +33,16 @@ class SliceExpression extends Expression_1.Expression {
     toString() {
         return `(slice ${this.source.toString()} ${this.start} ${this.end})`;
     }
+    toJsCode(options = {}) {
+        let code = this.source.toJsCode({ vectorAsArray: true });
+        if (options.vectorAsArray) {
+            code = `${code}.slice(${this.start}, ${this.end + 1})`;
+        }
+        else {
+            code = `f.newVectorFrom(${code}.slice(${this.start}, ${this.end + 1}))`;
+        }
+        return code;
+    }
 }
 exports.SliceExpression = SliceExpression;
 //# sourceMappingURL=SliceExpression.js.map

@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression } from "./Expression";
+import { Expression, JsCodeOptions } from "./Expression";
 import { ExpressionDegree, degreeToDimensions } from "../../utils";
 import {
     maxDegree, sumDegree, mulDegree, linearCombinationDegree, matrixVectorProductDegree, matrixMatrixProductDegree
@@ -63,6 +63,16 @@ export class BinaryOperation extends Expression {
     toString(): string {
         return `(${this.operation} ${this.lhs.toString()} ${this.rhs.toString()})`;
     }
+
+    toJsCode(options: JsCodeOptions = {}): string {
+        const jsFunction = getJsFunction(this.operation, this.lhs, this.rhs);
+        let code = `f.${jsFunction}(${this.lhs.toJsCode()}, ${this.rhs.toJsCode()})`;
+        
+        if (this.isVector && options.vectorAsArray) {
+            code = `${code}.toValues()`;
+        }
+        return code;
+    }
 }
 
 // HELPER FUNCTIONS
@@ -104,5 +114,40 @@ function getProductDegree(rhs: Expression, lhs: Expression): ExpressionDegree {
     }
     else {
         throw new Error(`cannot compute a product of {${d1}} and {${d2}} values`);
+    }
+}
+
+function getJsFunction(operation: OperationType, e1: Expression, e2: Expression): string {
+    switch (operation) {
+        case 'add': {
+            if (e1.isScalar)                        return `add`;
+            else if (e1.isVector)                   return 'addVectorElements';
+            else                                    return 'addMatrixElements';
+        }
+        case 'sub': {
+            if (e1.isScalar)                        return `sub`;
+            else if (e1.isVector)                   return 'subVectorElements';
+            else                                    return 'subMatrixElements';
+        }
+        case 'mul': {
+            if (e1.isScalar)                        return `mul`;
+            else if (e1.isVector)                   return 'mulVectorElements';
+            else                                    return 'mulMatrixElements';
+        }
+        case 'div': {
+            if (e1.isScalar)                        return `div`;
+            else if (e1.isVector)                   return 'divVectorElements';
+            else                                    return 'divMatrixElements';
+        }
+        case 'exp': {
+            if (e1.isScalar)                        return `exp`;
+            else if (e1.isVector)                   return 'expVectorElements';
+            else                                    return 'expMatrixElements';
+        }
+        case 'prod': {
+            if (e1.isVector && e2.isVector)         return `combineVectors`;
+            else if (e1.isMatrix && e2.isVector)    return 'mulMatrixByVector';
+            else                                    return 'mulMatrixes';
+        }
     }
 }

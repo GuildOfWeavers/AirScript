@@ -25,4 +25,8 @@ export class StoreExpression extends Expression {
     toString(): string {
         return `(store.${this.target} ${this.index} ${this.value.toString()})`;
     }
+
+    toJsCode(): string {
+        return `v${this.index} = ${this.value.toJsCode()};\n`;
+    }
 }

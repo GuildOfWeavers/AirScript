@@ -37,6 +37,9 @@ class ModuleInfo {
     get inTransitionFunction() {
         return (this.tFunctionBody === undefined);
     }
+    get transitionFunctionLocals() {
+        return this.tFunctionSig.locals.map(l => l.dimensions);
+    }
     get transitionFunctionBody() {
         if (!this.tFunctionBody)
             throw new Error(`transition function body hasn't been set`);
@@ -50,6 +53,9 @@ class ModuleInfo {
         else if (value.output.dimensions[0] !== this.stateWidth)
             throw new Error(`transition function must evaluate to a vector of ${this.stateWidth} elements`);
         this.tFunctionBody = value;
+    }
+    get transitionConstraintsLocals() {
+        return this.tConstraintsSig.locals.map(l => l.dimensions);
     }
     get transitionConstraintsBody() {
         if (!this.tConstraintsBody)

@@ -33,6 +33,10 @@ class RegisterBank extends Expression_1.Expression {
     toString() {
         return this.bank;
     }
+    toJsCode() {
+        // TODO: revisit
+        return '';
+    }
 }
 exports.RegisterBank = RegisterBank;
 //# sourceMappingURL=RegisterBank.js.map

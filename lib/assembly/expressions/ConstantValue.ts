@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression } from './Expression';
+import { Expression, JsCodeOptions } from './Expression';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -54,6 +54,23 @@ export class ConstantValue extends Expression {
         else {
             const rows = (this.value as bigint[][]).map(r => `(${r.join(' ')})`);
             return `(matrix ${rows.join(' ')})`;
+        }
+    }
+
+    toJsCode(options: JsCodeOptions = {}): string {
+        if (this.isScalar) {
+            return `${this.value}n`;
+        }
+        else if (this.isVector) {
+            let code = `[${(this.value as bigint[]).join('n, ')}n]`;
+            if (!options.vectorAsArray) {
+                code = `f.newVectorFrom(${code})`
+            }
+            return code;
+        }
+        else {
+            const rows = (this.value as bigint[][]).map(r => `[${r.join('n, ')}n]`);
+            return `f.newMatrixFrom([${rows.join(', ')}])`;
         }
     }
 }

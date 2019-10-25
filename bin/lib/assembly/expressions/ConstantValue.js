@@ -51,6 +51,22 @@ class ConstantValue extends Expression_1.Expression {
             return `(matrix ${rows.join(' ')})`;
         }
     }
+    toJsCode(options = {}) {
+        if (this.isScalar) {
+            return `${this.value}n`;
+        }
+        else if (this.isVector) {
+            let code = `[${this.value.join('n, ')}n]`;
+            if (!options.vectorAsArray) {
+                code = `f.newVectorFrom(${code})`;
+            }
+            return code;
+        }
+        else {
+            const rows = this.value.map(r => `[${r.join('n, ')}n]`);
+            return `f.newMatrixFrom([${rows.join(', ')}])`;
+        }
+    }
 }
 exports.ConstantValue = ConstantValue;
 //# sourceMappingURL=ConstantValue.js.map

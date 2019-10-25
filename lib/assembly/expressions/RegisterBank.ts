@@ -43,4 +43,9 @@ export class RegisterBank extends Expression {
     toString(): string {
         return this.bank;
     }
+
+    toJsCode() {
+        // TODO: revisit
+        return '';
+    }
 }

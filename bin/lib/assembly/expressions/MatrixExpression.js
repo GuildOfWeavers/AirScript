@@ -47,6 +47,10 @@ class MatrixExpression extends Expression_1.Expression {
         const rows = this.elements.map(r => `(${r.map(e => e.toString()).join(' ')})`);
         return `(matrix ${rows.join(' ')})`;
     }
+    toJsCode() {
+        const rows = this.elements.map(r => `[${r.map(e => e.toJsCode()).join(', ')}]`);
+        return `f.newMatrixFrom([${rows.join(', ')}])`;
+    }
 }
 exports.MatrixExpression = MatrixExpression;
 //# sourceMappingURL=MatrixExpression.js.map

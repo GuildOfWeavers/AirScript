@@ -5,7 +5,6 @@ import { LoadSource } from "./utils";
 
 // INTERFACES
 // ================================================================================================
-
 export interface JsCodeOptions {
     vectorAsArray?: boolean;
 }
@@ -33,6 +32,7 @@ export abstract class Expression {
     // ABSTRACT METHODS
     // --------------------------------------------------------------------------------------------
     abstract toString(options?: AssemblyOptions): string;
+    abstract toJsCode(options?: JsCodeOptions): string;
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------

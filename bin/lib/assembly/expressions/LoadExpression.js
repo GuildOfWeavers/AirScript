@@ -48,6 +48,36 @@ class LoadExpression extends Expression_1.Expression {
     toString() {
         return `(load.${this.source} ${this.index})`;
     }
+    toJsCode(options = {}) {
+        // TODO: revisit
+        let code = '';
+        if (this.binding instanceof ConstantValue_1.ConstantValue) {
+            code = `g[${this.index}]`;
+        }
+        else if (this.binding instanceof StoreExpression_1.StoreExpression) {
+            code = `v${this.index}`;
+        }
+        else if (this.binding instanceof RegisterBank_1.RegisterBank) {
+            if (this.binding.bank === 'input') {
+                code = 'i';
+            }
+            else if (this.binding.bank === 'static') {
+                code = 'k';
+            }
+            else if (this.binding.bank === 'trace') {
+                if (this.index === 0) {
+                    code = 'r';
+                }
+                else if (this.index === 1) {
+                    code = 'n';
+                }
+            }
+        }
+        if (this.isVector && options.vectorAsArray) {
+            code = `${code}.toValues()`;
+        }
+        return code;
+    }
 }
 exports.LoadExpression = LoadExpression;
 //# sourceMappingURL=LoadExpression.js.map

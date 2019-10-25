@@ -54,4 +54,9 @@ export class MatrixExpression extends Expression {
         const rows = this.elements.map(r => `(${r.map(e => e.toString()).join(' ')})`);
         return `(matrix ${rows.join(' ')})`
     }
+
+    toJsCode(): string {
+        const rows = this.elements.map(r => `[${r.map(e => e.toJsCode()).join(', ')}]`);
+        return `f.newMatrixFrom([${rows.join(', ')}])`;
+    }
 }

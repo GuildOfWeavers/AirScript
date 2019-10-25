@@ -30,6 +30,10 @@ class ExtractExpression extends Expression_1.Expression {
     toString() {
         return `(get ${this.source.toString()} ${this.index})`;
     }
+    toJsCode() {
+        let code = `${this.source.toJsCode({ vectorAsArray: true })}[${this.index}]`;
+        return code;
+    }
 }
 exports.ExtractExpression = ExtractExpression;
 //# sourceMappingURL=ExtractExpression.js.map

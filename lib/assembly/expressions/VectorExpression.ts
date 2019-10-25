@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Expression, AssemblyOptions } from "./Expression";
+import { Expression, AssemblyOptions, JsCodeOptions } from "./Expression";
 import { ExtractExpression } from "./ExtractExpression";
 import { SliceExpression } from "./SliceExpression";
 
@@ -60,6 +60,19 @@ export class VectorExpression extends Expression {
     toString(options: AssemblyOptions = {}): string {
         const list = this.elements.map(e => e.toString({ vectorAsList: true })).join(' ');
         return options.vectorAsList ? list : `(vector ${list})`;
+    }
+
+    toJsCode(options: JsCodeOptions = {}): string {
+        const elements = this.elements.map(e => {
+            let ec = e.toJsCode({ vectorAsArray: true });
+            return e.isVector ? `...${ec}` : ec;
+        });
+        let code = `[${elements.join(', ')}]`;
+
+        if (!options.vectorAsArray) {
+            code = `f.newVectorFrom(${code})`
+        }
+        return code;
     }
 }
 

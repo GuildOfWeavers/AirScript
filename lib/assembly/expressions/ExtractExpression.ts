@@ -35,4 +35,9 @@ export class ExtractExpression extends Expression {
     toString(): string {
         return `(get ${this.source.toString()} ${this.index})`;
     }
+
+    toJsCode(): string {
+        let code = `${this.source.toJsCode({ vectorAsArray: true })}[${this.index}]`;
+        return code;
+    }
 }

@@ -4,6 +4,7 @@ import { StarkLimits } from "@guildofweavers/air-script";
 import { Expression, ConstantValue, LoadExpression, RegisterBank, StoreExpression } from "./expressions";
 import { FieldDeclaration, StaticRegister, InputRegister, LocalVariable } from "./declarations";
 import { getLoadSource, getStoreTarget } from "./expressions/utils";
+import { Dimensions } from "../utils";
 
 // INTERFACES
 // ================================================================================================
@@ -81,6 +82,10 @@ export class ModuleInfo {
         return (this.tFunctionBody === undefined);
     }
 
+    get transitionFunctionLocals(): Dimensions[] {
+        return this.tFunctionSig.locals.map(l => l.dimensions);
+    }
+
     get transitionFunctionBody(): TransitionBody {
         if (!this.tFunctionBody) throw new Error(`transition function body hasn't been set`);
         return this.tFunctionBody;
@@ -95,6 +100,10 @@ export class ModuleInfo {
             throw new Error(`transition function must evaluate to a vector of ${this.stateWidth} elements`);
 
         this.tFunctionBody = value;
+    }
+
+    get transitionConstraintsLocals(): Dimensions[] {
+        return this.tConstraintsSig.locals.map(l => l.dimensions);
     }
 
     get transitionConstraintsBody(): TransitionBody {
