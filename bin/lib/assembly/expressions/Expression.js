@@ -28,8 +28,8 @@ class Expression {
             }
         }
     }
-    updateLoadIndex(source, fromIdx, toIdx) {
-        this.children.forEach(child => child.updateLoadIndex(source, fromIdx, toIdx));
+    updateLoadStoreIndex(source, fromIdx, toIdx) {
+        this.children.forEach(child => child.updateLoadStoreIndex(source, fromIdx, toIdx));
     }
     // DIMENSION METHODS AND ACCESSORS
     // --------------------------------------------------------------------------------------------

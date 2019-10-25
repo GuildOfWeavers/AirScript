@@ -54,6 +54,9 @@ class ModuleInfo {
             throw new Error(`transition function must evaluate to a vector of ${this.stateWidth} elements`);
         this.tFunctionBody = value;
     }
+    get transitionFunctionExpressions() {
+        return [...this.tFunctionBody.statements, this.tFunctionBody.output];
+    }
     get transitionConstraintsLocals() {
         return this.tConstraintsSig.locals.map(l => l.dimensions);
     }
@@ -71,12 +74,15 @@ class ModuleInfo {
             throw new Error(`transition constraints must evaluate to a vector of ${this.constraintCount} elements`);
         this.tConstraintsBody = value;
     }
+    get transitionConstraintsExpressions() {
+        return [...this.tConstraintsBody.statements, this.tConstraintsBody.output];
+    }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     buildLoadExpression(operation, index) {
         const source = utils_1.getLoadSource(operation);
         if (source === 'const') {
-            if (index <= this.constants.length)
+            if (index >= this.constants.length)
                 throw new Error(`constant with index ${index} has not been defined`);
             return new expressions_1.LoadExpression(this.constants[index], index);
         }
@@ -132,14 +138,30 @@ class ModuleInfo {
     // OPTIMIZATION
     // --------------------------------------------------------------------------------------------
     compress() {
-        // compress transition function
-        cleanStatements(this.tFunctionBody);
-        cleanLocals(this.tFunctionSig, this.tFunctionBody);
-        this.tFunctionBody.output.compress();
-        // compress transition constraints
-        cleanStatements(this.tConstraintsBody);
-        cleanLocals(this.tConstraintsSig, this.tConstraintsBody);
-        this.tConstraintsBody.output.compress();
+        compressTransitionSegment(this.tFunctionSig, this.tFunctionBody);
+        compressTransitionSegment(this.tConstraintsSig, this.tConstraintsBody);
+        this.compressConstants();
+    }
+    compressConstants() {
+        // collect references to constants from all expressions
+        const bindings = new Map();
+        const expressions = [...this.transitionFunctionExpressions, ...this.transitionConstraintsExpressions];
+        expressions.forEach(e => e.collectLoadOperations('const', bindings));
+        // if a constant is a scalar or is referenced only once, substitute it by value
+        let shiftCount = 0;
+        for (let i = 0; i < this.constants.length; i++) {
+            let constant = this.constants[i];
+            let dependents = bindings.get(constant);
+            if (!dependents || dependents.length === 1 || constant.isScalar) {
+                (dependents || []).forEach(d => expressions.forEach(e => e.replace(d, constant)));
+                this.constants.splice(i, 1);
+                shiftCount++;
+                i--;
+            }
+            else if (shiftCount > 0) {
+                expressions.forEach(e => e.updateLoadStoreIndex('const', i + shiftCount, i));
+            }
+        }
     }
     // CODE OUTPUT
     // --------------------------------------------------------------------------------------------
@@ -156,15 +178,13 @@ class ModuleInfo {
         let tFunction = `\n    (frame ${this.tFunctionSig.width} ${this.tFunctionSig.span})`;
         if (this.tFunctionSig.locals.length > 0)
             tFunction += `\n    ${this.tFunctionSig.locals.map(v => v.toString()).join(' ')}`;
-        tFunction += this.tFunctionBody.statements.map(s => `\n    ${s.toString()}`).join('');
-        tFunction += `\n    ${this.tFunctionBody.output.toString()}`;
+        tFunction += this.transitionFunctionExpressions.map(s => `\n    ${s.toString()}`).join('');
         code += `\n  (transition${tFunction})`;
         // transition constraints
         let tConstraints = `\n    (frame ${this.tConstraintsSig.width} ${this.tConstraintsSig.span})`;
         if (this.tConstraintsSig.locals.length > 0)
             tConstraints += `\n    ${this.tConstraintsSig.locals.map(v => v.toString()).join(' ')}`;
-        tConstraints += this.tConstraintsBody.statements.map(s => `\n    ${s.toString()}`).join('');
-        tConstraints += `\n    ${this.tConstraintsBody.output.toString()}`;
+        tConstraints += this.transitionConstraintsExpressions.map(s => `\n    ${s.toString()}`).join('');
         code += `\n  (evaluation${tConstraints})`;
         return `(module${code}\n)`;
     }
@@ -192,10 +212,12 @@ class ModuleInfo {
 exports.ModuleInfo = ModuleInfo;
 // HELPER FUNCTIONS
 // ================================================================================================
-function cleanStatements(body) {
-    const expressions = [...body.statements, body.output];
+function compressTransitionSegment(signature, body) {
+    // collect references to locals from all expressions
+    let expressions = [...body.statements, body.output];
     const bindings = new Map();
     expressions.forEach(e => e.collectLoadOperations('local', bindings));
+    // if a store expression is referenced only once, substitute it by value
     const retainedStatements = [];
     for (let i = 0; i < body.statements.length; i++) {
         let statement = body.statements[i];
@@ -210,31 +232,24 @@ function cleanStatements(body) {
             retainedStatements.push(statement);
         }
     }
+    // update body object and compress all remaining expressions
     body.statements = retainedStatements;
-}
-function cleanLocals(signature, body) {
+    expressions = [...body.statements, body.output];
+    expressions.forEach(e => e.compress());
+    // remove all unreferenced local variables
     signature.locals.forEach(v => v.clearBinding());
     body.statements.forEach(s => signature.locals[s.index].bind(s, s.index));
+    let shiftCount = 0;
     for (let i = 0; i < signature.locals.length; i++) {
         let variable = signature.locals[i];
-        if (variable.isBound)
-            continue;
-        let nextIdx = findNextNonEmptyLocal(signature.locals, i + 1);
-        if (nextIdx) {
-            signature.locals[i] = signature.locals[nextIdx];
-            signature.locals[nextIdx] = variable;
+        if (!variable.isBound) {
+            signature.locals.splice(i, 1);
+            shiftCount++;
+            i--;
         }
-        else {
-            signature.locals.length = i;
-            break;
+        else if (shiftCount > 0) {
+            expressions.forEach(e => e.updateLoadStoreIndex('local', i + shiftCount, i));
         }
     }
-}
-function findNextNonEmptyLocal(locals, start) {
-    for (let i = start; i < locals.length; i++) {
-        if (locals[i].isBound)
-            return i;
-    }
-    return 0;
 }
 //# sourceMappingURL=ModuleInfo.js.map

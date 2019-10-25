@@ -48,7 +48,7 @@ export class LoadExpression extends Expression {
         }
     }
 
-    updateLoadIndex(source: LoadSource, fromIdx: number, toIdx: number): void {
+    updateLoadStoreIndex(source: LoadSource, fromIdx: number, toIdx: number): void {
         if (this.source === source && this._index === fromIdx) {
             this._index = toIdx;
         }

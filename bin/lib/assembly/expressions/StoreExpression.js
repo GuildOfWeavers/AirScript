@@ -12,11 +12,21 @@ class StoreExpression extends Expression_1.Expression {
     constructor(operation, index, value) {
         super(value.dimensions, value.degree);
         this.target = utils_1.getStoreTarget(operation);
-        this.index = index;
+        this._index = index;
         this.value = value;
+    }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get index() {
+        return this._index;
     }
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
+    updateLoadStoreIndex(target, fromIdx, toIdx) {
+        if (this.target === target && this._index === fromIdx) {
+            this._index = toIdx;
+        }
+    }
     toString() {
         return `(store.${this.target} ${this.index} ${this.value.toString()})`;
     }

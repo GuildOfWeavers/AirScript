@@ -55,8 +55,8 @@ export abstract class Expression {
         }
     }
 
-    updateLoadIndex(source: LoadSource, fromIdx: number, toIdx: number): void {
-        this.children.forEach(child => child.updateLoadIndex(source, fromIdx, toIdx));
+    updateLoadStoreIndex(source: LoadSource, fromIdx: number, toIdx: number): void {
+        this.children.forEach(child => child.updateLoadStoreIndex(source, fromIdx, toIdx));
     }
 
     // DIMENSION METHODS AND ACCESSORS

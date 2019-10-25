@@ -40,7 +40,7 @@ class LoadExpression extends Expression_1.Expression {
             result.set(this.binding, bindings);
         }
     }
-    updateLoadIndex(source, fromIdx, toIdx) {
+    updateLoadStoreIndex(source, fromIdx, toIdx) {
         if (this.source === source && this._index === fromIdx) {
             this._index = toIdx;
         }
