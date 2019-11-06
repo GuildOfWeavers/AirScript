@@ -1,8 +1,12 @@
 # AirAssembly
 
-AirAssembly is a low-level language for encoding Algebraic Intermediate Representation (AIR) of computations. The goal of the language is to provide a minimum number of constructs required to fully express AIR for an arbitrary computation.
+AirAssembly is a low-level language for encoding Algebraic Intermediate Representation (AIR) of a computation. The goal of the language is to provide a minimum number of constructs required to fully express AIR for an arbitrary computation.
 
-AirAssembly is intended to be a compilation target for higher-level languages, and as such, expressivity and readability by humans are not explicit goals of the language.
+AirAssembly is intended to be a compilation target for higher-level languages, and as such, expressivity and readability by humans are not explicit goals of the language. Instead, the language aims to:
+
+1. Be easy to parse. This is one of the reasons AirAssembly uses [s-expression](https://en.wikipedia.org/wiki/S-expression)-based syntax.
+2. Provide a small number of primitives which can be combined together to form more complex constructs.
+3. Avoid redundancy and implicit behavior. Ideally, there should be one right way to do things, and all parameters should be specified explicitly.
 
 ## AirAssembly module
 A module in AirAssembly is a self-contained unit which fully describes a computation. Its purpose is to specify:
@@ -23,7 +27,7 @@ Module expression has the following form:
     <export declarations>)
 ```
 
-The code below illustrates module structure on an example of a [MiMC](https://vitalik.ca/general/2018/07/21/starks_part_3.html#mimc) computation:
+The code below illustrates AirAssembly module structure on an example of a [MiMC](https://vitalik.ca/general/2018/07/21/starks_part_3.html#mimc) computation:
 ```
 (module
     (field prime 340282366920938463463374607393113505793)
@@ -49,9 +53,13 @@ The code below illustrates module structure on an example of a [MiMC](https://vi
 The meaning of the components in the above example is as follows:
 
 * [Field declaration](#Field-declaration) specifies the finite field to be used for all arithmetic operations.
+  * In the example, we use a prime field with modulus 2<sup>128</sup> - 9 * 2<sup>32</sup> + 1
 * [Constant declarations](#Constant-declarations) define a set of constants that can be used in transition function and constraint evaluator.
+  * In the example, we define a single constant which is equal to scalar value `3`. The index of the constant is 0.
 * [Static registers](#Static-registers) describe logic for building static registers, including logic for interpreting inputs.
+  * In the example, we define a single static register.
 * [Transition function](#Transition-function) describes state transition logic for the computation.
+  * In the example, the transition function 
 * [Constraint evaluator](#Constraint-evaluator) describes algebraic relation between steps of the computation.
 * [Export declarations](#Export-declarations) define endpoints which can be used to compose the computation with other computations.
 
@@ -76,16 +84,19 @@ AirAssembly module execution process is illustrated in the picture below:
 1. First, the static segment of the execution trace table is built by evaluating static register specifications against provided inputs.
 2. Then, the dynamic segment of the execution trace table is built by evaluating the transition function for each step of the computation.
     * The dynamic segment is built after the static segment because transition function should be able to access static registers at every step.
-3. Finally, the constraint evaluation table is built by applying constraint evaluator to the extended version of the execution trace.
+3. Finally, the constraint evaluation table is built by applying constraint evaluator to the execution trace.
+
+(the funny shape of the Inputs drawing is not accidental; check out [nested input register](#Nested-input-registers) example to see why).
 
 ## Module components
 
 ### Field declaration
-Field declaration section specifies a finite field to be used in all arithmetic expressions. Currently, only prime fields are supported. The declaration has the following form:
+Field declaration section specifies a finite field to be used in all arithmetic expressions. The declaration expression has the following form:
 ```
-(field prime <modulus>)
+(field <type> <modulus>)
 ```
 where:
+* `type` specifies the type of the field. Currently, only `prime` fields are supported.
 * `modulus` specifies prime field modulus.
 
 For example:
@@ -120,7 +131,7 @@ Static registers section defines logic for generating static register traces. Th
 (static <registers>)
 ```
 where:
-* `registers` is a list of register declaration consisting of input, embedded, and computed registers.
+* `registers` is a list of register declarations consisting of input, embedded, and computed registers.
 
 For example, the following code block declares 2 registers - one input register and one embedded cyclic register:
 ```
@@ -131,14 +142,14 @@ For example, the following code block declares 2 registers - one input register 
 A detailed explanation of each type of static register is provided in the following sections.
 
 #### Input registers
-Input register declaration specifies what inputs are required by the computation, and describes the logic needed to transform these inputs into register traces. The declaration expression has the following form:
+Input register declarations specify what inputs are required by the computation, and describes the logic needed to transform these inputs into register traces. Input register declaration expression has the following form:
 ```
 (input <visibility> <binary?> <type> <filling> <steps?>)
 ```
-where
+where:
 * `visibility` can be either `secret` or `public`. Values for `secret` input registers are assumed be known only to the prover and need to be provided only at the proof generation time. Values for `public` input registers must be known to both, the prover and the verifier, and must be provided at the time of proof generation, as well as, at the time of proof verification.
 * An optional `binary` attribute indicates whether the input register accepts only binary values (ones and zeros).
-* Input `type` can be `scalar`, `vector`, or a reference to a parent register. `scalar` input registers expect a single value; `vector` input registers expect a list of at least one value and the length of the list must be a power of 2. References to parent registers have the form `(parent <index>)`, where `index` is the index of the parent register. This allows forming of nested inputs (see [examples](#Nested-input-registers) for more info).
+* Input `type` can be `scalar`, `vector`, or a reference to a parent register. `scalar` input registers expect a single value; `vector` input registers expect a list of at least one value, and the length of the list must be a power of 2. References to parent registers have the form `(parent <index>)`, where `index` is the index of the parent register. This allows forming of nested inputs (see [examples](#Nested-input-registers) for more info).
 * `filling` can be either `sparse` or a `fill` expression. `sparse` filling indicates that values at steps other than input alignment steps are unimportant. `fill` expression has the form `(fill <value>)`, where `value` is a scalar value to be inserted into the register trace at all unaligned steps (see [examples](#Single-input-register) for more info).
 * `steps` expression has the form `(steps <count>)`, where `count` specifies the number of steps by which a register trace should be expanded for each input value. `steps` expression can be provided only for "leaf" input registers (see [examples](#Nested-input-registers) for more info).
 
@@ -150,7 +161,7 @@ Detailed examples of how different types of input registers are transformed into
 ```
 
 #### Embedded registers
-Embedded register declaration contains the data needed to generate a register trace without any additional inputs. The declaration expression has the following form:
+Embedded register declarations contains the data needed to generate a register trace without any additional inputs. The declaration expression has the following form:
 ```
 (<type> <values>)
 ```
@@ -170,13 +181,13 @@ register 1: [1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1]
 ```
 
 #### Computed registers
-
+TODO
 ```
 (when (base 2) 1 0)
 ```
 
 ### Transition function
-Transition function describes state transition logic needed to generate an execution trace table for a computation. Transition function expression has the following form:
+Transition function describes state transition logic needed to generate dynamic register traces. Transition function expression has the following form:
 ```
 (transition <signature> <locals> <body>)
 ```
@@ -225,7 +236,6 @@ Locals section of a transition function declares variables which can be accessed
 (local <type>)
 ```
 where:
-
 * Variable `type` can either a scalar, a vector, or a matrix (see [value types](#Value-types) for more info). For non-scalar types, additional info must be supplied to specify the dimensions of the variable.
 
 For example:
@@ -256,8 +266,8 @@ Another example, where a local variable is used to store value of a common sub-e
 (vector (load.local 0) (load.local 0))  # resolves to vector [3, 3]
 ```
 
-### Constraint evaluation
-Constraint evaluation section describes transition constraint evaluator logic needed to generate a constraint evaluation table for a computation. Constraint evaluation expression has the following form:
+### Constraint evaluator
+Constraint evaluator section describes transition constraint evaluation logic needed to generate a constraint evaluation table for a computation. Constraint evaluation expression has the following form:
 ```
 (evaluation <signature> <locals> <body>)
 ```
@@ -286,6 +296,32 @@ The code block below shows a simple example of a constraint evaluator which comp
 The evaluator above loads the next row of the execution trace table, and subtracts the result of applying the transition function to the current row from it.
 
 ### Export declarations
+TODO
+```
+(export <name> <initializer?> <trace cycle>)
+```
+where:
+* Export `name`
+* `initializer`
+* `trace cycle`
+
+#### Main export
+```
+(export main (init seed) (steps 64))
+
+(export main 
+    (init (vector 0 0 0 0)) (steps 64))
+
+(export main 
+    (init (vector (get seed 0) (get seed 1) 0 0))
+    (steps 64))
+```
+
+#### Interface exports
+```
+(export mimc128 (steps 128))
+(export mimc256 (steps 256))
+```
 
 ## Arithmetic expressions
 Arithmetic expressions are the basic building blocks for the bodies of transition functions and transition constraint evaluators. These expressions usually perform some operation with one or more values, and resolve to a new value which is the result of the operation.
@@ -303,7 +339,6 @@ To create a vector, the following expression can be used:
 (vector <elements>)
 ```
 where:
-
 *  **elements** is a list of expressions which resolve to scalars or vectors.
 
 For example:
@@ -319,7 +354,6 @@ To extract a single element from a vector, the following expression can be used:
 (get <vector> <index>)
 ```
 where:
-
  * **vector** is the vector from which the element is to be extracted,
  * **index** is the zero-based index of the element to extract.
 
@@ -365,7 +399,6 @@ AirAssembly supports basic arithmetic operations. To perform such operations the
 (<operation> <operand 1> <operand 2>)
 ```
 where:
-
 * **operation** is one of the following operations:
   * `add` - modular addition.
   * `sub` - modular subtraction.
@@ -407,7 +440,6 @@ AirAssembly also supports two unary arithmetic operations. These operations are 
 (<operation> <operand>)
 ```
 where:
-
 * **operation** is one of the following operations:
   * `neg` - modular additive inverse.
   * `inv` - modular multiplicative inverse.
@@ -430,7 +462,6 @@ To retrieve values from various sections of a program's memory, the following ex
 (load.<source> <index>)
 ```
 where:
-
 * **source** specifies the memory segment; can be one of the following values:
   * `const` - array of global constants.
   * `static` - static register table.
@@ -479,6 +510,7 @@ Value of a given local variable can be updated an unlimited number of times. Als
 **Note:** unlike other expressions, store expressions do not resolve to a value, and therefore, cannot be used as sub-expressions in other expressions.
 
 ## Static register trace generation
+TODO
 
 ### Single input register
 The examples below illustrate how various inputs for a single register are transformed into register traces. Since we work with a single register, our traces will have only 1 column.
