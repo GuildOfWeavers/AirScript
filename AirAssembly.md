@@ -1,12 +1,19 @@
 # AirAssembly
 
-AirAssembly is a low-level language for encoding Algebraic Intermediate Representation (AIR) of a computation. The goal of the language is to provide a minimum number of constructs required to fully express AIR for an arbitrary computation.
+AirAssembly is a low-level language for encoding Algebraic Intermediate Representations (AIR) of computations. The goal of the language is to provide a minimum number of constructs required to fully express AIR for an arbitrary computation.
 
 AirAssembly is intended to be a compilation target for higher-level languages, and as such, expressivity and readability by humans are not explicit goals of the language. Instead, the language aims to:
 
 1. Be easy to parse. This is one of the reasons AirAssembly uses [s-expression](https://en.wikipedia.org/wiki/S-expression)-based syntax.
 2. Provide a small number of primitives which can be combined together to form more complex constructs.
 3. Avoid redundancy and implicit behavior. Ideally, there should be one right way to do things, and all parameters should be specified explicitly.
+
+### Features
+TODO
+
+### Current limitations
+* **No binary fields** - current specifications support only prime field.
+* **No sparse constraints** - transition constraints in current specifications are limited to constraints that apply to two consecutive execution trace rows.
 
 ## AirAssembly module
 A module in AirAssembly is a self-contained unit which fully describes a computation. Its purpose is to specify:
@@ -46,23 +53,18 @@ The code below illustrates AirAssembly module structure on an example of a [MiMC
             (add
                 (exp (load.trace 0) (load.const 0))
                 (load.static 0))))
-    (export 
-        "mimc" (steps 1024)))
+    (export mimc128 (steps 256))
+    (export mimc256 (steps 1024)))
 ```
 
 The meaning of the components in the above example is as follows:
 
 * [Field declaration](#Field-declaration) specifies the finite field to be used for all arithmetic operations.
-  * In the example, we use a prime field with modulus 2<sup>128</sup> - 9 * 2<sup>32</sup> + 1
 * [Constant declarations](#Constant-declarations) define a set of constants that can be used in transition function and constraint evaluator.
-  * In the example, we define a single constant which is equal to scalar value `3`. The index of the constant is 0.
 * [Static registers](#Static-registers) describe logic for building static registers, including logic for interpreting inputs.
-  * In the example, we define a single static register.
 * [Transition function](#Transition-function) describes state transition logic for the computation.
-  * In the example, the transition function 
 * [Constraint evaluator](#Constraint-evaluator) describes algebraic relation between steps of the computation.
 * [Export declarations](#Export-declarations) define endpoints which can be used to compose the computation with other computations.
-
 
 ## Execution model
 Executing an AirAssembly module against a set of inputs produces two outputs:
@@ -89,6 +91,7 @@ AirAssembly module execution process is illustrated in the picture below:
 (the funny shape of the Inputs drawing is not accidental; check out [nested input register](#Nested-input-registers) example to see why).
 
 ## Module components
+The sections below provide detailed explanation of [AirAssembly module](#AirAssembly-module) components.
 
 ### Field declaration
 Field declaration section specifies a finite field to be used in all arithmetic expressions. The declaration expression has the following form:
@@ -147,11 +150,11 @@ Input register declarations specify what inputs are required by the computation,
 (input <visibility> <binary?> <type> <filling> <steps?>)
 ```
 where:
-* `visibility` can be either `secret` or `public`. Values for `secret` input registers are assumed be known only to the prover and need to be provided only at the proof generation time. Values for `public` input registers must be known to both, the prover and the verifier, and must be provided at the time of proof generation, as well as, at the time of proof verification.
+* `visibility` can be either `secret` or `public`. Values for `secret` input registers are assumed to be known only to the prover and need to be provided only at the proof generation time. Values for `public` input registers must be known to both, the prover and the verifier, and must be provided at the time of proof generation, as well as, at the time of proof verification.
 * An optional `binary` attribute indicates whether the input register accepts only binary values (ones and zeros).
 * Input `type` can be `scalar`, `vector`, or a reference to a parent register. `scalar` input registers expect a single value; `vector` input registers expect a list of at least one value, and the length of the list must be a power of 2. References to parent registers have the form `(parent <index>)`, where `index` is the index of the parent register. This allows forming of nested inputs (see [examples](#Nested-input-registers) for more info).
 * `filling` can be either `sparse` or a `fill` expression. `sparse` filling indicates that values at steps other than input alignment steps are unimportant. `fill` expression has the form `(fill <value>)`, where `value` is a scalar value to be inserted into the register trace at all unaligned steps (see [examples](#Single-input-register) for more info).
-* `steps` expression has the form `(steps <count>)`, where `count` specifies the number of steps by which a register trace should be expanded for each input value. `steps` expression can be provided only for "leaf" input registers (see [examples](#Nested-input-registers) for more info).
+* `steps` expression has the form `(steps <count>)`, where `count` specifies the number of steps by which a register trace should be expanded for each input value. The number of steps must be a power of 2. `steps` expression can be provided only for "leaf" input registers (see [examples](#Nested-input-registers) for more info).
 
 Detailed examples of how different types of input registers are transformed into register traces are available [here](#Static-register-trace-generation), but here are a few simple example of input register declarations:
 ```
@@ -161,15 +164,15 @@ Detailed examples of how different types of input registers are transformed into
 ```
 
 #### Embedded registers
-Embedded register declarations contains the data needed to generate a register trace without any additional inputs. The declaration expression has the following form:
+Embedded register declarations contains the data needed to generate a register trace without any additional inputs. Embedded register declaration expression has the following form:
 ```
 (<type> <values>)
 ```
 where:
 * `type` is the type of the embedded register. Currently, the only available type is `cycle` which will generate a trace with a cyclic pattern of values.
-* `values` is the list of scalars which is to form the basis of the register trace. The list must contain at least one value, and the length of the list must be a power of 2.
+* `values` is the list of scalars which form the basis of the register trace. The list must contain at least one value, and the length of the list must be a power of 2.
 
-For example, the following code block declares two embedded cyclic registers registers:
+For example, the following code block declares two embedded cyclic registers:
 ```
 (cycle 1 2 3 4)
 (cycle 1 1 0 0 0 0 1 1)
@@ -296,31 +299,49 @@ The code block below shows a simple example of a constraint evaluator which comp
 The evaluator above loads the next row of the execution trace table, and subtracts the result of applying the transition function to the current row from it.
 
 ### Export declarations
-TODO
+Export declarations specify how the module can be executed either as a stand-alone computation or as a part of a composed computation. There can be many export declarations per module and each declaration expression has the following form:
+
 ```
 (export <name> <initializer?> <trace cycle>)
 ```
 where:
-* Export `name`
-* `initializer`
-* `trace cycle`
+* Export `name` defines a unique name for the exported endpoint. The name must start with a letter and can contain any combination of letters, numbers, and underscores. The name `main` has special meaning as described in the [main export](#Main-export) section below.
+* Trace `initializer` defines initialization logic for the first row of dynamic register traces. This item is relevant only for the `main` export. All other exports do not have control over initialization of the first trace row. The initialization expression is described in detail in the [main export](#Main-export) section below.
+* `trace cycle` defines the length of a single execution trace cycle required by the computation. Trace cycle expression has the following form `(steps <count>)`, where `count` specifies the number of required steps. The `count` parameter must be a power of 2 and also must be a multiple of the number of steps required to consume the smallest possible set of inputs. For example, if according to input register declarations, the smallest possible execution trace can be 64 steps, then the `count` parameter can be set to 64, 128, 256 etc.
 
 #### Main export
+When the name of an export is set to `main`, the export defines rules for how the computation can be run as a stand-alone module. This also requires that export expression includes an initializer which has the following form:
 ```
-(export main (init seed) (steps 64))
+(init <initialization vector>)
+```
+where:
+* `initialization vector` is an expression that resolves to a vector of the same length as the vector returned by the transition function (i.e. the number of dynamic trace registers).
 
+For example, if the execution trace has 4 dynamic trace registers, the `main` export expression may look like so:
+```
 (export main 
     (init (vector 0 0 0 0)) (steps 64))
+```
+This will initialize the first row of dynamic register traces to all `0`'s.
 
+Trace initializer also has access to a special `seed` vector. Values for the `seed` vector are provided at the time of proof generation. The initializer can resolve to the `seed` vector directly like so:
+```
+(export main (init seed) (steps 64))
+```
+The initializer can also perform basic vector and arithmetic operations with the `seed` vector. For example, the initializer in the code block below resolves to a vector of 4 values where the first two values are taken from the `seed` vector, and the remaining two values are set to `0`:
+```
 (export main 
     (init (vector (get seed 0) (get seed 1) 0 0))
     (steps 64))
 ```
 
 #### Interface exports
+When the name of an export is set to anything other than `main`, the export defines rules for how the module can be composed with other computations. In this case, only the `cycle length` expression is required to specify minimum possible trace cycle length.
+
+For example, the code block below declares two exports, with `mimc128` export requiring 256 steps to execute, and `mimc256` requiring 1024 steps to execute.
 ```
-(export mimc128 (steps 128))
-(export mimc256 (steps 256))
+(export mimc128 (steps 256))
+(export mimc256 (steps 1024))
 ```
 
 ## Arithmetic expressions
