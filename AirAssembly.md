@@ -8,13 +8,6 @@ AirAssembly is intended to be a compilation target for higher-level languages, a
 2. Provide a small number of primitives which can be combined together to form more complex constructs.
 3. Avoid redundancy and implicit behavior. Ideally, there should be one right way to do things, and all parameters should be specified explicitly.
 
-### Features
-TODO
-
-### Current limitations
-* **No binary fields** - current specifications support only prime field.
-* **No sparse constraints** - transition constraints in current specifications are limited to constraints that apply to two consecutive execution trace rows.
-
 ## AirAssembly module
 A module in AirAssembly is a self-contained unit which fully describes a computation. Its purpose is to specify:
 
@@ -156,7 +149,7 @@ where:
 * `filling` can be either `sparse` or a `fill` expression. `sparse` filling indicates that values at steps other than input alignment steps are unimportant. `fill` expression has the form `(fill <value>)`, where `value` is a scalar value to be inserted into the register trace at all unaligned steps (see [examples](#Single-input-register) for more info).
 * `steps` expression has the form `(steps <count>)`, where `count` specifies the number of steps by which a register trace should be expanded for each input value. The number of steps must be a power of 2. `steps` expression can be provided only for "leaf" input registers (see [examples](#Nested-input-registers) for more info).
 
-Detailed examples of how different types of input registers are transformed into register traces are available [here](#Static-register-trace-generation), but here are a few simple example of input register declarations:
+Detailed examples of how different types of input registers are transformed into register traces are available [here](#Input-register-trace-generation), but here are a few simple example of input register declarations:
 ```
 (input public scalar sparse (steps 8))
 (input secret vector (fill 0))
@@ -164,7 +157,7 @@ Detailed examples of how different types of input registers are transformed into
 ```
 
 #### Embedded registers
-Embedded register declarations contains the data needed to generate a register trace without any additional inputs. Embedded register declaration expression has the following form:
+Embedded register declarations contains the data needed to generate register traces without any additional inputs. Embedded register declaration expression has the following form:
 ```
 (<type> <values>)
 ```
@@ -184,9 +177,77 @@ register 1: [1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1]
 ```
 
 #### Computed registers
-TODO
+Input and embedded registers can be combined using arithmetic and logical operators to form new static registers. Such registers are called computed registers and their declaration has the following form:
 ```
-(when (base 2) 1 0)
+(<expression>)
+```
+where:
+* `expression` can be either an arithmetic expression or a logical expression involving one or more already declared registers.
+
+For example, in the code block below, two static registers are declared: the first one is an embedded cyclic register, the second on is a computed register where every value for the register is equal to the corresponding value of the cyclic register multiplied by 2.
+```
+(cycle 1 2 3 4)
+(mul (static 0) 2)
+```
+
+**Note:** computed registers cannot be based on secret input registers as a verifier also should be able to generate register traces for these registers.
+
+##### Logical expressions
+Logical expressions can combine one or more public input register into a computed register. Logical expressions have the following form:
+```
+(when <condition> <true value> <false value>)
+```
+where:
+* `condition` is a boolean predicate which evaluates to true when a referenced input register holds input value, and evaluates to false otherwise.
+* `true value` is a scalar value which the register will take when the predicate is true.
+* `false value` is a scalar value which the register will take when the predicate is false.
+
+For example:
+```
+(input public vector sparse (steps 4))
+(when (static 0) 1 0)
+```
+Assuming inputs for register 0 are [3, 4], register traces for the above example will look like so:
+```
+register 0: [3, ?, ?, ?, 4, ?, ?, ?]
+register 1: [1, 0, 0, 0, 1, 0, 0, 0]
+```
+Essentially, the computed register will hold value `1` when there is an input in static register 0, and `0` otherwise.
+
+Predicates can be also combined using standard boolean operators `and`, `or` and, `not`. For example:
+```
+(input public vector sparse)
+(input public (parent 0) (fill 0) (steps 4))
+(when (and (not (static 0)) (static 1)) 1 0)
+```
+Assuming inputs for register 0 are [3, 4], and inputs for register 1 are [[4, 5], [6, 7]], register traces for the above example will look like so:
+```
+register 0: [3, ?, ?, ?, ?, ?, ?, ?, 4, ?, ?, ?, ?, ?, ?, ?]
+register 1: [4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0]
+register 2: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]
+```
+
+##### Arithmetic expressions
+Arithmetic expressions can combine other registers into a computed register using standard arithmetic operators `add`, `sub`, `mul`, `div`, `exp`, `neg`, and `inv`. Valid operands for these operators are:
+* Embedded, computed, and public input registers.
+* Logical expressions
+* Arithmetic expressions (i.e. arithmetic expressions can be nested).
+
+For example:
+```
+(input public vector (fill 0) (steps 8))
+(cycle 1 2 3 4)
+(mul
+    2
+    (add 
+        (when (static 0) 1 0) 
+        (static 1)))
+```
+Assuming inputs for register 0 are [3, 4], register traces for the above example will look like so:
+```
+register 0: [3, 0, 0, 0, 4, 0, 0, 0]
+register 1: [1, 2, 3, 4, 1, 2, 3, 4]
+register 2: [4, 4, 6, 8, 4, 4, 6, 8]
 ```
 
 ### Transition function
@@ -530,8 +591,11 @@ Value of a given local variable can be updated an unlimited number of times. Als
 ```
 **Note:** unlike other expressions, store expressions do not resolve to a value, and therefore, cannot be used as sub-expressions in other expressions.
 
-## Static register trace generation
-TODO
+## Input register trace generation
+Input register traces require two pieces of data to generate:
+
+1. Input register declarations which belong to the `static` section of AirAssembly module (described [here](#Input-registers)),
+2. Input values which are provided at the time of proof generation and proof verification. The inputs are expected to be provided as arrays, which can also be nested (i.g. arrays of arrays multiple layers deep).
 
 ### Single input register
 The examples below illustrate how various inputs for a single register are transformed into register traces. Since we work with a single register, our traces will have only 1 column.
@@ -645,3 +709,8 @@ The register traces generated for this set of inputs would look like so:
 | 13     | 0     |  0    | 0     | 0     | 0     |
 | 14     | 0     |  0    | 16    | 0     | 0     |
 | 15     | 0     |  0    | 0     | 0     | 0     |
+
+## Current limitations
+
+* **No binary fields** - current specifications support only prime field.
+* **No sparse constraints** - transition constraints in current specifications are limited to constraints that apply to two consecutive execution trace rows.
