@@ -1,6 +1,6 @@
 {
   "name": "@guildofweavers/air-script",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "A scripting language for defining zk-STARKs",
   "main": "index.js",
   "typings": "air-script.d.ts",
