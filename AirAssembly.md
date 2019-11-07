@@ -74,7 +74,7 @@ Executing an AirAssembly module against a set of inputs produces two outputs:
 
 AirAssembly module execution process is illustrated in the picture below:
 
-![AirAssembly module execution](https://3f4ppa.ch.files.1drv.com/y4pX_AQFcgKpyprul-3M7EFtuiLegpt8yOgSLpV4uytQC51_FMvsPjmtY8JU6I-B9aSnvQS0evjyzVItqmUX3uaz35ZMmVaQ56c0TjDQXw2F7No23zhKquSqUKXWbGd_iANFiR5tEt9e4fz9zkDRfTwR-eZQqQKj9O_a_wtwHtjESY42nURo7e3WA6SMxXVXOYC/airexe.png?psid=1)
+![AirAssembly module execution](https://credostore.blob.core.windows.net/web-assets/other/airexe.png)
 
 1. First, the static segment of the execution trace table is built by evaluating static register specifications against provided inputs.
 2. Then, the dynamic segment of the execution trace table is built by evaluating the transition function for each step of the computation.
