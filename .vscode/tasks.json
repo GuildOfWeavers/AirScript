@@ -11,8 +11,8 @@
         },
         {
             "label": "build",
-            "type": "gulp",
-            "task": "build",
+            "type": "npm",
+            "script": "build",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -24,8 +24,8 @@
         },
         {
             "label": "publish",
-            "type": "gulp",
-            "task": "publish",
+            "type": "npm",
+            "script": "publish",
             "presentation": {
                 "reveal": "always"
             },
