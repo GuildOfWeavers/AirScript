@@ -1,7 +1,8 @@
 // IMPORTS
 // ================================================================================================
-import { StarkLimits, InputRegisterSpecs, StaticRegisterSpecs } from '@guildofweavers/air-script';
-import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galois';
+import { AirSchema } from '@guildofweavers/air-assembly';
+import { InputRegisterSpecs, StaticRegisterSpecs } from '@guildofweavers/air-script';
+import { FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
@@ -18,7 +19,6 @@ import { Dimensions, validateVariableName, isPowerOf2 } from './utils';
 export interface ConstantDeclaration {
     name            : string;
     value           : bigint | bigint [] | bigint[][];
-    dimensions      : Dimensions;
 }
 
 // MODULE VARIABLES
@@ -34,23 +34,30 @@ class AirVisitor extends BaseCstVisitor {
 
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
-    script(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): ScriptSpecs {
+    script(ctx: any): AirSchema {
 
         const starkName = ctx.starkName[0].image;
         validateScriptSections(ctx);
 
-        // set up the field
-        const field: FiniteField = this.visit(ctx.fieldDeclaration, config.wasmOptions);
+        // build schema object
+        const modulus: bigint = this.visit(ctx.fieldDeclaration);
+        const schema = new AirSchema('prime', modulus);
 
+        // parse constants
+        ctx.moduleConstants && ctx.moduleConstants.map((element: any) => {
+            const constant: ConstantDeclaration = this.visit(element, schema.field);
+            schema.addConstant(constant.value, `$${constant.name}`);
+        });
+
+        const registers: number = this.visit(ctx.stateRegisterCount);
+        const constraints: number = this.visit(ctx.constraintCount);
+        const component = schema.createComponent(starkName, registers, constraints, 64);
+        
+        /*
         // build script specs
         const specs = new ScriptSpecs(starkName, field, config.limits);
         specs.setInputRegisterCount(this.visit(ctx.inputRegisterCount));
-        specs.setStateRegisterCount(this.visit(ctx.stateRegisterCount));
         specs.setStaticRegisterCount(this.visit(ctx.staticRegisterCount));
-        specs.setConstraintCount(this.visit(ctx.constraintCount));
-        if (ctx.globalConstants) {
-            specs.setGlobalConstants(ctx.globalConstants.map((element: any) => this.visit(element, field)));
-        }
 
         // build input and static registers
         specs.setInputRegisters(this.visit(ctx.inputRegisters) || []);
@@ -59,44 +66,42 @@ class AirVisitor extends BaseCstVisitor {
         // parse transition function and transition constraints
         specs.setTransitionFunction(this.visit(ctx.transitionFunction, specs));
         specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
+        */
 
-        return specs;
+        return schema;
     }
 
     // FINITE FIELD
     // --------------------------------------------------------------------------------------------
-    fieldDeclaration(ctx: any, wasmOptions?: WasmOptions) {
+    fieldDeclaration(ctx: any): bigint {
         const modulus = this.visit(ctx.modulus);
-        return createPrimeField(modulus, wasmOptions);
+        return BigInt(modulus)
     }
 
-    // STATIC CONSTANTS
+    // MODULE CONSTANTS
     // --------------------------------------------------------------------------------------------
     constantDeclaration(ctx: any, field?: FiniteField): ConstantDeclaration {
         const name = ctx.constantName[0].image;
-        let value: any;
-        let dimensions: Dimensions;
+        let value: bigint | bigint[] | bigint[][];
+
         if (ctx.value) {
             value = this.visit(ctx.value, field);
-            dimensions = [0, 0];
         }
         else if (ctx.vector) {
             value = this.visit(ctx.vector, field);
-            dimensions = [value.length, 0];
         }
         else if (ctx.matrix) {
             value = this.visit(ctx.matrix, field);
-            dimensions = [value.length, value[0].length];
         }
         else {
-            throw new Error(`Failed to parse the value of static constant '${name}'`);
+            throw new Error(`Failed to parse the value of module constant '${name}'`);
         }
 
-        validateVariableName(name, dimensions);
-        return { name, value, dimensions };
+        //validateVariableName(name, dimensions);
+        return { name, value };
     }
 
-    literalVector(ctx: any, field?: FiniteField) {
+    literalVector(ctx: any, field?: FiniteField): bigint[] {
         const vector = new Array<bigint>(ctx.elements.length);
         for (let i = 0; i < ctx.elements.length; i++) {
             let element: bigint = this.visit(ctx.elements[i], field);
@@ -105,7 +110,7 @@ class AirVisitor extends BaseCstVisitor {
         return vector;
     }
 
-    literalMatrix(ctx: any, field?: FiniteField) {
+    literalMatrix(ctx: any, field?: FiniteField): bigint[][] {
 
         let colCount = 0;
         const rowCount = ctx.rows.length;
@@ -124,7 +129,7 @@ class AirVisitor extends BaseCstVisitor {
         return matrix;
     }
 
-    literalMatrixRow(ctx: any, field?: FiniteField) {
+    literalMatrixRow(ctx: any, field?: FiniteField): bigint[] {
         const row = new Array<bigint>(ctx.elements.length);
         for (let i = 0; i < ctx.elements.length; i++) {
             let element = this.visit(ctx.elements[i], field);

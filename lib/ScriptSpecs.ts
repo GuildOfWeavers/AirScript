@@ -155,6 +155,7 @@ export class ScriptSpecs {
     }
 
     setGlobalConstants(declarations: ConstantDeclaration[]): void {
+        /*
         for (let constant of declarations) {
             if (this.globalConstants.has(constant.name)) {
                 throw new Error(`global constant '${constant.name}' is defined more than once`);
@@ -171,6 +172,7 @@ export class ScriptSpecs {
                 this.constantBindings[constant.name] = constant.value;
             }
         }
+        */
     }
 
     setTransitionFunction(tFunctionBody: TransitionFunctionBody): void {

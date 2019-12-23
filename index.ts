@@ -9,6 +9,7 @@ import { AirScriptError } from './lib/errors';
 import { ScriptSpecs } from './lib/ScriptSpecs';
 import * as generators from './lib/generators';
 import { isPowerOf2 } from './lib/utils';
+import { AirSchema } from '@guildofweavers/air-assembly';
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -58,7 +59,7 @@ export async function instantiate(scriptOrPath: Buffer | string, options: Script
     }
 }
 
-export function compile(script: string,) {
+export function compile(script: string) {
     
     // tokenize input
     const lexResult = lexer.tokenize(script);
@@ -75,9 +76,8 @@ export function compile(script: string,) {
 
     // build AIR module
     try {
-        const specs: ScriptSpecs = visitor.visit(cst, { limits: DEFAULT_LIMITS });
-        const air = generators.generateAssembly(specs, DEFAULT_LIMITS, 16);
-        return air;
+        const schema: AirSchema = visitor.visit(cst);
+        return schema;
     }
     catch (error) {
         throw new AirScriptError([error]);

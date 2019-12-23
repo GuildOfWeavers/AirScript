@@ -21,6 +21,7 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
             }
         }
     }
+
     // transition constraint definition
     enforce 1 constraint {
         for all steps {

@@ -21,7 +21,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.MANY(() => {
                 this.OR([
                     { ALT: () => {
-                            this.SUBRULE(this.constantDeclaration, { LABEL: 'globalConstants' });
+                            this.SUBRULE(this.constantDeclaration, { LABEL: 'moduleConstants' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Require);

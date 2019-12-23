@@ -1,7 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const expressions_1 = require("./expressions");
-const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
 class ScriptSpecs {
@@ -115,22 +113,24 @@ class ScriptSpecs {
         this.constraintCount = constraintCount;
     }
     setGlobalConstants(declarations) {
+        /*
         for (let constant of declarations) {
             if (this.globalConstants.has(constant.name)) {
                 throw new Error(`global constant '${constant.name}' is defined more than once`);
             }
-            let constExpression = new expressions_1.LiteralExpression(constant.value, constant.name);
+            let constExpression = new LiteralExpression(constant.value, constant.name);
             this.globalConstants.set(constant.name, constExpression);
-            if (utils_1.isMatrix(constant.dimensions)) {
-                this.constantBindings[constant.name] = this.field.newMatrixFrom(constant.value);
+            if (isMatrix(constant.dimensions)) {
+                this.constantBindings[constant.name] = this.field.newMatrixFrom(constant.value as bigint[][]);
             }
-            else if (utils_1.isVector(constant.dimensions)) {
-                this.constantBindings[constant.name] = this.field.newVectorFrom(constant.value);
+            else if (isVector(constant.dimensions)) {
+                this.constantBindings[constant.name] = this.field.newVectorFrom(constant.value as bigint[]);
             }
             else {
                 this.constantBindings[constant.name] = constant.value;
             }
         }
+        */
     }
     setTransitionFunction(tFunctionBody) {
         if (tFunctionBody.dimensions[0] !== this.stateRegisterCount) {

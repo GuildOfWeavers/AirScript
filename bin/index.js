@@ -64,9 +64,8 @@ function compile(script) {
     }
     // build AIR module
     try {
-        const specs = visitor_1.visitor.visit(cst, { limits: DEFAULT_LIMITS });
-        const air = generators.generateAssembly(specs, DEFAULT_LIMITS, 16);
-        return air;
+        const schema = visitor_1.visitor.visit(cst);
+        return schema;
     }
     catch (error) {
         throw new errors_1.AirScriptError([error]);

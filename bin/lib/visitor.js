@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const galois_1 = require("@guildofweavers/galois");
+// IMPORTS
+// ================================================================================================
+const air_assembly_1 = require("@guildofweavers/air-assembly");
 const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
-const ScriptSpecs_1 = require("./ScriptSpecs");
 const ExecutionContext_1 = require("./ExecutionContext");
 const expressions_1 = require("./expressions");
 const expressions = require("./expressions");
@@ -19,57 +20,61 @@ class AirVisitor extends BaseCstVisitor {
     }
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
-    script(ctx, config) {
+    script(ctx) {
         const starkName = ctx.starkName[0].image;
         validateScriptSections(ctx);
-        // set up the field
-        const field = this.visit(ctx.fieldDeclaration, config.wasmOptions);
+        // build schema object
+        const modulus = this.visit(ctx.fieldDeclaration);
+        const schema = new air_assembly_1.AirSchema('prime', modulus);
+        // parse constants
+        ctx.moduleConstants && ctx.moduleConstants.map((element) => {
+            const constant = this.visit(element, schema.field);
+            schema.addConstant(constant.value, `$${constant.name}`);
+        });
+        const registers = this.visit(ctx.stateRegisterCount);
+        const constraints = this.visit(ctx.constraintCount);
+        const component = schema.createComponent(starkName, registers, constraints, 64);
+        /*
         // build script specs
-        const specs = new ScriptSpecs_1.ScriptSpecs(starkName, field, config.limits);
+        const specs = new ScriptSpecs(starkName, field, config.limits);
         specs.setInputRegisterCount(this.visit(ctx.inputRegisterCount));
-        specs.setStateRegisterCount(this.visit(ctx.stateRegisterCount));
         specs.setStaticRegisterCount(this.visit(ctx.staticRegisterCount));
-        specs.setConstraintCount(this.visit(ctx.constraintCount));
-        if (ctx.globalConstants) {
-            specs.setGlobalConstants(ctx.globalConstants.map((element) => this.visit(element, field)));
-        }
+
         // build input and static registers
         specs.setInputRegisters(this.visit(ctx.inputRegisters) || []);
         specs.setStaticRegisters(this.visit(ctx.staticRegisters, specs) || []);
+
         // parse transition function and transition constraints
         specs.setTransitionFunction(this.visit(ctx.transitionFunction, specs));
         specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
-        return specs;
+        */
+        return schema;
     }
     // FINITE FIELD
     // --------------------------------------------------------------------------------------------
-    fieldDeclaration(ctx, wasmOptions) {
+    fieldDeclaration(ctx) {
         const modulus = this.visit(ctx.modulus);
-        return galois_1.createPrimeField(modulus, wasmOptions);
+        return BigInt(modulus);
     }
-    // STATIC CONSTANTS
+    // MODULE CONSTANTS
     // --------------------------------------------------------------------------------------------
     constantDeclaration(ctx, field) {
         const name = ctx.constantName[0].image;
         let value;
-        let dimensions;
         if (ctx.value) {
             value = this.visit(ctx.value, field);
-            dimensions = [0, 0];
         }
         else if (ctx.vector) {
             value = this.visit(ctx.vector, field);
-            dimensions = [value.length, 0];
         }
         else if (ctx.matrix) {
             value = this.visit(ctx.matrix, field);
-            dimensions = [value.length, value[0].length];
         }
         else {
-            throw new Error(`Failed to parse the value of static constant '${name}'`);
+            throw new Error(`Failed to parse the value of module constant '${name}'`);
         }
-        utils_1.validateVariableName(name, dimensions);
-        return { name, value, dimensions };
+        //validateVariableName(name, dimensions);
+        return { name, value };
     }
     literalVector(ctx, field) {
         const vector = new Array(ctx.elements.length);
