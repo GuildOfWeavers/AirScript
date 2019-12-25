@@ -9,7 +9,6 @@ const lexer_1 = require("./lexer");
 const ExecutionContext_1 = require("./ExecutionContext");
 const expressions_1 = require("./expressions");
 const expressions = require("./expressions");
-const utils_1 = require("./utils");
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser_1.parser.getBaseCstVisitorConstructor();
@@ -34,16 +33,9 @@ class AirVisitor extends BaseCstVisitor {
         const registers = this.visit(ctx.stateRegisterCount);
         const constraints = this.visit(ctx.constraintCount);
         const component = schema.createComponent(starkName, registers, constraints, 64);
+        this.visit(ctx.inputRegisters, component);
+        this.visit(ctx.staticRegisters, component);
         /*
-        // build script specs
-        const specs = new ScriptSpecs(starkName, field, config.limits);
-        specs.setInputRegisterCount(this.visit(ctx.inputRegisterCount));
-        specs.setStaticRegisterCount(this.visit(ctx.staticRegisterCount));
-
-        // build input and static registers
-        specs.setInputRegisters(this.visit(ctx.inputRegisters) || []);
-        specs.setStaticRegisters(this.visit(ctx.staticRegisters, specs) || []);
-
         // parse transition function and transition constraints
         specs.setTransitionFunction(this.visit(ctx.transitionFunction, specs));
         specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
@@ -110,67 +102,61 @@ class AirVisitor extends BaseCstVisitor {
     }
     // INPUT REGISTERS
     // --------------------------------------------------------------------------------------------
-    inputRegisters(ctx, specs) {
+    inputRegisters(ctx, component) {
         const registerNames = new Set();
-        const registers = [];
         ctx.registers.forEach((declaration) => {
-            let register = this.visit(declaration, specs);
-            if (registerNames.has(register.name)) {
-                throw new Error(`input register ${register.name} is defined more than once`);
+            let registerName = this.visit(declaration, component);
+            if (registerNames.has(registerName)) {
+                throw new Error(`input register ${registerName} is defined more than once`);
             }
-            registerNames.add(register.name);
-            if (register.index !== registers.length) {
-                throw new Error(`input register ${register.name} is defined out of order`);
+            const registerIndex = Number(registerName.slice(2));
+            if (registerIndex !== registerNames.size) {
+                throw new Error(`input register ${registerName} is defined out of order`);
             }
-            registers.push(register);
+            registerNames.add(registerName);
         });
-        return registers;
+        const regCount = Number(ctx.registerCount[0].image);
+        if (regCount !== registerNames.size) {
+            throw new Error(`expected ${regCount} input registers, but ${registerNames.size} registers were defined`);
+        }
     }
-    inputRegisterDefinition(ctx) {
+    inputRegisterDefinition(ctx, component) {
+        const scope = ctx.scope[0].image;
         const registerName = ctx.name[0].image;
-        const registerIndex = Number.parseInt(registerName.slice(2), 10);
-        const pattern = ctx.pattern[0].image;
         const binary = ctx.binary ? true : false;
-        const rank = Number.parseInt(ctx.rank[0].image, 10);
-        return { name: registerName, index: registerIndex, pattern, binary, rank, secret: true }; // TODO
+        const parentIdx = ctx.parent ? Number(ctx.parent[0].image) : undefined;
+        // TODO: get steps from somewhere
+        component.addInputRegister(scope, binary, parentIdx, undefined, -1);
+        return registerName;
     }
     // STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
-    staticRegisters(ctx, specs) {
+    staticRegisters(ctx, component) {
         const registerNames = new Set();
-        const registers = [];
         if (ctx.registers) {
             ctx.registers.forEach((declaration) => {
-                let register = this.visit(declaration, specs);
-                if (registerNames.has(register.name)) {
-                    throw new Error(`static register ${register.name} is defined more than once`);
+                let registerName = this.visit(declaration, component);
+                if (registerNames.has(registerName)) {
+                    throw new Error(`static register ${registerName} is defined more than once`);
                 }
-                registerNames.add(register.name);
-                if (register.index !== registers.length) {
-                    throw new Error(`static register ${register.name} is defined out of order`);
+                const registerIndex = Number(registerName.slice(2));
+                if (registerIndex !== registerNames.size) {
+                    throw new Error(`static register ${registerName} is defined out of order`);
                 }
-                registers.push(register);
+                registerNames.add(registerName);
             });
         }
-        return registers;
+        const regCount = Number(ctx.registerCount[0].image);
+        if (regCount !== registerNames.size) {
+            throw new Error(`expected ${regCount} static registers, but ${registerNames.size} registers were defined`);
+        }
     }
-    staticRegisterDefinition(ctx, specs) {
+    staticRegisterDefinition(ctx, component) {
         const registerName = ctx.name[0].image;
-        const registerIndex = Number.parseInt(registerName.slice(2), 10);
-        const pattern = ctx.pattern[0].image;
-        const binary = ctx.binary ? true : false;
         const values = this.visit(ctx.values);
-        if (!utils_1.isPowerOf2(values.length)) {
-            throw new Error(`invalid definition for static register ${registerName}: number of values must be a power of 2`);
-        }
-        if (binary) {
-            for (let value of values) {
-                if (value !== specs.field.zero && value !== specs.field.one) {
-                    throw new Error(`invalid definition for static register ${registerName}: the register cannot contain non-binary values`);
-                }
-            }
-        }
-        return { name: registerName, index: registerIndex, pattern, binary, values, secret: false };
+        // TODO: handle parsing of PRNG sequences
+        component.addCyclicRegister(values);
+        return registerName;
     }
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------

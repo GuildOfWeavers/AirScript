@@ -10,7 +10,7 @@ export const Identifier         = createToken({ name: "Identifier",       patter
 
 export const RegisterRef        = createToken({ name: "RegisterRef",      pattern: Lexer.NA });
 export const InputRegister      = createToken({ name: "InputRegister",    pattern: /\$\i\d{1,2}/,    categories: RegisterRef });
-export const StateRegister      = createToken({ name: "StateRegister",    pattern: /\$[rn]\d{1,2}/,  categories: RegisterRef });
+export const TraceRegister      = createToken({ name: "TraceRegister",    pattern: /\$[rn]\d{1,2}/,  categories: RegisterRef });
 export const StaticRegister     = createToken({ name: "StaticRegister",   pattern: /\$\k\d{1,2}/,    categories: RegisterRef });
 export const RegisterBank       = createToken({ name: "RegisterBank",     pattern: /\$[rnk]/ });
 
@@ -41,6 +41,8 @@ export const All         = createToken({ name: "All",         pattern: /all/,   
 
 export const Require     = createToken({ name: "Require",     pattern: /require/,       longer_alt: Identifier });
 export const Inputs      = createToken({ name: "Inputs",      pattern: /inputs?/,       longer_alt: Identifier });
+export const Public      = createToken({ name: "Public",      pattern: /public/,        longer_alt: Identifier });
+export const Secret      = createToken({ name: "Secret",      pattern: /secret/,        longer_alt: Identifier });
 export const Using       = createToken({ name: "Using",       pattern: /using/,         longer_alt: Identifier });
 export const Static      = createToken({ name: "Static",      pattern: /static/,        longer_alt: Identifier });
 export const Expand      = createToken({ name: "Expand",      pattern: /expand/,        longer_alt: Identifier });
@@ -109,8 +111,8 @@ export const allTokens = [
     WhiteSpace, Comment,
     
     Define, Over, Prime, Binary, Field, Transition, Registers, Steps, Enforce, Constraints, For, Each,
-    Do, With, Nothing, When, Else, Expand, Repeat, Spread, Using, Require, Inputs, Static,
-    Import, From, As, All, Init,
+    Do, With, Nothing, When, Else, Expand, Repeat, Spread, Using, Require, Inputs, Public, Secret,
+    Static, Import, From, As, All, Init,
 
     AssignOp, ResolveOp, Equals, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 
@@ -119,7 +121,7 @@ export const allTokens = [
 
     Identifier,
 
-    StateRegister, InputRegister, StaticRegister, RegisterRef, RegisterBank,
+    TraceRegister, InputRegister, StaticRegister, RegisterRef, RegisterBank,
 
     IntegerLiteral
 ];

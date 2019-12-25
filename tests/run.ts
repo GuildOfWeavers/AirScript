@@ -6,7 +6,7 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
     alpha: 3;
 
     require 1 input {
-        $i0: expand <0>;
+        public $i0;
     }
 
     // transition function definition

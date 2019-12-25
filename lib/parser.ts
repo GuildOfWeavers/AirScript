@@ -6,7 +6,7 @@ import {
     Registers, Static, Expand, Repeat, Spread, Binary, RegisterBank, For, All, Each, Init,
     LParen, RParen, LCurly, RCurly, LSquare, RSquare, LWedge, RWedge, Slash, QMark, Comma, Colon, Semicolon,
     ExpOp, MulOp, AddOp, AssignOp, ResolveOp, Minus, Ellipsis, DoubleDot, Equals,
-    Steps, Enforce, Constraints,  When, Else, RegisterRef, StaticRegister, InputRegister, Using, 
+    Steps, Enforce, Constraints,  When, Else, RegisterRef, StaticRegister, InputRegister, Using, Public, Secret
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -32,10 +32,11 @@ class AirParser extends CstParser {
                     this.SUBRULE(this.constantDeclaration,   { LABEL: 'moduleConstants'       });
                 }},
                 { ALT: () => {
-                    this.CONSUME(Require);
-                    this.SUBRULE1(this.literalExpression,    { LABEL: 'inputRegisterCount'    });
-                    this.CONSUME(Inputs);
                     this.SUBRULE(this.inputRegisters,        { LABEL: 'inputRegisters'        });
+                }},
+                
+                { ALT: () => {
+                    this.SUBRULE(this.staticRegisters,       { LABEL: 'staticRegisters'       });
                 }},
                 { ALT: () => {
                     this.CONSUME(Transition);
@@ -48,13 +49,6 @@ class AirParser extends CstParser {
                     this.SUBRULE3(this.literalExpression,    { LABEL: 'constraintCount'       });
                     this.CONSUME(Constraints);
                     this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
-                }},
-                { ALT: () => {
-                    this.CONSUME(Using);
-                    this.SUBRULE4(this.literalExpression,    { LABEL: 'staticRegisterCount'   });
-                    this.CONSUME(Static);
-                    this.CONSUME2(Registers);
-                    this.SUBRULE(this.staticRegisters,     { LABEL: 'staticRegisters'       });
                 }}
             ]);
         });
@@ -71,7 +65,7 @@ class AirParser extends CstParser {
         this.CONSUME(RParen);
     });
 
-    // GLOBAL CONSTANTS
+    // MODULE CONSTANTS
     // --------------------------------------------------------------------------------------------
     private constantDeclaration = this.RULE('constantDeclaration', () => {
         this.CONSUME(Identifier, { LABEL: 'constantName' });
@@ -114,43 +108,46 @@ class AirParser extends CstParser {
     // INPUT REGISTERS
     // --------------------------------------------------------------------------------------------
     private inputRegisters = this.RULE('inputRegisters', () => {
+        this.CONSUME(Require);
+        this.CONSUME(IntegerLiteral, { LABEL: 'registerCount' });
+        this.CONSUME(Inputs);
         this.CONSUME(LCurly);
         this.AT_LEAST_ONE(() => this.SUBRULE(this.inputRegisterDefinition, { LABEL: 'registers' }));
         this.CONSUME(RCurly);
     });
 
     private inputRegisterDefinition = this.RULE('inputRegisterDefinition', () => {
-        this.CONSUME(InputRegister,             { LABEL: 'name'    });
-        this.CONSUME(Colon);
         this.OR([
-            { ALT: () => this.CONSUME(Repeat,   { LABEL: 'pattern' }) },
-            { ALT: () => this.CONSUME(Spread,   { LABEL: 'pattern' }) },
-            { ALT: () => this.CONSUME(Expand,   { LABEL: 'pattern' }) }
+            { ALT: () => this.CONSUME(Public,   { LABEL: 'scope'   })},
+            { ALT: () => this.CONSUME(Secret,   { LABEL: 'scope'   })}
         ]);
-        this.OPTION(() => this.CONSUME(Binary,  { LABEL: 'binary'  }) );
-        this.CONSUME(LWedge);
-        this.CONSUME(IntegerLiteral,            { LABEL: 'rank'    });
-        this.CONSUME(RWedge);
+        this.OPTION1(() => this.CONSUME(Binary, { LABEL: 'binary'  }));
+        this.CONSUME1(InputRegister,            { LABEL: 'name'    });
+        this.OPTION2(() => {
+            this.CONSUME(For);
+            this.CONSUME(Each);
+            this.CONSUME2(InputRegister,        { LABEL: 'parent'  });
+        });
         this.CONSUME(Semicolon);
     });
 
     // STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
     private staticRegisters = this.RULE('staticRegisters', () => {
+        this.CONSUME(Using);
+        this.CONSUME(IntegerLiteral, { LABEL: 'registerCount' });
+        this.CONSUME(Static);
+        this.CONSUME(Registers);
         this.CONSUME(LCurly);
         this.AT_LEAST_ONE(() => this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'registers' }));
         this.CONSUME(RCurly);
     });
 
     private staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
-        this.CONSUME(StaticRegister,            { LABEL: 'name' });
+        this.CONSUME(StaticRegister,        { LABEL: 'name'    });
         this.CONSUME(Colon);
-        this.OR1([
-            { ALT: () => this.CONSUME(Repeat,   { LABEL: 'pattern' }) },
-            { ALT: () => this.CONSUME(Spread,   { LABEL: 'pattern' }) }
-        ]);
-        this.OPTION(() => this.CONSUME(Binary,  { LABEL: 'binary'  }) );
-        this.SUBRULE(this.literalVector,        { LABEL: 'values' });   
+        this.CONSUME(Repeat,                { LABEL: 'pattern' });
+        this.SUBRULE(this.literalVector,    { LABEL: 'values'  });
         this.CONSUME(Semicolon);
     });
 

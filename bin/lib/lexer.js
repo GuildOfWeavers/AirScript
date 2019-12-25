@@ -10,7 +10,7 @@ exports.IntegerLiteral = chevrotain_1.createToken({ name: "IntegerLiteral", patt
 exports.Identifier = chevrotain_1.createToken({ name: "Identifier", pattern: /[a-zA-Z]\w*/ });
 exports.RegisterRef = chevrotain_1.createToken({ name: "RegisterRef", pattern: chevrotain_1.Lexer.NA });
 exports.InputRegister = chevrotain_1.createToken({ name: "InputRegister", pattern: /\$\i\d{1,2}/, categories: exports.RegisterRef });
-exports.StateRegister = chevrotain_1.createToken({ name: "StateRegister", pattern: /\$[rn]\d{1,2}/, categories: exports.RegisterRef });
+exports.TraceRegister = chevrotain_1.createToken({ name: "TraceRegister", pattern: /\$[rn]\d{1,2}/, categories: exports.RegisterRef });
 exports.StaticRegister = chevrotain_1.createToken({ name: "StaticRegister", pattern: /\$\k\d{1,2}/, categories: exports.RegisterRef });
 exports.RegisterBank = chevrotain_1.createToken({ name: "RegisterBank", pattern: /\$[rnk]/ });
 // KEYWORDS
@@ -36,6 +36,8 @@ exports.Else = chevrotain_1.createToken({ name: "Else", pattern: /else/, longer_
 exports.All = chevrotain_1.createToken({ name: "All", pattern: /all/, longer_alt: exports.Identifier });
 exports.Require = chevrotain_1.createToken({ name: "Require", pattern: /require/, longer_alt: exports.Identifier });
 exports.Inputs = chevrotain_1.createToken({ name: "Inputs", pattern: /inputs?/, longer_alt: exports.Identifier });
+exports.Public = chevrotain_1.createToken({ name: "Public", pattern: /public/, longer_alt: exports.Identifier });
+exports.Secret = chevrotain_1.createToken({ name: "Secret", pattern: /secret/, longer_alt: exports.Identifier });
 exports.Using = chevrotain_1.createToken({ name: "Using", pattern: /using/, longer_alt: exports.Identifier });
 exports.Static = chevrotain_1.createToken({ name: "Static", pattern: /static/, longer_alt: exports.Identifier });
 exports.Expand = chevrotain_1.createToken({ name: "Expand", pattern: /expand/, longer_alt: exports.Identifier });
@@ -94,13 +96,13 @@ exports.Comment = chevrotain_1.createToken({
 exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Enforce, exports.Constraints, exports.For, exports.Each,
-    exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Expand, exports.Repeat, exports.Spread, exports.Using, exports.Require, exports.Inputs, exports.Static,
-    exports.Import, exports.From, exports.As, exports.All, exports.Init,
+    exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Expand, exports.Repeat, exports.Spread, exports.Using, exports.Require, exports.Inputs, exports.Public, exports.Secret,
+    exports.Static, exports.Import, exports.From, exports.As, exports.All, exports.Init,
     exports.AssignOp, exports.ResolveOp, exports.Equals, exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.LWedge, exports.RWedge, exports.Comma, exports.Colon, exports.Semicolon,
     exports.Ellipsis, exports.DoubleDot, exports.Pipe, exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,
-    exports.StateRegister, exports.InputRegister, exports.StaticRegister, exports.RegisterRef, exports.RegisterBank,
+    exports.TraceRegister, exports.InputRegister, exports.StaticRegister, exports.RegisterRef, exports.RegisterBank,
     exports.IntegerLiteral
 ];
 // EXPORT LEXER INSTANCE
