@@ -3,8 +3,8 @@
 import { CstParser } from "chevrotain";
 import {
     allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, Require, Inputs, Transition,
-    Registers, Static, Expand, Repeat, Spread, Binary, RegisterBank, For, All, Each, Init,
-    LParen, RParen, LCurly, RCurly, LSquare, RSquare, LWedge, RWedge, Slash, QMark, Comma, Colon, Semicolon,
+    Registers, Static, Repeat, Binary, RegisterBank, For, All, Each, Init,
+    LParen, RParen, LCurly, RCurly, LSquare, RSquare, Slash, QMark, Comma, Colon, Semicolon,
     ExpOp, MulOp, AddOp, AssignOp, ResolveOp, Minus, Ellipsis, DoubleDot, Equals,
     Steps, Enforce, Constraints,  When, Else, RegisterRef, StaticRegister, InputRegister, Using, Public, Secret
 } from './lexer';
@@ -31,22 +31,17 @@ class AirParser extends CstParser {
                 { ALT: () => {
                     this.SUBRULE(this.constantDeclaration,   { LABEL: 'moduleConstants'       });
                 }},
-                { ALT: () => {
-                    this.SUBRULE(this.inputRegisters,        { LABEL: 'inputRegisters'        });
-                }},
-                
-                { ALT: () => {
-                    this.SUBRULE(this.staticRegisters,       { LABEL: 'staticRegisters'       });
-                }},
+                { ALT: () => this.SUBRULE(this.inputRegisters,  { LABEL: 'inputRegisters'     })},
+                { ALT: () => this.SUBRULE(this.staticRegisters, { LABEL: 'staticRegisters'    })},
                 { ALT: () => {
                     this.CONSUME(Transition);
-                    this.SUBRULE2(this.literalExpression,    { LABEL: 'stateRegisterCount'    });
+                    this.CONSUME1(IntegerLiteral,            { LABEL: 'stateRegisterCount'    });
                     this.CONSUME1(Registers);
                     this.SUBRULE(this.transitionFunction,    { LABEL: 'transitionFunction'    });
                 }},
                 { ALT: () => {
                     this.CONSUME(Enforce);
-                    this.SUBRULE3(this.literalExpression,    { LABEL: 'constraintCount'       });
+                    this.CONSUME2(IntegerLiteral,            { LABEL: 'constraintCount'       });
                     this.CONSUME(Constraints);
                     this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
                 }}

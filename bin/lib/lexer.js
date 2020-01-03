@@ -40,9 +40,7 @@ exports.Public = chevrotain_1.createToken({ name: "Public", pattern: /public/, l
 exports.Secret = chevrotain_1.createToken({ name: "Secret", pattern: /secret/, longer_alt: exports.Identifier });
 exports.Using = chevrotain_1.createToken({ name: "Using", pattern: /using/, longer_alt: exports.Identifier });
 exports.Static = chevrotain_1.createToken({ name: "Static", pattern: /static/, longer_alt: exports.Identifier });
-exports.Expand = chevrotain_1.createToken({ name: "Expand", pattern: /expand/, longer_alt: exports.Identifier });
 exports.Repeat = chevrotain_1.createToken({ name: "Repeat", pattern: /repeat/, longer_alt: exports.Identifier });
-exports.Spread = chevrotain_1.createToken({ name: "Spread", pattern: /spread/, longer_alt: exports.Identifier });
 exports.Import = chevrotain_1.createToken({ name: "Import", pattern: /import/, longer_alt: exports.Identifier });
 exports.From = chevrotain_1.createToken({ name: "From", pattern: /from/, longer_alt: exports.Identifier });
 exports.As = chevrotain_1.createToken({ name: "As", pattern: /as/, longer_alt: exports.Identifier });
@@ -96,7 +94,7 @@ exports.Comment = chevrotain_1.createToken({
 exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Enforce, exports.Constraints, exports.For, exports.Each,
-    exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Expand, exports.Repeat, exports.Spread, exports.Using, exports.Require, exports.Inputs, exports.Public, exports.Secret,
+    exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Using, exports.Require, exports.Inputs, exports.Public, exports.Secret,
     exports.Static, exports.Import, exports.From, exports.As, exports.All, exports.Init,
     exports.AssignOp, exports.ResolveOp, exports.Equals, exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.LWedge, exports.RWedge, exports.Comma, exports.Colon, exports.Semicolon,

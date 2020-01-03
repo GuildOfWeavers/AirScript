@@ -17,7 +17,7 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
             for steps [1..63] {
                 a <- $r0^alpha;
                 a <- a + $k0;
-                a;
+                [a];
             }
         }
     }

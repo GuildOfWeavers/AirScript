@@ -23,21 +23,17 @@ class AirParser extends chevrotain_1.CstParser {
                     { ALT: () => {
                             this.SUBRULE(this.constantDeclaration, { LABEL: 'moduleConstants' });
                         } },
-                    { ALT: () => {
-                            this.SUBRULE(this.inputRegisters, { LABEL: 'inputRegisters' });
-                        } },
-                    { ALT: () => {
-                            this.SUBRULE(this.staticRegisters, { LABEL: 'staticRegisters' });
-                        } },
+                    { ALT: () => this.SUBRULE(this.inputRegisters, { LABEL: 'inputRegisters' }) },
+                    { ALT: () => this.SUBRULE(this.staticRegisters, { LABEL: 'staticRegisters' }) },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Transition);
-                            this.SUBRULE2(this.literalExpression, { LABEL: 'stateRegisterCount' });
+                            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'stateRegisterCount' });
                             this.CONSUME1(lexer_1.Registers);
                             this.SUBRULE(this.transitionFunction, { LABEL: 'transitionFunction' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Enforce);
-                            this.SUBRULE3(this.literalExpression, { LABEL: 'constraintCount' });
+                            this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'constraintCount' });
                             this.CONSUME(lexer_1.Constraints);
                             this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
                         } }

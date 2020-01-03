@@ -3,9 +3,7 @@
 import {
     StarkLimits, ConstraintSpecs, FiniteField, InputBlockDescriptor, InputRegisterSpecs, StaticRegisterSpecs
 } from '@guildofweavers/air-script';
-import { ConstantDeclaration } from './visitor';
-import { Expression, LiteralExpression, TransitionFunctionBody, TransitionConstraintsBody } from './expressions';
-import { isMatrix, isVector } from './utils';
+import { Expression, TransitionFunctionBody, TransitionConstraintsBody } from './expressions';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -154,7 +152,7 @@ export class ScriptSpecs {
         this.constraintCount = constraintCount;
     }
 
-    setGlobalConstants(declarations: ConstantDeclaration[]): void {
+    setGlobalConstants(declarations: any[]): void {
         /*
         for (let constant of declarations) {
             if (this.globalConstants.has(constant.name)) {

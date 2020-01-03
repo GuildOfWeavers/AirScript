@@ -45,9 +45,7 @@ export const Public      = createToken({ name: "Public",      pattern: /public/,
 export const Secret      = createToken({ name: "Secret",      pattern: /secret/,        longer_alt: Identifier });
 export const Using       = createToken({ name: "Using",       pattern: /using/,         longer_alt: Identifier });
 export const Static      = createToken({ name: "Static",      pattern: /static/,        longer_alt: Identifier });
-export const Expand      = createToken({ name: "Expand",      pattern: /expand/,        longer_alt: Identifier });
 export const Repeat      = createToken({ name: "Repeat",      pattern: /repeat/,        longer_alt: Identifier });
-export const Spread      = createToken({ name: "Spread",      pattern: /spread/,        longer_alt: Identifier });
 
 export const Import      = createToken({ name: "Import",      pattern: /import/,        longer_alt: Identifier });
 export const From        = createToken({ name: "From",        pattern: /from/,          longer_alt: Identifier });
@@ -111,7 +109,7 @@ export const allTokens = [
     WhiteSpace, Comment,
     
     Define, Over, Prime, Binary, Field, Transition, Registers, Steps, Enforce, Constraints, For, Each,
-    Do, With, Nothing, When, Else, Expand, Repeat, Spread, Using, Require, Inputs, Public, Secret,
+    Do, With, Nothing, When, Else, Repeat, Using, Require, Inputs, Public, Secret,
     Static, Import, From, As, All, Init,
 
     AssignOp, ResolveOp, Equals, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
