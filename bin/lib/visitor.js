@@ -4,7 +4,6 @@ const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
 const ExecutionLane_1 = require("./ExecutionLane");
-const ExecutionContext_1 = require("./ExecutionContext");
 const ModuleContext_1 = require("./ModuleContext");
 // MODULE VARIABLES
 // ================================================================================================
@@ -23,8 +22,8 @@ class AirVisitor extends BaseCstVisitor {
         const modulus = this.visit(ctx.fieldDeclaration);
         const registers = Number(ctx.stateRegisterCount[0].image);
         const constraints = Number(ctx.constraintCount[0].image);
-        const segments = this.visit(ctx.transitionFunction);
-        const context = new ModuleContext_1.ModuleContext(moduleName, modulus, registers, constraints, segments);
+        const exLane = this.visit(ctx.transitionFunction);
+        const context = new ModuleContext_1.ModuleContext(moduleName, modulus, registers, constraints, exLane);
         // parse constants
         if (ctx.moduleConstants) {
             ctx.moduleConstants.forEach((element) => this.visit(element, context));
@@ -33,11 +32,12 @@ class AirVisitor extends BaseCstVisitor {
         this.visit(ctx.inputRegisters, context);
         this.visit(ctx.staticRegisters, context);
         // parse transition function
-        const pc = context.component.createProcedureContext('transition');
-        const exc = new ExecutionContext_1.ExecutionContext(pc);
-        const statements = this.visit(segments[0].segments[0].body, exc);
-        const result = statements.pop().expression;
-        context.component.setTransitionFunction(pc, statements, result);
+        const exc = context.createExecutionContext('transition');
+        const segments = [];
+        const inits = [];
+        exLane.inputs.forEach(input => inits.push(this.visit(input.initializer, exc)));
+        exLane.segments.forEach(segment => segments.push(this.visit(segment.body, exc)));
+        context.setTransitionFunction(exc, inits, segments);
         /*
         specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
         */
@@ -161,7 +161,7 @@ class AirVisitor extends BaseCstVisitor {
     transitionFunction(ctx) {
         const lane = new ExecutionLane_1.ExecutionLane();
         this.visit(ctx.inputBlock, lane);
-        return [lane];
+        return lane;
     }
     transitionConstraints(ctx, exc) {
         /*
@@ -199,6 +199,7 @@ class AirVisitor extends BaseCstVisitor {
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx, exc) {
+        exc.enterBlock();
         let statements = [];
         if (ctx.statements) {
             ctx.statements.forEach((stmt) => statements.push(this.visit(stmt, exc)));
@@ -214,7 +215,8 @@ class AirVisitor extends BaseCstVisitor {
             out = expressions.BinaryOperation.sub(constraint, out);
         }
         */
-        statements.push(exc.setVariableAssignment('test', out));
+        statements.push(exc.setVariableAssignment(`block${exc.currentBlock.id}_result`, out));
+        exc.exitBlock();
         return statements;
     }
     statement(ctx, exc) {

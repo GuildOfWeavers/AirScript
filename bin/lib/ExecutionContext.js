@@ -5,17 +5,31 @@ Object.defineProperty(exports, "__esModule", { value: true });
 class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base) {
+    constructor(base, inputCount, loopCount, segmentCount) {
         this.base = base;
         this.symbolMap = new Map();
-        // TODO: add constants to the symbol map
-        this.symbolMap.set('alpha', { type: 'const', index: 0 });
+        this.lastBlockId = 0;
+        this.blocks = [];
+        this.base.constants.forEach((c, i) => {
+            const name = c.handle.substring(1);
+            this.symbolMap.set(name, { type: 'const', index: i });
+        });
         this.symbolMap.set(`$r`, { type: 'trace', index: 0 });
         this.symbolMap.set(`$n`, { type: 'trace', index: 1 });
+        this.symbolMap.set(`$i`, { type: 'static', index: 0 });
         this.symbolMap.set(`$k`, { type: 'static', index: 0 });
+        this.inputCount = inputCount;
+        this.loopCount = loopCount;
+        this.segmentCount = segmentCount;
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
+    get currentBlock() {
+        return this.blocks[this.blocks.length - 1];
+    }
+    get kRegisterOffset() {
+        return this.inputCount + this.loopCount + this.segmentCount;
+    }
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
     getSymbolReference(symbol) {
@@ -27,7 +41,10 @@ class ExecutionContext {
             }
             result = this.base.buildLoadExpression(`load.${info.type}`, info.index);
             if (symbol.length > 2) {
-                const index = Number(symbol.substring(2));
+                let index = Number(symbol.substring(2));
+                if (symbol.startsWith('$k')) {
+                    index += this.kRegisterOffset;
+                }
                 result = this.base.buildGetVectorElementExpression(result, index);
             }
         }
@@ -41,6 +58,8 @@ class ExecutionContext {
         return result;
     }
     setVariableAssignment(symbol, value) {
+        const block = this.blocks[this.blocks.length - 1];
+        //symbol = `b${block.id}_${symbol}`;
         let info = this.symbolMap.get(`${symbol}`);
         if (info) {
             if (info.type !== 'local') {
@@ -53,6 +72,25 @@ class ExecutionContext {
             this.base.addLocal(value.dimensions, `$${symbol}`);
         }
         return this.base.buildStoreOperation(info.index, value);
+    }
+    getLoopControlExpression(loopIdx) {
+        const registerOffset = this.inputCount;
+        let result = this.base.buildLoadExpression('load.static', 0);
+        result = this.base.buildGetVectorElementExpression(result, registerOffset + loopIdx);
+        return result;
+    }
+    getControlExpression(segmentIdx) {
+        const registerOffset = this.inputCount + this.loopCount;
+        let result = this.base.buildLoadExpression('load.static', 0);
+        result = this.base.buildGetVectorElementExpression(result, registerOffset + segmentIdx);
+        return result;
+    }
+    enterBlock() {
+        this.blocks.push({ id: this.lastBlockId, locals: new Map() });
+        this.lastBlockId++;
+    }
+    exitBlock() {
+        this.blocks.pop();
     }
     // PASS-THROUGH METHODS
     // --------------------------------------------------------------------------------------------

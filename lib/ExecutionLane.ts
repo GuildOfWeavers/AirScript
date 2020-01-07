@@ -1,3 +1,7 @@
+// IMPORTS
+// ================================================================================================
+import { isPowerOf2 } from "./utils";
+
 // INTERFACES
 // ================================================================================================
 type Interval = [number, number];
@@ -22,6 +26,11 @@ export class ExecutionLane {
     constructor() {
         this.inputs = [];
         this.segments = [];
+    }
+
+    get segmentMasks(): number[][] {
+        const masks = this.segments.map(s => s.traceMask);
+        return validateMasks(masks);
     }
 
     get cycleLength(): number {
@@ -74,4 +83,49 @@ function parseIntervals(intervals: Interval[]): number[] {
     }
 
     return mask;
+}
+
+function validateMasks(masks: number[][]): number[][] {
+
+    let maxSteps = 0;
+    const stepSet = new Set<number>();
+
+    // make sure masks don't overlap
+    for (let mask of masks) {
+        for (let i = 0; i < mask.length; i++) {
+            if (mask[i] === 0) continue;
+            if (stepSet.has(i)) {
+                throw new Error(`step ${i} is covered by multiple loops`);
+            }
+            stepSet.add(i);
+            if (i > maxSteps) {
+                maxSteps = i;
+            }     
+        }
+    }
+
+    // make sure masks cover all steps
+    const stepCount = maxSteps + 1;
+    if (stepSet.size < stepCount - 1) {
+        for (let i = 1; i < stepCount; i++) {
+            if (!stepSet.has(i)) {
+                throw new Error(`step ${i} is not covered by any expression`);
+            }
+        }
+    }
+
+    if (!isPowerOf2(stepCount)) {
+        throw new Error('total number of steps must be a power of 2');
+    }
+
+    // make sure all masks are of the same length
+    const result: number[][] = [];
+    for (let mask of masks) {        
+        if (mask.length < stepCount) {
+            mask = mask.concat(new Array(stepCount - mask.length).fill(0))
+        }
+        result.push(mask);
+    }
+
+    return result;
 }

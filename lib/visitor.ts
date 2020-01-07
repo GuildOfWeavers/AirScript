@@ -31,8 +31,8 @@ class AirVisitor extends BaseCstVisitor {
         const modulus: bigint = this.visit(ctx.fieldDeclaration);
         const registers = Number(ctx.stateRegisterCount[0].image);
         const constraints = Number(ctx.constraintCount[0].image);
-        const segments: ExecutionLane[] = this.visit(ctx.transitionFunction);
-        const context = new ModuleContext(moduleName, modulus, registers, constraints, segments);
+        const exLane: ExecutionLane = this.visit(ctx.transitionFunction);
+        const context = new ModuleContext(moduleName, modulus, registers, constraints, exLane);
 
         // parse constants
         if (ctx.moduleConstants) {
@@ -44,11 +44,12 @@ class AirVisitor extends BaseCstVisitor {
         this.visit(ctx.staticRegisters, context);
 
         // parse transition function
-        const pc = context.component.createProcedureContext('transition');
-        const exc = new ExecutionContext(pc);
-        const statements: StoreOperation[] = this.visit(segments[0].segments[0].body, exc);
-        const result = statements.pop()!.expression;
-        context.component.setTransitionFunction(pc, statements, result);
+        const exc = context.createExecutionContext('transition');
+        const segments: StoreOperation[][] = [];
+        const inits: StoreOperation[][] = [];
+        exLane.inputs.forEach(input => inits.push(this.visit(input.initializer, exc)));
+        exLane.segments.forEach(segment => segments.push(this.visit(segment.body, exc)));
+        context.setTransitionFunction(exc, inits, segments);
 
         /*
         specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
@@ -189,10 +190,10 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any): ExecutionLane[] {
+    transitionFunction(ctx: any): ExecutionLane {
         const lane = new ExecutionLane()
         this.visit(ctx.inputBlock, lane);
-        return [lane];
+        return lane;
     }
 
     transitionConstraints(ctx: any, exc: ModuleContext): any {
@@ -237,6 +238,7 @@ class AirVisitor extends BaseCstVisitor {
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx: any, exc: ExecutionContext): StoreOperation[] {
+        exc.enterBlock();
         let statements: StoreOperation[] = [];
         if (ctx.statements) {
             ctx.statements.forEach((stmt: any) => statements.push(this.visit(stmt, exc)));
@@ -253,7 +255,8 @@ class AirVisitor extends BaseCstVisitor {
             out = expressions.BinaryOperation.sub(constraint, out);
         }
         */
-       statements.push(exc.setVariableAssignment('test', out));
+       statements.push(exc.setVariableAssignment(`block${exc.currentBlock.id}_result`, out));
+       exc.exitBlock();
        return statements;
     }
 

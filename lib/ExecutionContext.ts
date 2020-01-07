@@ -2,7 +2,7 @@
 // ================================================================================================
 import {
     ProcedureContext, Expression, LiteralValue, BinaryOperation, UnaryOperation, MakeVector,
-    GetVectorElement, SliceVector, MakeMatrix, StoreOperation,
+    GetVectorElement, SliceVector, MakeMatrix, StoreOperation
 } from "@guildofweavers/air-assembly";
 
 // INTERFACES
@@ -12,29 +12,57 @@ interface SymbolInfo {
     readonly index  : number;
 }
 
+interface BlockInfo {
+    readonly id     : number;
+    readonly locals : Map<string, number>;
+}
+
 // CLASS DEFINITION
 // ================================================================================================
 export class ExecutionContext {
 
-    readonly base       : ProcedureContext;
-    readonly symbolMap  : Map<string, SymbolInfo>;
+    readonly base               : ProcedureContext;
+    readonly symbolMap          : Map<string, SymbolInfo>;
+    readonly blocks             : BlockInfo[];
+
+    readonly inputCount         : number;
+    readonly loopCount          : number;
+    readonly segmentCount       : number;
+
+    private lastBlockId         : number;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base: ProcedureContext) {
+    constructor(base: ProcedureContext, inputCount: number, loopCount: number, segmentCount: number) {
         this.base = base;
         this.symbolMap = new Map();
+        this.lastBlockId = 0;
+        this.blocks = [];
 
-        // TODO: add constants to the symbol map
-        this.symbolMap.set('alpha', { type: 'const', index: 0 });
+        this.base.constants.forEach((c, i) => {
+            const name = c.handle!.substring(1);
+            this.symbolMap.set(name, { type: 'const', index: i });
+        });
+
         this.symbolMap.set(`$r`, { type: 'trace', index: 0 });
         this.symbolMap.set(`$n`, { type: 'trace', index: 1 });
+        this.symbolMap.set(`$i`, { type: 'static', index: 0 });
         this.symbolMap.set(`$k`, { type: 'static', index: 0 });
+
+        this.inputCount = inputCount;
+        this.loopCount = loopCount;
+        this.segmentCount = segmentCount;
     }
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    
+    get currentBlock(): BlockInfo {
+        return this.blocks[this.blocks.length - 1];
+    }
+
+    get kRegisterOffset(): number {
+        return this.inputCount + this.loopCount + this.segmentCount;
+    }
 
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
@@ -48,7 +76,10 @@ export class ExecutionContext {
 
             result = this.base.buildLoadExpression(`load.${info.type}`, info.index);
             if (symbol.length > 2) {
-                const index = Number(symbol.substring(2));
+                let index = Number(symbol.substring(2));
+                if (symbol.startsWith('$k')) {
+                    index += this.kRegisterOffset;
+                }
                 result = this.base.buildGetVectorElementExpression(result, index);
             }
         }
@@ -64,6 +95,8 @@ export class ExecutionContext {
     }
 
     setVariableAssignment(symbol: string, value: Expression): StoreOperation {
+        const block = this.blocks[this.blocks.length - 1];
+        //symbol = `b${block.id}_${symbol}`;
         let info = this.symbolMap.get(`${symbol}`);
         if (info) {
             if (info.type !== 'local') {
@@ -77,6 +110,29 @@ export class ExecutionContext {
         }
 
         return this.base.buildStoreOperation(info.index, value);
+    }
+
+    getLoopControlExpression(loopIdx: number): Expression {
+        const registerOffset = this.inputCount;
+        let result: Expression = this.base.buildLoadExpression('load.static', 0);
+        result = this.base.buildGetVectorElementExpression(result, registerOffset + loopIdx);
+        return result;
+    }
+
+    getControlExpression(segmentIdx: number): Expression {
+        const registerOffset = this.inputCount + this.loopCount;
+        let result: Expression = this.base.buildLoadExpression('load.static', 0);
+        result = this.base.buildGetVectorElementExpression(result, registerOffset + segmentIdx);
+        return result;
+    }
+
+    enterBlock() {
+        this.blocks.push({ id: this.lastBlockId, locals: new Map() });
+        this.lastBlockId++;
+    }
+
+    exitBlock() {
+        this.blocks.pop();
     }
 
     // PASS-THROUGH METHODS

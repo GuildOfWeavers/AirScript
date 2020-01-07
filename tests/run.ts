@@ -12,7 +12,7 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
     // transition function definition
     transition 1 registers {
         for each ($i0) {
-            init { $i0 }
+            init { b <- $i0; b }
     
             for steps [1..63] {
                 a <- $r0^alpha;
