@@ -8,12 +8,11 @@ import { ExecutionContext } from "./ExecutionContext";
 // ================================================================================================
 export class ModuleContext {
 
-    readonly name               : string;
-    readonly schema             : AirSchema;
-    readonly component          : AirComponent;
+    readonly name           : string;
+    readonly schema         : AirSchema;
+    readonly component      : AirComponent;
 
     readonly inputCount     : number;
-    readonly loopCount      : number;
     readonly segmentCount   : number;
 
     // CONSTRUCTOR
@@ -37,9 +36,7 @@ export class ModuleContext {
         });
         this.inputCount = this.component.staticRegisters.length;
 
-        // build input mask and segment control registers
-        inputMasks.forEach(m => this.component.addMaskRegister(m, true));
-        this.loopCount = inputMasks.length;
+        // build segment control registers
         lane.segmentMasks.forEach(m => this.component.addCyclicRegister(m.map(v => BigInt(v))));
         this.segmentCount = lane.segments.length;
 
@@ -73,39 +70,33 @@ export class ModuleContext {
 
     createExecutionContext(procedure: ProcedureName): ExecutionContext {
         const context = this.component.createProcedureContext(procedure);
-        return new ExecutionContext(context, this.inputCount, this.loopCount, this.segmentCount);
+        return new ExecutionContext(context, this.inputCount, this.segmentCount);
     }
 
-    setTransitionFunction(context: ExecutionContext, initializers: StoreOperation[][], segments: StoreOperation[][]): void {
+    setTransitionFunction(context: ExecutionContext, initializers: Expression[], segments: Expression[]): void {
         
         let result: Expression | undefined;
-        let statements: StoreOperation[] = [];
+        let statements: StoreOperation[] = context.statements;
 
-        initializers.forEach(block => {
-            statements = statements.concat(block);
-            let lastStatement = statements[statements.length - 1];
-            let blockResult: Expression = context.base.buildLoadExpression(`load.local`, lastStatement.handle!);
-            if (blockResult.isScalar) {
-                blockResult = context.buildMakeVectorExpression([blockResult]);
+        initializers.forEach(expression => {
+            if (expression.isScalar) {
+                expression = context.buildMakeVectorExpression([expression]);
             }
-            result = result ? context.buildBinaryOperation('add', result, blockResult) : blockResult;
+            result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
 
-        segments.forEach((block, i) => {
-            statements = statements.concat(block);
-            let lastStatement = statements.pop()!;
+        segments.forEach((expression, i) => {
+            const resultHandle = `$s${i}`;
+            context.base.addLocal(expression.dimensions, resultHandle);
 
-            let control = context.getControlExpression(i);
-            let blockResult: Expression = context.buildBinaryOperation('mul', lastStatement.expression, control);
-            statements.push(context.base.buildStoreOperation(lastStatement.handle!, blockResult));
+            const resultControl = context.getControlExpression(i);
+            expression = context.buildBinaryOperation('mul', expression, resultControl);
+            statements.push(context.base.buildStoreOperation(resultHandle, expression));
+            expression = context.base.buildLoadExpression(`load.local`, resultHandle);
 
-            blockResult = context.base.buildLoadExpression(`load.local`, lastStatement.handle!);
-            result = result ? context.buildBinaryOperation('add', result, blockResult) : blockResult;
+            result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
         
-        if (result!.isScalar) {
-            result = context.buildMakeVectorExpression([result!]);
-        }
         this.component.setTransitionFunction(context.base, statements, result!);
     }
 

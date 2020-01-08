@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { AirSchema, Expression, StoreOperation } from '@guildofweavers/air-assembly';
+import { AirSchema, Expression } from '@guildofweavers/air-assembly';
 import { FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
@@ -45,16 +45,14 @@ class AirVisitor extends BaseCstVisitor {
 
         // parse transition function
         const exc = context.createExecutionContext('transition');
-        const segments: StoreOperation[][] = [];
-        const inits: StoreOperation[][] = [];
-        exLane.inputs.forEach(input => inits.push(this.visit(input.initializer, exc)));
-        exLane.segments.forEach(segment => segments.push(this.visit(segment.body, exc)));
+        const inits: Expression[] = exLane.inputs.map(input => this.visit(input.initializer, exc));
+        const segments: Expression[] = exLane.segments.map(segment => this.visit(segment.body, exc));
         context.setTransitionFunction(exc, inits, segments);
 
         /*
         specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
         */
-       context.component.transitionFunction.toString();
+
         return context.schema;
     }
 
@@ -237,14 +235,13 @@ class AirVisitor extends BaseCstVisitor {
 
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
-    statementBlock(ctx: any, exc: ExecutionContext): StoreOperation[] {
+    statementBlock(ctx: any, exc: ExecutionContext): Expression {
         exc.enterBlock();
-        let statements: StoreOperation[] = [];
         if (ctx.statements) {
-            ctx.statements.forEach((stmt: any) => statements.push(this.visit(stmt, exc)));
+            ctx.statements.forEach((stmt: any) => this.visit(stmt, exc));
         }
 
-        let out: Expression = this.visit(ctx.expression, exc);
+        let result: Expression = this.visit(ctx.expression, exc);
         /*
         TODO
         if (ctx.constraint) {
@@ -255,53 +252,32 @@ class AirVisitor extends BaseCstVisitor {
             out = expressions.BinaryOperation.sub(constraint, out);
         }
         */
-       statements.push(exc.exitBlock(out));
-       return statements;
+       exc.exitBlock();
+       return result;
     }
 
-    statement(ctx: any, exc: ExecutionContext): StoreOperation {
+    statement(ctx: any, exc: ExecutionContext): void {
         const expression = this.visit(ctx.expression, exc);
-        return exc.setVariableAssignment(ctx.variableName[0].image, expression);
+        exc.setVariableAssignment(ctx.variableName[0].image, expression);
     }
 
     assignableExpression(ctx: any, exc: ModuleContext): Expression {
         return this.visit(ctx.expression, exc);
     }
 
-    // WHEN...ELSE EXPRESSION
+    // CONDITIONAL EXPRESSION
     // --------------------------------------------------------------------------------------------
-    whenExpression(ctx: any, exc: ModuleContext): Expression {
-        /*
-        const id = exc.getNextConditionalBlockId();
-        const condition = this.visit(ctx.condition, exc);
-
-        // build subroutines for true and false conditions
-        exc.createNewVariableFrame();
-        const tBlock: StatementBlock = this.visit(ctx.tExpression, exc);
-        exc.destroyVariableFrame();
-
-        exc.createNewVariableFrame();
-        const fBlock: StatementBlock = this.visit(ctx.fExpression, exc);
-        exc.destroyVariableFrame();
-
-        return new expressions.WhenExpression(id, condition, tBlock, fBlock);
-        */
-       return undefined as any; // TODO
+    whenExpression(ctx: any, exc: ExecutionContext): Expression {
+        const condition: Expression = this.visit(ctx.condition, exc);
+        const tBlock: Expression = this.visit(ctx.tExpression, exc);
+        const fBlock: Expression = this.visit(ctx.fExpression, exc);
+        return exc.buildConditionalExpression(condition, tBlock, fBlock);
     }
 
-    whenCondition(ctx: any, exc: ModuleContext): Expression {
-        /*
+    whenCondition(ctx: any, exc: ExecutionContext): Expression {
         const registerName: string = ctx.register[0].image;
         const registerRef = exc.getSymbolReference(registerName);
-
-        // make sure the condition register holds only binary values
-        if (!exc.isBinaryRegister(registerName)) {
-            throw new Error(`conditional expression must be based on a binary register`);
-        }
-
         return registerRef;
-        */
-        return undefined as any; // TODO
     }
 
     // TRANSITION CALL EXPRESSION

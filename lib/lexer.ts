@@ -22,10 +22,12 @@ export const Prime       = createToken({ name: "Prime",       pattern: /prime/, 
 export const Binary      = createToken({ name: "Binary",      pattern: /binary/,        longer_alt: Identifier });
 export const Field       = createToken({ name: "Field",       pattern: /field/,         longer_alt: Identifier });
 
+export const ResultExp   = createToken({ name: "ResultExp",   pattern: Lexer.NA });
+export const Yield       = createToken({ name: "Yield",       pattern: /yield/,         longer_alt: Identifier, categories: ResultExp });
+export const Enforce     = createToken({ name: "Enforce",     pattern: /enforce/,       longer_alt: Identifier, categories: ResultExp });
+
 export const Transition  = createToken({ name: "Transition",  pattern: /transition/,    longer_alt: Identifier });
 export const Registers   = createToken({ name: "Registers",   pattern: /registers?/,    longer_alt: Identifier });
-
-export const Enforce     = createToken({ name: "Enforce",     pattern: /enforce/,       longer_alt: Identifier });
 export const Constraints = createToken({ name: "Constraints", pattern: /constraints?/,  longer_alt: Identifier });
 
 export const For         = createToken({ name: "For",         pattern: /for/,           longer_alt: Identifier });
@@ -108,8 +110,8 @@ export const Comment = createToken({
 export const allTokens = [
     WhiteSpace, Comment,
     
-    Define, Over, Prime, Binary, Field, Transition, Registers, Steps, Enforce, Constraints, For, Each,
-    Do, With, Nothing, When, Else, Repeat, Using, Require, Inputs, Public, Secret,
+    Define, Over, Prime, Binary, Field, Transition, Registers, Steps, Yield, Enforce, Constraints,
+    For, Each, Do, With, Nothing, When, Else, Repeat, Using, Require, Inputs, Public, Secret,
     Static, Import, From, As, All, Init,
 
     AssignOp, ResolveOp, Equals, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,

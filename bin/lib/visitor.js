@@ -33,15 +33,12 @@ class AirVisitor extends BaseCstVisitor {
         this.visit(ctx.staticRegisters, context);
         // parse transition function
         const exc = context.createExecutionContext('transition');
-        const segments = [];
-        const inits = [];
-        exLane.inputs.forEach(input => inits.push(this.visit(input.initializer, exc)));
-        exLane.segments.forEach(segment => segments.push(this.visit(segment.body, exc)));
+        const inits = exLane.inputs.map(input => this.visit(input.initializer, exc));
+        const segments = exLane.segments.map(segment => this.visit(segment.body, exc));
         context.setTransitionFunction(exc, inits, segments);
         /*
         specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
         */
-        context.component.transitionFunction.toString();
         return context.schema;
     }
     // FINITE FIELD
@@ -201,11 +198,10 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx, exc) {
         exc.enterBlock();
-        let statements = [];
         if (ctx.statements) {
-            ctx.statements.forEach((stmt) => statements.push(this.visit(stmt, exc)));
+            ctx.statements.forEach((stmt) => this.visit(stmt, exc));
         }
-        let out = this.visit(ctx.expression, exc);
+        let result = this.visit(ctx.expression, exc);
         /*
         TODO
         if (ctx.constraint) {
@@ -216,49 +212,28 @@ class AirVisitor extends BaseCstVisitor {
             out = expressions.BinaryOperation.sub(constraint, out);
         }
         */
-        statements.push(exc.exitBlock(out));
-        return statements;
+        exc.exitBlock();
+        return result;
     }
     statement(ctx, exc) {
         const expression = this.visit(ctx.expression, exc);
-        return exc.setVariableAssignment(ctx.variableName[0].image, expression);
+        exc.setVariableAssignment(ctx.variableName[0].image, expression);
     }
     assignableExpression(ctx, exc) {
         return this.visit(ctx.expression, exc);
     }
-    // WHEN...ELSE EXPRESSION
+    // CONDITIONAL EXPRESSION
     // --------------------------------------------------------------------------------------------
     whenExpression(ctx, exc) {
-        /*
-        const id = exc.getNextConditionalBlockId();
         const condition = this.visit(ctx.condition, exc);
-
-        // build subroutines for true and false conditions
-        exc.createNewVariableFrame();
-        const tBlock: StatementBlock = this.visit(ctx.tExpression, exc);
-        exc.destroyVariableFrame();
-
-        exc.createNewVariableFrame();
-        const fBlock: StatementBlock = this.visit(ctx.fExpression, exc);
-        exc.destroyVariableFrame();
-
-        return new expressions.WhenExpression(id, condition, tBlock, fBlock);
-        */
-        return undefined; // TODO
+        const tBlock = this.visit(ctx.tExpression, exc);
+        const fBlock = this.visit(ctx.fExpression, exc);
+        return exc.buildConditionalExpression(condition, tBlock, fBlock);
     }
     whenCondition(ctx, exc) {
-        /*
-        const registerName: string = ctx.register[0].image;
+        const registerName = ctx.register[0].image;
         const registerRef = exc.getSymbolReference(registerName);
-
-        // make sure the condition register holds only binary values
-        if (!exc.isBinaryRegister(registerName)) {
-            throw new Error(`conditional expression must be based on a binary register`);
-        }
-
         return registerRef;
-        */
-        return undefined; // TODO
     }
     // TRANSITION CALL EXPRESSION
     // --------------------------------------------------------------------------------------------

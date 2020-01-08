@@ -20,9 +20,11 @@ exports.Over = chevrotain_1.createToken({ name: "Over", pattern: /over/, longer_
 exports.Prime = chevrotain_1.createToken({ name: "Prime", pattern: /prime/, longer_alt: exports.Identifier });
 exports.Binary = chevrotain_1.createToken({ name: "Binary", pattern: /binary/, longer_alt: exports.Identifier });
 exports.Field = chevrotain_1.createToken({ name: "Field", pattern: /field/, longer_alt: exports.Identifier });
+exports.ResultExp = chevrotain_1.createToken({ name: "ResultExp", pattern: chevrotain_1.Lexer.NA });
+exports.Yield = chevrotain_1.createToken({ name: "Yield", pattern: /yield/, longer_alt: exports.Identifier, categories: exports.ResultExp });
+exports.Enforce = chevrotain_1.createToken({ name: "Enforce", pattern: /enforce/, longer_alt: exports.Identifier, categories: exports.ResultExp });
 exports.Transition = chevrotain_1.createToken({ name: "Transition", pattern: /transition/, longer_alt: exports.Identifier });
 exports.Registers = chevrotain_1.createToken({ name: "Registers", pattern: /registers?/, longer_alt: exports.Identifier });
-exports.Enforce = chevrotain_1.createToken({ name: "Enforce", pattern: /enforce/, longer_alt: exports.Identifier });
 exports.Constraints = chevrotain_1.createToken({ name: "Constraints", pattern: /constraints?/, longer_alt: exports.Identifier });
 exports.For = chevrotain_1.createToken({ name: "For", pattern: /for/, longer_alt: exports.Identifier });
 exports.Each = chevrotain_1.createToken({ name: "Each", pattern: /each/, longer_alt: exports.Identifier });
@@ -93,8 +95,8 @@ exports.Comment = chevrotain_1.createToken({
 // ================================================================================================
 exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
-    exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Enforce, exports.Constraints, exports.For, exports.Each,
-    exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Using, exports.Require, exports.Inputs, exports.Public, exports.Secret,
+    exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Yield, exports.Enforce, exports.Constraints,
+    exports.For, exports.Each, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Using, exports.Require, exports.Inputs, exports.Public, exports.Secret,
     exports.Static, exports.Import, exports.From, exports.As, exports.All, exports.Init,
     exports.AssignOp, exports.ResolveOp, exports.Equals, exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.LWedge, exports.RWedge, exports.Comma, exports.Colon, exports.Semicolon,

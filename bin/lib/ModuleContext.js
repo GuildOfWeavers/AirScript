@@ -25,9 +25,7 @@ class ModuleContext {
             });
         });
         this.inputCount = this.component.staticRegisters.length;
-        // build input mask and segment control registers
-        inputMasks.forEach(m => this.component.addMaskRegister(m, true));
-        this.loopCount = inputMasks.length;
+        // build segment control registers
         lane.segmentMasks.forEach(m => this.component.addCyclicRegister(m.map(v => BigInt(v))));
         this.segmentCount = lane.segments.length;
         // set trace initializer to return a vector of zeros
@@ -54,32 +52,26 @@ class ModuleContext {
     }
     createExecutionContext(procedure) {
         const context = this.component.createProcedureContext(procedure);
-        return new ExecutionContext_1.ExecutionContext(context, this.inputCount, this.loopCount, this.segmentCount);
+        return new ExecutionContext_1.ExecutionContext(context, this.inputCount, this.segmentCount);
     }
     setTransitionFunction(context, initializers, segments) {
         let result;
-        let statements = [];
-        initializers.forEach(block => {
-            statements = statements.concat(block);
-            let lastStatement = statements[statements.length - 1];
-            let blockResult = context.base.buildLoadExpression(`load.local`, lastStatement.handle);
-            if (blockResult.isScalar) {
-                blockResult = context.buildMakeVectorExpression([blockResult]);
+        let statements = context.statements;
+        initializers.forEach(expression => {
+            if (expression.isScalar) {
+                expression = context.buildMakeVectorExpression([expression]);
             }
-            result = result ? context.buildBinaryOperation('add', result, blockResult) : blockResult;
+            result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
-        segments.forEach((block, i) => {
-            statements = statements.concat(block);
-            let lastStatement = statements.pop();
-            let control = context.getControlExpression(i);
-            let blockResult = context.buildBinaryOperation('mul', lastStatement.expression, control);
-            statements.push(context.base.buildStoreOperation(lastStatement.handle, blockResult));
-            blockResult = context.base.buildLoadExpression(`load.local`, lastStatement.handle);
-            result = result ? context.buildBinaryOperation('add', result, blockResult) : blockResult;
+        segments.forEach((expression, i) => {
+            const resultHandle = `$s${i}`;
+            context.base.addLocal(expression.dimensions, resultHandle);
+            const resultControl = context.getControlExpression(i);
+            expression = context.buildBinaryOperation('mul', expression, resultControl);
+            statements.push(context.base.buildStoreOperation(resultHandle, expression));
+            expression = context.base.buildLoadExpression(`load.local`, resultHandle);
+            result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
-        if (result.isScalar) {
-            result = context.buildMakeVectorExpression([result]);
-        }
         this.component.setTransitionFunction(context.base, statements, result);
     }
     setConstraintEvaluator(context, statements) {

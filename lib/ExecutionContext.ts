@@ -20,19 +20,20 @@ export class ExecutionContext {
     readonly constants          : Map<string, number>;
     readonly registers          : Map<string, RegisterInfo>;
     readonly blocks             : ExpressionBlock[];
+    readonly statements         : StoreOperation[];
 
     readonly inputCount         : number;
-    readonly loopCount          : number;
     readonly segmentCount       : number;
 
     private lastBlockId         : number;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base: ProcedureContext, inputCount: number, loopCount: number, segmentCount: number) {
+    constructor(base: ProcedureContext, inputCount: number, segmentCount: number) {
         this.base = base;
         this.constants = new Map();
         this.registers = new Map();
+        this.statements = [];
         this.blocks = [];
         this.lastBlockId = 0;
 
@@ -43,7 +44,6 @@ export class ExecutionContext {
         this.registers.set(`$k`, { type: 'static', index: 0 });
 
         this.inputCount = inputCount;
-        this.loopCount = loopCount;
         this.segmentCount = segmentCount;
     }
 
@@ -54,7 +54,7 @@ export class ExecutionContext {
     }
 
     get kRegisterOffset(): number {
-        return this.inputCount + this.loopCount + this.segmentCount;
+        return this.inputCount + this.segmentCount;
     }
 
     // SYMBOLIC REFERENCES
@@ -93,7 +93,7 @@ export class ExecutionContext {
         return result;
     }
 
-    setVariableAssignment(symbol: string, value: Expression): StoreOperation {
+    setVariableAssignment(symbol: string, value: Expression): void {
         let block = this.findLocalVariableBlock(symbol);
         if (!block) {
             if (this.constants.has(symbol)) {
@@ -105,7 +105,8 @@ export class ExecutionContext {
             throw new Error(`TODO: can't assign out of scope`);
         }
 
-        return block.setLocal(symbol, value);
+        const statement = block.setLocal(symbol, value);
+        this.statements.push(statement);
     }
 
     // FLOW CONTROLS
@@ -118,10 +119,26 @@ export class ExecutionContext {
     }
 
     getControlExpression(segmentIdx: number): Expression {
-        const registerOffset = this.inputCount + this.loopCount;
+        const registerOffset = this.inputCount;
         let result: Expression = this.base.buildLoadExpression('load.static', 0);
         result = this.base.buildGetVectorElementExpression(result, registerOffset + segmentIdx);
         return result;
+    }
+
+    buildConditionalExpression(condition: Expression, tBlock: Expression, fBlock: Expression): Expression {
+        /* TODO
+        if (registerRef.isBinary) {
+            throw new Error(`conditional expression must be based on a binary register`);
+        }
+        */
+
+        tBlock = this.base.buildBinaryOperation('mul', tBlock, condition);
+        
+        const one = this.base.buildLiteralValue(this.base.field.one);
+        condition = this.base.buildBinaryOperation('sub', one, condition);
+        fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
+
+        return this.base.buildBinaryOperation('add', tBlock, fBlock);
     }
 
     // STATEMENT BLOCKS
@@ -131,9 +148,8 @@ export class ExecutionContext {
         this.lastBlockId++;
     }
 
-    exitBlock(result: Expression): StoreOperation {
-        const block = this.blocks.pop()!;
-        return block.setResult(result);
+    exitBlock(): void {
+        this.blocks.pop()!;
     }
 
     private findLocalVariableBlock(variable: string): ExpressionBlock | undefined {
@@ -198,13 +214,6 @@ class ExpressionBlock {
             this.context.addLocal(value.dimensions, `$${variable}`);
         }
         return this.context.buildStoreOperation(`$${variable}`, value);
-    }
-
-    setResult(result: Expression): StoreOperation {
-        const variable = `b${this.id}`;
-        this.locals.set(variable, this.locals.size);
-        this.context.addLocal(result.dimensions, `$${variable}`);
-        return this.context.buildStoreOperation(`$${variable}`, result);
     }
 
     loadLocal(variable: string): LoadExpression {

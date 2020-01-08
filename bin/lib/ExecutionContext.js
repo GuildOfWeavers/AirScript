@@ -5,10 +5,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base, inputCount, loopCount, segmentCount) {
+    constructor(base, inputCount, segmentCount) {
         this.base = base;
         this.constants = new Map();
         this.registers = new Map();
+        this.statements = [];
         this.blocks = [];
         this.lastBlockId = 0;
         this.base.constants.forEach((c, i) => this.constants.set(c.handle.substring(1), i));
@@ -17,7 +18,6 @@ class ExecutionContext {
         this.registers.set(`$i`, { type: 'static', index: 0 });
         this.registers.set(`$k`, { type: 'static', index: 0 });
         this.inputCount = inputCount;
-        this.loopCount = loopCount;
         this.segmentCount = segmentCount;
     }
     // ACCESSORS
@@ -26,7 +26,7 @@ class ExecutionContext {
         return this.blocks[this.blocks.length - 1];
     }
     get kRegisterOffset() {
-        return this.inputCount + this.loopCount + this.segmentCount;
+        return this.inputCount + this.segmentCount;
     }
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
@@ -72,7 +72,8 @@ class ExecutionContext {
         else if (block !== this.currentBlock) {
             throw new Error(`TODO: can't assign out of scope`);
         }
-        return block.setLocal(symbol, value);
+        const statement = block.setLocal(symbol, value);
+        this.statements.push(statement);
     }
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
@@ -83,10 +84,22 @@ class ExecutionContext {
         return result;
     }
     getControlExpression(segmentIdx) {
-        const registerOffset = this.inputCount + this.loopCount;
+        const registerOffset = this.inputCount;
         let result = this.base.buildLoadExpression('load.static', 0);
         result = this.base.buildGetVectorElementExpression(result, registerOffset + segmentIdx);
         return result;
+    }
+    buildConditionalExpression(condition, tBlock, fBlock) {
+        /* TODO
+        if (registerRef.isBinary) {
+            throw new Error(`conditional expression must be based on a binary register`);
+        }
+        */
+        tBlock = this.base.buildBinaryOperation('mul', tBlock, condition);
+        const one = this.base.buildLiteralValue(this.base.field.one);
+        condition = this.base.buildBinaryOperation('sub', one, condition);
+        fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
+        return this.base.buildBinaryOperation('add', tBlock, fBlock);
     }
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------
@@ -94,9 +107,8 @@ class ExecutionContext {
         this.blocks.push(new ExpressionBlock(this.lastBlockId, this.base));
         this.lastBlockId++;
     }
-    exitBlock(result) {
-        const block = this.blocks.pop();
-        return block.setResult(result);
+    exitBlock() {
+        this.blocks.pop();
     }
     findLocalVariableBlock(variable) {
         for (let i = this.blocks.length - 1; i >= 0; i--) {
@@ -147,12 +159,6 @@ class ExpressionBlock {
             this.context.addLocal(value.dimensions, `$${variable}`);
         }
         return this.context.buildStoreOperation(`$${variable}`, value);
-    }
-    setResult(result) {
-        const variable = `b${this.id}`;
-        this.locals.set(variable, this.locals.size);
-        this.context.addLocal(result.dimensions, `$${variable}`);
-        return this.context.buildStoreOperation(`$${variable}`, result);
     }
     loadLocal(variable) {
         variable = `b${this.id}_${variable}`;
