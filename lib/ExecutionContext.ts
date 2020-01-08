@@ -2,19 +2,14 @@
 // ================================================================================================
 import {
     ProcedureContext, Expression, LiteralValue, BinaryOperation, UnaryOperation, MakeVector,
-    GetVectorElement, SliceVector, MakeMatrix, StoreOperation
+    GetVectorElement, SliceVector, MakeMatrix, StoreOperation, LoadExpression
 } from "@guildofweavers/air-assembly";
 
 // INTERFACES
 // ================================================================================================
-interface SymbolInfo {
-    readonly type   : 'const' | 'local' | 'trace' | 'static';
+interface RegisterInfo {
+    readonly type   : 'trace' | 'static';
     readonly index  : number;
-}
-
-interface BlockInfo {
-    readonly id     : number;
-    readonly locals : Map<string, number>;
 }
 
 // CLASS DEFINITION
@@ -22,8 +17,9 @@ interface BlockInfo {
 export class ExecutionContext {
 
     readonly base               : ProcedureContext;
-    readonly symbolMap          : Map<string, SymbolInfo>;
-    readonly blocks             : BlockInfo[];
+    readonly constants          : Map<string, number>;
+    readonly registers          : Map<string, RegisterInfo>;
+    readonly blocks             : ExpressionBlock[];
 
     readonly inputCount         : number;
     readonly loopCount          : number;
@@ -35,19 +31,16 @@ export class ExecutionContext {
     // --------------------------------------------------------------------------------------------
     constructor(base: ProcedureContext, inputCount: number, loopCount: number, segmentCount: number) {
         this.base = base;
-        this.symbolMap = new Map();
-        this.lastBlockId = 0;
+        this.constants = new Map();
+        this.registers = new Map();
         this.blocks = [];
+        this.lastBlockId = 0;
 
-        this.base.constants.forEach((c, i) => {
-            const name = c.handle!.substring(1);
-            this.symbolMap.set(name, { type: 'const', index: i });
-        });
-
-        this.symbolMap.set(`$r`, { type: 'trace', index: 0 });
-        this.symbolMap.set(`$n`, { type: 'trace', index: 1 });
-        this.symbolMap.set(`$i`, { type: 'static', index: 0 });
-        this.symbolMap.set(`$k`, { type: 'static', index: 0 });
+        this.base.constants.forEach((c, i) => this.constants.set(c.handle!.substring(1), i));
+        this.registers.set(`$r`, { type: 'trace', index: 0 });
+        this.registers.set(`$n`, { type: 'trace', index: 1 });
+        this.registers.set(`$i`, { type: 'static', index: 0 });
+        this.registers.set(`$k`, { type: 'static', index: 0 });
 
         this.inputCount = inputCount;
         this.loopCount = loopCount;
@@ -56,7 +49,7 @@ export class ExecutionContext {
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    get currentBlock(): BlockInfo {
+    get currentBlock(): ExpressionBlock {
         return this.blocks[this.blocks.length - 1];
     }
 
@@ -69,7 +62,7 @@ export class ExecutionContext {
     getSymbolReference(symbol: string): Expression {
         let result: Expression;
         if (symbol.startsWith('$')) {
-            const info = this.symbolMap.get(symbol.substring(0, 2));
+            const info = this.registers.get(symbol.substring(0, 2));
             if (!info) {
                 throw new Error(`TODO`);
             }
@@ -84,34 +77,39 @@ export class ExecutionContext {
             }
         }
         else {
-            const info = this.symbolMap.get(symbol);
-            if (!info) {
-                throw new Error(`TODO`);
+            let index = this.constants.get(symbol);
+            if (index !== undefined) {
+                result = this.base.buildLoadExpression(`load.const`, index);
             }
-            result = this.base.buildLoadExpression(`load.${info.type}`, info.index);
+            else {
+                const block = this.findLocalVariableBlock(symbol);
+                if (!block) {
+                    throw new Error(`TODO: local var not found`);
+                }
+                result = block.loadLocal(symbol);
+            }
         }
 
         return result;
     }
 
     setVariableAssignment(symbol: string, value: Expression): StoreOperation {
-        const block = this.blocks[this.blocks.length - 1];
-        //symbol = `b${block.id}_${symbol}`;
-        let info = this.symbolMap.get(`${symbol}`);
-        if (info) {
-            if (info.type !== 'local') {
-                throw new Error(`TODO`);
+        let block = this.findLocalVariableBlock(symbol);
+        if (!block) {
+            if (this.constants.has(symbol)) {
+                throw new Error(`TODO: can't assign to const`);
             }
+            block = this.currentBlock;
         }
-        else {
-            info = { type: 'local', index: this.base.locals.length };
-            this.symbolMap.set(symbol, info);
-            this.base.addLocal(value.dimensions, `$${symbol}`);
+        else if (block !== this.currentBlock) {
+            throw new Error(`TODO: can't assign out of scope`);
         }
 
-        return this.base.buildStoreOperation(info.index, value);
+        return block.setLocal(symbol, value);
     }
 
+    // FLOW CONTROLS
+    // --------------------------------------------------------------------------------------------
     getLoopControlExpression(loopIdx: number): Expression {
         const registerOffset = this.inputCount;
         let result: Expression = this.base.buildLoadExpression('load.static', 0);
@@ -126,13 +124,22 @@ export class ExecutionContext {
         return result;
     }
 
+    // STATEMENT BLOCKS
+    // --------------------------------------------------------------------------------------------
     enterBlock() {
-        this.blocks.push({ id: this.lastBlockId, locals: new Map() });
+        this.blocks.push(new ExpressionBlock(this.lastBlockId, this.base));
         this.lastBlockId++;
     }
 
-    exitBlock() {
-        this.blocks.pop();
+    exitBlock(result: Expression): StoreOperation {
+        const block = this.blocks.pop()!;
+        return block.setResult(result);
+    }
+
+    private findLocalVariableBlock(variable: string): ExpressionBlock | undefined {
+        for (let i = this.blocks.length - 1; i >= 0; i--) {
+            if (this.blocks[i].hasLocal(variable)) return this.blocks[i];
+        }
     }
 
     // PASS-THROUGH METHODS
@@ -166,5 +173,49 @@ export class ExecutionContext {
     }
 }
 
-// HELPER FUNCTIONS
+// EXPRESSION BLOCK CLASS
 // ================================================================================================
+class ExpressionBlock {
+
+    readonly id     : number;
+    readonly locals : Map<string, number>;
+    readonly context: ProcedureContext;
+
+    constructor (id: number, context: ProcedureContext) {
+        this.id = id;
+        this.locals = new Map();
+        this.context = context;
+    }
+
+    hasLocal(variable: string): boolean {
+        return this.locals.has(`b${this.id}_${variable}`);
+    }
+
+    setLocal(variable: string, value: Expression): StoreOperation {
+        variable = `b${this.id}_${variable}`;
+        if (!this.locals.has(variable)) {
+            this.locals.set(variable, this.locals.size);
+            this.context.addLocal(value.dimensions, `$${variable}`);
+        }
+        return this.context.buildStoreOperation(`$${variable}`, value);
+    }
+
+    setResult(result: Expression): StoreOperation {
+        const variable = `b${this.id}`;
+        this.locals.set(variable, this.locals.size);
+        this.context.addLocal(result.dimensions, `$${variable}`);
+        return this.context.buildStoreOperation(`$${variable}`, result);
+    }
+
+    loadLocal(variable: string): LoadExpression {
+        variable = `b${this.id}_${variable}`;
+        if (!this.locals.has(variable)) {
+            throw new Error(`TODO: no local var`);
+        }
+        return this.context.buildLoadExpression(`load.local`, `$${variable}`);
+    }
+
+    getLocalIndex(variable: string): number | undefined {
+        return this.locals.get(`b${this.id}_${variable}`);
+    }
+}

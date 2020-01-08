@@ -59,20 +59,23 @@ class ModuleContext {
     setTransitionFunction(context, initializers, segments) {
         let result;
         let statements = [];
-        initializers.forEach((init, i) => {
-            init = init.slice();
-            let r = init.pop().expression;
-            let c = context.getLoopControlExpression(i);
-            r = context.buildBinaryOperation('mul', r, c);
-            result = result ? context.buildBinaryOperation('add', r, c) : r;
-            statements = statements.concat(init);
+        initializers.forEach(block => {
+            statements = statements.concat(block);
+            let lastStatement = statements[statements.length - 1];
+            let blockResult = context.base.buildLoadExpression(`load.local`, lastStatement.handle);
+            if (blockResult.isScalar) {
+                blockResult = context.buildMakeVectorExpression([blockResult]);
+            }
+            result = result ? context.buildBinaryOperation('add', result, blockResult) : blockResult;
         });
-        segments.forEach((body, i) => {
-            let r = body.pop().expression;
-            let c = context.getControlExpression(i);
-            r = context.buildBinaryOperation('mul', r, c);
-            result = result ? context.buildBinaryOperation('add', r, c) : r;
-            statements = statements.concat(body);
+        segments.forEach((block, i) => {
+            statements = statements.concat(block);
+            let lastStatement = statements.pop();
+            let control = context.getControlExpression(i);
+            let blockResult = context.buildBinaryOperation('mul', lastStatement.expression, control);
+            statements.push(context.base.buildStoreOperation(lastStatement.handle, blockResult));
+            blockResult = context.base.buildLoadExpression(`load.local`, lastStatement.handle);
+            result = result ? context.buildBinaryOperation('add', result, blockResult) : blockResult;
         });
         if (result.isScalar) {
             result = context.buildMakeVectorExpression([result]);

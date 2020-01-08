@@ -41,6 +41,7 @@ class AirVisitor extends BaseCstVisitor {
         /*
         specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
         */
+        context.component.transitionFunction.toString();
         return context.schema;
     }
     // FINITE FIELD
@@ -215,8 +216,7 @@ class AirVisitor extends BaseCstVisitor {
             out = expressions.BinaryOperation.sub(constraint, out);
         }
         */
-        statements.push(exc.setVariableAssignment(`block${exc.currentBlock.id}_result`, out));
-        exc.exitBlock();
+        statements.push(exc.exitBlock(out));
         return statements;
     }
     statement(ctx, exc) {

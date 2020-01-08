@@ -7,17 +7,15 @@ class ExecutionContext {
     // --------------------------------------------------------------------------------------------
     constructor(base, inputCount, loopCount, segmentCount) {
         this.base = base;
-        this.symbolMap = new Map();
-        this.lastBlockId = 0;
+        this.constants = new Map();
+        this.registers = new Map();
         this.blocks = [];
-        this.base.constants.forEach((c, i) => {
-            const name = c.handle.substring(1);
-            this.symbolMap.set(name, { type: 'const', index: i });
-        });
-        this.symbolMap.set(`$r`, { type: 'trace', index: 0 });
-        this.symbolMap.set(`$n`, { type: 'trace', index: 1 });
-        this.symbolMap.set(`$i`, { type: 'static', index: 0 });
-        this.symbolMap.set(`$k`, { type: 'static', index: 0 });
+        this.lastBlockId = 0;
+        this.base.constants.forEach((c, i) => this.constants.set(c.handle.substring(1), i));
+        this.registers.set(`$r`, { type: 'trace', index: 0 });
+        this.registers.set(`$n`, { type: 'trace', index: 1 });
+        this.registers.set(`$i`, { type: 'static', index: 0 });
+        this.registers.set(`$k`, { type: 'static', index: 0 });
         this.inputCount = inputCount;
         this.loopCount = loopCount;
         this.segmentCount = segmentCount;
@@ -35,7 +33,7 @@ class ExecutionContext {
     getSymbolReference(symbol) {
         let result;
         if (symbol.startsWith('$')) {
-            const info = this.symbolMap.get(symbol.substring(0, 2));
+            const info = this.registers.get(symbol.substring(0, 2));
             if (!info) {
                 throw new Error(`TODO`);
             }
@@ -49,30 +47,35 @@ class ExecutionContext {
             }
         }
         else {
-            const info = this.symbolMap.get(symbol);
-            if (!info) {
-                throw new Error(`TODO`);
+            let index = this.constants.get(symbol);
+            if (index !== undefined) {
+                result = this.base.buildLoadExpression(`load.const`, index);
             }
-            result = this.base.buildLoadExpression(`load.${info.type}`, info.index);
+            else {
+                const block = this.findLocalVariableBlock(symbol);
+                if (!block) {
+                    throw new Error(`TODO: local var not found`);
+                }
+                result = block.loadLocal(symbol);
+            }
         }
         return result;
     }
     setVariableAssignment(symbol, value) {
-        const block = this.blocks[this.blocks.length - 1];
-        //symbol = `b${block.id}_${symbol}`;
-        let info = this.symbolMap.get(`${symbol}`);
-        if (info) {
-            if (info.type !== 'local') {
-                throw new Error(`TODO`);
+        let block = this.findLocalVariableBlock(symbol);
+        if (!block) {
+            if (this.constants.has(symbol)) {
+                throw new Error(`TODO: can't assign to const`);
             }
+            block = this.currentBlock;
         }
-        else {
-            info = { type: 'local', index: this.base.locals.length };
-            this.symbolMap.set(symbol, info);
-            this.base.addLocal(value.dimensions, `$${symbol}`);
+        else if (block !== this.currentBlock) {
+            throw new Error(`TODO: can't assign out of scope`);
         }
-        return this.base.buildStoreOperation(info.index, value);
+        return block.setLocal(symbol, value);
     }
+    // FLOW CONTROLS
+    // --------------------------------------------------------------------------------------------
     getLoopControlExpression(loopIdx) {
         const registerOffset = this.inputCount;
         let result = this.base.buildLoadExpression('load.static', 0);
@@ -85,12 +88,21 @@ class ExecutionContext {
         result = this.base.buildGetVectorElementExpression(result, registerOffset + segmentIdx);
         return result;
     }
+    // STATEMENT BLOCKS
+    // --------------------------------------------------------------------------------------------
     enterBlock() {
-        this.blocks.push({ id: this.lastBlockId, locals: new Map() });
+        this.blocks.push(new ExpressionBlock(this.lastBlockId, this.base));
         this.lastBlockId++;
     }
-    exitBlock() {
-        this.blocks.pop();
+    exitBlock(result) {
+        const block = this.blocks.pop();
+        return block.setResult(result);
+    }
+    findLocalVariableBlock(variable) {
+        for (let i = this.blocks.length - 1; i >= 0; i--) {
+            if (this.blocks[i].hasLocal(variable))
+                return this.blocks[i];
+        }
     }
     // PASS-THROUGH METHODS
     // --------------------------------------------------------------------------------------------
@@ -117,6 +129,40 @@ class ExecutionContext {
     }
 }
 exports.ExecutionContext = ExecutionContext;
-// HELPER FUNCTIONS
+// EXPRESSION BLOCK CLASS
 // ================================================================================================
+class ExpressionBlock {
+    constructor(id, context) {
+        this.id = id;
+        this.locals = new Map();
+        this.context = context;
+    }
+    hasLocal(variable) {
+        return this.locals.has(`b${this.id}_${variable}`);
+    }
+    setLocal(variable, value) {
+        variable = `b${this.id}_${variable}`;
+        if (!this.locals.has(variable)) {
+            this.locals.set(variable, this.locals.size);
+            this.context.addLocal(value.dimensions, `$${variable}`);
+        }
+        return this.context.buildStoreOperation(`$${variable}`, value);
+    }
+    setResult(result) {
+        const variable = `b${this.id}`;
+        this.locals.set(variable, this.locals.size);
+        this.context.addLocal(result.dimensions, `$${variable}`);
+        return this.context.buildStoreOperation(`$${variable}`, result);
+    }
+    loadLocal(variable) {
+        variable = `b${this.id}_${variable}`;
+        if (!this.locals.has(variable)) {
+            throw new Error(`TODO: no local var`);
+        }
+        return this.context.buildLoadExpression(`load.local`, `$${variable}`);
+    }
+    getLocalIndex(variable) {
+        return this.locals.get(`b${this.id}_${variable}`);
+    }
+}
 //# sourceMappingURL=ExecutionContext.js.map
