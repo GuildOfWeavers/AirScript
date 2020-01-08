@@ -36,9 +36,10 @@ class AirVisitor extends BaseCstVisitor {
         const inits = exLane.inputs.map(input => this.visit(input.initializer, exc));
         const segments = exLane.segments.map(segment => this.visit(segment.body, exc));
         context.setTransitionFunction(exc, inits, segments);
-        /*
-        specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
-        */
+        // parse constraint evaluator
+        this.visit(ctx.transitionConstraints, context);
+        // finalize schema and return
+        context.schema.addComponent(context.component);
         return context.schema;
     }
     // FINITE FIELD
@@ -156,23 +157,23 @@ class AirVisitor extends BaseCstVisitor {
     }
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx) {
+    transitionFunction(ctx, context) {
         const lane = new ExecutionLane_1.ExecutionLane();
         this.visit(ctx.inputBlock, lane);
         return lane;
     }
-    transitionConstraints(ctx, exc) {
-        /*
-        const exc = new ExecutionContext(specs);
-        let root: Expression;
+    transitionConstraints(ctx, context) {
         if (ctx.allStepBlock) {
-            root = this.visit(ctx.allStepBlock, exc);
+            // TODO: root = this.visit(ctx.allStepBlock, exc);
         }
         else {
-            root = this.visit(ctx.inputBlock, exc);
+            const lane = new ExecutionLane_1.ExecutionLane();
+            this.visit(ctx.inputBlock, lane);
+            const exc = context.createExecutionContext('evaluation');
+            const inits = lane.inputs.map(input => this.visit(input.initializer, exc));
+            const segments = lane.segments.map(segment => this.visit(segment.body, exc));
+            context.setConstraintEvaluator(exc, inits, segments);
         }
-        return new TransitionConstraintsBody(root, specs.inputBlock);
-        */
     }
     // LOOPS
     // --------------------------------------------------------------------------------------------

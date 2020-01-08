@@ -74,7 +74,18 @@ export class ModuleContext {
     }
 
     setTransitionFunction(context: ExecutionContext, initializers: Expression[], segments: Expression[]): void {
-        
+        const { statements, result } = this.buildProcedure(context, initializers, segments);
+        this.component.setTransitionFunction(context.base, statements, result);
+    }
+
+    setConstraintEvaluator(context: ExecutionContext, initializers: Expression[], segments: Expression[]): void {
+        const { statements, result } = this.buildProcedure(context, initializers, segments);
+        this.component.setConstraintEvaluator(context.base, statements, result);
+    }
+
+    // PRIVATE METHODS
+    // --------------------------------------------------------------------------------------------
+    private buildProcedure(context: ExecutionContext, initializers: Expression[], segments: Expression[]) {
         let result: Expression | undefined;
         let statements: StoreOperation[] = context.statements;
 
@@ -96,16 +107,8 @@ export class ModuleContext {
 
             result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
-        
-        this.component.setTransitionFunction(context.base, statements, result!);
-    }
 
-    setConstraintEvaluator(context: ExecutionContext, statements: StoreOperation[]): void {
-        let result = statements.pop()!.expression;
-        if (result.isScalar) {
-            result = context.buildMakeVectorExpression([result]);
-        }
-        this.component.setConstraintEvaluator(context.base, statements, result);
+        return { statements, result: result! };
     }
 }
 

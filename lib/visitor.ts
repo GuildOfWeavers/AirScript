@@ -49,10 +49,11 @@ class AirVisitor extends BaseCstVisitor {
         const segments: Expression[] = exLane.segments.map(segment => this.visit(segment.body, exc));
         context.setTransitionFunction(exc, inits, segments);
 
-        /*
-        specs.setTransitionConstraints(this.visit(ctx.transitionConstraints, specs));
-        */
+        // parse constraint evaluator
+        this.visit(ctx.transitionConstraints, context);
 
+        // finalize schema and return
+        context.schema.addComponent(context.component);
         return context.schema;
     }
 
@@ -188,24 +189,26 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any): ExecutionLane {
-        const lane = new ExecutionLane()
+    transitionFunction(ctx: any, context?: ModuleContext): ExecutionLane {
+        const lane = new ExecutionLane();
         this.visit(ctx.inputBlock, lane);
         return lane;
     }
 
-    transitionConstraints(ctx: any, exc: ModuleContext): any {
-        /*
-        const exc = new ExecutionContext(specs);
-        let root: Expression;
+    transitionConstraints(ctx: any, context: ModuleContext): void {
+        
         if (ctx.allStepBlock) {
-            root = this.visit(ctx.allStepBlock, exc);
+            // TODO: root = this.visit(ctx.allStepBlock, exc);
         }
         else {
-            root = this.visit(ctx.inputBlock, exc);
+            const lane = new ExecutionLane();
+            this.visit(ctx.inputBlock, lane);
+
+            const exc = context.createExecutionContext('evaluation');
+            const inits: Expression[] = lane.inputs.map(input => this.visit(input.initializer, exc));
+            const segments: Expression[] = lane.segments.map(segment => this.visit(segment.body, exc));
+            context.setConstraintEvaluator(exc, inits, segments);
         }
-        return new TransitionConstraintsBody(root, specs.inputBlock);
-        */
     }
 
     // LOOPS
