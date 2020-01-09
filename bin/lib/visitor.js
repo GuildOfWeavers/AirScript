@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
-const ExecutionLane_1 = require("./ExecutionLane");
+const TransitionSpecs_1 = require("./TransitionSpecs");
 const ModuleContext_1 = require("./ModuleContext");
 // MODULE VARIABLES
 // ================================================================================================
@@ -22,19 +22,19 @@ class AirVisitor extends BaseCstVisitor {
         const modulus = this.visit(ctx.fieldDeclaration);
         const registers = Number(ctx.stateRegisterCount[0].image);
         const constraints = Number(ctx.constraintCount[0].image);
-        const exLane = this.visit(ctx.transitionFunction);
-        const context = new ModuleContext_1.ModuleContext(moduleName, modulus, registers, constraints, exLane);
+        const tSpecs = this.visit(ctx.transitionFunction);
+        this.visit(ctx.inputRegisters, tSpecs);
+        const context = new ModuleContext_1.ModuleContext(moduleName, modulus, registers, constraints, tSpecs);
         // parse constants
         if (ctx.moduleConstants) {
             ctx.moduleConstants.forEach((element) => this.visit(element, context));
         }
-        // parse input and static registers
-        this.visit(ctx.inputRegisters, context);
+        // parse static registers
         this.visit(ctx.staticRegisters, context);
         // parse transition function
         const exc = context.createExecutionContext('transition');
-        const inits = exLane.inputs.map(input => this.visit(input.initializer, exc));
-        const segments = exLane.segments.map(segment => this.visit(segment.body, exc));
+        const inits = tSpecs.loops.map(loop => this.visit(loop.init, exc));
+        const segments = tSpecs.segments.map(segment => this.visit(segment.body, exc));
         context.setTransitionFunction(exc, inits, segments);
         // parse constraint evaluator
         this.visit(ctx.transitionConstraints, context);
@@ -101,30 +101,20 @@ class AirVisitor extends BaseCstVisitor {
     }
     // INPUT REGISTERS
     // --------------------------------------------------------------------------------------------
-    inputRegisters(ctx, exc) {
-        const registerNames = new Set();
-        ctx.registers.forEach((declaration) => {
-            let registerName = this.visit(declaration, exc);
-            if (registerNames.has(registerName)) {
-                throw new Error(`input register ${registerName} is defined more than once`);
-            }
-            const registerIndex = Number(registerName.slice(2));
-            if (registerIndex !== registerNames.size) {
-                throw new Error(`input register ${registerName} is defined out of order`);
-            }
-            registerNames.add(registerName);
-        });
+    inputRegisters(ctx, specs) {
+        ctx.registers.forEach((declaration) => this.visit(declaration, specs));
+        /*
         const regCount = Number(ctx.registerCount[0].image);
         if (regCount !== registerNames.size) {
             throw new Error(`expected ${regCount} input registers, but ${registerNames.size} registers were defined`);
         }
+        */
     }
-    inputRegisterDefinition(ctx, exc) {
+    inputRegisterDefinition(ctx, specs) {
         const scope = ctx.scope[0].image;
         const registerName = ctx.name[0].image;
         const binary = ctx.binary ? true : false;
-        exc.addInput(registerName, scope, binary, ctx.parent);
-        return registerName;
+        specs.addInput(registerName, scope, binary, ctx.parent);
     }
     // STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
@@ -157,43 +147,43 @@ class AirVisitor extends BaseCstVisitor {
     }
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx, context) {
-        const lane = new ExecutionLane_1.ExecutionLane();
-        this.visit(ctx.inputBlock, lane);
-        return lane;
+    transitionFunction(ctx) {
+        const specs = new TransitionSpecs_1.TransitionSpecs();
+        this.visit(ctx.inputBlock, specs);
+        return specs;
     }
     transitionConstraints(ctx, context) {
         if (ctx.allStepBlock) {
             // TODO: root = this.visit(ctx.allStepBlock, exc);
         }
         else {
-            const lane = new ExecutionLane_1.ExecutionLane();
-            this.visit(ctx.inputBlock, lane);
+            const specs = new TransitionSpecs_1.TransitionSpecs();
+            this.visit(ctx.inputBlock, specs);
             const exc = context.createExecutionContext('evaluation');
-            const inits = lane.inputs.map(input => this.visit(input.initializer, exc));
-            const segments = lane.segments.map(segment => this.visit(segment.body, exc));
+            const inits = specs.loops.map(loop => this.visit(loop.init, exc));
+            const segments = specs.segments.map(segment => this.visit(segment.body, exc));
             context.setConstraintEvaluator(exc, inits, segments);
         }
     }
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputBlock(ctx, lane) {
+    inputBlock(ctx, specs) {
         const registers = ctx.registers.map((register) => register.image);
-        lane.addInputs(registers, ctx.initExpression);
+        specs.addLoop(registers, ctx.initExpression);
         // parse body expression
         if (ctx.inputBlock) {
-            this.visit(ctx.inputBlock, lane);
+            this.visit(ctx.inputBlock, specs);
         }
         else {
-            ctx.segmentLoops.map((loop) => this.visit(loop, lane));
+            ctx.segmentLoops.map((loop) => this.visit(loop, specs));
         }
     }
     transitionInit(ctx, exc) {
         return this.visit(ctx.expression, exc);
     }
-    segmentLoop(ctx, lane) {
+    segmentLoop(ctx, specs) {
         const intervals = ctx.ranges.map((range) => this.visit(range));
-        lane.addSegment(intervals, ctx.body);
+        specs.addSegment(intervals, ctx.body);
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------

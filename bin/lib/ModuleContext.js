@@ -9,25 +9,23 @@ const ExecutionContext_1 = require("./ExecutionContext");
 class ModuleContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(name, modulus, registers, constraints, lane) {
+    constructor(name, modulus, registers, constraints, specs) {
         this.name = name;
         this.schema = new air_assembly_1.AirSchema('prime', modulus);
-        const steps = lane.cycleLength;
+        const steps = specs.cycleLength;
         this.component = this.schema.createComponent(this.name, registers, constraints, steps);
         // build input registers
-        const inputMasks = [];
-        lane.inputs.forEach((inputGroup, i) => {
+        specs.loops.forEach((loop, i) => {
             const parent = (i === 0 ? undefined : i - 1); // TODO: handle multiple registers per group
-            const steps = (i === lane.inputs.length - 1 ? lane.cycleLength : undefined);
-            inputMasks.push(this.component.staticRegisters.length);
-            inputGroup.registers.forEach(r => {
+            const steps = (i === specs.loops.length - 1 ? specs.cycleLength : undefined);
+            loop.inputs.forEach(r => {
                 this.component.addInputRegister('public', false, parent, steps, -1);
             });
         });
         this.inputCount = this.component.staticRegisters.length;
         // build segment control registers
-        lane.segmentMasks.forEach(m => this.component.addCyclicRegister(m.map(v => BigInt(v))));
-        this.segmentCount = lane.segments.length;
+        specs.segmentMasks.forEach(m => this.component.addCyclicRegister(m.map(v => BigInt(v))));
+        this.segmentCount = specs.segments.length;
         // set trace initializer to return a vector of zeros
         const initContext = this.component.createProcedureContext('init');
         const zeroElement = initContext.buildLiteralValue(this.schema.field.zero);
@@ -76,7 +74,7 @@ class ModuleContext {
         segments.forEach((expression, i) => {
             const resultHandle = `$s${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
-            const resultControl = context.getControlExpression(i);
+            const resultControl = context.getSegmentModifier(i);
             expression = context.buildBinaryOperation('mul', expression, resultControl);
             statements.push(context.base.buildStoreOperation(resultHandle, expression));
             expression = context.base.buildLoadExpression(`load.local`, resultHandle);

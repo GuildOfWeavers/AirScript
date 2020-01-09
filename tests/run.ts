@@ -40,4 +40,4 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 }`;
 
 const air = compile(script);
-console.log(air);
+console.log(air.toString());

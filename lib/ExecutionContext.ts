@@ -111,24 +111,16 @@ export class ExecutionContext {
 
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
-    getLoopControlExpression(loopIdx: number): Expression {
-        const registerOffset = this.inputCount;
+    getSegmentModifier(segmentIdx: number): Expression {
         let result: Expression = this.base.buildLoadExpression('load.static', 0);
-        result = this.base.buildGetVectorElementExpression(result, registerOffset + loopIdx);
-        return result;
-    }
-
-    getControlExpression(segmentIdx: number): Expression {
-        const registerOffset = this.inputCount;
-        let result: Expression = this.base.buildLoadExpression('load.static', 0);
-        result = this.base.buildGetVectorElementExpression(result, registerOffset + segmentIdx);
+        result = this.base.buildGetVectorElementExpression(result, this.inputCount + segmentIdx);
         return result;
     }
 
     buildConditionalExpression(condition: Expression, tBlock: Expression, fBlock: Expression): Expression {
         /* TODO
         if (registerRef.isBinary) {
-            throw new Error(`conditional expression must be based on a binary register`);
+            throw new Error(`conditional expression must be based on a binary value`);
         }
         */
 
