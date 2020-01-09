@@ -110,6 +110,19 @@ export class ModuleContext {
         this.component.setConstraintEvaluator(pContext, [], callExpression);
     }
 
+    // TODO: use better name
+    setConstraintEvaluator2(context: ExecutionContext, result: Expression): void {
+        this.schema.addFunction(context.base, context.statements, result);
+
+        const pContext = this.component.createProcedureContext('evaluation');
+        const callExpression = pContext.buildCallExpression(`$${this.name}_evaluation`, [
+            pContext.buildLoadExpression('load.trace', 0),
+            pContext.buildLoadExpression('load.trace', 1),
+            pContext.buildLoadExpression('load.static', 0)
+        ]);
+        this.component.setConstraintEvaluator(pContext, [], callExpression);
+    }
+
     // PRIVATE METHODS
     // --------------------------------------------------------------------------------------------
     private buildProcedure(context: ExecutionContext, initializers: Expression[], segments: Expression[]) {

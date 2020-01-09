@@ -91,6 +91,13 @@ class ExecutionContext {
         fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
     }
+    buildTransitionCallExpression() {
+        // TODO: get correct name
+        return this.base.buildCallExpression(`$MiMC_transition`, [
+            this.base.buildLoadExpression('load.param', '$r'),
+            this.base.buildLoadExpression('load.param', '$k')
+        ]);
+    }
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------
     enterBlock() {

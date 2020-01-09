@@ -122,6 +122,14 @@ export class ExecutionContext {
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
     }
 
+    buildTransitionCallExpression(): Expression {
+        // TODO: get correct name
+        return this.base.buildCallExpression(`$MiMC_transition`, [
+            this.base.buildLoadExpression('load.param', '$r'),
+            this.base.buildLoadExpression('load.param', '$k')
+        ]);
+    }
+
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------
     enterBlock() {

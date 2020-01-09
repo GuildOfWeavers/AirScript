@@ -187,7 +187,9 @@ class AirVisitor extends BaseCstVisitor {
     transitionConstraints(ctx: any, context: ModuleContext): void {
         
         if (ctx.allStepBlock) {
-            // TODO: root = this.visit(ctx.allStepBlock, exc);
+            const exc = context.createExecutionContext('evaluation');
+            const result: Expression = this.visit(ctx.allStepBlock, exc);
+            context.setConstraintEvaluator2(exc, result);
         }
         else {
             const specs = new TransitionSpecs();
@@ -274,12 +276,12 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION CALL EXPRESSION
     // --------------------------------------------------------------------------------------------
-    transitionCall(ctx: any, exc: ModuleContext): Expression {
+    transitionCall(ctx: any, exc: ExecutionContext): Expression {
         const registers = ctx.registers[0].image;
         if (registers !== '$r') {
             throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
         }
-        return undefined as any; // TODO
+        return exc.buildTransitionCallExpression();
     }
 
     // VECTORS AND MATRIXES
