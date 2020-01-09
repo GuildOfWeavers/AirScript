@@ -20,7 +20,14 @@ interface Loop {
 interface Input {
     readonly scope  : string;
     readonly binary : boolean;
+    readonly rank   : number;
+}
+
+interface InputRegister {
+    readonly scope  : string;
+    readonly binary : boolean;
     readonly parent?: number;
+    readonly steps? : number;
 }
 
 // CLASS DEFINITION
@@ -46,8 +53,14 @@ export class TransitionSpecs {
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    get segmentMasks(): bigint[][] {
-        return this.segments.map(s => s.mask);
+    get inputs2(): InputRegister[] {
+        const result: InputRegister[] = [];
+        for (let input of this.inputs.values()) {
+            let parent = this.getParentOf(input!.rank);
+            let steps = input!.rank === this.loops.length - 1 ? this.cycleLength : undefined;
+            result.push({ scope: input!.scope, binary: input!.binary, parent, steps });
+        }
+        return result;
     }
 
     get cycleLength(): number {
@@ -64,10 +77,11 @@ export class TransitionSpecs {
         }
     }
 
-    addInput(register: string, scope: string, binary: boolean, parent?: number): void {
+    addInput(register: string, scope: string, binary: boolean): void {
         let input = this.inputs.get(register);
         if (!input) {
-            input = { scope, binary, parent };
+            let rank = this.getInputRank(register) || 0; // TODO?
+            input = { scope, binary, rank };
             this.inputs.set(register, input);
         }
         else {
@@ -150,6 +164,28 @@ export class TransitionSpecs {
         for (let [register, input] of this.inputs) {
             if (!input) {
                 throw new Error(`input register ${register} is used without being declared`);
+            }
+        }
+    }
+
+    getParentOf(rank: number): number | undefined {
+        if (rank === 0) return undefined;
+        const parent = this.loops[rank - 1].inputs[0];
+        let index = 0;
+        for (let input of this.inputs.keys()) {
+            if (input === parent) {
+                return index;
+            }
+            index++;
+        }
+    }
+
+    // PRIVATE METHODS
+    // --------------------------------------------------------------------------------------------
+    private getInputRank(register: string): number | undefined {
+        for (let i = 0; i < this.loops.length; i++) {
+            if (this.loops[i].inputs.includes(register)) {
+                return i;
             }
         }
     }

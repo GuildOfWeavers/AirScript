@@ -25,17 +25,11 @@ export class ModuleContext {
         this.component = this.schema.createComponent(this.name, registers, constraints, steps);
 
         // build input registers
-        specs.loops.forEach((loop, i) => {
-            const parent = (i === 0 ? undefined : i - 1); // TODO: handle multiple registers per group
-            const steps = (i === specs.loops.length - 1 ? specs.cycleLength : undefined);
-            loop.inputs.forEach(r => {
-                this.component.addInputRegister('public', false, parent, steps, -1);
-            });
-        });
-        this.inputCount = this.component.staticRegisters.length;
-
+        specs.inputs2.forEach(i => this.component.addInputRegister(i.scope, i.binary, i.parent, i.steps, -1));
+        this.inputCount = specs.inputs.size;
+        
         // build segment control registers
-        specs.segmentMasks.forEach(m => this.component.addCyclicRegister(m.map(v => BigInt(v))));
+        specs.segments.forEach(s => this.component.addCyclicRegister(s.mask));
         this.segmentCount = specs.segments.length;
 
         // set trace initializer to return a vector of zeros
@@ -54,11 +48,6 @@ export class ModuleContext {
     addConstant(name: string, value: bigint | bigint[] | bigint[][]): void {
         //TODO: validateVariableName(name, dimensions);
         this.schema.addConstant(value, `$${name}`);
-    }
-
-    addInput(name: string, scope: string, binary = false, parent?: string): void {
-        // TODO
-        //this.component.addInputRegister(scope, binary, undefined, 64);
     }
 
     addStatic(name: string, values: bigint[]): void {

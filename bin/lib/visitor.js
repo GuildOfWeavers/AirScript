@@ -114,7 +114,7 @@ class AirVisitor extends BaseCstVisitor {
         const scope = ctx.scope[0].image;
         const registerName = ctx.name[0].image;
         const binary = ctx.binary ? true : false;
-        specs.addInput(registerName, scope, binary, ctx.parent);
+        specs.addInput(registerName, scope, binary);
     }
     // STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
