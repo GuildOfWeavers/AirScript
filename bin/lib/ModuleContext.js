@@ -12,6 +12,8 @@ class ModuleContext {
     constructor(name, modulus, registers, constraints, specs) {
         this.name = name;
         this.schema = new air_assembly_1.AirSchema('prime', modulus);
+        this.registers = registers;
+        this.constraints = constraints;
         const steps = specs.cycleLength;
         this.component = this.schema.createComponent(this.name, registers, constraints, steps);
         // build input registers
@@ -39,16 +41,44 @@ class ModuleContext {
         this.component.addCyclicRegister(values);
     }
     createExecutionContext(procedure) {
-        const context = this.component.createProcedureContext(procedure);
-        return new ExecutionContext_1.ExecutionContext(context, this.inputCount, this.segmentCount);
+        let baseContext;
+        const functionName = `$${this.name}_${procedure}`;
+        const rDimensions = [this.registers, 0];
+        const kDimensions = [this.component.staticRegisters.length, 0];
+        const cDimensions = [this.constraints, 0];
+        if (procedure === 'transition') {
+            baseContext = this.schema.createFunctionContext(rDimensions, functionName);
+            baseContext.addParam(rDimensions, `$r`);
+            baseContext.addParam(kDimensions, `$k`);
+        }
+        else {
+            baseContext = this.schema.createFunctionContext(cDimensions, functionName);
+            baseContext.addParam(rDimensions, `$r`);
+            baseContext.addParam(rDimensions, `$n`);
+            baseContext.addParam(kDimensions, `$k`);
+        }
+        return new ExecutionContext_1.ExecutionContext(baseContext, this.inputCount, this.segmentCount);
     }
     setTransitionFunction(context, initializers, segments) {
         const { statements, result } = this.buildProcedure(context, initializers, segments);
-        this.component.setTransitionFunction(context.base, statements, result);
+        this.schema.addFunction(context.base, statements, result);
+        const pContext = this.component.createProcedureContext('transition');
+        const callExpression = pContext.buildCallExpression(`$${this.name}_transition`, [
+            pContext.buildLoadExpression('load.trace', 0),
+            pContext.buildLoadExpression('load.static', 0)
+        ]);
+        this.component.setTransitionFunction(pContext, [], callExpression);
     }
     setConstraintEvaluator(context, initializers, segments) {
         const { statements, result } = this.buildProcedure(context, initializers, segments);
-        this.component.setConstraintEvaluator(context.base, statements, result);
+        this.schema.addFunction(context.base, statements, result);
+        const pContext = this.component.createProcedureContext('evaluation');
+        const callExpression = pContext.buildCallExpression(`$${this.name}_evaluation`, [
+            pContext.buildLoadExpression('load.trace', 0),
+            pContext.buildLoadExpression('load.trace', 1),
+            pContext.buildLoadExpression('load.static', 0)
+        ]);
+        this.component.setConstraintEvaluator(pContext, [], callExpression);
     }
     // PRIVATE METHODS
     // --------------------------------------------------------------------------------------------

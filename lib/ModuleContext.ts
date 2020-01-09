@@ -1,6 +1,8 @@
 // IMPORTS
 // ================================================================================================
-import { AirSchema, AirComponent, ProcedureName, StoreOperation, Expression } from "@guildofweavers/air-assembly";
+import {
+    AirSchema, AirComponent, ProcedureName, StoreOperation, Expression, FunctionContext, Dimensions
+} from "@guildofweavers/air-assembly";
 import { TransitionSpecs } from "./TransitionSpecs";
 import { ExecutionContext } from "./ExecutionContext";
 
@@ -15,11 +17,16 @@ export class ModuleContext {
     readonly inputCount     : number;
     readonly segmentCount   : number;
 
+    private readonly registers      : number;
+    private readonly constraints    : number;
+
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(name: string, modulus: bigint, registers: number, constraints: number, specs: TransitionSpecs) {
         this.name = name;
         this.schema = new AirSchema('prime', modulus);
+        this.registers = registers;
+        this.constraints = constraints;
 
         const steps = specs.cycleLength;
         this.component = this.schema.createComponent(this.name, registers, constraints, steps);
@@ -56,18 +63,51 @@ export class ModuleContext {
     }
 
     createExecutionContext(procedure: ProcedureName): ExecutionContext {
-        const context = this.component.createProcedureContext(procedure);
-        return new ExecutionContext(context, this.inputCount, this.segmentCount);
+        let baseContext: FunctionContext;
+
+        const functionName = `$${this.name}_${procedure}`;
+        const rDimensions: Dimensions = [this.registers, 0];
+        const kDimensions: Dimensions = [this.component.staticRegisters.length, 0];
+        const cDimensions: Dimensions = [this.constraints, 0];
+
+        if (procedure === 'transition') {
+            baseContext = this.schema.createFunctionContext(rDimensions, functionName);
+            baseContext.addParam(rDimensions, `$r`);
+            baseContext.addParam(kDimensions, `$k`);
+        }
+        else {
+            baseContext = this.schema.createFunctionContext(cDimensions, functionName);
+            baseContext.addParam(rDimensions, `$r`);
+            baseContext.addParam(rDimensions, `$n`);
+            baseContext.addParam(kDimensions, `$k`);
+        }
+        
+        return new ExecutionContext(baseContext, this.inputCount, this.segmentCount);
     }
 
     setTransitionFunction(context: ExecutionContext, initializers: Expression[], segments: Expression[]): void {
         const { statements, result } = this.buildProcedure(context, initializers, segments);
-        this.component.setTransitionFunction(context.base, statements, result);
+        this.schema.addFunction(context.base, statements, result);
+
+        const pContext = this.component.createProcedureContext('transition');
+        const callExpression = pContext.buildCallExpression(`$${this.name}_transition`, [
+            pContext.buildLoadExpression('load.trace', 0),
+            pContext.buildLoadExpression('load.static', 0)
+        ]);
+        this.component.setTransitionFunction(pContext, [], callExpression);
     }
 
     setConstraintEvaluator(context: ExecutionContext, initializers: Expression[], segments: Expression[]): void {
         const { statements, result } = this.buildProcedure(context, initializers, segments);
-        this.component.setConstraintEvaluator(context.base, statements, result);
+        this.schema.addFunction(context.base, statements, result);
+
+        const pContext = this.component.createProcedureContext('evaluation');
+        const callExpression = pContext.buildCallExpression(`$${this.name}_evaluation`, [
+            pContext.buildLoadExpression('load.trace', 0),
+            pContext.buildLoadExpression('load.trace', 1),
+            pContext.buildLoadExpression('load.static', 0)
+        ]);
+        this.component.setConstraintEvaluator(pContext, [], callExpression);
     }
 
     // PRIVATE METHODS

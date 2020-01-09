@@ -1,24 +1,16 @@
 // IMPORTS
 // ================================================================================================
 import {
-    ProcedureContext, Expression, LiteralValue, BinaryOperation, UnaryOperation, MakeVector,
+    FunctionContext, Expression, LiteralValue, BinaryOperation, UnaryOperation, MakeVector,
     GetVectorElement, SliceVector, MakeMatrix, StoreOperation, LoadExpression
 } from "@guildofweavers/air-assembly";
-
-// INTERFACES
-// ================================================================================================
-interface RegisterInfo {
-    readonly type   : 'trace' | 'static';
-    readonly index  : number;
-}
 
 // CLASS DEFINITION
 // ================================================================================================
 export class ExecutionContext {
 
-    readonly base               : ProcedureContext;
+    readonly base               : FunctionContext;
     readonly constants          : Map<string, number>;
-    readonly registers          : Map<string, RegisterInfo>;
     readonly blocks             : ExpressionBlock[];
     readonly statements         : StoreOperation[];
 
@@ -29,19 +21,14 @@ export class ExecutionContext {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base: ProcedureContext, inputCount: number, segmentCount: number) {
+    constructor(base: FunctionContext, inputCount: number, segmentCount: number) {
         this.base = base;
         this.constants = new Map();
-        this.registers = new Map();
         this.statements = [];
         this.blocks = [];
         this.lastBlockId = 0;
 
         this.base.constants.forEach((c, i) => this.constants.set(c.handle!.substring(1), i));
-        this.registers.set(`$r`, { type: 'trace', index: 0 });
-        this.registers.set(`$n`, { type: 'trace', index: 1 });
-        this.registers.set(`$i`, { type: 'static', index: 0 });
-        this.registers.set(`$k`, { type: 'static', index: 0 });
 
         this.inputCount = inputCount;
         this.segmentCount = segmentCount;
@@ -62,15 +49,17 @@ export class ExecutionContext {
     getSymbolReference(symbol: string): Expression {
         let result: Expression;
         if (symbol.startsWith('$')) {
-            const info = this.registers.get(symbol.substring(0, 2));
-            if (!info) {
-                throw new Error(`TODO`);
+            let param = symbol.substring(0, 2);
+            if (param === '$i') {
+                result = this.base.buildLoadExpression(`load.param`, '$k'); // TODO: improve
             }
-
-            result = this.base.buildLoadExpression(`load.${info.type}`, info.index);
+            else {
+                result = this.base.buildLoadExpression(`load.param`, param);
+            }
+            
             if (symbol.length > 2) {
                 let index = Number(symbol.substring(2));
-                if (symbol.startsWith('$k')) {
+                if (param === '$k') {
                     index += this.kRegisterOffset;
                 }
                 result = this.base.buildGetVectorElementExpression(result, index);
@@ -112,7 +101,7 @@ export class ExecutionContext {
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
     getSegmentModifier(segmentIdx: number): Expression {
-        let result: Expression = this.base.buildLoadExpression('load.static', 0);
+        let result: Expression = this.base.buildLoadExpression('load.param', `$k`);
         result = this.base.buildGetVectorElementExpression(result, this.inputCount + segmentIdx);
         return result;
     }
@@ -187,9 +176,9 @@ class ExpressionBlock {
 
     readonly id     : number;
     readonly locals : Map<string, number>;
-    readonly context: ProcedureContext;
+    readonly context: FunctionContext;
 
-    constructor (id: number, context: ProcedureContext) {
+    constructor (id: number, context: FunctionContext) {
         this.id = id;
         this.locals = new Map();
         this.context = context;
