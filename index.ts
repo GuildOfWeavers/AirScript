@@ -6,7 +6,6 @@ import { lexer } from './lib/lexer';
 import { parser } from './lib/parser';
 import { visitor } from './lib/visitor';
 import { AirScriptError } from './lib/errors';
-import { ScriptSpecs } from './lib/ScriptSpecs';
 import * as generators from './lib/generators';
 import { isPowerOf2 } from './lib/utils';
 import { AirSchema } from '@guildofweavers/air-assembly';
@@ -86,7 +85,7 @@ export function compile(script: string) {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function parseScript(script: string, limits: StarkLimits, wasmOptions?: Partial<WasmOptions> | boolean): ScriptSpecs {
+function parseScript(script: string, limits: StarkLimits, wasmOptions?: Partial<WasmOptions> | boolean): any {
 
     // tokenize input
     const lexResult = lexer.tokenize(script);

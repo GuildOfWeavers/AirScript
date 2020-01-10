@@ -1,11 +1,10 @@
 // IMPORTS
 // ================================================================================================
 import { StarkLimits } from "@guildofweavers/air-script";
-import { ScriptSpecs } from "../ScriptSpecs";
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function generateAssembly(specs: ScriptSpecs, limits: StarkLimits, extensionFactor: number): string {
+export function generateAssembly(specs: any, limits: StarkLimits, extensionFactor: number): string {
         
     // name and field
     const name = `(name ${specs.name})\n`;

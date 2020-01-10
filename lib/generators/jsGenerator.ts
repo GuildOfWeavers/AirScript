@@ -1,12 +1,11 @@
 // IMPORTS
 // ================================================================================================
 import { AirModule, StarkLimits } from "@guildofweavers/air-script";
-import { ScriptSpecs } from "../ScriptSpecs";
 import * as jsTemplate from './JsModuleTemplate';
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function instantiateModule(specs: ScriptSpecs, limits: StarkLimits, extensionFactor: number): AirModule {
+export function instantiateModule(specs: any, limits: StarkLimits, extensionFactor: number): AirModule {
 
     let code = `'use strict';\n\n`;
 
