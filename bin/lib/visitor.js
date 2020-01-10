@@ -195,16 +195,10 @@ class AirVisitor extends BaseCstVisitor {
             ctx.statements.forEach((stmt) => this.visit(stmt, exc));
         }
         let result = this.visit(ctx.expression, exc);
-        /*
-        TODO
         if (ctx.constraint) {
-            if (exc.inTransitionFunction) {
-                throw new Error('comparison operator cannot be used in transition function');
-            }
-            const constraint: Expression = this.visit(ctx.constraint, exc);
-            out = expressions.BinaryOperation.sub(constraint, out);
+            const constraint = this.visit(ctx.constraint, exc);
+            result = exc.buildBinaryOperation('sub', result, constraint);
         }
-        */
         exc.exitBlock();
         return result;
     }

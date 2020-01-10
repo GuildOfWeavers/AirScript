@@ -132,27 +132,25 @@ class AirParser extends chevrotain_1.CstParser {
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' });
+            this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: ['yield'] });
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
             this.OR([
-                { ALT: () => {
-                        this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' });
-                    } },
+                { ALT: () => this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: ['enforce'] }) },
                 { ALT: () => {
                         this.CONSUME(lexer_1.For);
                         this.CONSUME(lexer_1.All);
                         this.CONSUME(lexer_1.Steps);
-                        this.SUBRULE(this.statementBlock, { LABEL: 'allStepBlock' });
+                        this.SUBRULE(this.statementBlock, { LABEL: 'allStepBlock', ARGS: ['enforce'] });
                     } }
             ]);
             this.CONSUME(lexer_1.RCurly);
         });
         // LOOPS
         // --------------------------------------------------------------------------------------------
-        this.inputBlock = this.RULE('inputBlock', () => {
+        this.inputBlock = this.RULE('inputBlock', (context) => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Each);
             this.CONSUME(lexer_1.LParen);
@@ -162,28 +160,22 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.CONSUME(lexer_1.RParen);
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.transitionInit, { LABEL: 'initExpression' });
-            this.OR2([
-                { ALT: () => this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' }) },
+            this.SUBRULE(this.transitionInit, { LABEL: 'initExpression', ARGS: [context] });
+            this.OR([
+                { ALT: () => this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: [context] }) },
                 { ALT: () => {
                         this.AT_LEAST_ONE(() => {
-                            this.SUBRULE(this.segmentLoop, { LABEL: 'segmentLoops' });
+                            this.SUBRULE(this.segmentLoop, { LABEL: 'segmentLoops', ARGS: [context] });
                         });
                     } }
             ]);
             this.CONSUME(lexer_1.RCurly);
         });
-        this.transitionInit = this.RULE('transitionInit', () => {
+        this.transitionInit = this.RULE('transitionInit', (context) => {
             this.CONSUME(lexer_1.Init);
-            this.OR([
-                { ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'expression' }) },
-                { ALT: () => {
-                        this.SUBRULE(this.expression, { LABEL: 'expression' });
-                        this.CONSUME(lexer_1.Semicolon);
-                    } }
-            ]);
+            this.SUBRULE(this.statementBlock, { LABEL: 'expression', ARGS: [context] });
         });
-        this.segmentLoop = this.RULE('segmentLoop', () => {
+        this.segmentLoop = this.RULE('segmentLoop', (context) => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Steps);
             this.CONSUME(lexer_1.LSquare);
@@ -192,30 +184,29 @@ class AirParser extends chevrotain_1.CstParser {
                 DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
             });
             this.CONSUME(lexer_1.RSquare);
-            this.OR([
-                { ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'body' }) },
-                { ALT: () => {
-                        this.CONSUME(lexer_1.ResolveOp);
-                        this.SUBRULE(this.expression, { LABEL: 'body' });
-                        this.CONSUME(lexer_1.Semicolon);
-                    } }
-            ]);
+            this.SUBRULE(this.statementBlock, { LABEL: 'body', ARGS: [context] });
         });
         // STATEMENTS
         // --------------------------------------------------------------------------------------------
-        this.statementBlock = this.RULE('statementBlock', () => {
+        this.statementBlock = this.RULE('statementBlock', (context) => {
             this.CONSUME(lexer_1.LCurly);
-            this.MANY(() => {
-                this.SUBRULE(this.statement, { LABEL: 'statements' });
-            });
-            this.SUBRULE1(this.assignableExpression, { LABEL: 'expression' });
-            this.OPTION1(() => {
+            this.MANY(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
+            if (context === 'yield') {
+                this.CONSUME(lexer_1.Yield);
+                this.SUBRULE1(this.assignableExpression, { LABEL: 'expression' });
+                this.CONSUME1(lexer_1.Semicolon);
+            }
+            else if (context === 'enforce') {
+                this.CONSUME(lexer_1.Enforce);
+                this.SUBRULE2(this.assignableExpression, { LABEL: 'expression' });
                 this.CONSUME(lexer_1.Equals);
-                this.SUBRULE2(this.expression, { LABEL: 'constraint' });
-            });
-            this.OPTION2(() => {
-                this.CONSUME(lexer_1.Semicolon);
-            });
+                this.SUBRULE(this.expression, { LABEL: 'constraint' });
+                this.CONSUME2(lexer_1.Semicolon);
+            }
+            else {
+                this.SUBRULE3(this.assignableExpression, { LABEL: 'expression' });
+                this.OPTION(() => this.CONSUME3(lexer_1.Semicolon));
+            }
             this.CONSUME(lexer_1.RCurly);
         });
         this.statement = this.RULE('statement', () => {

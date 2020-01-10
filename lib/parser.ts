@@ -3,9 +3,9 @@
 import { CstParser } from "chevrotain";
 import {
     allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, Require, Inputs, Transition,
-    Registers, Static, Repeat, Binary, RegisterBank, For, All, Each, Init,
+    Registers, Static, Repeat, Binary, RegisterBank, For, All, Each, Init, Yield,
     LParen, RParen, LCurly, RCurly, LSquare, RSquare, Slash, QMark, Comma, Colon, Semicolon,
-    ExpOp, MulOp, AddOp, AssignOp, ResolveOp, Minus, Ellipsis, DoubleDot, Equals,
+    ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals,
     Steps, Enforce, Constraints,  When, Else, RegisterRef, StaticRegister, InputRegister, Using, Public, Secret
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
@@ -150,21 +150,19 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private transitionFunction = this.RULE('transitionFunction', () => {
         this.CONSUME(LCurly);
-        this.SUBRULE(this.inputBlock,             { LABEL: 'inputBlock' });
+        this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: [ 'yield' ] });
         this.CONSUME(RCurly);
     });
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
         this.CONSUME(LCurly);
         this.OR([
-            { ALT: () => {
-                this.SUBRULE(this.inputBlock,     { LABEL: 'inputBlock' });
-            }},
+            { ALT: () => this.SUBRULE(this.inputBlock,  { LABEL: 'inputBlock', ARGS: [ 'enforce' ] })},
             { ALT: () => {
                 this.CONSUME(For);
                 this.CONSUME(All);
                 this.CONSUME(Steps);
-                this.SUBRULE(this.statementBlock, { LABEL: 'allStepBlock' })
+                this.SUBRULE(this.statementBlock,       { LABEL: 'allStepBlock', ARGS: [ 'enforce' ] })
             }}
         ]);
         this.CONSUME(RCurly);
@@ -172,40 +170,34 @@ class AirParser extends CstParser {
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    private inputBlock = this.RULE('inputBlock', () => {
+    private inputBlock = this.RULE('inputBlock', (context: 'yield' | 'enforce') => {
         this.CONSUME(For);
         this.CONSUME(Each);
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP: Comma,
-            DEF: () => this.CONSUME(InputRegister,           { LABEL: 'registers' })
+            DEF: () => this.CONSUME(InputRegister,      { LABEL: 'registers' })
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
-        this.SUBRULE(this.transitionInit,                   { LABEL: 'initExpression' });
-        this.OR2([
-            { ALT: () => this.SUBRULE(this.inputBlock,      { LABEL: 'inputBlock'     })},
+        this.SUBRULE(this.transitionInit,               { LABEL: 'initExpression', ARGS: [ context ] });
+        this.OR([
+            { ALT: () => this.SUBRULE(this.inputBlock,  { LABEL: 'inputBlock',     ARGS: [ context ] })},
             { ALT: () => {
                 this.AT_LEAST_ONE(() => {
-                    this.SUBRULE(this.segmentLoop,          { LABEL: 'segmentLoops'    });
+                    this.SUBRULE(this.segmentLoop,      { LABEL: 'segmentLoops',   ARGS: [ context ] });
                 });
             }}
         ]);
         this.CONSUME(RCurly);
     });
 
-    private transitionInit = this.RULE('transitionInit', () => {
+    private transitionInit = this.RULE('transitionInit', (context: 'yield' | 'enforce') => {
         this.CONSUME(Init);
-        this.OR([
-            { ALT: () => this.SUBRULE(this.statementBlock,  { LABEL: 'expression' })},
-            { ALT: () => {
-                this.SUBRULE(this.expression,               { LABEL: 'expression' });
-                this.CONSUME(Semicolon);
-            }}
-        ]);
+        this.SUBRULE(this.statementBlock, { LABEL: 'expression', ARGS: [ context ] });
     });
 
-    private segmentLoop = this.RULE('segmentLoop', () => {
+    private segmentLoop = this.RULE('segmentLoop', (context: 'yield' | 'enforce') => {
         this.CONSUME(For);
         this.CONSUME(Steps);
         this.CONSUME(LSquare);
@@ -214,31 +206,31 @@ class AirParser extends CstParser {
             DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
         });
         this.CONSUME(RSquare);
-        this.OR([
-            { ALT: () => this.SUBRULE(this.statementBlock,       { LABEL: 'body' })},
-            { ALT: () => {
-                this.CONSUME(ResolveOp);
-                this.SUBRULE(this.expression,                    { LABEL: 'body' });
-                this.CONSUME(Semicolon);
-            }}
-        ]);
+        this.SUBRULE(this.statementBlock,   { LABEL: 'body', ARGS: [ context ] });
     });
 
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
-    public statementBlock = this.RULE('statementBlock', () => {
+    public statementBlock = this.RULE('statementBlock', (context?: 'yield' | 'enforce') => {
         this.CONSUME(LCurly);
-        this.MANY(() => {
-            this.SUBRULE(this.statement,         { LABEL: 'statements' });
-        });
-        this.SUBRULE1(this.assignableExpression, { LABEL: 'expression' });
-        this.OPTION1(() => {
+        this.MANY(() => this.SUBRULE(this.statement,    { LABEL: 'statements' }));
+
+        if (context === 'yield') {
+            this.CONSUME(Yield);
+            this.SUBRULE1(this.assignableExpression,    { LABEL: 'expression' });
+            this.CONSUME1(Semicolon);
+        }
+        else if (context === 'enforce') {
+            this.CONSUME(Enforce);
+            this.SUBRULE2(this.assignableExpression,    { LABEL: 'expression' });
             this.CONSUME(Equals);
-            this.SUBRULE2(this.expression,       { LABEL: 'constraint' });
-        });
-        this.OPTION2(() => {
-            this.CONSUME(Semicolon);
-        });
+            this.SUBRULE(this.expression,               { LABEL: 'constraint' });
+            this.CONSUME2(Semicolon);
+        }
+        else {
+            this.SUBRULE3(this.assignableExpression,    { LABEL: 'expression' });
+            this.OPTION(() => this.CONSUME3(Semicolon));
+        }
         this.CONSUME(RCurly);
     });
 

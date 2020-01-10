@@ -16,7 +16,7 @@ const BaseCstVisitor = parser.getBaseCstVisitorConstructor();
 class AirVisitor extends BaseCstVisitor {
 
     constructor() {
-        super()
+        super();
         this.validateVisitor()
     }
 
@@ -236,18 +236,13 @@ class AirVisitor extends BaseCstVisitor {
         }
 
         let result: Expression = this.visit(ctx.expression, exc);
-        /*
-        TODO
         if (ctx.constraint) {
-            if (exc.inTransitionFunction) {
-                throw new Error('comparison operator cannot be used in transition function');
-            }
             const constraint: Expression = this.visit(ctx.constraint, exc);
-            out = expressions.BinaryOperation.sub(constraint, out);
+            result = exc.buildBinaryOperation('sub', result, constraint);
         }
-        */
-       exc.exitBlock();
-       return result;
+
+        exc.exitBlock();
+        return result;
     }
 
     statement(ctx: any, exc: ExecutionContext): void {
