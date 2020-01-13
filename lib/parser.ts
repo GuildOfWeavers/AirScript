@@ -31,17 +31,28 @@ class AirParser extends CstParser {
                 { ALT: () => {
                     this.SUBRULE(this.constantDeclaration,   { LABEL: 'moduleConstants'       });
                 }},
-                { ALT: () => this.SUBRULE(this.inputRegisters,  { LABEL: 'inputRegisters'     })},
-                { ALT: () => this.SUBRULE(this.staticRegisters, { LABEL: 'staticRegisters'    })},
+                { ALT: () => {
+                    this.CONSUME(Require);
+                    this.CONSUME1(IntegerLiteral,            { LABEL: 'inputRegisterCount'    });
+                    this.CONSUME(Inputs);
+                    this.SUBRULE(this.inputRegisters,        { LABEL: 'inputRegisters'        });
+                }},
+                { ALT: () => {
+                    this.CONSUME(Using);
+                    this.CONSUME2(IntegerLiteral,            { LABEL: 'staticRegisterCount'   });
+                    this.CONSUME(Static);
+                    this.CONSUME1(Registers);
+                    this.SUBRULE(this.staticRegisters,       { LABEL: 'staticRegisters'       });
+                }},
                 { ALT: () => {
                     this.CONSUME(Transition);
-                    this.CONSUME1(IntegerLiteral,            { LABEL: 'stateRegisterCount'    });
-                    this.CONSUME1(Registers);
+                    this.CONSUME3(IntegerLiteral,            { LABEL: 'traceRegisterCount'    });
+                    this.CONSUME2(Registers);
                     this.SUBRULE(this.transitionFunction,    { LABEL: 'transitionFunction'    });
                 }},
                 { ALT: () => {
                     this.CONSUME(Enforce);
-                    this.CONSUME2(IntegerLiteral,            { LABEL: 'constraintCount'       });
+                    this.CONSUME4(IntegerLiteral,            { LABEL: 'constraintCount'       });
                     this.CONSUME(Constraints);
                     this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
                 }}
@@ -100,12 +111,9 @@ class AirParser extends CstParser {
         this.CONSUME(RSquare);
     })
 
-    // INPUT REGISTERS
+    // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
     private inputRegisters = this.RULE('inputRegisters', () => {
-        this.CONSUME(Require);
-        this.CONSUME(IntegerLiteral, { LABEL: 'registerCount' });
-        this.CONSUME(Inputs);
         this.CONSUME(LCurly);
         this.AT_LEAST_ONE(() => this.SUBRULE(this.inputRegisterDefinition, { LABEL: 'registers' }));
         this.CONSUME(RCurly);
@@ -126,13 +134,7 @@ class AirParser extends CstParser {
         this.CONSUME(Semicolon);
     });
 
-    // STATIC REGISTERS
-    // --------------------------------------------------------------------------------------------
     private staticRegisters = this.RULE('staticRegisters', () => {
-        this.CONSUME(Using);
-        this.CONSUME(IntegerLiteral, { LABEL: 'registerCount' });
-        this.CONSUME(Static);
-        this.CONSUME(Registers);
         this.CONSUME(LCurly);
         this.AT_LEAST_ONE(() => this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'registers' }));
         this.CONSUME(RCurly);

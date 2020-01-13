@@ -1,27 +1,23 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
 class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base, inputCount, segmentCount) {
+    constructor(base) {
         this.base = base;
-        this.constants = new Map();
         this.statements = [];
         this.blocks = [];
         this.lastBlockId = 0;
+        this.constants = new Map();
         this.base.constants.forEach((c, i) => this.constants.set(c.handle.substring(1), i));
-        this.inputCount = inputCount;
-        this.segmentCount = segmentCount;
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
     get currentBlock() {
         return this.blocks[this.blocks.length - 1];
-    }
-    get kRegisterOffset() {
-        return this.inputCount + this.segmentCount;
     }
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
@@ -29,17 +25,9 @@ class ExecutionContext {
         let result;
         if (symbol.startsWith('$')) {
             let param = symbol.substring(0, 2);
-            if (param === '$i') {
-                result = this.base.buildLoadExpression(`load.param`, '$k'); // TODO: improve
-            }
-            else {
-                result = this.base.buildLoadExpression(`load.param`, param);
-            }
+            result = this.base.buildLoadExpression(`load.param`, param);
             if (symbol.length > 2) {
                 let index = Number(symbol.substring(2));
-                if (param === '$k') {
-                    index += this.kRegisterOffset;
-                }
                 result = this.base.buildGetVectorElementExpression(result, index);
             }
         }
@@ -50,9 +38,7 @@ class ExecutionContext {
             }
             else {
                 const block = this.findLocalVariableBlock(symbol);
-                if (!block) {
-                    throw new Error(`variable ${symbol} is referenced before declaration`);
-                }
+                utils_1.validate(block !== undefined, errors.undeclaredVarReference(symbol));
                 result = block.loadLocal(symbol);
             }
         }
@@ -61,22 +47,18 @@ class ExecutionContext {
     setVariableAssignment(symbol, value) {
         let block = this.findLocalVariableBlock(symbol);
         if (!block) {
-            if (this.constants.has(symbol)) {
-                throw new Error(`TODO: can't assign to const`);
-            }
+            utils_1.validate(!this.constants.has(symbol), errors.cannotAssignToConst(symbol));
             block = this.currentBlock;
         }
-        else if (block !== this.currentBlock) {
-            throw new Error(`TODO: can't assign out of scope`);
-        }
+        utils_1.validate(block === this.currentBlock, errors.cannotAssignToOuterScope(symbol));
         const statement = block.setLocal(symbol, value);
         this.statements.push(statement);
     }
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
     getSegmentModifier(segmentIdx) {
-        let result = this.base.buildLoadExpression('load.param', `$k`);
-        result = this.base.buildGetVectorElementExpression(result, this.inputCount + segmentIdx);
+        let result = this.base.buildLoadExpression('load.param', utils_1.RegisterRefs.Segments);
+        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
         return result;
     }
     buildConditionalExpression(condition, tBlock, fBlock) {
@@ -90,13 +72,6 @@ class ExecutionContext {
         condition = this.base.buildBinaryOperation('sub', one, condition);
         fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
-    }
-    buildTransitionCallExpression() {
-        // TODO: get correct name
-        return this.base.buildCallExpression(`$MiMC_transition`, [
-            this.base.buildLoadExpression('load.param', '$r'),
-            this.base.buildLoadExpression('load.param', '$k')
-        ]);
     }
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------
@@ -136,6 +111,9 @@ class ExecutionContext {
     buildMakeMatrixExpression(elements) {
         return this.base.buildMakeMatrixExpression(elements);
     }
+    buildFunctionCall(func, params) {
+        return this.base.buildCallExpression(func, params);
+    }
 }
 exports.ExecutionContext = ExecutionContext;
 // EXPRESSION BLOCK CLASS
@@ -159,13 +137,18 @@ class ExpressionBlock {
     }
     loadLocal(variable) {
         variable = `${this.id}_${variable}`;
-        if (!this.locals.has(variable)) {
-            throw new Error(`TODO: no local var`);
-        }
+        utils_1.validate(this.locals.has(variable), errors.undeclaredVarReference(variable));
         return this.context.buildLoadExpression(`load.local`, `$${variable}`);
     }
     getLocalIndex(variable) {
         return this.locals.get(`${this.id}_${variable}`);
     }
 }
+// ERRORS
+// ================================================================================================
+const errors = {
+    undeclaredVarReference: (s) => `variable ${s} is referenced before declaration`,
+    cannotAssignToConst: (c) => `cannot assign a value to a constant ${c}`,
+    cannotAssignToOuterScope: (v) => `cannot assign a value to an outer scope variable ${v}`
+};
 //# sourceMappingURL=ExecutionContext.js.map

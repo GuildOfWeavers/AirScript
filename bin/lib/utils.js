@@ -1,5 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+// COMMON CONSTANTS
+// ================================================================================================
+var RegisterRefs;
+(function (RegisterRefs) {
+    RegisterRefs["CurrentState"] = "$r";
+    RegisterRefs["NextState"] = "$n";
+    RegisterRefs["Inputs"] = "$i";
+    RegisterRefs["Segments"] = "$s";
+    RegisterRefs["Static"] = "$k";
+})(RegisterRefs = exports.RegisterRefs || (exports.RegisterRefs = {}));
+;
 function isScalar(dim) {
     return (dim[0] === 0 && dim[1] === 0);
 }
@@ -16,35 +27,7 @@ function areSameDimensions(d1, d2) {
     return d1[0] === d2[0] && d1[1] === d2[1];
 }
 exports.areSameDimensions = areSameDimensions;
-function degreeToDimensions(degree) {
-    if (typeof degree === 'bigint') {
-        // degree describes a scalar
-        return [0, 0];
-    }
-    if (!Array.isArray(degree))
-        throw new Error(`degree '${degree}' is invalid`);
-    if (degree.length === 0)
-        throw new Error(`degree '${degree}' is invalid`);
-    if (typeof degree[0] === 'bigint') {
-        // degree describes a vector
-        return [degree.length, 0];
-    }
-    let colCount = 0;
-    for (let row of degree) {
-        if (!Array.isArray(row))
-            throw new Error(`degree '${degree}' is invalid`);
-        if (!colCount)
-            colCount = row.length;
-        else if (colCount !== row.length)
-            throw new Error(`degree '${degree}' is invalid`);
-    }
-    if (!colCount)
-        throw new Error(`degree '${degree}' is invalid`);
-    // degree describes a matrix
-    return [degree.length, colCount];
-}
-exports.degreeToDimensions = degreeToDimensions;
-// OTHER
+// MATH
 // ================================================================================================
 function isPowerOf2(value) {
     if (typeof value === 'bigint') {
@@ -55,6 +38,13 @@ function isPowerOf2(value) {
     }
 }
 exports.isPowerOf2 = isPowerOf2;
+// VALIDATORS
+// ================================================================================================
+function validate(condition, errorMessage) {
+    if (!condition)
+        throw new Error(errorMessage);
+}
+exports.validate = validate;
 function validateVariableName(variable, dimensions) {
     const errorMessage = `Variable name '${variable}' is invalid:`;
     if (isScalar(dimensions)) {

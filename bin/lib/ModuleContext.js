@@ -4,29 +4,33 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // ================================================================================================
 const air_assembly_1 = require("@guildofweavers/air-assembly");
 const ExecutionContext_1 = require("./ExecutionContext");
+const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
 class ModuleContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(name, modulus, registers, constraints, specs) {
+    constructor(name, modulus, traceRegisters, staticRegisters, constraints, specs) {
         this.name = name;
         this.schema = new air_assembly_1.AirSchema('prime', modulus);
-        this.registers = registers;
-        this.constraints = constraints;
         const steps = specs.cycleLength;
-        this.component = this.schema.createComponent(this.name, registers, constraints, steps);
-        // build input registers
+        this.component = this.schema.createComponent(this.name, traceRegisters, constraints, steps);
+        // build input and segment control registers
         specs.inputs.forEach(i => this.component.addInputRegister(i.scope, i.binary, i.parent, i.steps, -1));
-        this.inputCount = specs._inputRegisters.size;
-        // build segment control registers
         specs.segments.forEach(s => this.component.addCyclicRegister(s.mask));
-        this.segmentCount = specs.segments.length;
         // set trace initializer to return a vector of zeros
         const initContext = this.component.createProcedureContext('init');
         const zeroElement = initContext.buildLiteralValue(this.schema.field.zero);
-        const initResult = initContext.buildMakeVectorExpression(new Array(registers).fill(zeroElement));
+        const initResult = initContext.buildMakeVectorExpression(new Array(traceRegisters).fill(zeroElement));
         this.component.setTraceInitializer(initContext, [], initResult);
+        // compute dimensions for all trace segments and constraints
+        this.dimensionMap = new Map();
+        this.dimensionMap.set(utils_1.RegisterRefs.CurrentState, [traceRegisters, 0]);
+        this.dimensionMap.set(utils_1.RegisterRefs.NextState, [traceRegisters, 0]);
+        this.dimensionMap.set(utils_1.RegisterRefs.Inputs, [specs._inputRegisters.size, 0]);
+        this.dimensionMap.set(utils_1.RegisterRefs.Segments, [specs.segments.length, 0]);
+        this.dimensionMap.set(utils_1.RegisterRefs.Static, [staticRegisters, 0]);
+        this.dimensionMap.set('constraints', [constraints, 0]);
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -41,42 +45,44 @@ class ModuleContext {
         this.component.addCyclicRegister(values);
     }
     createExecutionContext(procedure) {
-        let baseContext;
-        const functionName = `$${this.name}_${procedure}`;
-        const rDimensions = [this.registers, 0];
-        const kDimensions = [this.component.staticRegisters.length, 0];
-        const cDimensions = [this.constraints, 0];
+        let resultDimensions, registerParams;
         if (procedure === 'transition') {
-            baseContext = this.schema.createFunctionContext(rDimensions, functionName);
-            baseContext.addParam(rDimensions, `$r`);
-            baseContext.addParam(kDimensions, `$k`);
+            resultDimensions = this.dimensionMap.get(utils_1.RegisterRefs.CurrentState);
+            registerParams = [
+                utils_1.RegisterRefs.CurrentState, utils_1.RegisterRefs.Inputs, utils_1.RegisterRefs.Segments
+            ];
         }
         else {
-            baseContext = this.schema.createFunctionContext(cDimensions, functionName);
-            baseContext.addParam(rDimensions, `$r`);
-            baseContext.addParam(rDimensions, `$n`);
-            baseContext.addParam(kDimensions, `$k`);
+            resultDimensions = this.dimensionMap.get('constraints');
+            registerParams = [
+                utils_1.RegisterRefs.CurrentState, utils_1.RegisterRefs.NextState, utils_1.RegisterRefs.Inputs, utils_1.RegisterRefs.Segments
+            ];
         }
-        return new ExecutionContext_1.ExecutionContext(baseContext, this.inputCount, this.segmentCount);
+        if (this.dimensionMap.has(utils_1.RegisterRefs.Static)) {
+            registerParams.push(utils_1.RegisterRefs.Static);
+        }
+        const baseContext = this.schema.createFunctionContext(resultDimensions, `$${this.name}_${procedure}`);
+        registerParams.forEach(r => baseContext.addParam(this.dimensionMap.get(r), r));
+        return new ExecutionContext_1.ExecutionContext(baseContext);
     }
     setTransitionFunction(context, initializers, segments) {
-        const { statements, result } = this.buildProcedure(context, initializers, segments);
+        const { statements, result } = this.buildFunction(context, initializers, segments);
         this.schema.addFunction(context.base, statements, result);
         const pContext = this.component.createProcedureContext('transition');
         const callExpression = pContext.buildCallExpression(`$${this.name}_transition`, [
             pContext.buildLoadExpression('load.trace', 0),
-            pContext.buildLoadExpression('load.static', 0)
+            ...this.buildStaticParamExpressions(pContext)
         ]);
         this.component.setTransitionFunction(pContext, [], callExpression);
     }
     setConstraintEvaluator(context, initializers, segments) {
-        const { statements, result } = this.buildProcedure(context, initializers, segments);
+        const { statements, result } = this.buildFunction(context, initializers, segments);
         this.schema.addFunction(context.base, statements, result);
         const pContext = this.component.createProcedureContext('evaluation');
         const callExpression = pContext.buildCallExpression(`$${this.name}_evaluation`, [
             pContext.buildLoadExpression('load.trace', 0),
             pContext.buildLoadExpression('load.trace', 1),
-            pContext.buildLoadExpression('load.static', 0)
+            ...this.buildStaticParamExpressions(pContext)
         ]);
         this.component.setConstraintEvaluator(pContext, [], callExpression);
     }
@@ -87,13 +93,13 @@ class ModuleContext {
         const callExpression = pContext.buildCallExpression(`$${this.name}_evaluation`, [
             pContext.buildLoadExpression('load.trace', 0),
             pContext.buildLoadExpression('load.trace', 1),
-            pContext.buildLoadExpression('load.static', 0)
+            ...this.buildStaticParamExpressions(pContext)
         ]);
         this.component.setConstraintEvaluator(pContext, [], callExpression);
     }
     // PRIVATE METHODS
     // --------------------------------------------------------------------------------------------
-    buildProcedure(context, initializers, segments) {
+    buildFunction(context, initializers, segments) {
         let result;
         let statements = context.statements;
         initializers.forEach(expression => {
@@ -112,6 +118,26 @@ class ModuleContext {
             result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
         return { statements, result: result };
+    }
+    buildStaticParamExpressions(context) {
+        const params = [];
+        let dimensions = this.dimensionMap.get(utils_1.RegisterRefs.Inputs);
+        let startIdx = 0, endIdx = dimensions[0] - 1;
+        let loadExpression = context.buildLoadExpression('load.static', 0);
+        params.push(context.buildSliceVectorExpression(loadExpression, startIdx, endIdx));
+        dimensions = this.dimensionMap.get(utils_1.RegisterRefs.Segments);
+        startIdx = endIdx + 1;
+        endIdx = startIdx + dimensions[0] - 1;
+        loadExpression = context.buildLoadExpression('load.static', 0);
+        params.push(context.buildSliceVectorExpression(loadExpression, startIdx, endIdx));
+        dimensions = this.dimensionMap.get(utils_1.RegisterRefs.Static);
+        if (dimensions) {
+            startIdx = endIdx + 1;
+            endIdx = startIdx + dimensions[0] - 1;
+            loadExpression = context.buildLoadExpression('load.static', 0);
+            params.push(context.buildSliceVectorExpression(loadExpression, startIdx, endIdx));
+        }
+        return params;
     }
 }
 exports.ModuleContext = ModuleContext;

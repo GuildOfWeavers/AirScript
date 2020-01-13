@@ -23,17 +23,28 @@ class AirParser extends chevrotain_1.CstParser {
                     { ALT: () => {
                             this.SUBRULE(this.constantDeclaration, { LABEL: 'moduleConstants' });
                         } },
-                    { ALT: () => this.SUBRULE(this.inputRegisters, { LABEL: 'inputRegisters' }) },
-                    { ALT: () => this.SUBRULE(this.staticRegisters, { LABEL: 'staticRegisters' }) },
+                    { ALT: () => {
+                            this.CONSUME(lexer_1.Require);
+                            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'inputRegisterCount' });
+                            this.CONSUME(lexer_1.Inputs);
+                            this.SUBRULE(this.inputRegisters, { LABEL: 'inputRegisters' });
+                        } },
+                    { ALT: () => {
+                            this.CONSUME(lexer_1.Using);
+                            this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'staticRegisterCount' });
+                            this.CONSUME(lexer_1.Static);
+                            this.CONSUME1(lexer_1.Registers);
+                            this.SUBRULE(this.staticRegisters, { LABEL: 'staticRegisters' });
+                        } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Transition);
-                            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'stateRegisterCount' });
-                            this.CONSUME1(lexer_1.Registers);
+                            this.CONSUME3(lexer_1.IntegerLiteral, { LABEL: 'traceRegisterCount' });
+                            this.CONSUME2(lexer_1.Registers);
                             this.SUBRULE(this.transitionFunction, { LABEL: 'transitionFunction' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Enforce);
-                            this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'constraintCount' });
+                            this.CONSUME4(lexer_1.IntegerLiteral, { LABEL: 'constraintCount' });
                             this.CONSUME(lexer_1.Constraints);
                             this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
                         } }
@@ -86,12 +97,9 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.CONSUME(lexer_1.RSquare);
         });
-        // INPUT REGISTERS
+        // INPUT AND STATIC REGISTERS
         // --------------------------------------------------------------------------------------------
         this.inputRegisters = this.RULE('inputRegisters', () => {
-            this.CONSUME(lexer_1.Require);
-            this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'registerCount' });
-            this.CONSUME(lexer_1.Inputs);
             this.CONSUME(lexer_1.LCurly);
             this.AT_LEAST_ONE(() => this.SUBRULE(this.inputRegisterDefinition, { LABEL: 'registers' }));
             this.CONSUME(lexer_1.RCurly);
@@ -110,13 +118,7 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.CONSUME(lexer_1.Semicolon);
         });
-        // STATIC REGISTERS
-        // --------------------------------------------------------------------------------------------
         this.staticRegisters = this.RULE('staticRegisters', () => {
-            this.CONSUME(lexer_1.Using);
-            this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'registerCount' });
-            this.CONSUME(lexer_1.Static);
-            this.CONSUME(lexer_1.Registers);
             this.CONSUME(lexer_1.LCurly);
             this.AT_LEAST_ONE(() => this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'registers' }));
             this.CONSUME(lexer_1.RCurly);

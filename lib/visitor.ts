@@ -29,12 +29,16 @@ class AirVisitor extends BaseCstVisitor {
 
         // build execution context
         const modulus: bigint = this.visit(ctx.fieldDeclaration);
-        const registers = Number(ctx.stateRegisterCount[0].image);
+        const inputRegisterCount = Number(ctx.inputRegisterCount[0].image);
+        const staticRegisters = Number(ctx.staticRegisterCount[0].image);
+        const traceRegisters = Number(ctx.traceRegisterCount[0].image);
         const constraints = Number(ctx.constraintCount[0].image);
         const tSpecs: TransitionSpecs = this.visit(ctx.transitionFunction);
+
+        // parse input registers
         this.visit(ctx.inputRegisters, tSpecs);
 
-        const context = new ModuleContext(moduleName, modulus, registers, constraints, tSpecs);
+        const context = new ModuleContext(moduleName, modulus, traceRegisters, staticRegisters, constraints, tSpecs);
 
         // parse constants
         if (ctx.moduleConstants) {
@@ -162,10 +166,13 @@ class AirVisitor extends BaseCstVisitor {
             });
         }
 
+        /*
+        TODO
         const regCount = Number(ctx.registerCount[0].image);
         if (regCount !== registerNames.size) {
             throw new Error(`expected ${regCount} static registers, but ${registerNames.size} registers were defined`);
         }
+        */
     }
 
     staticRegisterDefinition(ctx: any, exc: ModuleContext): string {
@@ -276,7 +283,12 @@ class AirVisitor extends BaseCstVisitor {
         if (registers !== '$r') {
             throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
         }
-        return exc.buildTransitionCallExpression();
+        
+        // TODO: build without relying on base context
+        const rParam = exc.base.buildLoadExpression('load.param', '$r');
+        const kParam = exc.base.buildLoadExpression('load.param', '$k');
+
+        return exc.buildFunctionCall('$MiMC_transition', [rParam, kParam]);
     }
 
     // VECTORS AND MATRIXES
