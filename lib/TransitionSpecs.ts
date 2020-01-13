@@ -13,7 +13,7 @@ interface Segment {
 }
 
 interface Loop {
-    readonly inputs : string[];
+    readonly inputs : Set<string>;
     readonly init   : any;
 }
 
@@ -35,9 +35,9 @@ interface InputRegister {
 export class TransitionSpecs {
     
     readonly loops              : Loop[];
-    readonly inputs             : Map<string, Input | undefined>;
     readonly segments           : Segment[];
 
+    readonly _inputRegisters    : Map<string, Input | undefined>;
     private _stepsToIntervals   : Map<number, Interval>;
     private _cycleLength        : number;
 
@@ -45,7 +45,7 @@ export class TransitionSpecs {
     // --------------------------------------------------------------------------------------------
     constructor() {
         this.loops = [];
-        this.inputs = new Map();
+        this._inputRegisters = new Map();
         this.segments = [];
         this._stepsToIntervals = new Map();
         this._cycleLength = 0;
@@ -53,11 +53,12 @@ export class TransitionSpecs {
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    get inputs2(): InputRegister[] {
+    get inputs(): InputRegister[] {
         const result: InputRegister[] = [];
-        for (let input of this.inputs.values()) {
-            let parent = this.getParentOf(input!.rank);
-            let steps = input!.rank === this.loops.length - 1 ? this.cycleLength : undefined;
+        const maxRank =  this.loops.length - 1;
+        for (let input of this._inputRegisters.values()) {
+            let parent = this.getFirstRegisterIndexAt(input!.rank);
+            let steps = input!.rank === maxRank ? this.cycleLength : undefined;
             result.push({ scope: input!.scope, binary: input!.binary, parent, steps });
         }
         return result;
@@ -70,23 +71,33 @@ export class TransitionSpecs {
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     addLoop(inputs: string[], init: any): void {
-        this.loops.push({ inputs, init });
-        for (let register of inputs) {
-            // TODO: validate register
-            this.inputs.set(register, undefined);
+        const rank = this.loops.length;
+        if (rank === 0) {
+            inputs.forEach(register => this._inputRegisters.set(register, undefined));
         }
+        else {
+            const parent = this.loops[rank - 1];
+            inputs.forEach(register => {
+                if (parent.inputs.has(register)) {
+                    parent.inputs.delete(register);
+                }
+                else {
+                    // TODO: throw error
+                }
+            });
+        }
+        this.loops.push({ inputs: new Set(inputs), init });
     }
 
     addInput(register: string, scope: string, binary: boolean): void {
-        let input = this.inputs.get(register);
-        if (!input) {
-            let rank = this.getInputRank(register) || 0; // TODO?
-            input = { scope, binary, rank };
-            this.inputs.set(register, input);
-        }
-        else {
+        let input = this._inputRegisters.get(register);
+        if (input) {
             throw new Error(`input register ${register} is defined more than once`);
         }
+
+        const rank = this.getInputRank(register) || 0; // TODO?
+        input = { scope, binary, rank };
+        this._inputRegisters.set(register, input);
 
         /* TODO
         const index = Number(register.slice(2));
@@ -161,22 +172,10 @@ export class TransitionSpecs {
         }
 
         // make sure definitions for all inputs were provided
-        for (let [register, input] of this.inputs) {
+        for (let [register, input] of this._inputRegisters) {
             if (!input) {
                 throw new Error(`input register ${register} is used without being declared`);
             }
-        }
-    }
-
-    getParentOf(rank: number): number | undefined {
-        if (rank === 0) return undefined;
-        const parent = this.loops[rank - 1].inputs[0];
-        let index = 0;
-        for (let input of this.inputs.keys()) {
-            if (input === parent) {
-                return index;
-            }
-            index++;
         }
     }
 
@@ -184,9 +183,22 @@ export class TransitionSpecs {
     // --------------------------------------------------------------------------------------------
     private getInputRank(register: string): number | undefined {
         for (let i = 0; i < this.loops.length; i++) {
-            if (this.loops[i].inputs.includes(register)) {
+            if (this.loops[i].inputs.has(register)) {
                 return i;
             }
+        }
+    }
+
+    private getFirstRegisterIndexAt(rank: number): number | undefined {
+        if (rank === 0) return undefined;
+        const loop = this.loops[rank - 1];
+        const parent = Array.from(loop.inputs)[0];
+        let index = 0;
+        for (let input of this._inputRegisters.keys()) {
+            if (input === parent) {
+                return index;
+            }
+            index++;
         }
     }
 }

@@ -10,12 +10,12 @@ import { ExecutionContext } from "./ExecutionContext";
 // ================================================================================================
 export class ModuleContext {
 
-    readonly name           : string;
-    readonly schema         : AirSchema;
-    readonly component      : AirComponent;
+    readonly name                   : string;
+    readonly schema                 : AirSchema;
+    readonly component              : AirComponent;
 
-    readonly inputCount     : number;
-    readonly segmentCount   : number;
+    readonly inputCount             : number;
+    readonly segmentCount           : number;
 
     private readonly registers      : number;
     private readonly constraints    : number;
@@ -32,8 +32,8 @@ export class ModuleContext {
         this.component = this.schema.createComponent(this.name, registers, constraints, steps);
 
         // build input registers
-        specs.inputs2.forEach(i => this.component.addInputRegister(i.scope, i.binary, i.parent, i.steps, -1));
-        this.inputCount = specs.inputs.size;
+        specs.inputs.forEach(i => this.component.addInputRegister(i.scope, i.binary, i.parent, i.steps, -1));
+        this.inputCount = specs._inputRegisters.size;
         
         // build segment control registers
         specs.segments.forEach(s => this.component.addCyclicRegister(s.mask));

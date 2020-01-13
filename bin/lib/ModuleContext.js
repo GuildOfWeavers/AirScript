@@ -17,8 +17,8 @@ class ModuleContext {
         const steps = specs.cycleLength;
         this.component = this.schema.createComponent(this.name, registers, constraints, steps);
         // build input registers
-        specs.inputs2.forEach(i => this.component.addInputRegister(i.scope, i.binary, i.parent, i.steps, -1));
-        this.inputCount = specs.inputs.size;
+        specs.inputs.forEach(i => this.component.addInputRegister(i.scope, i.binary, i.parent, i.steps, -1));
+        this.inputCount = specs._inputRegisters.size;
         // build segment control registers
         specs.segments.forEach(s => this.component.addCyclicRegister(s.mask));
         this.segmentCount = specs.segments.length;

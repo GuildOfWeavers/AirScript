@@ -47,12 +47,12 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
 
     enforce 4 constraint {
         for each ($i0, $i1, $i2) {
-            init { enforce [$i0, $i1, $i1, $i0] = $n; }
+            init { enforce $n = [$i0, $i1, $i1, $i0]; }
 
             for each ($i1, $i2) {
                 init {
                     h <- $i2 ? $r0 : $r2;
-                    enforce [h, $i1, $i1, h] = $n;
+                    enforce $n = [h, $i1, $i1, h];
                 }
 
                 for steps [1..31] {

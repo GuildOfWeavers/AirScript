@@ -73,7 +73,7 @@ export class ExecutionContext {
             else {
                 const block = this.findLocalVariableBlock(symbol);
                 if (!block) {
-                    throw new Error(`TODO: local var not found`);
+                    throw new Error(`variable ${symbol} is referenced before declaration`);
                 }
                 result = block.loadLocal(symbol);
             }
@@ -182,22 +182,22 @@ export class ExecutionContext {
 // ================================================================================================
 class ExpressionBlock {
 
-    readonly id     : number;
+    readonly id     : string;
     readonly locals : Map<string, number>;
     readonly context: FunctionContext;
 
     constructor (id: number, context: FunctionContext) {
-        this.id = id;
+        this.id = `b${id}`;
         this.locals = new Map();
         this.context = context;
     }
 
     hasLocal(variable: string): boolean {
-        return this.locals.has(`b${this.id}_${variable}`);
+        return this.locals.has(`${this.id}_${variable}`);
     }
 
     setLocal(variable: string, value: Expression): StoreOperation {
-        variable = `b${this.id}_${variable}`;
+        variable = `${this.id}_${variable}`;
         if (!this.locals.has(variable)) {
             this.locals.set(variable, this.locals.size);
             this.context.addLocal(value.dimensions, `$${variable}`);
@@ -206,7 +206,7 @@ class ExpressionBlock {
     }
 
     loadLocal(variable: string): LoadExpression {
-        variable = `b${this.id}_${variable}`;
+        variable = `${this.id}_${variable}`;
         if (!this.locals.has(variable)) {
             throw new Error(`TODO: no local var`);
         }
@@ -214,6 +214,6 @@ class ExpressionBlock {
     }
 
     getLocalIndex(variable: string): number | undefined {
-        return this.locals.get(`b${this.id}_${variable}`);
+        return this.locals.get(`${this.id}_${variable}`);
     }
 }
