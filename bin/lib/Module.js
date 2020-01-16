@@ -17,6 +17,7 @@ class Module {
         this.constraintCount = constraintCount;
         this.inputRegisters = new Map();
         this.staticRegisters = new Map();
+        this.symbols = new Map();
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -32,23 +33,21 @@ class Module {
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     addConstant(name, value) {
-        //TODO: validateVariableName(name, dimensions);
+        utils_1.validateSymbolName(name);
+        utils_1.validate(!this.symbols.has(name), errors.constSymbolReDeclared(name));
+        this.symbols.set(name, { type: 'const' });
         this.schema.addConstant(value, `$${name}`);
     }
-    addInput(register, scope, binary) {
-        if (this.inputRegisters.get(register)) {
-            throw new Error(`input register ${register} is defined more than once`);
-        }
-        this.inputRegisters.set(register, { scope, binary });
-        /* TODO
-        const index = Number(register.slice(2));
-        if (index !== this.inputs.size) {
-            throw new Error(`input register ${register} is defined out of order`);
-        }
-        */
+    addInput(name, index, scope, binary) {
+        utils_1.validate(!this.symbols.has(name), errors.inputRegisterOverlap(name));
+        utils_1.validate(index === this.inputRegisterCount, errors.inputRegisterOutOfOrder(name));
+        this.symbols.set(name, { type: 'input' });
+        this.inputRegisters.set(name, { scope, binary });
     }
-    addStatic(name, values) {
-        // TODO: check name
+    addStatic(name, index, values) {
+        utils_1.validate(!this.symbols.has(name), errors.staticRegisterOverlap(name));
+        utils_1.validate(index === this.staticRegisterCount, errors.staticRegisterOutOfOrder(name));
+        this.symbols.set(name, { type: 'static' });
         this.staticRegisters.set(name, values);
     }
     createComponent(transitionSpecs) {
@@ -85,26 +84,27 @@ class Module {
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
     buildProcedureSpecs(segmentCount) {
+        const sVar = utils_1.SEGMENT_VAR_NAME;
         return {
             transition: {
                 name: `$${this.name}_transition`,
                 result: [this.traceWidth, 0],
                 params: [
-                    { name: utils_1.RegisterRefs.CurrentState, dimensions: [this.traceWidth, 0] },
-                    { name: utils_1.RegisterRefs.Inputs, dimensions: [this.inputRegisters.size, 0] },
-                    { name: utils_1.RegisterRefs.Segments, dimensions: [segmentCount, 0] },
-                    { name: utils_1.RegisterRefs.Static, dimensions: [this.staticRegisters.size, 0] }
+                    { name: '$_r', dimensions: [this.traceWidth, 0] },
+                    { name: '$_i', dimensions: [this.inputRegisters.size, 0] },
+                    { name: sVar, dimensions: [segmentCount, 0] },
+                    { name: '$_k', dimensions: [this.staticRegisters.size, 0] }
                 ]
             },
             evaluation: {
                 name: `$${this.name}_evaluation`,
                 result: [this.constraintCount, 0],
                 params: [
-                    { name: utils_1.RegisterRefs.CurrentState, dimensions: [this.traceWidth, 0] },
-                    { name: utils_1.RegisterRefs.NextState, dimensions: [this.traceWidth, 0] },
-                    { name: utils_1.RegisterRefs.Inputs, dimensions: [this.inputRegisters.size, 0] },
-                    { name: utils_1.RegisterRefs.Segments, dimensions: [segmentCount, 0] },
-                    { name: utils_1.RegisterRefs.Static, dimensions: [this.staticRegisters.size, 0] }
+                    { name: '$_r', dimensions: [this.traceWidth, 0] },
+                    { name: '$_n', dimensions: [this.traceWidth, 0] },
+                    { name: '$_i', dimensions: [this.inputRegisters.size, 0] },
+                    { name: sVar, dimensions: [segmentCount, 0] },
+                    { name: '$_k', dimensions: [this.staticRegisters.size, 0] }
                 ]
             }
         };
@@ -161,6 +161,11 @@ exports.Module = Module;
 // ================================================================================================
 const errors = {
     undeclaredInputRegister: (r) => `input register ${r} is used without being declared`,
-    overusedInputRegister: (r) => `input register ${r} is used at multiple levels`,
+    overusedInputRegister: (r) => `input register ${r} cannot resurface in inner loops`,
+    constSymbolReDeclared: (s) => `symbol '${s}' is declared multiple times`,
+    inputRegisterOverlap: (r) => `input register ${r} is declared more than once`,
+    inputRegisterOutOfOrder: (r) => `input register ${r} is declared out of order`,
+    staticRegisterOverlap: (r) => `static register ${r} is declared more than once`,
+    staticRegisterOutOfOrder: (r) => `static register ${r} is declared out of order`,
 };
 //# sourceMappingURL=Module.js.map

@@ -1,6 +1,6 @@
 import { compile } from '../index';
 
-const script = `
+const script = Buffer.from(`
 define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
 
     alpha: 3;
@@ -110,7 +110,7 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
              8582267286539513308, 13903972190091769637, 17428182081597550586,  9464705238429071998
         ];
     }
-}`;
+}`);
 
 const air = compile(script);
 console.log(air.toString());

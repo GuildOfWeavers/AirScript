@@ -1,33 +1,7 @@
-// COMMON CONSTANTS
+// CONSTANTS
 // ================================================================================================
-export enum RegisterRefs {
-    CurrentState = '$r',
-    NextState    = '$n',
-    Inputs       = '$i',
-    Segments     = '$s',
-    Static       = '$k'
-};
-
-// DIMENSIONS
-// ================================================================================================
-// [rows, columns]
-export type Dimensions = [number, number];
-
-export function isScalar(dim: Dimensions) {
-    return (dim[0] === 0 && dim[1] === 0);
-}
-
-export function isVector(dim: Dimensions) {
-    return (dim[0] > 0 && dim[1] === 0);
-}
-
-export function isMatrix(dim: Dimensions) {
-    return (dim[1] > 0);
-}
-
-export function areSameDimensions(d1: Dimensions, d2: Dimensions) {
-    return d1[0] === d2[0] && d1[1] === d2[1];
-}
+export const SEGMENT_VAR_NAME = '$_s';
+export const BLOCK_ID_PREFIX  = '$_b';
 
 // MATH
 // ================================================================================================
@@ -46,23 +20,6 @@ export function validate(condition: any, errorMessage: string): asserts conditio
     if (!condition) throw new Error(errorMessage);
 }
 
-export function validateVariableName(variable: string, dimensions: Dimensions) {
-
-    const errorMessage = `Variable name '${variable}' is invalid:`;
-
-    if (isScalar(dimensions)) {
-        if (variable != variable.toLowerCase()) {
-            throw new Error(`${errorMessage} scalar variable names cannot contain uppercase characters`);
-        }
-    }
-    else if (isVector(dimensions)) {
-        if (variable != variable.toUpperCase()) {
-            throw new Error(`${errorMessage} vector variable names cannot contain lowercase characters`);
-        }
-    }
-    else {
-        if (variable != variable.toUpperCase()) {
-            throw new Error(`${errorMessage} matrix variable names cannot contain lowercase characters`);
-        }
-    }
+export function validateSymbolName(name: string): void {
+    // TODO: check regex and length
 }

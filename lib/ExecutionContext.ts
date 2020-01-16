@@ -5,7 +5,7 @@ import {
     GetVectorElement, SliceVector, MakeMatrix, StoreOperation, LoadExpression
 } from "@guildofweavers/air-assembly";
 import { ProcedureSpecs } from "./Component";
-import { validate, RegisterRefs } from './utils';
+import { validate, SEGMENT_VAR_NAME, BLOCK_ID_PREFIX } from './utils';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -43,7 +43,7 @@ export class ExecutionContext {
     getSymbolReference(symbol: string): Expression {
         let result: Expression;
         if (symbol.startsWith('$')) {
-            let param = symbol.substring(0, 2);
+            let param = `$_${symbol.substring(1, 2)}`;
             result = this.base.buildLoadExpression(`load.param`, param);
             if (symbol.length > 2) {
                 let index = Number(symbol.substring(2));
@@ -80,7 +80,7 @@ export class ExecutionContext {
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
     getSegmentModifier(segmentIdx: number): Expression {
-        let result: Expression = this.base.buildLoadExpression('load.param', RegisterRefs.Segments);
+        let result: Expression = this.base.buildLoadExpression('load.param', SEGMENT_VAR_NAME);
         result = this.base.buildGetVectorElementExpression(result, segmentIdx);
         return result;
     }
@@ -169,7 +169,7 @@ class ExpressionBlock {
     readonly context: FunctionContext;
 
     constructor (id: number, context: FunctionContext) {
-        this.id = `b${id}`;
+        this.id = `${BLOCK_ID_PREFIX}${id}`;
         this.locals = new Map();
         this.context = context;
     }
@@ -179,18 +179,18 @@ class ExpressionBlock {
     }
 
     setLocal(variable: string, value: Expression): StoreOperation {
-        variable = `${this.id}_${variable}`;
-        if (!this.locals.has(variable)) {
-            this.locals.set(variable, this.locals.size);
-            this.context.addLocal(value.dimensions, `$${variable}`);
+        const handle = `${this.id}_${variable}`;
+        if (!this.locals.has(handle)) {
+            this.locals.set(handle, this.locals.size);
+            this.context.addLocal(value.dimensions, handle);
         }
-        return this.context.buildStoreOperation(`$${variable}`, value);
+        return this.context.buildStoreOperation(handle, value);
     }
 
     loadLocal(variable: string): LoadExpression {
-        variable = `${this.id}_${variable}`;
-        validate(this.locals.has(variable), errors.undeclaredVarReference(variable));
-        return this.context.buildLoadExpression(`load.local`, `$${variable}`);
+        const handle = `${this.id}_${variable}`;
+        validate(this.locals.has(handle), errors.undeclaredVarReference(variable));
+        return this.context.buildLoadExpression(`load.local`, handle);
     }
 
     getLocalIndex(variable: string): number | undefined {

@@ -3,13 +3,17 @@
 import { AirSchema, ProcedureContext, Expression, FiniteField } from "@guildofweavers/air-assembly";
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
 import { TransitionSpecs } from "./TransitionSpecs";
-import { RegisterRefs, validate } from "./utils";
+import { validate, validateSymbolName, SEGMENT_VAR_NAME } from "./utils";
 
 // INTERFACES
 // ================================================================================================
 interface Input {
     readonly scope  : string;
     readonly binary : boolean;
+}
+
+interface SymbolInfo {
+    readonly type   : 'const' | 'input' | 'static';
 }
 
 // CLASS DEFINITION
@@ -23,6 +27,8 @@ export class Module {
     readonly inputRegisters         : Map<string, Input>;
     readonly staticRegisters        : Map<string, bigint[]>;
 
+    private readonly symbols        : Map<string, SymbolInfo>;
+
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(name: string, modulus: bigint, traceWidth: number, constraintCount: number) {
@@ -32,6 +38,7 @@ export class Module {
         this.constraintCount = constraintCount;
         this.inputRegisters = new Map();
         this.staticRegisters = new Map();
+        this.symbols = new Map();
     }
 
     // ACCESSORS
@@ -51,26 +58,23 @@ export class Module {
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     addConstant(name: string, value: bigint | bigint[] | bigint[][]): void {
-        //TODO: validateVariableName(name, dimensions);
+        validateSymbolName(name);
+        validate(!this.symbols.has(name), errors.constSymbolReDeclared(name));
+        this.symbols.set(name, { type: 'const' });
         this.schema.addConstant(value, `$${name}`);
     }
 
-    addInput(register: string, scope: string, binary: boolean): void {
-        if (this.inputRegisters.get(register)) {
-            throw new Error(`input register ${register} is defined more than once`);
-        }
-        this.inputRegisters.set(register, { scope, binary });
-
-        /* TODO
-        const index = Number(register.slice(2));
-        if (index !== this.inputs.size) {
-            throw new Error(`input register ${register} is defined out of order`);
-        }
-        */
+    addInput(name: string, index: number, scope: string, binary: boolean): void {
+        validate(!this.symbols.has(name), errors.inputRegisterOverlap(name));
+        validate(index === this.inputRegisterCount, errors.inputRegisterOutOfOrder(name));
+        this.symbols.set(name, { type: 'input' });
+        this.inputRegisters.set(name, { scope, binary });
     }
 
-    addStatic(name: string, values: bigint[]): void {
-        // TODO: check name
+    addStatic(name: string, index: number, values: bigint[]): void {
+        validate(!this.symbols.has(name), errors.staticRegisterOverlap(name));
+        validate(index === this.staticRegisterCount, errors.staticRegisterOutOfOrder(name));
+        this.symbols.set(name, { type: 'static' });
         this.staticRegisters.set(name, values);
     }
 
@@ -115,26 +119,27 @@ export class Module {
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
     private buildProcedureSpecs(segmentCount: number): ProcedureSpecs {
+        const sVar = SEGMENT_VAR_NAME;
         return {
             transition: {
                 name    : `$${this.name}_transition`,
                 result  : [this.traceWidth, 0],
                 params  : [
-                    { name: RegisterRefs.CurrentState,  dimensions: [this.traceWidth, 0] },
-                    { name: RegisterRefs.Inputs,        dimensions: [this.inputRegisters.size, 0] },
-                    { name: RegisterRefs.Segments,      dimensions: [segmentCount, 0] },
-                    { name: RegisterRefs.Static,        dimensions: [this.staticRegisters.size, 0] }
+                    { name: '$_r',  dimensions: [this.traceWidth, 0] },
+                    { name: '$_i',  dimensions: [this.inputRegisters.size, 0] },
+                    { name: sVar,   dimensions: [segmentCount, 0] },
+                    { name: '$_k',  dimensions: [this.staticRegisters.size, 0] }
                 ]
             },
             evaluation: {
                 name    : `$${this.name}_evaluation`,
                 result  : [this.constraintCount, 0],
                 params  : [
-                    { name: RegisterRefs.CurrentState,  dimensions: [this.traceWidth, 0] },
-                    { name: RegisterRefs.NextState,     dimensions: [this.traceWidth, 0] },
-                    { name: RegisterRefs.Inputs,        dimensions: [this.inputRegisters.size, 0] },
-                    { name: RegisterRefs.Segments,      dimensions: [segmentCount, 0] },
-                    { name: RegisterRefs.Static,        dimensions: [this.staticRegisters.size, 0] }
+                    { name: '$_r',  dimensions: [this.traceWidth, 0] },
+                    { name: '$_n',  dimensions: [this.traceWidth, 0] },
+                    { name: '$_i',  dimensions: [this.inputRegisters.size, 0] },
+                    { name: sVar,   dimensions: [segmentCount, 0] },
+                    { name: '$_k',  dimensions: [this.staticRegisters.size, 0] }
                 ]
             }
         };
@@ -204,5 +209,10 @@ export class Module {
 // ================================================================================================
 const errors = {
     undeclaredInputRegister : (r: any) => `input register ${r} is used without being declared`,
-    overusedInputRegister   : (r: any) => `input register ${r} is used at multiple levels`, // TODO: better message
+    overusedInputRegister   : (r: any) => `input register ${r} cannot resurface in inner loops`,
+    constSymbolReDeclared   : (s: any) => `symbol '${s}' is declared multiple times`,
+    inputRegisterOverlap    : (r: any) => `input register ${r} is declared more than once`,
+    inputRegisterOutOfOrder : (r: any) => `input register ${r} is declared out of order`,
+    staticRegisterOverlap   : (r: any) => `static register ${r} is declared more than once`,
+    staticRegisterOutOfOrder: (r: any) => `static register ${r} is declared out of order`,
 };

@@ -1,32 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-// COMMON CONSTANTS
+// CONSTANTS
 // ================================================================================================
-var RegisterRefs;
-(function (RegisterRefs) {
-    RegisterRefs["CurrentState"] = "$r";
-    RegisterRefs["NextState"] = "$n";
-    RegisterRefs["Inputs"] = "$i";
-    RegisterRefs["Segments"] = "$s";
-    RegisterRefs["Static"] = "$k";
-})(RegisterRefs = exports.RegisterRefs || (exports.RegisterRefs = {}));
-;
-function isScalar(dim) {
-    return (dim[0] === 0 && dim[1] === 0);
-}
-exports.isScalar = isScalar;
-function isVector(dim) {
-    return (dim[0] > 0 && dim[1] === 0);
-}
-exports.isVector = isVector;
-function isMatrix(dim) {
-    return (dim[1] > 0);
-}
-exports.isMatrix = isMatrix;
-function areSameDimensions(d1, d2) {
-    return d1[0] === d2[0] && d1[1] === d2[1];
-}
-exports.areSameDimensions = areSameDimensions;
+exports.SEGMENT_VAR_NAME = '$_s';
+exports.BLOCK_ID_PREFIX = '$_b';
 // MATH
 // ================================================================================================
 function isPowerOf2(value) {
@@ -45,23 +22,8 @@ function validate(condition, errorMessage) {
         throw new Error(errorMessage);
 }
 exports.validate = validate;
-function validateVariableName(variable, dimensions) {
-    const errorMessage = `Variable name '${variable}' is invalid:`;
-    if (isScalar(dimensions)) {
-        if (variable != variable.toLowerCase()) {
-            throw new Error(`${errorMessage} scalar variable names cannot contain uppercase characters`);
-        }
-    }
-    else if (isVector(dimensions)) {
-        if (variable != variable.toUpperCase()) {
-            throw new Error(`${errorMessage} vector variable names cannot contain lowercase characters`);
-        }
-    }
-    else {
-        if (variable != variable.toUpperCase()) {
-            throw new Error(`${errorMessage} matrix variable names cannot contain lowercase characters`);
-        }
-    }
+function validateSymbolName(name) {
+    // TODO: check regex and length
 }
-exports.validateVariableName = validateVariableName;
+exports.validateSymbolName = validateSymbolName;
 //# sourceMappingURL=utils.js.map

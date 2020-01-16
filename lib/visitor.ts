@@ -137,8 +137,9 @@ class AirVisitor extends BaseCstVisitor {
     inputRegisterDefinition(ctx: any, aModule: Module): void {
         const scope = ctx.scope[0].image;
         const registerName = ctx.name[0].image;
+        const registerIndex = Number(registerName.slice(2));
         const binary = ctx.binary ? true : false;
-        aModule.addInput(registerName, scope, binary);
+        aModule.addInput(registerName, registerIndex, scope, binary);
     }
 
     staticRegisters(ctx: any, aModule: Module): void {
@@ -153,9 +154,10 @@ class AirVisitor extends BaseCstVisitor {
 
     staticRegisterDefinition(ctx: any,  aModule: Module): void {
         const registerName = ctx.name[0].image;
+        const registerIndex = Number(registerName.slice(2));
         const values: bigint[] = this.visit(ctx.values);
         // TODO: handle parsing of PRNG sequences
-        aModule.addStatic(registerName, values);
+        aModule.addStatic(registerName, registerIndex, values);
     }
 
     // TRANSITION FUNCTION AND CONSTRAINTS

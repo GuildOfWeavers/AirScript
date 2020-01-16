@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const ExecutionContext_1 = require("./ExecutionContext");
+const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
 class Component {
@@ -55,7 +56,7 @@ class Component {
             result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
         segments.forEach((expression, i) => {
-            const resultHandle = `$s${i}`;
+            const resultHandle = `${utils_1.SEGMENT_VAR_NAME}${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
             const resultControl = context.getSegmentModifier(i);
             expression = context.buildBinaryOperation('mul', expression, resultControl);

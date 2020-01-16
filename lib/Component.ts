@@ -2,6 +2,7 @@
 // ================================================================================================
 import { AirSchema, ProcedureName, Expression, StoreOperation, Dimensions } from "@guildofweavers/air-assembly";
 import { ExecutionContext } from "./ExecutionContext";
+import { SEGMENT_VAR_NAME } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -97,7 +98,7 @@ export class Component {
         });
 
         segments.forEach((expression, i) => {
-            const resultHandle = `$s${i}`;
+            const resultHandle = `${SEGMENT_VAR_NAME}${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
 
             const resultControl = context.getSegmentModifier(i);
