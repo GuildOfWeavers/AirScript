@@ -2,8 +2,8 @@
 // ================================================================================================
 import { AirSchema, ProcedureContext, Expression, FiniteField } from "@guildofweavers/air-assembly";
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
-import { TransitionSpecs } from "./TransitionSpecs";
-import { validate, validateSymbolName, SEGMENT_VAR_NAME } from "./utils";
+import { ExecutionTemplate } from "./ExecutionTemplate";
+import { validate, validateSymbolName, SEGMENT_VAR_NAME, isPowerOf2 } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -78,16 +78,22 @@ export class Module {
         this.staticRegisters.set(name, values);
     }
 
-    createComponent(transitionSpecs: TransitionSpecs): Component {
-        const segmentMasks = transitionSpecs.segments.map(s => s.mask);
+    createComponent(template: ExecutionTemplate): Component {
+        // make sure the template is valid
+        validate(isPowerOf2(template.cycleLength), errors.cycleLengthNotPowerOf2(template.cycleLength));
+        for (let i = 1; i < template.cycleLength; i++) {
+            validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
+        }
+
+        const segmentMasks = template.segments.map(s => s.mask);
         const procedureSpecs = this.buildProcedureSpecs(segmentMasks.length);
-        const inputRegisters = this.buildInputRegisters(transitionSpecs);
+        const inputRegisters = this.buildInputRegisters(template);
         return new Component(this.schema, procedureSpecs, segmentMasks, inputRegisters);
     }
 
-    setComponent(component: Component): void {
+    setComponent(component: Component, componentName: string): void {
         // create component object
-        const c = this.schema.createComponent(this.name, this.traceWidth, this.constraintCount, component.cycleLength);
+        const c = this.schema.createComponent(componentName, this.traceWidth, this.constraintCount, component.cycleLength);
 
         // add static registers to the component
         component.inputRegisters.forEach(r => c.addInputRegister(r.scope, r.binary, r.parent, r.steps, -1));
@@ -172,13 +178,13 @@ export class Module {
         return params;
     }
 
-    private buildInputRegisters(specs: TransitionSpecs): InputRegister[] {
+    private buildInputRegisters(template: ExecutionTemplate): InputRegister[] {
         const registers: InputRegister[] = [];
         const registerSet = new Set<string>();
 
         let previousInputsCount = 0;
-        for (let i = 0; i < specs.loops.length; i++) {
-            let inputs = specs.loops[i].inputs;
+        for (let i = 0; i < template.loops.length; i++) {
+            let inputs = template.loops[i].inputs;
             // TODO: handle multiple parents
             let parentIdx = (i === 0 ? undefined : registers.length - previousInputsCount);
 
@@ -187,12 +193,12 @@ export class Module {
                 const register = this.inputRegisters.get(input);
                 validate(register !== undefined, errors.undeclaredInputRegister(input));
     
-                const isLeaf = (i === specs.loops.length - 1);
+                const isLeaf = (i === template.loops.length - 1);
                 registers.push({
                     scope   : register.scope,
                     binary  : register.binary,
                     parent  : parentIdx,
-                    steps   : isLeaf ? specs.cycleLength : undefined
+                    steps   : isLeaf ? template.cycleLength : undefined
                 });
 
                 registerSet.add(input);
@@ -215,4 +221,6 @@ const errors = {
     inputRegisterOutOfOrder : (r: any) => `input register ${r} is declared out of order`,
     staticRegisterOverlap   : (r: any) => `static register ${r} is declared more than once`,
     staticRegisterOutOfOrder: (r: any) => `static register ${r} is declared out of order`,
+    cycleLengthNotPowerOf2  : (s: any) => `total number of steps is ${s} but must be a power of 2`,
+    intervalStepNotCovered  : (i: any) => `step ${i} is not covered by any expression`
 };

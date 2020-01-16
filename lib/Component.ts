@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { AirSchema, ProcedureName, Expression, StoreOperation, Dimensions } from "@guildofweavers/air-assembly";
+import { FiniteField, AirSchema, ProcedureName, Expression, StoreOperation, Dimensions } from "@guildofweavers/air-assembly";
 import { ExecutionContext } from "./ExecutionContext";
 import { SEGMENT_VAR_NAME } from "./utils";
 
@@ -46,6 +46,10 @@ export class Component {
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
+    get field(): FiniteField {
+        return this.schema.field;
+    }
+
     get cycleLength(): number {
         return this.segmentMasks[0].length;
     }

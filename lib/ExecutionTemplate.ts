@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { FiniteField } from "@guildofweavers/galois";
-import { isPowerOf2 } from "./utils";
+import { validate } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -17,23 +17,11 @@ interface Loop {
     readonly init   : any;
 }
 
-interface Input {
-    readonly scope  : string;
-    readonly binary : boolean;
-    readonly rank   : number;
-}
-
-interface InputRegister {
-    readonly scope  : string;
-    readonly binary : boolean;
-    readonly parent?: number;
-    readonly steps? : number;
-}
-
 // CLASS DEFINITION
 // ================================================================================================
-export class TransitionSpecs {
+export class ExecutionTemplate {
     
+    readonly field              : FiniteField;
     readonly loops              : Loop[];
     readonly segments           : Segment[];
 
@@ -42,7 +30,8 @@ export class TransitionSpecs {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor() {
+    constructor(field: FiniteField) {
+        this.field = field;
         this.loops = [];
         this.segments = [];
         this._stepsToIntervals = new Map();
@@ -78,18 +67,13 @@ export class TransitionSpecs {
             let start = interval[0], end = interval[1];
 
             // make sure the interval is valid
-            if (start < 1) {
-                throw new Error(`invalid step interval [${start}..${end}]: start index must be greater than 0`);
-            }
-            else if (start > end) {
-                throw new Error(`invalid step interval [${start}..${end}]: start index must be smaller than end index`);
-            }
-    
+            validate(start >= 0, errors.intervalStartTooLow(start, end));
+            validate(end >= start, errors.intervalStartAfterEnd(start, end));
+            
             // make sure the interval does not conflict with previously added intervals
             for (let i = start; i <= end; i++) {
                 if (this._stepsToIntervals.has(i)) {
-                    const [s2, e2] = this._stepsToIntervals.get(i)!;
-                    throw new Error(`step interval [${start}..${end}] overlaps with interval [${s2}..${e2}]`);
+                    validate(false, errors.intervalStepOverlap(start, end, this._stepsToIntervals.get(i)!));
                 }
                 this._stepsToIntervals.set(i, interval);
             }
@@ -104,16 +88,16 @@ export class TransitionSpecs {
         for (let segment of this.segments) {
             const diff = this._cycleLength - segment.mask.length;
             if (diff > 0) {
-                let filling = new Array<bigint>(diff).fill(0n);
+                let filling = new Array<bigint>(diff).fill(this.field.zero);
                 segment.mask.push(...filling);
             }
         }
 
         // build the mask
-        const mask = new Array<bigint>(this._cycleLength).fill(0n);
+        const mask = new Array<bigint>(this._cycleLength).fill(this.field.zero);
         for (let [start, end] of intervals) {
             for (let i = start; i <= end; i++) {
-                mask[i] = 1n;
+                mask[i] = this.field.one;
             }
         }
 
@@ -121,19 +105,15 @@ export class TransitionSpecs {
         this.segments.push({ mask, body });
     }
 
-    validate() {
-        // make sure masks cover all steps
-        if (this._stepsToIntervals.size < this._cycleLength) {
-            for (let i = 1; i < this._cycleLength; i++) {
-                if (!this._stepsToIntervals.has(i)) {
-                    throw new Error(`step ${i} is not covered by any expression`);
-                }
-            }
-        }
-
-        // cycle length must be a power of 2
-        if (!isPowerOf2(this._cycleLength)) {
-            throw new Error('total number of steps must be a power of 2');
-        }
+    getIntervalAt(step: number): Interval | undefined {
+        return this._stepsToIntervals.get(step);
     }
 }
+
+// ERRORS
+// ================================================================================================
+const errors = {
+    intervalStartTooLow     : (s: any, e: any) => `invalid step interval [${s}..${e}]: start index must be greater than 0`,
+    intervalStartAfterEnd   : (s: any, e: any) => `invalid step interval [${s}..${e}]: start index must be smaller than end index`,
+    intervalStepOverlap     : (s1: any, e1: any, i2: any[]) => `step interval [${s1}..${e1}] overlaps with interval [${i2[0]}..${i2[1]}]`
+};

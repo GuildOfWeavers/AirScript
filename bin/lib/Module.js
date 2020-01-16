@@ -50,15 +50,20 @@ class Module {
         this.symbols.set(name, { type: 'static' });
         this.staticRegisters.set(name, values);
     }
-    createComponent(transitionSpecs) {
-        const segmentMasks = transitionSpecs.segments.map(s => s.mask);
+    createComponent(template) {
+        // make sure the template is valid
+        utils_1.validate(utils_1.isPowerOf2(template.cycleLength), errors.cycleLengthNotPowerOf2(template.cycleLength));
+        for (let i = 1; i < template.cycleLength; i++) {
+            utils_1.validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
+        }
+        const segmentMasks = template.segments.map(s => s.mask);
         const procedureSpecs = this.buildProcedureSpecs(segmentMasks.length);
-        const inputRegisters = this.buildInputRegisters(transitionSpecs);
+        const inputRegisters = this.buildInputRegisters(template);
         return new Component_1.Component(this.schema, procedureSpecs, segmentMasks, inputRegisters);
     }
-    setComponent(component) {
+    setComponent(component, componentName) {
         // create component object
-        const c = this.schema.createComponent(this.name, this.traceWidth, this.constraintCount, component.cycleLength);
+        const c = this.schema.createComponent(componentName, this.traceWidth, this.constraintCount, component.cycleLength);
         // add static registers to the component
         component.inputRegisters.forEach(r => c.addInputRegister(r.scope, r.binary, r.parent, r.steps, -1));
         component.segmentMasks.forEach(m => c.addCyclicRegister(m));
@@ -130,24 +135,24 @@ class Module {
         }
         return params;
     }
-    buildInputRegisters(specs) {
+    buildInputRegisters(template) {
         const registers = [];
         const registerSet = new Set();
         let previousInputsCount = 0;
-        for (let i = 0; i < specs.loops.length; i++) {
-            let inputs = specs.loops[i].inputs;
+        for (let i = 0; i < template.loops.length; i++) {
+            let inputs = template.loops[i].inputs;
             // TODO: handle multiple parents
             let parentIdx = (i === 0 ? undefined : registers.length - previousInputsCount);
             inputs.forEach(input => {
                 utils_1.validate(!registerSet.has(input), errors.overusedInputRegister(input));
                 const register = this.inputRegisters.get(input);
                 utils_1.validate(register !== undefined, errors.undeclaredInputRegister(input));
-                const isLeaf = (i === specs.loops.length - 1);
+                const isLeaf = (i === template.loops.length - 1);
                 registers.push({
                     scope: register.scope,
                     binary: register.binary,
                     parent: parentIdx,
-                    steps: isLeaf ? specs.cycleLength : undefined
+                    steps: isLeaf ? template.cycleLength : undefined
                 });
                 registerSet.add(input);
             });
@@ -167,5 +172,7 @@ const errors = {
     inputRegisterOutOfOrder: (r) => `input register ${r} is declared out of order`,
     staticRegisterOverlap: (r) => `static register ${r} is declared more than once`,
     staticRegisterOutOfOrder: (r) => `static register ${r} is declared out of order`,
+    cycleLengthNotPowerOf2: (s) => `total number of steps is ${s} but must be a power of 2`,
+    intervalStepNotCovered: (i) => `step ${i} is not covered by any expression`
 };
 //# sourceMappingURL=Module.js.map

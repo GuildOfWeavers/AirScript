@@ -36,7 +36,7 @@ function compile(sourceOrPath, componentName) {
     }
     // build AIR module
     try {
-        const schema = visitor_1.visitor.visit(cst);
+        const schema = visitor_1.visitor.visit(cst, componentName);
         return schema;
     }
     catch (error) {

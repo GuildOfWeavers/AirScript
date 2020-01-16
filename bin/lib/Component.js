@@ -15,6 +15,9 @@ class Component {
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
+    get field() {
+        return this.schema.field;
+    }
     get cycleLength() {
         return this.segmentMasks[0].length;
     }

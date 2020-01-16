@@ -43,7 +43,7 @@ export function compile(sourceOrPath: string | Buffer, componentName?: string): 
 
     // build AIR module
     try {
-        const schema: AirSchema = visitor.visit(cst);
+        const schema: AirSchema = visitor.visit(cst, componentName);
         return schema;
     }
     catch (error) {

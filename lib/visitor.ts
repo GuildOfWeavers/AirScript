@@ -7,8 +7,8 @@ import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { Module } from './Module';
 import { Component } from './Component';
-import { TransitionSpecs } from './TransitionSpecs';
 import { ExecutionContext } from './ExecutionContext';
+import { ExecutionTemplate } from './ExecutionTemplate';
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -23,7 +23,7 @@ class AirVisitor extends BaseCstVisitor {
 
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
-    script(ctx: any): AirSchema {
+    script(ctx: any, componentName = 'default'): AirSchema {
 
         validateScriptSections(ctx);
 
@@ -42,20 +42,20 @@ class AirVisitor extends BaseCstVisitor {
         this.visit(ctx.staticRegisters, aModule);
 
         // determine transition function structure and use it to create a component object
-        const tSpecs: TransitionSpecs = this.visit(ctx.transitionFunction, aModule);
-        const component = aModule.createComponent(tSpecs);
+        const template: ExecutionTemplate = this.visit(ctx.transitionFunction, aModule);
+        const component = aModule.createComponent(template);
 
         // parse transition function
         const exc = component.createExecutionContext('transition');
-        const inits: Expression[] = tSpecs.loops.map(loop => this.visit(loop.init, exc));
-        const segments: Expression[] = tSpecs.segments.map(segment => this.visit(segment.body, exc));
+        const inits: Expression[] = template.loops.map(loop => this.visit(loop.init, exc));
+        const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
         component.setTransitionFunction(exc, inits, segments);
 
         // parse constraint evaluator
         this.visit(ctx.transitionConstraints, component);
 
         // finalize the component and return the schema
-        aModule.setComponent(component);
+        aModule.setComponent(component, componentName);
         return aModule.schema;
     }
 
@@ -162,53 +162,51 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any): TransitionSpecs {
-        const specs = new TransitionSpecs();
-        this.visit(ctx.inputBlock, specs);
-        return specs;
+    transitionFunction(ctx: any, aModule: Module): ExecutionTemplate {
+        const template = new ExecutionTemplate(aModule.field);
+        this.visit(ctx.inputBlock, template);
+        return template;
     }
 
     transitionConstraints(ctx: any, component: Component): void {
-        
         if (ctx.allStepBlock) {
             const exc = component.createExecutionContext('evaluation');
             const result: Expression = this.visit(ctx.allStepBlock, exc);
             component.setConstraintEvaluator(exc, result);
         }
         else {
-            const specs = new TransitionSpecs();
-            this.visit(ctx.inputBlock, specs);
+            const template = new ExecutionTemplate(component.field);
+            this.visit(ctx.inputBlock, template);
 
             const exc = component.createExecutionContext('evaluation');
-            const inits: Expression[] = specs.loops.map(loop => this.visit(loop.init, exc));
-            const segments: Expression[] = specs.segments.map(segment => this.visit(segment.body, exc));
+            const inits: Expression[] = template.loops.map(loop => this.visit(loop.init, exc));
+            const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
             component.setConstraintEvaluator(exc, inits, segments);
         }
     }
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputBlock(ctx: any, specs: TransitionSpecs): void {
-
+    inputBlock(ctx: any, template: ExecutionTemplate): void {
         const registers: string[] = ctx.registers.map((register: any) => register.image);
-        specs.addLoop(registers, ctx.initExpression);
+        template.addLoop(registers, ctx.initExpression);
 
         // parse body expression
         if (ctx.inputBlock) {
-            this.visit(ctx.inputBlock, specs);
+            this.visit(ctx.inputBlock, template);
         }
         else {
-            ctx.segmentLoops.map((loop: any) => this.visit(loop, specs));
+            ctx.segmentLoops.map((loop: any) => this.visit(loop, template));
         }
     }
 
-    transitionInit(ctx: any, specs: TransitionSpecs): Expression {
-        return this.visit(ctx.expression, specs);
+    transitionInit(ctx: any, template: ExecutionTemplate): Expression {
+        return this.visit(ctx.expression, template);
     }
 
-    segmentLoop(ctx: any, specs: TransitionSpecs): void {
+    segmentLoop(ctx: any, template: ExecutionTemplate): void {
         const intervals: [number, number][] = ctx.ranges.map((range: any) => this.visit(range));
-        specs.addSegment(intervals, ctx.body);
+        template.addSegment(intervals, ctx.body);
     }
 
     // STATEMENTS

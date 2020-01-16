@@ -4,7 +4,7 @@ const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
 const Module_1 = require("./Module");
-const TransitionSpecs_1 = require("./TransitionSpecs");
+const ExecutionTemplate_1 = require("./ExecutionTemplate");
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser_1.parser.getBaseCstVisitorConstructor();
@@ -15,7 +15,7 @@ class AirVisitor extends BaseCstVisitor {
     }
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
-    script(ctx) {
+    script(ctx, componentName = 'default') {
         validateScriptSections(ctx);
         // build module
         const moduleName = ctx.starkName[0].image;
@@ -30,17 +30,17 @@ class AirVisitor extends BaseCstVisitor {
         this.visit(ctx.inputRegisters, aModule);
         this.visit(ctx.staticRegisters, aModule);
         // determine transition function structure and use it to create a component object
-        const tSpecs = this.visit(ctx.transitionFunction, aModule);
-        const component = aModule.createComponent(tSpecs);
+        const template = this.visit(ctx.transitionFunction, aModule);
+        const component = aModule.createComponent(template);
         // parse transition function
         const exc = component.createExecutionContext('transition');
-        const inits = tSpecs.loops.map(loop => this.visit(loop.init, exc));
-        const segments = tSpecs.segments.map(segment => this.visit(segment.body, exc));
+        const inits = template.loops.map(loop => this.visit(loop.init, exc));
+        const segments = template.segments.map(segment => this.visit(segment.body, exc));
         component.setTransitionFunction(exc, inits, segments);
         // parse constraint evaluator
         this.visit(ctx.transitionConstraints, component);
         // finalize the component and return the schema
-        aModule.setComponent(component);
+        aModule.setComponent(component, componentName);
         return aModule.schema;
     }
     // FINITE FIELD
@@ -134,10 +134,10 @@ class AirVisitor extends BaseCstVisitor {
     }
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx) {
-        const specs = new TransitionSpecs_1.TransitionSpecs();
-        this.visit(ctx.inputBlock, specs);
-        return specs;
+    transitionFunction(ctx, aModule) {
+        const template = new ExecutionTemplate_1.ExecutionTemplate(aModule.field);
+        this.visit(ctx.inputBlock, template);
+        return template;
     }
     transitionConstraints(ctx, component) {
         if (ctx.allStepBlock) {
@@ -146,33 +146,33 @@ class AirVisitor extends BaseCstVisitor {
             component.setConstraintEvaluator(exc, result);
         }
         else {
-            const specs = new TransitionSpecs_1.TransitionSpecs();
-            this.visit(ctx.inputBlock, specs);
+            const template = new ExecutionTemplate_1.ExecutionTemplate(component.field);
+            this.visit(ctx.inputBlock, template);
             const exc = component.createExecutionContext('evaluation');
-            const inits = specs.loops.map(loop => this.visit(loop.init, exc));
-            const segments = specs.segments.map(segment => this.visit(segment.body, exc));
+            const inits = template.loops.map(loop => this.visit(loop.init, exc));
+            const segments = template.segments.map(segment => this.visit(segment.body, exc));
             component.setConstraintEvaluator(exc, inits, segments);
         }
     }
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputBlock(ctx, specs) {
+    inputBlock(ctx, template) {
         const registers = ctx.registers.map((register) => register.image);
-        specs.addLoop(registers, ctx.initExpression);
+        template.addLoop(registers, ctx.initExpression);
         // parse body expression
         if (ctx.inputBlock) {
-            this.visit(ctx.inputBlock, specs);
+            this.visit(ctx.inputBlock, template);
         }
         else {
-            ctx.segmentLoops.map((loop) => this.visit(loop, specs));
+            ctx.segmentLoops.map((loop) => this.visit(loop, template));
         }
     }
-    transitionInit(ctx, specs) {
-        return this.visit(ctx.expression, specs);
+    transitionInit(ctx, template) {
+        return this.visit(ctx.expression, template);
     }
-    segmentLoop(ctx, specs) {
+    segmentLoop(ctx, template) {
         const intervals = ctx.ranges.map((range) => this.visit(range));
-        specs.addSegment(intervals, ctx.body);
+        template.addSegment(intervals, ctx.body);
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
