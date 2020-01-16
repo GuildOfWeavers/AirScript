@@ -3,8 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
+const Module_1 = require("./Module");
 const TransitionSpecs_1 = require("./TransitionSpecs");
-const ModuleContext_1 = require("./ModuleContext");
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser_1.parser.getBaseCstVisitorConstructor();
@@ -16,34 +16,32 @@ class AirVisitor extends BaseCstVisitor {
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
     script(ctx) {
-        const moduleName = ctx.starkName[0].image;
         validateScriptSections(ctx);
-        // build execution context
+        // build module
+        const moduleName = ctx.starkName[0].image;
         const modulus = this.visit(ctx.fieldDeclaration);
-        const inputRegisterCount = Number(ctx.inputRegisterCount[0].image);
-        const staticRegisters = Number(ctx.staticRegisterCount[0].image);
-        const traceRegisters = Number(ctx.traceRegisterCount[0].image);
-        const constraints = Number(ctx.constraintCount[0].image);
-        const tSpecs = this.visit(ctx.transitionFunction);
-        // parse input registers
-        this.visit(ctx.inputRegisters, tSpecs);
-        const context = new ModuleContext_1.ModuleContext(moduleName, modulus, traceRegisters, staticRegisters, constraints, tSpecs);
-        // parse constants
+        const traceRegisterCount = Number(ctx.traceRegisterCount[0].image);
+        const constraintCount = Number(ctx.constraintCount[0].image);
+        const aModule = new Module_1.Module(moduleName, modulus, traceRegisterCount, constraintCount);
+        // parse and add constants, inputs, and static registers to the module
         if (ctx.moduleConstants) {
-            ctx.moduleConstants.forEach((element) => this.visit(element, context));
+            ctx.moduleConstants.forEach((element) => this.visit(element, aModule));
         }
-        // parse static registers
-        this.visit(ctx.staticRegisters, context);
+        this.visit(ctx.inputRegisters, aModule);
+        this.visit(ctx.staticRegisters, aModule);
+        // determine transition function structure and use it to create a component object
+        const tSpecs = this.visit(ctx.transitionFunction, aModule);
+        const component = aModule.createComponent(tSpecs);
         // parse transition function
-        const exc = context.createExecutionContext('transition');
+        const exc = component.createExecutionContext('transition');
         const inits = tSpecs.loops.map(loop => this.visit(loop.init, exc));
         const segments = tSpecs.segments.map(segment => this.visit(segment.body, exc));
-        context.setTransitionFunction(exc, inits, segments);
+        component.setTransitionFunction(exc, inits, segments);
         // parse constraint evaluator
-        this.visit(ctx.transitionConstraints, context);
-        // finalize schema and return
-        context.schema.addComponent(context.component);
-        return context.schema;
+        this.visit(ctx.transitionConstraints, component);
+        // finalize the component and return the schema
+        aModule.setComponent(component);
+        return aModule.schema;
     }
     // FINITE FIELD
     // --------------------------------------------------------------------------------------------
@@ -53,22 +51,22 @@ class AirVisitor extends BaseCstVisitor {
     }
     // MODULE CONSTANTS
     // --------------------------------------------------------------------------------------------
-    constantDeclaration(ctx, exc) {
+    constantDeclaration(ctx, aModule) {
         const name = ctx.constantName[0].image;
         let value;
         if (ctx.value) {
-            value = this.visit(ctx.value, exc.schema.field);
+            value = this.visit(ctx.value, aModule.schema.field);
         }
         else if (ctx.vector) {
-            value = this.visit(ctx.vector, exc.schema.field);
+            value = this.visit(ctx.vector, aModule.schema.field);
         }
         else if (ctx.matrix) {
-            value = this.visit(ctx.matrix, exc.schema.field);
+            value = this.visit(ctx.matrix, aModule.schema.field);
         }
         else {
             throw new Error(`Failed to parse the value of module constant '${name}'`);
         }
-        exc.addConstant(name, value);
+        aModule.addConstant(name, value);
     }
     literalVector(ctx, field) {
         const vector = new Array(ctx.elements.length);
@@ -102,10 +100,11 @@ class AirVisitor extends BaseCstVisitor {
         }
         return row;
     }
-    // INPUT REGISTERS
+    // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
-    inputRegisters(ctx, specs) {
-        ctx.registers.forEach((declaration) => this.visit(declaration, specs));
+    inputRegisters(ctx, aModule) {
+        // TODO: validate against count
+        ctx.registers.forEach((declaration) => this.visit(declaration, aModule));
         /*
         const regCount = Number(ctx.registerCount[0].image);
         if (regCount !== registerNames.size) {
@@ -113,19 +112,18 @@ class AirVisitor extends BaseCstVisitor {
         }
         */
     }
-    inputRegisterDefinition(ctx, specs) {
+    inputRegisterDefinition(ctx, aModule) {
         const scope = ctx.scope[0].image;
         const registerName = ctx.name[0].image;
         const binary = ctx.binary ? true : false;
-        specs.addInput(registerName, scope, binary);
+        aModule.addInput(registerName, scope, binary);
     }
-    // STATIC REGISTERS
-    // --------------------------------------------------------------------------------------------
-    staticRegisters(ctx, exc) {
+    staticRegisters(ctx, aModule) {
+        // TODO: validate against count
         const registerNames = new Set();
         if (ctx.registers) {
             ctx.registers.forEach((declaration) => {
-                let registerName = this.visit(declaration, exc);
+                let registerName = this.visit(declaration, aModule);
                 if (registerNames.has(registerName)) {
                     throw new Error(`static register ${registerName} is defined more than once`);
                 }
@@ -144,11 +142,11 @@ class AirVisitor extends BaseCstVisitor {
         }
         */
     }
-    staticRegisterDefinition(ctx, exc) {
+    staticRegisterDefinition(ctx, aModule) {
         const registerName = ctx.name[0].image;
         const values = this.visit(ctx.values);
         // TODO: handle parsing of PRNG sequences
-        exc.addStatic(registerName, values);
+        aModule.addStatic(registerName, values);
         return registerName;
     }
     // TRANSITION FUNCTION AND CONSTRAINTS
@@ -158,19 +156,19 @@ class AirVisitor extends BaseCstVisitor {
         this.visit(ctx.inputBlock, specs);
         return specs;
     }
-    transitionConstraints(ctx, context) {
+    transitionConstraints(ctx, component) {
         if (ctx.allStepBlock) {
-            const exc = context.createExecutionContext('evaluation');
+            const exc = component.createExecutionContext('evaluation');
             const result = this.visit(ctx.allStepBlock, exc);
-            context.setConstraintEvaluator2(exc, result);
+            component.setConstraintEvaluator(exc, result);
         }
         else {
             const specs = new TransitionSpecs_1.TransitionSpecs();
             this.visit(ctx.inputBlock, specs);
-            const exc = context.createExecutionContext('evaluation');
+            const exc = component.createExecutionContext('evaluation');
             const inits = specs.loops.map(loop => this.visit(loop.init, exc));
             const segments = specs.segments.map(segment => this.visit(segment.body, exc));
-            context.setConstraintEvaluator(exc, inits, segments);
+            component.setConstraintEvaluator(exc, inits, segments);
         }
     }
     // LOOPS
@@ -186,8 +184,8 @@ class AirVisitor extends BaseCstVisitor {
             ctx.segmentLoops.map((loop) => this.visit(loop, specs));
         }
     }
-    transitionInit(ctx, exc) {
-        return this.visit(ctx.expression, exc);
+    transitionInit(ctx, specs) {
+        return this.visit(ctx.expression, specs);
     }
     segmentLoop(ctx, specs) {
         const intervals = ctx.ranges.map((range) => this.visit(range));
