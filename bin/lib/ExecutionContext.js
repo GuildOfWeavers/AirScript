@@ -6,11 +6,12 @@ const utils_1 = require("./utils");
 class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base) {
+    constructor(base, procedures) {
         this.base = base;
         this.statements = [];
         this.blocks = [];
         this.lastBlockId = 0;
+        this.procedures = procedures;
         this.constants = new Map();
         this.base.constants.forEach((c, i) => this.constants.set(c.handle.substring(1), i));
     }
@@ -72,6 +73,12 @@ class ExecutionContext {
         condition = this.base.buildBinaryOperation('sub', one, condition);
         fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
+    }
+    buildTransitionFunctionCall() {
+        const params = this.procedures.transition.params.map(p => {
+            return this.base.buildLoadExpression('load.param', p.name);
+        });
+        return this.buildFunctionCall(this.procedures.transition.name, params);
     }
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------

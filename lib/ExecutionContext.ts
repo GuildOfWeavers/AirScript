@@ -4,6 +4,7 @@ import {
     FunctionContext, Expression, LiteralValue, BinaryOperation, UnaryOperation, MakeVector,
     GetVectorElement, SliceVector, MakeMatrix, StoreOperation, LoadExpression
 } from "@guildofweavers/air-assembly";
+import { ProcedureSpecs } from "./Component";
 import { validate, RegisterRefs } from './utils';
 
 // CLASS DEFINITION
@@ -16,14 +17,16 @@ export class ExecutionContext {
     readonly statements         : StoreOperation[];
 
     private lastBlockId         : number;
+    private procedures          : ProcedureSpecs;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base: FunctionContext) {
+    constructor(base: FunctionContext, procedures: ProcedureSpecs) {
         this.base = base;
         this.statements = [];
         this.blocks = [];
         this.lastBlockId = 0;
+        this.procedures = procedures;
 
         this.constants = new Map();
         this.base.constants.forEach((c, i) => this.constants.set(c.handle!.substring(1), i));
@@ -96,6 +99,13 @@ export class ExecutionContext {
         fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
 
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
+    }
+
+    buildTransitionFunctionCall(): Expression {
+        const params = this.procedures.transition.params.map(p => {
+            return this.base.buildLoadExpression('load.param', p.name);
+        });
+        return this.buildFunctionCall(this.procedures.transition.name, params);
     }
 
     // STATEMENT BLOCKS

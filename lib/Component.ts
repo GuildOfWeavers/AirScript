@@ -63,7 +63,7 @@ export class Component {
         
         const context = this.schema.createFunctionContext(specs.result, specs.name);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext(context);
+        return new ExecutionContext(context, this.procedures);
     }
 
     setTransitionFunction(context: ExecutionContext, initializers: Expression[], segments: Expression[]): void {

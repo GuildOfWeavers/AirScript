@@ -23,6 +23,12 @@ class Module {
     get field() {
         return this.schema.field;
     }
+    get inputRegisterCount() {
+        return this.inputRegisters.size;
+    }
+    get staticRegisterCount() {
+        return this.staticRegisters.size;
+    }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     addConstant(name, value) {
@@ -133,13 +139,9 @@ class Module {
             // TODO: handle multiple parents
             let parentIdx = (i === 0 ? undefined : registers.length - previousInputsCount);
             inputs.forEach(input => {
+                utils_1.validate(!registerSet.has(input), errors.overusedInputRegister(input));
                 const register = this.inputRegisters.get(input);
-                if (registerSet.has(input)) {
-                    throw new Error(`TODO: input used in multiple loops`);
-                }
-                if (!register) {
-                    throw new Error(`TODO: undeclared input`);
-                }
+                utils_1.validate(register !== undefined, errors.undeclaredInputRegister(input));
                 const isLeaf = (i === specs.loops.length - 1);
                 registers.push({
                     scope: register.scope,
@@ -155,4 +157,10 @@ class Module {
     }
 }
 exports.Module = Module;
+// ERRORS
+// ================================================================================================
+const errors = {
+    undeclaredInputRegister: (r) => `input register ${r} is used without being declared`,
+    overusedInputRegister: (r) => `input register ${r} is used at multiple levels`,
+};
 //# sourceMappingURL=Module.js.map

@@ -103,14 +103,11 @@ class AirVisitor extends BaseCstVisitor {
     // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
     inputRegisters(ctx, aModule) {
-        // TODO: validate against count
         ctx.registers.forEach((declaration) => this.visit(declaration, aModule));
-        /*
         const regCount = Number(ctx.registerCount[0].image);
-        if (regCount !== registerNames.size) {
-            throw new Error(`expected ${regCount} input registers, but ${registerNames.size} registers were defined`);
+        if (regCount !== aModule.inputRegisterCount) {
+            throw new Error(`expected ${regCount} input registers, but ${aModule.inputRegisterCount} registers were defined`);
         }
-        */
     }
     inputRegisterDefinition(ctx, aModule) {
         const scope = ctx.scope[0].image;
@@ -119,35 +116,19 @@ class AirVisitor extends BaseCstVisitor {
         aModule.addInput(registerName, scope, binary);
     }
     staticRegisters(ctx, aModule) {
-        // TODO: validate against count
-        const registerNames = new Set();
         if (ctx.registers) {
-            ctx.registers.forEach((declaration) => {
-                let registerName = this.visit(declaration, aModule);
-                if (registerNames.has(registerName)) {
-                    throw new Error(`static register ${registerName} is defined more than once`);
-                }
-                const registerIndex = Number(registerName.slice(2));
-                if (registerIndex !== registerNames.size) {
-                    throw new Error(`static register ${registerName} is defined out of order`);
-                }
-                registerNames.add(registerName);
-            });
+            ctx.registers.forEach((declaration) => this.visit(declaration, aModule));
+            const regCount = Number(ctx.registerCount[0].image);
+            if (regCount !== aModule.staticRegisterCount) {
+                throw new Error(`expected ${regCount} static registers, but ${aModule.staticRegisterCount} registers were defined`);
+            }
         }
-        /*
-        TODO
-        const regCount = Number(ctx.registerCount[0].image);
-        if (regCount !== registerNames.size) {
-            throw new Error(`expected ${regCount} static registers, but ${registerNames.size} registers were defined`);
-        }
-        */
     }
     staticRegisterDefinition(ctx, aModule) {
         const registerName = ctx.name[0].image;
         const values = this.visit(ctx.values);
         // TODO: handle parsing of PRNG sequences
         aModule.addStatic(registerName, values);
-        return registerName;
     }
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
@@ -233,10 +214,7 @@ class AirVisitor extends BaseCstVisitor {
         if (registers !== '$r') {
             throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
         }
-        // TODO: build without relying on base context
-        const rParam = exc.base.buildLoadExpression('load.param', '$r');
-        const kParam = exc.base.buildLoadExpression('load.param', '$k');
-        return exc.buildFunctionCall('$MiMC_transition', [rParam, kParam]);
+        return exc.buildTransitionFunctionCall();
     }
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------

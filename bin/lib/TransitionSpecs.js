@@ -8,60 +8,30 @@ class TransitionSpecs {
     // --------------------------------------------------------------------------------------------
     constructor() {
         this.loops = [];
-        this._inputRegisters = new Map();
         this.segments = [];
         this._stepsToIntervals = new Map();
         this._cycleLength = 0;
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    get inputs() {
-        const result = [];
-        const maxRank = this.loops.length - 1;
-        for (let input of this._inputRegisters.values()) {
-            let parent = this.getFirstRegisterIndexAt(input.rank);
-            let steps = input.rank === maxRank ? this.cycleLength : undefined;
-            result.push({ scope: input.scope, binary: input.binary, parent, steps });
-        }
-        return result;
-    }
     get cycleLength() {
         return this._cycleLength;
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     addLoop(inputs, init) {
-        const rank = this.loops.length;
-        if (rank === 0) {
-            inputs.forEach(register => this._inputRegisters.set(register, undefined));
-        }
-        else {
-            const parent = this.loops[rank - 1];
+        if (this.loops.length > 0) {
+            const parent = this.loops[this.loops.length - 1];
             inputs.forEach(register => {
                 if (parent.inputs.has(register)) {
                     parent.inputs.delete(register);
                 }
                 else {
-                    // TODO: throw error
+                    throw new Error(`TODO: input not present in outer block`);
                 }
             });
         }
         this.loops.push({ inputs: new Set(inputs), init });
-    }
-    addInput(register, scope, binary) {
-        let input = this._inputRegisters.get(register);
-        if (input) {
-            throw new Error(`input register ${register} is defined more than once`);
-        }
-        const rank = this.getInputRank(register) || 0; // TODO?
-        input = { scope, binary, rank };
-        this._inputRegisters.set(register, input);
-        /* TODO
-        const index = Number(register.slice(2));
-        if (index !== this.inputs.size) {
-            throw new Error(`input register ${register} is defined out of order`);
-        }
-        */
     }
     addSegment(intervals, body) {
         for (let interval of intervals) {
@@ -116,34 +86,6 @@ class TransitionSpecs {
         // cycle length must be a power of 2
         if (!utils_1.isPowerOf2(this._cycleLength)) {
             throw new Error('total number of steps must be a power of 2');
-        }
-        // make sure definitions for all inputs were provided
-        for (let [register, input] of this._inputRegisters) {
-            if (!input) {
-                throw new Error(`input register ${register} is used without being declared`);
-            }
-        }
-    }
-    // PRIVATE METHODS
-    // --------------------------------------------------------------------------------------------
-    getInputRank(register) {
-        for (let i = 0; i < this.loops.length; i++) {
-            if (this.loops[i].inputs.has(register)) {
-                return i;
-            }
-        }
-    }
-    getFirstRegisterIndexAt(rank) {
-        if (rank === 0)
-            return undefined;
-        const loop = this.loops[rank - 1];
-        const parent = Array.from(loop.inputs)[0];
-        let index = 0;
-        for (let input of this._inputRegisters.keys()) {
-            if (input === parent) {
-                return index;
-            }
-            index++;
         }
     }
 }

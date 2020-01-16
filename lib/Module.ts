@@ -3,7 +3,7 @@
 import { AirSchema, ProcedureContext, Expression, FiniteField } from "@guildofweavers/air-assembly";
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
 import { TransitionSpecs } from "./TransitionSpecs";
-import { RegisterRefs } from "./utils";
+import { RegisterRefs, validate } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -38,6 +38,14 @@ export class Module {
     // --------------------------------------------------------------------------------------------
     get field(): FiniteField {
         return this.schema.field;
+    }
+
+    get inputRegisterCount(): number {
+        return this.inputRegisters.size;
+    }
+
+    get staticRegisterCount(): number {
+        return this.staticRegisters.size;
     }
 
     // PUBLIC METHODS
@@ -170,13 +178,9 @@ export class Module {
             let parentIdx = (i === 0 ? undefined : registers.length - previousInputsCount);
 
             inputs.forEach(input => {
+                validate(!registerSet.has(input), errors.overusedInputRegister(input));
                 const register = this.inputRegisters.get(input);
-                if (registerSet.has(input)) {
-                    throw new Error(`TODO: input used in multiple loops`)   
-                }
-                if (!register) {
-                    throw new Error(`TODO: undeclared input`);
-                }
+                validate(register !== undefined, errors.undeclaredInputRegister(input));
     
                 const isLeaf = (i === specs.loops.length - 1);
                 registers.push({
@@ -195,3 +199,10 @@ export class Module {
         return registers;
     }
 }
+
+// ERRORS
+// ================================================================================================
+const errors = {
+    undeclaredInputRegister : (r: any) => `input register ${r} is used without being declared`,
+    overusedInputRegister   : (r: any) => `input register ${r} is used at multiple levels`, // TODO: better message
+};

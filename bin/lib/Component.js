@@ -28,7 +28,7 @@ class Component {
             : this.procedures.evaluation;
         const context = this.schema.createFunctionContext(specs.result, specs.name);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext_1.ExecutionContext(context);
+        return new ExecutionContext_1.ExecutionContext(context, this.procedures);
     }
     setTransitionFunction(context, initializers, segments) {
         const { statements, result } = this.buildFunction(context, initializers, segments);
