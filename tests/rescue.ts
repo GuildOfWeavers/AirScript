@@ -1,4 +1,4 @@
-import { instantiate } from '../index';
+import { compile } from '../index';
 
 const script = Buffer.from(`
 define Rescue over prime field (2^64 - 21 * 2^30 + 1) {
@@ -85,6 +85,8 @@ define Rescue over prime field (2^64 - 21 * 2^30 + 1) {
 
 const extensionFactor = 16;
 
+/*
+TODO
 (async function run() {
     
     const air = await instantiate(script, { extensionFactor });
@@ -132,3 +134,4 @@ const extensionFactor = 16;
     console.log(qEvaluations.getValue(0, 2) === qValues[0]);
 
 })().then(() => console.log('done!'));
+*/

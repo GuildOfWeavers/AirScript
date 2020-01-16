@@ -1,4 +1,4 @@
-import { instantiate } from '../index';
+import { compile } from '../index';
 
 const script = Buffer.from(`
 define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
@@ -35,6 +35,8 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
 const extensionFactor = 16;
 
+/*
+TODO
 (async function run() {
     const air = await instantiate(script, { extensionFactor, wasmOptions: true });
     console.log(`degree: ${air.maxConstraintDegree}`);
@@ -82,3 +84,4 @@ const extensionFactor = 16;
     console.log(qEvaluations.getValue(0, 2) === qValues[0]);
 
 })().then(() => console.log('done!'));
+*/

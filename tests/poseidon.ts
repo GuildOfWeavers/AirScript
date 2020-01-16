@@ -1,4 +1,4 @@
-import { instantiate } from '../index';
+import { compile } from '../index';
 
 const script = Buffer.from(`
 define Poseidon over prime field (2^128 - 9 * 2^32 + 1) {
@@ -169,6 +169,8 @@ define Poseidon over prime field (2^128 - 9 * 2^32 + 1) {
 
 const extensionFactor = 32;
 
+/*
+TODO
 (async function run() {
 
     const air = await instantiate(script, { extensionFactor, wasmOptions: true });
@@ -226,3 +228,4 @@ const extensionFactor = 32;
     console.log(qEvaluations.getValue(0, 2) === qValues[0]);
 
 })().then(() => console.log('done!'));
+*/
