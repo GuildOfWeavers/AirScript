@@ -3,7 +3,7 @@
 import { AirSchema, ProcedureContext, Expression, FiniteField } from "@guildofweavers/air-assembly";
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
 import { ExecutionTemplate } from "./ExecutionTemplate";
-import { validate, validateSymbolName, SEGMENT_VAR_NAME, isPowerOf2 } from "./utils";
+import { validate, validateSymbolName, CONTROLLER_NAME, isPowerOf2 } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -85,10 +85,11 @@ export class Module {
             validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
         }
 
+        const loopDrivers = template.loops.map(loop => loop.driver);
         const segmentMasks = template.segments.map(s => s.mask);
-        const procedureSpecs = this.buildProcedureSpecs(segmentMasks.length);
+        const procedureSpecs = this.buildProcedureSpecs(segmentMasks.length, loopDrivers.length);
         const inputRegisters = this.buildInputRegisters(template);
-        return new Component(this.schema, procedureSpecs, segmentMasks, inputRegisters);
+        return new Component(this.schema, procedureSpecs, segmentMasks, inputRegisters, loopDrivers);
     }
 
     setComponent(component: Component, componentName: string): void {
@@ -97,24 +98,30 @@ export class Module {
 
         // add static registers to the component
         component.inputRegisters.forEach(r => c.addInputRegister(r.scope, r.binary, r.parent, r.steps, -1));
-        component.segmentMasks.forEach(m => c.addCyclicRegister(m));
+        component.loopDrivers.forEach(d => c.addMaskRegister(d, false));
+        component.segmentMasks.forEach(m => {
+            // rotate the mask by one position to the left, to align it with input position
+            m = m.slice();
+            m.push(m.shift()!);
+            c.addCyclicRegister(m);
+        });
         this.staticRegisters.forEach(v => c.addCyclicRegister(v));
 
-        // set trace initializer to return a vector of zeros
+        // set trace initializer to return a result of applying transition function to a vector of all zeros
         const initContext = c.createProcedureContext('init');
-        const zeroElement = initContext.buildLiteralValue(this.schema.field.zero);
-        const initResult = initContext.buildMakeVectorExpression(new Array(this.traceWidth).fill(zeroElement));
-        c.setTraceInitializer(initContext, [], initResult);
+        const initParams = this.buildProcedureParams(initContext, component.segmentCount, component.loopDrivers.length);
+        const initCall = initContext.buildCallExpression(component.procedures.transition.name, initParams);
+        c.setTraceInitializer(initContext, [], initCall);
 
         // set transition function procedure to call transition function
         const tfContext = c.createProcedureContext('transition');
-        const tfParams = this.buildProcedureParams(tfContext, component.segmentCount);
+        const tfParams = this.buildProcedureParams(tfContext, component.segmentCount, component.loopDrivers.length);
         const tfCall = tfContext.buildCallExpression(component.procedures.transition.name, tfParams);
         c.setTransitionFunction(tfContext, [], tfCall);
 
         // set constraint evaluator procedure to call constraint evaluator function
         const evContext = c.createProcedureContext('evaluation');
-        const evParams = this.buildProcedureParams(evContext, component.segmentCount);
+        const evParams = this.buildProcedureParams(evContext, component.segmentCount, component.loopDrivers.length);
         const evCall = evContext.buildCallExpression(component.procedures.evaluation.name, evParams);
         c.setConstraintEvaluator(evContext, [], evCall);
 
@@ -124,8 +131,8 @@ export class Module {
 
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
-    private buildProcedureSpecs(segmentCount: number): ProcedureSpecs {
-        const sVar = SEGMENT_VAR_NAME;
+    private buildProcedureSpecs(segmentCount: number, loopCount: number): ProcedureSpecs {
+        const cVar = CONTROLLER_NAME;
         return {
             transition: {
                 name    : `$${this.name}_transition`,
@@ -133,7 +140,7 @@ export class Module {
                 params  : [
                     { name: '$_r',  dimensions: [this.traceWidth, 0] },
                     { name: '$_i',  dimensions: [this.inputRegisters.size, 0] },
-                    { name: sVar,   dimensions: [segmentCount, 0] },
+                    { name: cVar,   dimensions: [segmentCount + loopCount, 0] },
                     { name: '$_k',  dimensions: [this.staticRegisters.size, 0] }
                 ]
             },
@@ -144,19 +151,26 @@ export class Module {
                     { name: '$_r',  dimensions: [this.traceWidth, 0] },
                     { name: '$_n',  dimensions: [this.traceWidth, 0] },
                     { name: '$_i',  dimensions: [this.inputRegisters.size, 0] },
-                    { name: sVar,   dimensions: [segmentCount, 0] },
+                    { name: cVar,   dimensions: [segmentCount + loopCount, 0] },
                     { name: '$_k',  dimensions: [this.staticRegisters.size, 0] }
                 ]
             }
         };
     }
 
-    private buildProcedureParams(context: ProcedureContext, segmentCount: number): Expression[] {
+    private buildProcedureParams(context: ProcedureContext, segmentCount: number, loopCount: number): Expression[] {
         const params: Expression[] = [];
         
-        params.push(context.buildLoadExpression('load.trace', 0));
-        if (context.name === 'evaluation') {
-            params.push(context.buildLoadExpression('load.trace', 1));
+        if (context.name === 'init') {
+            const zeroElement = context.buildLiteralValue(this.schema.field.zero);
+            const zeroArray = new Array(this.traceWidth).fill(zeroElement);
+            params.push(context.buildMakeVectorExpression(zeroArray));
+        }
+        else {
+            params.push(context.buildLoadExpression('load.trace', 0));
+            if (context.name === 'evaluation') {
+                params.push(context.buildLoadExpression('load.trace', 1));
+            }
         }
 
         let startIdx = 0, endIdx = this.inputRegisters.size - 1;
@@ -164,7 +178,7 @@ export class Module {
         params.push(context.buildSliceVectorExpression(loadExpression, startIdx, endIdx));
 
         startIdx = endIdx + 1;
-        endIdx = startIdx + segmentCount - 1;
+        endIdx = startIdx + segmentCount + loopCount - 1;
         loadExpression = context.buildLoadExpression('load.static', 0);
         params.push(context.buildSliceVectorExpression(loadExpression, startIdx, endIdx));
 

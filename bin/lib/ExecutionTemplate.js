@@ -21,18 +21,20 @@ class ExecutionTemplate {
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     addLoop(inputs, init) {
+        let driver = 0;
         if (this.loops.length > 0) {
-            const parent = this.loops[this.loops.length - 1];
+            let outerLoop = this.loops[this.loops.length - 1];
             inputs.forEach(register => {
-                if (parent.inputs.has(register)) {
-                    parent.inputs.delete(register);
+                if (outerLoop.inputs.has(register)) {
+                    outerLoop.inputs.delete(register);
                 }
                 else {
                     throw new Error(`TODO: input not present in outer block`);
                 }
             });
+            driver = outerLoop.driver + outerLoop.inputs.size;
         }
-        this.loops.push({ inputs: new Set(inputs), init });
+        this.loops.push({ inputs: new Set(inputs), driver, init });
     }
     addSegment(intervals, body) {
         for (let interval of intervals) {

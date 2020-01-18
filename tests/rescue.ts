@@ -1,5 +1,10 @@
+// IMPORTS
+// ================================================================================================
 import { compile } from '../index';
+import { instantiate } from '@guildofweavers/air-assembly';
 
+// SOURCE CODE
+// ================================================================================================
 const script = Buffer.from(`
 define Rescue over prime field (2^64 - 21 * 2^30 + 1) {
 
@@ -16,30 +21,35 @@ define Rescue over prime field (2^64 - 21 * 2^30 + 1) {
         [16397105823254198500, 12297829367440648875]
     ];
 
+    require 2 input {
+        secret $i0;
+        secret $i1;
+    }
+
     transition 2 register {
         for each ($i0, $i1) {
-            init { [$i0, $i1] }
+            init { yield [$i0, $i1]; }
 
             for steps [1..31] {
                 S <- MDS # $r^alpha + $k[0..1];
-                MDS # (/S)^inv_alpha + $k[2..3];
+                yield MDS # (/S)^inv_alpha + $k[2..3];
             }
         }
     }
 
     enforce 2 constraint {
         for each ($i0, $i1) {
-            init { [$i0, $i1] = $n }
+            init { enforce [$i0, $i1] = $n; }
 
             for steps [1..31] {
                 T1 <- MDS # $r^alpha + $k[0..1];
                 T2 <- (INV_MDS # ($n - $k[2..3]))^alpha;
-                T1 = T2;
+                enforce T1 = T2;
             }
         }
     }
 
-    using 4 readonly registers {
+    using 4 static registers {
         $k0: repeat [
              3507676442884075254, 14199898198859462402,  9943771478517422846,  5299008510059709046,
              4876587438151046518,   935380327644019241, 11969155768995001697,  8905176503159002610,
@@ -83,55 +93,55 @@ define Rescue over prime field (2^64 - 21 * 2^30 + 1) {
     }
 }`);
 
+// TESTING
+// ================================================================================================
 const extensionFactor = 16;
 
-/*
-TODO
 (async function run() {
     
-    const air = await instantiate(script, { extensionFactor });
+    const schema = compile(script);
+    const air = instantiate(schema, { extensionFactor, wasmOptions: true });
     console.log(`degree: ${air.maxConstraintDegree}`);
 
     const gStart = Date.now();
     let start = Date.now();
-    const pObject = air.initProof([[42n, 0n]]);
+    const pContext = air.initProvingContext([[42n], [0n]]);
     console.log(`Initialized proof object in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const trace = pObject.generateExecutionTrace();
+    const trace = pContext.generateExecutionTrace();
     console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const pPolys = air.field.interpolateRoots(pObject.executionDomain, trace);
+    const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
     console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const pEvaluations = air.field.evalPolysAtRoots(pPolys, pObject.evaluationDomain);
+    const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
     console.log(`Extended execution trace in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const cEvaluations = pObject.evaluateTracePolynomials(pPolys);
+    const cEvaluations = pContext.evaluateTransitionConstraints(pPolys);
     console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const qPolys = air.field.interpolateRoots(pObject.compositionDomain, cEvaluations);
-    const qEvaluations = air.field.evalPolysAtRoots(qPolys, pObject.evaluationDomain);
+    const qPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
+    const qEvaluations = air.field.evalPolysAtRoots(qPolys, pContext.evaluationDomain);
     console.log(`Extended constraints in ${Date.now() - start} ms`);
     console.log(`Total time: ${Date.now() - gStart} ms`);
 
-    const hEvaluations = pObject.secretRegisterTraces;
+    const hEvaluations = pContext.secretRegisterTraces;
 
     start = Date.now();
-    const vObject = air.initVerification(pObject.traceShape, []);
+    const vContext = air.initVerificationContext(pContext.inputShapes);
     console.log(`Initialized verification object in ${Date.now() - start} ms`);
 
-    const x = air.field.exp(vObject.rootOfUnity, 2n);
+    const x = air.field.exp(vContext.rootOfUnity, 2n);
     const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2)];
     const nValues = [pEvaluations.getValue(0, 18), pEvaluations.getValue(1, 18)];
     const hValues = [hEvaluations[0].getValue(2), hEvaluations[1].getValue(2)];
-    const qValues = vObject.evaluateConstraintsAt(x, rValues, nValues, hValues);
+    const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, hValues);
 
     console.log(qEvaluations.getValue(0, 2) === qValues[0]);
 
 })().then(() => console.log('done!'));
-*/

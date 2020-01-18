@@ -1,7 +1,7 @@
 // CONSTANTS
 // ================================================================================================
-export const SEGMENT_VAR_NAME = '$_s';
-export const BLOCK_ID_PREFIX  = '$_b';
+export const CONTROLLER_NAME = '$_c';
+export const BLOCK_ID_PREFIX = '$_b';
 
 // MATH
 // ================================================================================================

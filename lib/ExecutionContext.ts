@@ -5,7 +5,7 @@ import {
     GetVectorElement, SliceVector, MakeMatrix, StoreOperation, LoadExpression
 } from "@guildofweavers/air-assembly";
 import { ProcedureSpecs } from "./Component";
-import { validate, SEGMENT_VAR_NAME, BLOCK_ID_PREFIX } from './utils';
+import { validate, CONTROLLER_NAME, BLOCK_ID_PREFIX } from './utils';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -17,16 +17,18 @@ export class ExecutionContext {
     readonly statements         : StoreOperation[];
 
     private lastBlockId         : number;
+    private loopCount           : number;
     private procedures          : ProcedureSpecs;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base: FunctionContext, procedures: ProcedureSpecs) {
+    constructor(base: FunctionContext, procedures: ProcedureSpecs, loopCount: number) {
         this.base = base;
         this.statements = [];
         this.blocks = [];
         this.lastBlockId = 0;
         this.procedures = procedures;
+        this.loopCount = loopCount;
 
         this.constants = new Map();
         this.base.constants.forEach((c, i) => this.constants.set(c.handle!.substring(1), i));
@@ -79,9 +81,21 @@ export class ExecutionContext {
 
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
+    getLoopController(loopIdx: number): Expression {
+        let result: Expression = this.base.buildLoadExpression('load.param', CONTROLLER_NAME);
+        result = this.base.buildGetVectorElementExpression(result, loopIdx);
+        for (let i = loopIdx - 1; i >= 0; i++) {
+            let parent: Expression = this.base.buildLoadExpression('load.param', CONTROLLER_NAME);
+            parent = this.base.buildGetVectorElementExpression(result, loopIdx);
+            parent = this.base.buildBinaryOperation('sub', this.base.buildLiteralValue(1n), parent); // TODO: get from field
+            result = this.base.buildBinaryOperation('mul', result, parent);
+        }
+        return result;
+    }
+
     getSegmentModifier(segmentIdx: number): Expression {
-        let result: Expression = this.base.buildLoadExpression('load.param', SEGMENT_VAR_NAME);
-        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
+        let result: Expression = this.base.buildLoadExpression('load.param', CONTROLLER_NAME);
+        result = this.base.buildGetVectorElementExpression(result, this.loopCount + segmentIdx);
         return result;
     }
 

@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 // CONSTANTS
 // ================================================================================================
-exports.SEGMENT_VAR_NAME = '$_s';
+exports.CONTROLLER_NAME = '$_c';
 exports.BLOCK_ID_PREFIX = '$_b';
 // MATH
 // ================================================================================================

@@ -2,7 +2,7 @@
 // ================================================================================================
 import { FiniteField, AirSchema, ProcedureName, Expression, StoreOperation, Dimensions } from "@guildofweavers/air-assembly";
 import { ExecutionContext } from "./ExecutionContext";
-import { SEGMENT_VAR_NAME } from "./utils";
+import { CONTROLLER_NAME } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -32,14 +32,16 @@ export class Component {
 
     readonly schema         : AirSchema;
     readonly procedures     : ProcedureSpecs;
+    readonly loopDrivers    : number[];
     readonly segmentMasks   : bigint[][];
     readonly inputRegisters : InputRegister[];
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(schema: AirSchema, procedures: ProcedureSpecs, segmentMasks: bigint[][], inputRegisters: InputRegister[]) {
+    constructor(schema: AirSchema, procedures: ProcedureSpecs, segmentMasks: bigint[][], inputRegisters: InputRegister[], loopDrivers: number[]) {
         this.schema = schema;
         this.procedures = procedures;
+        this.loopDrivers = loopDrivers;
         this.segmentMasks = segmentMasks;
         this.inputRegisters = inputRegisters;
     }
@@ -64,11 +66,10 @@ export class Component {
         const specs = (procedure === 'transition')
             ? this.procedures.transition
             : this.procedures.evaluation;
-
         
         const context = this.schema.createFunctionContext(specs.result, specs.name);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext(context, this.procedures);
+        return new ExecutionContext(context, this.procedures, this.loopDrivers.length);
     }
 
     setTransitionFunction(context: ExecutionContext, initializers: Expression[], segments: Expression[]): void {
@@ -94,15 +95,23 @@ export class Component {
         let result: Expression | undefined;
         let statements: StoreOperation[] = context.statements;
 
-        initializers.forEach(expression => {
+        initializers.forEach((expression, i) => {
             if (expression.isScalar) {
                 expression = context.buildMakeVectorExpression([expression]);
             }
+            const resultHandle = `${CONTROLLER_NAME}_${i}`;
+            context.base.addLocal(expression.dimensions, resultHandle);
+
+            statements.push(context.base.buildStoreOperation(resultHandle, expression));
+            expression = context.base.buildLoadExpression(`load.local`, resultHandle);
+            const resultControl = context.getLoopController(i);
+            expression = context.buildBinaryOperation('mul', expression, resultControl);
+
             result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
 
         segments.forEach((expression, i) => {
-            const resultHandle = `${SEGMENT_VAR_NAME}${i}`;
+            const resultHandle = `${CONTROLLER_NAME}${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
 
             const resultControl = context.getSegmentModifier(i);

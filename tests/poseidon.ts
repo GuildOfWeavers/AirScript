@@ -1,5 +1,10 @@
+// IMPORTS
+// ================================================================================================
 import { compile } from '../index';
+import { instantiate } from '@guildofweavers/air-assembly';
 
+// SOURCE CODE
+// ================================================================================================
 const script = Buffer.from(`
 define Poseidon over prime field (2^128 - 9 * 2^32 + 1) {
 
@@ -13,34 +18,41 @@ define Poseidon over prime field (2^128 - 9 * 2^32 + 1) {
         [ 56257924185444874124459580258315826298,   6609414732577910747612629775769094818, 222516026778809277319420550386007789953, 186298854479664158795006770633754553086,  83847903426790374369611045128936398695,  18289323526456896741189879358874983848]
     ];
 
+    require 4 input {
+        secret $i0;
+        secret $i1;
+        secret $i2;
+        secret binary $i3; // binary representation of node index
+    }
+
     transition 12 registers {
         for each ($i0, $i1, $i2, $i3) {
             init {
                 S1 <- [$i0, $i1, $i2, $i3, 0, 0];
                 S2 <- [$i2, $i3, $i0, $i1, 0, 0];
-                [...S1, ...S2];
+                yield [...S1, ...S2];
             }
 
             for each ($i2, $i3) {
                 init {
-                    H <- $p0 ? $r[6..7] : $r[0..1];
+                    H <- $i3 ? $r[6..7] : $r[0..1];
                     S1 <- [...H, $i2, $i3, 0, 0];
                     S2 <- [$i2, $i3, ...H, 0, 0];
-                    [...S1, ...S2];
+                    yield [...S1, ...S2];
                 }
 
                 for steps [1..4, 60..63] {
                     // full round
                     S1 <- MDS # ($r[0..5] + $k)^alpha;
                     S2 <- MDS # ($r[6..11] + $k)^alpha;
-                    [...S1, ...S2];
+                    yield  [...S1, ...S2];
                 }
 
                 for steps [5..59] {
                     // partial round
                     S1 <- MDS # [...$r[0..4], ($r5 + $k5)^alpha];	
                     S2 <- MDS # [...$r[6..10], ($r11 + $k5)^alpha];
-                    [...S1, ...S2];
+                    yield [...S1, ...S2];
                 }
             }
         }
@@ -48,13 +60,11 @@ define Poseidon over prime field (2^128 - 9 * 2^32 + 1) {
 
     enforce 12 constraints {
         for all steps {
-            transition($r) = $n;
+            enforce transition($r) = $n;
         }
     }
 
-    using 7 readonly registers {
-        $p0: spread binary [...];   // binary representation of node index
-
+    using 6 static registers {
         // round constants
         $k0: repeat [
             101067374344786229690165777417886956455,  80879405459437789936954974293890354143, 114878919795826823010086281806730250259, 194110511991219241361342117844828731162,
@@ -167,46 +177,47 @@ define Poseidon over prime field (2^128 - 9 * 2^32 + 1) {
     }
 }`);
 
+// TESTING
+// ================================================================================================
 const extensionFactor = 32;
 
-/*
-TODO
 (async function run() {
 
-    const air = await instantiate(script, { extensionFactor, wasmOptions: true });
+    const schema = compile(script);
+    const air = instantiate(schema, { extensionFactor, wasmOptions: true });
     console.log(`degree: ${air.maxConstraintDegree}`);
 
     const gStart = Date.now();
     let start = Date.now();
-    const pObject = air.initProof([[42n, 43n, [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n], [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n]]]);    // TODO
+    const pContext = air.initProvingContext([[42n, 43n, [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n], [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n]]]);
     console.log(`Initialized proof object in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const trace = pObject.generateExecutionTrace();
+    const trace = pContext.generateExecutionTrace();
     console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const pPolys = air.field.interpolateRoots(pObject.executionDomain, trace);
+    const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
     console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const pEvaluations = air.field.evalPolysAtRoots(pPolys, pObject.evaluationDomain);
+    const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
     console.log(`Extended execution trace in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const cEvaluations = pObject.evaluateTracePolynomials(pPolys);
+    const cEvaluations = pContext.evaluateTransitionConstraints(pPolys);
     console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 
-    const hRegisterValues = pObject.secretRegisterTraces;
+    const hRegisterValues = pContext.secretRegisterTraces;
 
     start = Date.now();
-    const qPolys = air.field.interpolateRoots(pObject.compositionDomain, cEvaluations);
-    const qEvaluations = air.field.evalPolysAtRoots(qPolys, pObject.evaluationDomain);
+    const qPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
+    const qEvaluations = air.field.evalPolysAtRoots(qPolys, pContext.evaluationDomain);
     console.log(`Extended constraints in ${Date.now() - start} ms`);
     console.log(`Total time: ${Date.now() - gStart} ms`);
 
     start = Date.now();
-    const vContext = air.initVerification(pObject.traceShape, [[0n, 1n, 0n, 1n, 0n, 1n, 0n, 1n]]);
+    const vContext = air.initVerificationContext(pContext.inputShapes, [[0n, 1n, 0n, 1n, 0n, 1n, 0n, 1n]]);
     console.log(`Initialized verification object in ${Date.now() - start} ms`);
 
     const x = air.field.exp(vContext.rootOfUnity, 2n);
@@ -228,4 +239,3 @@ TODO
     console.log(qEvaluations.getValue(0, 2) === qValues[0]);
 
 })().then(() => console.log('done!'));
-*/

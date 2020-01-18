@@ -6,12 +6,13 @@ const utils_1 = require("./utils");
 class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base, procedures) {
+    constructor(base, procedures, loopCount) {
         this.base = base;
         this.statements = [];
         this.blocks = [];
         this.lastBlockId = 0;
         this.procedures = procedures;
+        this.loopCount = loopCount;
         this.constants = new Map();
         this.base.constants.forEach((c, i) => this.constants.set(c.handle.substring(1), i));
     }
@@ -57,9 +58,20 @@ class ExecutionContext {
     }
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
+    getLoopController(loopIdx) {
+        let result = this.base.buildLoadExpression('load.param', utils_1.CONTROLLER_NAME);
+        result = this.base.buildGetVectorElementExpression(result, loopIdx);
+        for (let i = loopIdx - 1; i >= 0; i++) {
+            let parent = this.base.buildLoadExpression('load.param', utils_1.CONTROLLER_NAME);
+            parent = this.base.buildGetVectorElementExpression(result, loopIdx);
+            parent = this.base.buildBinaryOperation('sub', this.base.buildLiteralValue(1n), parent); // TODO: get from field
+            result = this.base.buildBinaryOperation('mul', result, parent);
+        }
+        return result;
+    }
     getSegmentModifier(segmentIdx) {
-        let result = this.base.buildLoadExpression('load.param', utils_1.SEGMENT_VAR_NAME);
-        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
+        let result = this.base.buildLoadExpression('load.param', utils_1.CONTROLLER_NAME);
+        result = this.base.buildGetVectorElementExpression(result, this.loopCount + segmentIdx);
         return result;
     }
     buildConditionalExpression(condition, tBlock, fBlock) {
