@@ -14,6 +14,10 @@ export interface InputRegister {
     readonly steps? : number;
 }
 
+export interface MaskRegister {
+    readonly input  : number;
+}
+
 export interface ProcedureSpecs {
     readonly transition: {
         readonly name   : string,
@@ -31,13 +35,13 @@ export interface ProcedureSpecs {
 // ================================================================================================
 export class Component {
 
-    readonly schema         : AirSchema;
-    readonly procedures     : ProcedureSpecs;
-    readonly loopDrivers    : number[];
-    readonly segmentMasks   : bigint[][];
-    readonly inputRegisters : InputRegister[];
+    readonly schema             : AirSchema;
+    readonly procedures         : ProcedureSpecs;
+    readonly loopDrivers        : number[];
+    readonly segmentMasks       : bigint[][];
+    readonly inputRegisters     : InputRegister[];
     
-    private readonly symbols: Map<string, SymbolInfo>;
+    private readonly symbols    : Map<string, SymbolInfo>;
     private readonly functions  : Map<string, FunctionInfo>;
 
     // CONSTRUCTOR
@@ -70,8 +74,12 @@ export class Component {
         return this.segmentMasks.length;
     }
 
-    get inputCount(): number {
+    get inputRegisterCount(): number {
         return this.inputRegisters.length;
+    }
+
+    get maskRegisters(): MaskRegister[] {
+        return this.loopDrivers.map(d => ({ input: d }));
     }
 
     // PUBLIC METHODS
@@ -84,8 +92,8 @@ export class Component {
         const context = this.schema.createFunctionContext(specs.result, specs.name);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
         return new ExecutionContext(context, this.symbols, this.functions, {
-            loop    : this.loopCount,
-            segment : this.loopCount + this.inputCount
+            loop    : this.inputRegisterCount,
+            segment : this.inputRegisterCount + this.loopCount
         });
     }
 

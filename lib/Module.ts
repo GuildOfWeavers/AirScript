@@ -96,11 +96,15 @@ export class Module {
             validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
         }
 
+        const inputRegisters = this.buildInputRegisters(template);
+
         const loopDrivers = template.loops.map(loop => loop.driver);
         const segmentMasks = template.segments.map(s => s.mask);
-        const procedureSpecs = this.buildProcedureSpecs(segmentMasks.length, loopDrivers.length);
-        const inputRegisters = this.buildInputRegisters(template);
-        const symbols = this.transformSymbols(segmentMasks.length, loopDrivers.length);
+
+        const staticRegisterOffset = inputRegisters.length + segmentMasks.length + loopDrivers.length;
+        const staticRegisterCount = staticRegisterOffset + this.staticCount;
+        const procedureSpecs = this.buildProcedureSpecs(staticRegisterCount);
+        const symbols = this.transformSymbols(staticRegisterOffset);
 
         const functions = new Map<string, FunctionInfo>();
         functions.set('transition', { handle: procedureSpecs.transition.name });
@@ -114,7 +118,7 @@ export class Module {
 
         // add static registers to the component
         component.inputRegisters.forEach(r => c.addInputRegister(r.scope, r.binary, r.parent, r.steps, -1));
-        component.loopDrivers.forEach(d => c.addMaskRegister(d, false));
+        component.maskRegisters.forEach(r => c.addMaskRegister(r.input, false));
         component.segmentMasks.forEach(m => {
             // rotate the mask by one position to the left, to align it with input position
             m = m.slice();
@@ -147,8 +151,7 @@ export class Module {
 
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
-    private buildProcedureSpecs(segmentCount: number, loopCount: number): ProcedureSpecs {
-        const staticRegisterCount = this.staticCount + segmentCount + this.inputCount + loopCount;
+    private buildProcedureSpecs(staticRegisterCount: number): ProcedureSpecs {
         return {
             transition: {
                 name    : `$${this.name}_transition`,
@@ -222,9 +225,9 @@ export class Module {
         return registers;
     }
 
-    private transformSymbols(segmentCount: number, loopCount: number) {
+    private transformSymbols(staticOffset: number): Map<string, SymbolInfo> {
         const symbols = new Map<string, SymbolInfo>();
-        const staticOffset = this.inputCount + loopCount + segmentCount;
+        
         for (let [symbol, info] of this.symbols) {
             if (info.type === 'const') {
                 symbols.set(symbol, info);

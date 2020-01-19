@@ -1,5 +1,10 @@
+// IMPORTS
+// ================================================================================================
 import { compile } from '../index';
+import { instantiate } from '@guildofweavers/air-assembly';
 
+// SOURCE CODE
+// ================================================================================================
 const script = Buffer.from(`
 define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
 
@@ -16,14 +21,20 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
         [16397105823254198500, 12297829367440648875]
     ];
 
-    transition 4 register {
-        for each ($i0, $i1) {
-            init { [$i0, $i1, $i1, $i0] }
+    require 3 input {
+        secret $i0;         // leaf node
+        secret $i1;         // branch nodes
+        public binary $i2;  // leaf node index bits
+    }
 
-            for each ($i1) {
+    transition 4 register {
+        for each ($i0, $i1, $i2) {
+            init { yield [$i0, $i1, $i1, $i0]; }
+
+            for each ($i1, $i2) {
                 init {
-                    h <- $p0 ? $r0 : $r2;
-                    [h, $i1, $i1, h];
+                    h <- $i2 ? $r0 : $r2;
+                    yield [h, $i1, $i1, h];
                 }
 
                 for steps [1..31] {
@@ -33,20 +44,20 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
                     S2 <- MDS # $r[2..3]^alpha + $k[0..1];
                     S2 <- MDS # (/S2)^inv_alpha + $k[2..3];
 
-                    [...S1, ...S2];
+                    yield [...S1, ...S2];
                 }
             }
         }
     }
 
     enforce 4 constraint {
-        for each ($i0, $i1, $i2, $i3) {
-            init { [$i0, $i1, $i1, $i0] = $n }
+        for each ($i0, $i1, $i2) {
+            init { enforce $n = [$i0, $i1, $i1, $i0]; }
 
-            for each ($i1) {
+            for each ($i1, $i2) {
                 init {
-                    h <- $p0 ? $r0 : $r2;
-                    [h, $i1, $i1, h] = $n;
+                    h <- $i2 ? $r0 : $r2;
+                    enforce $n = [h, $i1, $i1, h];
                 }
 
                 for steps [1..31] {
@@ -56,15 +67,13 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
                     S2 <- MDS # $r[2..3]^alpha + $k[0..1];
                     T2 <- (INV_MDS # ($n[2..3] - $k[2..3]))^alpha;
 
-                    [...S1, ...S2] = [...T1, ...T2]
+                    enforce [...S1, ...S2] = [...T1, ...T2];
                 }
             }
         }
     }
 
-    using 5 readonly registers {
-        $p0: spread binary [...];   // node index
-
+    using 4 static registers {
         $k0: repeat [
              3507676442884075254, 14199898198859462402,  9943771478517422846,  5299008510059709046,
              4876587438151046518,   935380327644019241, 11969155768995001697,  8905176503159002610,
@@ -108,44 +117,45 @@ define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
     }
 }`);
 
+// TESTING
+// ================================================================================================
 const extensionFactor = 16;
 
-/*
-TODO
 (async function run() {
-    const air = await instantiate(script, { extensionFactor });
+    const schema = compile(script);
+    const air = instantiate(schema, { extensionFactor, wasmOptions: true });
     console.log(`degree: ${air.maxConstraintDegree}`);
 
     const gStart = Date.now();
     let start = Date.now();
-    const pObject = air.initProof([[42n, [1n, 2n, 3n, 4n]]]);   // TODO
+    const pContext = air.initProvingContext([[42n], [[1n, 2n, 3n, 4n]], [[0n, 1n, 0n, 1n]]]);
     console.log(`Initialized proof object in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const trace = pObject.generateExecutionTrace();
+    const trace = pContext.generateExecutionTrace();
     console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const pPolys = air.field.interpolateRoots(pObject.executionDomain, trace);
+    const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
     console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const pEvaluations = air.field.evalPolysAtRoots(pPolys, pObject.evaluationDomain);
+    const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
     console.log(`Extended execution trace in ${Date.now() - start} ms`);
 
     start = Date.now();
-    const cEvaluations = pObject.evaluateTracePolynomials(pPolys);
+    const cEvaluations = pContext.evaluateTransitionConstraints(pPolys);
     console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 
-    const hRegisterValues = pObject.secretRegisterTraces;
+    const hRegisterValues = pContext.secretRegisterTraces;
 
     start = Date.now();
-    const qPolys = air.field.interpolateRoots(pObject.compositionDomain, cEvaluations);
-    const qEvaluations = air.field.evalPolysAtRoots(qPolys, pObject.evaluationDomain);
+    const qPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
+    const qEvaluations = air.field.evalPolysAtRoots(qPolys, pContext.evaluationDomain);
     console.log(`Extended constraints in ${Date.now() - start} ms`);
     console.log(`Total time: ${Date.now() - gStart} ms`);
 
-    const vContext = air.initVerification(pObject.traceShape, [[0n, 1n, 0n, 1n]]);
+    const vContext = air.initVerificationContext(pContext.inputShapes, [[[0n, 1n, 0n, 1n]]]);
 
     const x = air.field.exp(vContext.rootOfUnity, 2n);
     const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2)];
@@ -156,4 +166,3 @@ TODO
     console.log(qEvaluations.getValue(0, 2) === qValues[0]);
 
 })().then(() => console.log('done!'));
-*/

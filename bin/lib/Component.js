@@ -30,8 +30,11 @@ class Component {
     get segmentCount() {
         return this.segmentMasks.length;
     }
-    get inputCount() {
+    get inputRegisterCount() {
         return this.inputRegisters.length;
+    }
+    get maskRegisters() {
+        return this.loopDrivers.map(d => ({ input: d }));
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
@@ -42,8 +45,8 @@ class Component {
         const context = this.schema.createFunctionContext(specs.result, specs.name);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
         return new ExecutionContext_1.ExecutionContext(context, this.symbols, this.functions, {
-            loop: this.loopCount,
-            segment: this.loopCount + this.inputCount
+            loop: this.inputRegisterCount,
+            segment: this.inputRegisterCount + this.loopCount
         });
     }
     setTransitionFunction(context, initializers, segments) {

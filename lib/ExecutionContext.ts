@@ -94,7 +94,7 @@ export class ExecutionContext {
         loopIdx = this.offsets.loop + loopIdx;
         let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, loopIdx);
-        for (let i = loopIdx - 1; i >= this.offsets.loop; i++) {
+        for (let i = loopIdx - 1; i >= this.offsets.loop; i--) {
             let parent: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
             parent = this.base.buildGetVectorElementExpression(parent, loopIdx);
             parent = this.base.buildBinaryOperation('sub', this.base.buildLiteralValue(1n), parent); // TODO: get from field

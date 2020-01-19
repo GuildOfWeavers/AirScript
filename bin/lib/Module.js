@@ -59,11 +59,13 @@ class Module {
         for (let i = 1; i < template.cycleLength; i++) {
             utils_1.validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
         }
+        const inputRegisters = this.buildInputRegisters(template);
         const loopDrivers = template.loops.map(loop => loop.driver);
         const segmentMasks = template.segments.map(s => s.mask);
-        const procedureSpecs = this.buildProcedureSpecs(segmentMasks.length, loopDrivers.length);
-        const inputRegisters = this.buildInputRegisters(template);
-        const symbols = this.transformSymbols(segmentMasks.length, loopDrivers.length);
+        const staticRegisterOffset = inputRegisters.length + segmentMasks.length + loopDrivers.length;
+        const staticRegisterCount = staticRegisterOffset + this.staticCount;
+        const procedureSpecs = this.buildProcedureSpecs(staticRegisterCount);
+        const symbols = this.transformSymbols(staticRegisterOffset);
         const functions = new Map();
         functions.set('transition', { handle: procedureSpecs.transition.name });
         return new Component_1.Component(this.schema, procedureSpecs, segmentMasks, inputRegisters, loopDrivers, symbols, functions);
@@ -73,7 +75,7 @@ class Module {
         const c = this.schema.createComponent(componentName, this.traceWidth, this.constraintCount, component.cycleLength);
         // add static registers to the component
         component.inputRegisters.forEach(r => c.addInputRegister(r.scope, r.binary, r.parent, r.steps, -1));
-        component.loopDrivers.forEach(d => c.addMaskRegister(d, false));
+        component.maskRegisters.forEach(r => c.addMaskRegister(r.input, false));
         component.segmentMasks.forEach(m => {
             // rotate the mask by one position to the left, to align it with input position
             m = m.slice();
@@ -101,8 +103,7 @@ class Module {
     }
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
-    buildProcedureSpecs(segmentCount, loopCount) {
-        const staticRegisterCount = this.staticCount + segmentCount + this.inputCount + loopCount;
+    buildProcedureSpecs(staticRegisterCount) {
         return {
             transition: {
                 name: `$${this.name}_transition`,
@@ -164,9 +165,8 @@ class Module {
         }
         return registers;
     }
-    transformSymbols(segmentCount, loopCount) {
+    transformSymbols(staticOffset) {
         const symbols = new Map();
-        const staticOffset = this.inputCount + loopCount + segmentCount;
         for (let [symbol, info] of this.symbols) {
             if (info.type === 'const') {
                 symbols.set(symbol, info);
