@@ -7,13 +7,14 @@ const utils_1 = require("./utils");
 class Component {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(schema, procedures, segmentMasks, inputRegisters, loopDrivers, symbols) {
+    constructor(schema, procedures, segmentMasks, inputRegisters, loopDrivers, symbols, functions) {
         this.schema = schema;
         this.procedures = procedures;
         this.loopDrivers = loopDrivers;
         this.segmentMasks = segmentMasks;
         this.inputRegisters = inputRegisters;
         this.symbols = symbols;
+        this.functions = functions;
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -23,8 +24,14 @@ class Component {
     get cycleLength() {
         return this.segmentMasks[0].length;
     }
+    get loopCount() {
+        return this.loopDrivers.length;
+    }
     get segmentCount() {
         return this.segmentMasks.length;
+    }
+    get inputCount() {
+        return this.inputRegisters.length;
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
@@ -32,13 +39,11 @@ class Component {
         const specs = (procedure === 'transition')
             ? this.procedures.transition
             : this.procedures.evaluation;
-        const functions = new Map();
-        functions.set('transition', { handle: this.procedures.transition.name });
         const context = this.schema.createFunctionContext(specs.result, specs.name);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext_1.ExecutionContext(context, this.symbols, functions, {
-            loop: this.loopDrivers.length,
-            segment: this.inputRegisters.length + this.loopDrivers.length
+        return new ExecutionContext_1.ExecutionContext(context, this.symbols, this.functions, {
+            loop: this.loopCount,
+            segment: this.loopCount + this.inputCount
         });
     }
     setTransitionFunction(context, initializers, segments) {

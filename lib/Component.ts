@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { FiniteField, AirSchema, ProcedureName, Expression, StoreOperation, Dimensions } from "@guildofweavers/air-assembly";
-import { SymbolInfo } from './Module';
+import { SymbolInfo, FunctionInfo } from './Module';
 import { ExecutionContext } from "./ExecutionContext";
 import { CONTROLLER_NAME } from "./utils";
 
@@ -27,10 +27,6 @@ export interface ProcedureSpecs {
     };
 }
 
-export interface FunctionInfo {
-    readonly handle : string;
-}
-
 // CLASS DEFINITION
 // ================================================================================================
 export class Component {
@@ -42,16 +38,18 @@ export class Component {
     readonly inputRegisters : InputRegister[];
     
     private readonly symbols: Map<string, SymbolInfo>;
+    private readonly functions  : Map<string, FunctionInfo>;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(schema: AirSchema, procedures: ProcedureSpecs, segmentMasks: bigint[][], inputRegisters: InputRegister[], loopDrivers: number[], symbols: Map<string, SymbolInfo>) {
+    constructor(schema: AirSchema, procedures: ProcedureSpecs, segmentMasks: bigint[][], inputRegisters: InputRegister[], loopDrivers: number[], symbols: Map<string, SymbolInfo>, functions: Map<string, FunctionInfo>) {
         this.schema = schema;
         this.procedures = procedures;
         this.loopDrivers = loopDrivers;
         this.segmentMasks = segmentMasks;
         this.inputRegisters = inputRegisters;
         this.symbols = symbols;
+        this.functions = functions;
     }
 
     // ACCESSORS
@@ -64,8 +62,16 @@ export class Component {
         return this.segmentMasks[0].length;
     }
 
+    get loopCount(): number {
+        return this.loopDrivers.length;
+    }
+
     get segmentCount(): number {
         return this.segmentMasks.length;
+    }
+
+    get inputCount(): number {
+        return this.inputRegisters.length;
     }
 
     // PUBLIC METHODS
@@ -74,15 +80,12 @@ export class Component {
         const specs = (procedure === 'transition')
             ? this.procedures.transition
             : this.procedures.evaluation;
-        
-        const functions = new Map<string, FunctionInfo>();
-        functions.set('transition', { handle: this.procedures.transition.name });
 
         const context = this.schema.createFunctionContext(specs.result, specs.name);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext(context, this.symbols, functions, {
-            loop    : this.loopDrivers.length,
-            segment : this.inputRegisters.length + this.loopDrivers.length
+        return new ExecutionContext(context, this.symbols, this.functions, {
+            loop    : this.loopCount,
+            segment : this.loopCount + this.inputCount
         });
     }
 

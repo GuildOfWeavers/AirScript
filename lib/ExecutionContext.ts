@@ -4,8 +4,7 @@ import {
     FunctionContext, Expression, LiteralValue, BinaryOperation, UnaryOperation, MakeVector,
     GetVectorElement, SliceVector, MakeMatrix, StoreOperation, LoadExpression
 } from "@guildofweavers/air-assembly";
-import { SymbolInfo } from './Module';
-import { FunctionInfo } from "./Component";
+import { SymbolInfo, FunctionInfo } from './Module';
 import { validate, BLOCK_ID_PREFIX, ProcedureParams } from './utils';
 
 // INTERFACES

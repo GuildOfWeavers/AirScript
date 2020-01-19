@@ -105,8 +105,8 @@ class AirVisitor extends BaseCstVisitor {
     inputRegisters(ctx, aModule) {
         ctx.registers.forEach((declaration) => this.visit(declaration, aModule));
         const regCount = Number(ctx.registerCount[0].image);
-        if (regCount !== aModule.inputRegisterCount) {
-            throw new Error(`expected ${regCount} input registers, but ${aModule.inputRegisterCount} registers were defined`);
+        if (regCount !== aModule.inputCount) {
+            throw new Error(`expected ${regCount} input registers, but ${aModule.inputCount} registers were defined`);
         }
     }
     inputRegisterDefinition(ctx, aModule) {
@@ -120,8 +120,8 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.registers) {
             ctx.registers.forEach((declaration) => this.visit(declaration, aModule));
             const regCount = Number(ctx.registerCount[0].image);
-            if (regCount !== aModule.staticRegisterCount) {
-                throw new Error(`expected ${regCount} static registers, but ${aModule.staticRegisterCount} registers were defined`);
+            if (regCount !== aModule.staticCount) {
+                throw new Error(`expected ${regCount} static registers, but ${aModule.staticCount} registers were defined`);
             }
         }
     }

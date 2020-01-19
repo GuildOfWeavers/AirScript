@@ -3,7 +3,7 @@
 import { AirSchema, ProcedureContext, Expression, FiniteField, Dimensions } from "@guildofweavers/air-assembly";
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
 import { ExecutionTemplate } from "./ExecutionTemplate";
-import { validate, validateSymbolName, CONTROLLER_NAME, isPowerOf2 } from "./utils";
+import { validate, validateSymbolName, isPowerOf2 } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -15,6 +15,10 @@ export interface SymbolInfo {
     readonly offset?    : number;
 }
 
+export interface FunctionInfo {
+    readonly handle : string;
+}
+
 interface Input {
     readonly scope  : string;
     readonly binary : boolean;
@@ -24,14 +28,14 @@ interface Input {
 // ================================================================================================
 export class Module {
 
-    readonly name                   : string;
-    readonly schema                 : AirSchema;
-    readonly traceWidth             : number;
-    readonly constraintCount        : number;
-    readonly inputRegisters         : Map<string, Input>;
-    readonly staticRegisters        : Map<string, bigint[]>;
+    readonly name               : string;
+    readonly schema             : AirSchema;
+    readonly traceWidth         : number;
+    readonly constraintCount    : number;
+    readonly inputs             : Map<string, Input>;
+    readonly statics            : Map<string, bigint[]>;
 
-    private readonly symbols        : Map<string, SymbolInfo>;
+    private readonly symbols    : Map<string, SymbolInfo>;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -40,8 +44,8 @@ export class Module {
         this.schema = new AirSchema('prime', modulus);
         this.traceWidth = traceWidth;
         this.constraintCount = constraintCount;
-        this.inputRegisters = new Map();
-        this.staticRegisters = new Map();
+        this.inputs = new Map();
+        this.statics = new Map();
         this.symbols = new Map();
     }
 
@@ -51,12 +55,12 @@ export class Module {
         return this.schema.field;
     }
 
-    get inputRegisterCount(): number {
-        return this.inputRegisters.size;
+    get inputCount(): number {
+        return this.inputs.size;
     }
 
-    get staticRegisterCount(): number {
-        return this.staticRegisters.size;
+    get staticCount(): number {
+        return this.statics.size;
     }
 
     // PUBLIC METHODS
@@ -73,15 +77,15 @@ export class Module {
 
     addInput(name: string, index: number, scope: string, binary: boolean): void {
         validate(!this.symbols.has(name), errors.inputRegisterOverlap(name));
-        validate(index === this.inputRegisterCount, errors.inputRegisterOutOfOrder(name));
-        this.inputRegisters.set(name, { scope, binary });
+        validate(index === this.inputCount, errors.inputRegisterOutOfOrder(name));
+        this.inputs.set(name, { scope, binary });
         this.symbols.set(name, { type: 'input', handle: name, offset: index, dimensions: [0, 0], subset: true });
     }
 
     addStatic(name: string, index: number, values: bigint[]): void {
         validate(!this.symbols.has(name), errors.staticRegisterOverlap(name));
-        validate(index === this.staticRegisterCount, errors.staticRegisterOutOfOrder(name));
-        this.staticRegisters.set(name, values);
+        validate(index === this.staticCount, errors.staticRegisterOutOfOrder(name));
+        this.statics.set(name, values);
         this.symbols.set(name, { type: 'static', handle: name, offset: index, dimensions: [0, 0], subset: true });
     }
 
@@ -97,7 +101,11 @@ export class Module {
         const procedureSpecs = this.buildProcedureSpecs(segmentMasks.length, loopDrivers.length);
         const inputRegisters = this.buildInputRegisters(template);
         const symbols = this.transformSymbols(segmentMasks.length, loopDrivers.length);
-        return new Component(this.schema, procedureSpecs, segmentMasks, inputRegisters, loopDrivers, symbols);
+
+        const functions = new Map<string, FunctionInfo>();
+        functions.set('transition', { handle: procedureSpecs.transition.name });
+
+        return new Component(this.schema, procedureSpecs, segmentMasks, inputRegisters, loopDrivers, symbols, functions);
     }
 
     setComponent(component: Component, componentName: string): void {
@@ -113,25 +121,23 @@ export class Module {
             m.push(m.shift()!);
             c.addCyclicRegister(m);
         });
-        this.staticRegisters.forEach(v => c.addCyclicRegister(v));
-
-        const controllerCount = component.segmentCount + component.loopDrivers.length;
+        this.statics.forEach(v => c.addCyclicRegister(v));
 
         // set trace initializer to return a result of applying transition function to a vector of all zeros
         const initContext = c.createProcedureContext('init');
-        const initParams = this.buildProcedureParams(initContext, controllerCount);
+        const initParams = this.buildProcedureParams(initContext);
         const initCall = initContext.buildCallExpression(component.procedures.transition.name, initParams);
         c.setTraceInitializer(initContext, [], initCall);
 
         // set transition function procedure to call transition function
         const tfContext = c.createProcedureContext('transition');
-        const tfParams = this.buildProcedureParams(tfContext, controllerCount);
+        const tfParams = this.buildProcedureParams(tfContext);
         const tfCall = tfContext.buildCallExpression(component.procedures.transition.name, tfParams);
         c.setTransitionFunction(tfContext, [], tfCall);
 
         // set constraint evaluator procedure to call constraint evaluator function
         const evContext = c.createProcedureContext('evaluation');
-        const evParams = this.buildProcedureParams(evContext, controllerCount);
+        const evParams = this.buildProcedureParams(evContext);
         const evCall = evContext.buildCallExpression(component.procedures.evaluation.name, evParams);
         c.setConstraintEvaluator(evContext, [], evCall);
 
@@ -142,7 +148,7 @@ export class Module {
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
     private buildProcedureSpecs(segmentCount: number, loopCount: number): ProcedureSpecs {
-        const staticRegisterCount = this.staticRegisterCount + segmentCount + this.inputRegisterCount + loopCount;
+        const staticRegisterCount = this.staticCount + segmentCount + this.inputCount + loopCount;
         return {
             transition: {
                 name    : `$${this.name}_transition`,
@@ -164,7 +170,7 @@ export class Module {
         };
     }
 
-    private buildProcedureParams(context: ProcedureContext, controllerCount: number): Expression[] {
+    private buildProcedureParams(context: ProcedureContext): Expression[] {
         const params: Expression[] = [];
         
         if (context.name === 'init') {
@@ -181,24 +187,6 @@ export class Module {
 
         params.push(context.buildLoadExpression('load.static', 0));
 
-        /*
-        let startIdx = 0, endIdx = this.inputRegisters.size - 1;
-        let loadExpression = context.buildLoadExpression('load.static', 0);
-        params.push(context.buildSliceVectorExpression(loadExpression, startIdx, endIdx));
-
-        startIdx = endIdx + 1;
-        endIdx = startIdx + controllerCount - 1;
-        loadExpression = context.buildLoadExpression('load.static', 0);
-        params.push(context.buildSliceVectorExpression(loadExpression, startIdx, endIdx));
-
-        if (this.staticRegisters.size > 0) {
-            startIdx = endIdx + 1;
-            endIdx = startIdx + this.staticRegisters.size - 1;
-            loadExpression = context.buildLoadExpression('load.static', 0);
-            params.push(context.buildSliceVectorExpression(loadExpression, startIdx, endIdx));
-        }
-        */
-
         return params;
     }
 
@@ -214,7 +202,7 @@ export class Module {
 
             inputs.forEach(input => {
                 validate(!registerSet.has(input), errors.overusedInputRegister(input));
-                const register = this.inputRegisters.get(input);
+                const register = this.inputs.get(input);
                 validate(register !== undefined, errors.undeclaredInputRegister(input));
     
                 const isLeaf = (i === template.loops.length - 1);
@@ -236,7 +224,7 @@ export class Module {
 
     private transformSymbols(segmentCount: number, loopCount: number) {
         const symbols = new Map<string, SymbolInfo>();
-        const staticOffset = this.inputRegisterCount + loopCount + segmentCount;
+        const staticOffset = this.inputCount + loopCount + segmentCount;
         for (let [symbol, info] of this.symbols) {
             if (info.type === 'const') {
                 symbols.set(symbol, info);
@@ -253,8 +241,8 @@ export class Module {
             }
         }
 
-        symbols.set('$i', { type: 'param', handle: '$_k', dimensions: [this.inputRegisterCount, 0], subset: false });
-        symbols.set('$k', { type: 'param', handle: '$_k', dimensions: [this.staticRegisterCount, 0], subset: false });
+        symbols.set('$i', { type: 'param', handle: '$_k', dimensions: [this.inputCount, 0], subset: false });
+        symbols.set('$k', { type: 'param', handle: '$_k', dimensions: [this.staticCount, 0], subset: false });
         symbols.set('$r', { type: 'param', handle: '$_r', dimensions: [this.traceWidth, 0], subset: false });
         symbols.set('$n', { type: 'param', handle: '$_n', dimensions: [this.traceWidth, 0], subset: false });
         for (let i = 0; i < this.traceWidth; i++) {
