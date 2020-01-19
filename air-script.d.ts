@@ -12,6 +12,17 @@ declare module '@guildofweavers/air-script' {
         constructor(errors: any[]);
     }
 
-    export function compile(path: string, componentName?: string): Promise<AirSchema>;
-    export function compile(source: Buffer, componentName?: string): Promise<AirSchema>;
+    /**
+     * Parses and compiles AirScript file into an AirSchema object.
+     * @param path Path to the file containing AirScript source.
+     * @param componentName Optional component name to be assigned to the parsed module.
+     */
+    export function compile(path: string, componentName?: string): AirSchema;
+
+    /**
+     * Parses and compiles AirScript source code into an AirSchema object.
+     * @param source Buffer containing AirScript source code.
+     * @param componentName Optional component name to be assigned to the parsed module.
+     */
+    export function compile(source: Buffer, componentName?: string): AirSchema;
 }

@@ -20,12 +20,18 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
     // constants used in transition function and constraint computations
     alpha: 3;
 
+    // input registers accessible in transition function and constraints
+    require 1 input {
+        secret $i0;
+    }
+
     // transition function definition
     transition 1 register {
         for each ($i0) {
-            init $i0;
+            init { yield $i0; }
+
             for steps [1...8192] {
-                $r0^alpha + $k0;
+                yield $r0^alpha + $k0;
             }
         }
     }
@@ -33,12 +39,12 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
     // transition constraint definition
     enforce 1 constraint {
         for all steps {
-            transition($r) = $n;
+            enforce transition($r) = $n;
         }
     }
 
-    // readonly registers accessible in transition function and constraints
-    using 1 readonly register {
+    // static registers accessible in transition function and constraints
+    using 1 static register {
         $k0: repeat [
             42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931,
             10000042, 19487209, 35831850, 62748495, 105413546, 170859333
@@ -528,61 +534,11 @@ Binary registers can be used as selectors in [conditional expressions](#Conditio
 To annotate your scripts with comments, use `//`. Anything following `//` until the end of the line will not be processed by the parser. Currently, this is the only style of comments supported.
 
 # API
-This module exposes a single `parseScript()` method:
+This module exposes a single `compile()` function which has the following signature:
 
-* **parseScript**(script: `string`, options?: `ScriptOptions`): `AirModule`
+* **parseScript**(source: `string` | `Buffer`, componentName?: `string`): `AirSchema`
 
-where:
-```TypeScript
-interface ScriptOptions {
-    limits?             : Partial<StarkLimits>;
-    wasmOptions?        : Partial<WasmOptions> | boolean;
-    extensionFactor?    : number;
-}
-```
-
-
-`StarkLimits` object can include any of the following properties:
-
-| Property             | Description |
-| -------------------- | ----------- |
-| maxTraceLength       | Maximum number of steps allowed for the execution trace; the default is 2^20. |
-| maxMutableRegisters  | Maximum number of mutable registers; the default is 64. |
-| maxReadonlyRegisters | Maximum number of readonly registers; the default is 64. |
-| maxConstraintCount   | Maximum number of transition constraints; the default is 1024. |
-| maxConstraintDegree  | Maximum degree of transition constraints; the default is 16. |
-
-`wasmOptions` object may include any of the following properties:
-
-| Property  | Description |
-| ----------| ----------- |
-| memory    | A WebAssembly `Memory` object which will be passed to the underlying `FiniteField` object. |
-
-`extensionFactor` can be used to specify factor by which the execution trace will be stretched during STARK computations. If omitted, the extension factor is assumed to be 2 * [smallest power of 2 greater than maxConstraint degree].
-
-### AirModule
-If parsing of the script is successful, the `parseScript()` method returns an `AirModule` with the following properties:
-
-| Property             | Description |
-| -------------------- | ----------- |
-| name                 | Name from the STARK declaration. |
-| field                | Finite field specified for the computation. |
-| stateWidth           | Number of mutable registers defined for the computation. |
-| iRegisterCount       | Number of input registers defined for the computation. |
-| pRegisterCount       | Number of auxiliary public input registers defined for the computation. |
-| sRegisterCount       | Number of auxiliary secret input registers defined for the computation. |
-| kRegisterCount       | Number of static registers defined for the computation. |
-| constraints          | An array of constraint specification objects. |
-| maxConstraintDegree  | Maximum algebraic degree of transition constraints required for the computation. |
-| extensionFactor      | Execution trace extension factor set for this computation. |
-
-`AirModule` also exposes the following methods:
-
-* **initVerification**(traceShape: `number[]`, auxPublicInputs: `bigint[][]`): `VerificationObject`<br />
-  Creates a `VerificationObject` for the computation. This object can be used to evaluate transition constraints at at a single point.
-
-* **initProof**(inputs: `any[]`, auxPublicInputs: `bigint[][]`, auxSecretInputs: `bigint[][]`): `ProofObject`<br />
-  Creates a `ProofObject` for the computation. This object can be used to generate execution traces and evaluate transition constraints.
+This function parses and compiles provided AirScript code into an [AirSchema](https://github.com/GuildOfWeavers/AirAssembly#air-schema) object. If `source` parameter is a `Buffer`, it is expected to contain AirScript code. If `source` is a string, it is expected to be a path to a file containing AirScript code. If `componentName` parameter is provided, it will be used as the name for the component within `AirSchema` object. Otherwise, the name will be set to `default`.
 
 If parsing of the script fails, the `parseScript()` method throws an `AirScriptError` which contains a list of errors (under `.errors` property) that caused the failure.
 

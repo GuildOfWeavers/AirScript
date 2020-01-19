@@ -5,8 +5,9 @@ import { instantiate } from '@guildofweavers/air-assembly';
 
 // SOURCE CODE
 // ================================================================================================
+// AirScript for verifying Merkle proofs based on Poseidon hash function
 const script = Buffer.from(`
-define Poseidon over prime field (2^128 - 9 * 2^32 + 1) {
+define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
 
     alpha: 5;
     MDS: [
@@ -181,61 +182,59 @@ define Poseidon over prime field (2^128 - 9 * 2^32 + 1) {
 // ================================================================================================
 const extensionFactor = 32;
 
-(async function run() {
+const schema = compile(script);
+const air = instantiate(schema, { extensionFactor, wasmOptions: true });
+console.log(`degree: ${air.maxConstraintDegree}`);
 
-    const schema = compile(script);
-    const air = instantiate(schema, { extensionFactor, wasmOptions: true });
-    console.log(`degree: ${air.maxConstraintDegree}`);
+const gStart = Date.now();
+let start = Date.now();
+const pContext = air.initProvingContext([[42n, 43n, [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n], [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n]]]);
+console.log(`Initialized proof object in ${Date.now() - start} ms`);
 
-    const gStart = Date.now();
-    let start = Date.now();
-    const pContext = air.initProvingContext([[42n, 43n, [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n], [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n]]]);
-    console.log(`Initialized proof object in ${Date.now() - start} ms`);
+start = Date.now();
+const trace = pContext.generateExecutionTrace();
+console.log(`Execution trace generated in ${Date.now() - start} ms`);
 
-    start = Date.now();
-    const trace = pContext.generateExecutionTrace();
-    console.log(`Execution trace generated in ${Date.now() - start} ms`);
+start = Date.now();
+const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
+console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
 
-    start = Date.now();
-    const pPolys = air.field.interpolateRoots(pContext.executionDomain, trace);
-    console.log(`Trace polynomials computed in ${Date.now() - start} ms`);
+start = Date.now();
+const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
+console.log(`Extended execution trace in ${Date.now() - start} ms`);
 
-    start = Date.now();
-    const pEvaluations = air.field.evalPolysAtRoots(pPolys, pContext.evaluationDomain);
-    console.log(`Extended execution trace in ${Date.now() - start} ms`);
+start = Date.now();
+const cEvaluations = pContext.evaluateTransitionConstraints(pPolys);
+console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 
-    start = Date.now();
-    const cEvaluations = pContext.evaluateTransitionConstraints(pPolys);
-    console.log(`Constraints evaluated in ${Date.now() - start} ms`);
+const hRegisterValues = pContext.secretRegisterTraces;
 
-    const hRegisterValues = pContext.secretRegisterTraces;
+start = Date.now();
+const qPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
+const qEvaluations = air.field.evalPolysAtRoots(qPolys, pContext.evaluationDomain);
+console.log(`Extended constraints in ${Date.now() - start} ms`);
+console.log(`Total time: ${Date.now() - gStart} ms`);
 
-    start = Date.now();
-    const qPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
-    const qEvaluations = air.field.evalPolysAtRoots(qPolys, pContext.evaluationDomain);
-    console.log(`Extended constraints in ${Date.now() - start} ms`);
-    console.log(`Total time: ${Date.now() - gStart} ms`);
+start = Date.now();
+const vContext = air.initVerificationContext(pContext.inputShapes, [[0n, 1n, 0n, 1n, 0n, 1n, 0n, 1n]]);
+console.log(`Initialized verification object in ${Date.now() - start} ms`);
 
-    start = Date.now();
-    const vContext = air.initVerificationContext(pContext.inputShapes, [[0n, 1n, 0n, 1n, 0n, 1n, 0n, 1n]]);
-    console.log(`Initialized verification object in ${Date.now() - start} ms`);
+const x = air.field.exp(vContext.rootOfUnity, 2n);
+const rValues = [
+    pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2),
+    pEvaluations.getValue(4, 2), pEvaluations.getValue(5, 2), pEvaluations.getValue(6, 2), pEvaluations.getValue(7, 2),
+    pEvaluations.getValue(8, 2), pEvaluations.getValue(9, 2), pEvaluations.getValue(10, 2), pEvaluations.getValue(11, 2)
+];
+const nValues = [
+    pEvaluations.getValue(0, 34), pEvaluations.getValue(1, 34), pEvaluations.getValue(2, 34), pEvaluations.getValue(3, 34),
+    pEvaluations.getValue(4, 34), pEvaluations.getValue(5, 34), pEvaluations.getValue(6, 34), pEvaluations.getValue(7, 34),
+    pEvaluations.getValue(8, 34), pEvaluations.getValue(9, 34), pEvaluations.getValue(10, 34), pEvaluations.getValue(11, 34)
+];
+const hValues = [
+    hRegisterValues[0].getValue(2), hRegisterValues[1].getValue(2), hRegisterValues[2].getValue(2), hRegisterValues[3].getValue(2)
+];
+const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, hValues);
 
-    const x = air.field.exp(vContext.rootOfUnity, 2n);
-    const rValues = [
-        pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2),
-        pEvaluations.getValue(4, 2), pEvaluations.getValue(5, 2), pEvaluations.getValue(6, 2), pEvaluations.getValue(7, 2),
-        pEvaluations.getValue(8, 2), pEvaluations.getValue(9, 2), pEvaluations.getValue(10, 2), pEvaluations.getValue(11, 2)
-    ];
-    const nValues = [
-        pEvaluations.getValue(0, 34), pEvaluations.getValue(1, 34), pEvaluations.getValue(2, 34), pEvaluations.getValue(3, 34),
-        pEvaluations.getValue(4, 34), pEvaluations.getValue(5, 34), pEvaluations.getValue(6, 34), pEvaluations.getValue(7, 34),
-        pEvaluations.getValue(8, 34), pEvaluations.getValue(9, 34), pEvaluations.getValue(10, 34), pEvaluations.getValue(11, 34)
-    ];
-    const hValues = [
-        hRegisterValues[0].getValue(2), hRegisterValues[1].getValue(2), hRegisterValues[2].getValue(2), hRegisterValues[3].getValue(2)
-    ];
-    const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, hValues);
+console.log(qEvaluations.getValue(0, 2) === qValues[0]);
 
-    console.log(qEvaluations.getValue(0, 2) === qValues[0]);
-
-})().then(() => console.log('done!'));
+console.log('done!');
