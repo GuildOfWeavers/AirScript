@@ -50,7 +50,7 @@ class ExecutionContext {
             const info = this.symbols.get(symbol);
             if (info) {
                 utils_1.validate(info.type !== 'const', errors.cannotAssignToConst(symbol));
-                // TODO: check for other matches
+                throw new Error(`cannot assign to non-variable symbol '${symbol}'`);
             }
             block = this.currentBlock;
         }
@@ -64,10 +64,11 @@ class ExecutionContext {
         loopIdx = this.offsets.loop + loopIdx;
         let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, loopIdx);
+        const one = this.base.buildLiteralValue(this.base.field.one);
         for (let i = loopIdx - 1; i >= this.offsets.loop; i--) {
             let parent = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
             parent = this.base.buildGetVectorElementExpression(parent, loopIdx);
-            parent = this.base.buildBinaryOperation('sub', this.base.buildLiteralValue(1n), parent); // TODO: get from field
+            parent = this.base.buildBinaryOperation('sub', one, parent);
             result = this.base.buildBinaryOperation('mul', result, parent);
         }
         return result;
@@ -89,13 +90,6 @@ class ExecutionContext {
         condition = this.base.buildBinaryOperation('sub', one, condition);
         fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
-    }
-    buildTransitionFunctionCall() {
-        const params = [
-            this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.thisTraceRow),
-            this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow)
-        ];
-        return this.buildFunctionCall(this.functions.get('transition').handle, params);
     }
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------
@@ -136,7 +130,9 @@ class ExecutionContext {
         return this.base.buildMakeMatrixExpression(elements);
     }
     buildFunctionCall(func, params) {
-        return this.base.buildCallExpression(func, params);
+        const info = this.functions.get(func);
+        utils_1.validate(info !== undefined, errors.undefinedFuncReference(func));
+        return this.base.buildCallExpression(info.handle, params);
     }
 }
 exports.ExecutionContext = ExecutionContext;
@@ -172,6 +168,7 @@ class ExpressionBlock {
 // ================================================================================================
 const errors = {
     undeclaredVarReference: (s) => `variable ${s} is referenced before declaration`,
+    undefinedFuncReference: (f) => `function ${f} has not been defined`,
     cannotAssignToConst: (c) => `cannot assign a value to a constant ${c}`,
     cannotAssignToOuterScope: (v) => `cannot assign a value to an outer scope variable ${v}`
 };

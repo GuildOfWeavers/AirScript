@@ -9,6 +9,7 @@ import { Module } from './Module';
 import { Component } from './Component';
 import { ExecutionContext } from './ExecutionContext';
 import { ExecutionTemplate } from './ExecutionTemplate';
+import { ProcedureParams } from './utils';
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -258,7 +259,11 @@ class AirVisitor extends BaseCstVisitor {
         if (registers !== '$r') {
             throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
         }
-        return exc.buildTransitionFunctionCall();
+        const params = [
+            exc.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow),
+            exc.base.buildLoadExpression('load.param', ProcedureParams.staticRow)
+        ];
+        return exc.buildFunctionCall('transition', params);
     }
 
     // VECTORS AND MATRIXES

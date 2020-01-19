@@ -3,7 +3,7 @@
 import { AirSchema, ProcedureContext, Expression, FiniteField, Dimensions } from "@guildofweavers/air-assembly";
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
 import { ExecutionTemplate } from "./ExecutionTemplate";
-import { validate, validateSymbolName, isPowerOf2 } from "./utils";
+import { validate, validateSymbolName, isPowerOf2, ProcedureParams } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -96,20 +96,13 @@ export class Module {
             validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
         }
 
-        const inputRegisters = this.buildInputRegisters(template);
-
-        const loopDrivers = template.loops.map(loop => loop.driver);
-        const segmentMasks = template.segments.map(s => s.mask);
-
-        const staticRegisterOffset = inputRegisters.length + segmentMasks.length + loopDrivers.length;
-        const staticRegisterCount = staticRegisterOffset + this.staticCount;
-        const procedureSpecs = this.buildProcedureSpecs(staticRegisterCount);
-        const symbols = this.transformSymbols(staticRegisterOffset);
+        const procedureSpecs = this.buildProcedureSpecs(template);
+        const symbols = this.transformSymbols(procedureSpecs.staticRegisterOffset);
 
         const functions = new Map<string, FunctionInfo>();
-        functions.set('transition', { handle: procedureSpecs.transition.name });
+        functions.set('transition', { handle: procedureSpecs.transition.handle });
 
-        return new Component(this.schema, procedureSpecs, segmentMasks, inputRegisters, loopDrivers, symbols, functions);
+        return new Component(this.schema, procedureSpecs, symbols, functions);
     }
 
     setComponent(component: Component, componentName: string): void {
@@ -130,19 +123,19 @@ export class Module {
         // set trace initializer to return a result of applying transition function to a vector of all zeros
         const initContext = c.createProcedureContext('init');
         const initParams = this.buildProcedureParams(initContext);
-        const initCall = initContext.buildCallExpression(component.procedures.transition.name, initParams);
+        const initCall = initContext.buildCallExpression(component.transitionFunctionHandle, initParams);
         c.setTraceInitializer(initContext, [], initCall);
 
         // set transition function procedure to call transition function
         const tfContext = c.createProcedureContext('transition');
         const tfParams = this.buildProcedureParams(tfContext);
-        const tfCall = tfContext.buildCallExpression(component.procedures.transition.name, tfParams);
+        const tfCall = tfContext.buildCallExpression(component.transitionFunctionHandle, tfParams);
         c.setTransitionFunction(tfContext, [], tfCall);
 
         // set constraint evaluator procedure to call constraint evaluator function
         const evContext = c.createProcedureContext('evaluation');
         const evParams = this.buildProcedureParams(evContext);
-        const evCall = evContext.buildCallExpression(component.procedures.evaluation.name, evParams);
+        const evCall = evContext.buildCallExpression(component.constraintEvaluatorHandle, evParams);
         c.setConstraintEvaluator(evContext, [], evCall);
 
         // add component to the schema
@@ -151,25 +144,31 @@ export class Module {
 
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
-    private buildProcedureSpecs(staticRegisterCount: number): ProcedureSpecs {
+    private buildProcedureSpecs(template: ExecutionTemplate): ProcedureSpecs {
+        const inputRegisters = this.buildInputRegisters(template);
+        const segmentMasks = template.segments.map(s => s.mask);
+        const staticRegisterOffset = inputRegisters.length + segmentMasks.length + template.loops.length;
+        const staticRegisterCount = staticRegisterOffset + this.staticCount;
+
         return {
             transition: {
-                name    : `$${this.name}_transition`,
+                handle  : `$${this.name}_transition`,
                 result  : [this.traceWidth, 0],
                 params  : [
-                    { name: '$_r',  dimensions: [this.traceWidth, 0] },
-                    { name: '$_k',  dimensions: [staticRegisterCount, 0] }
+                    { name: ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
+                    { name: ProcedureParams.staticRow,    dimensions: [staticRegisterCount, 0] }
                 ]
             },
             evaluation: {
-                name    : `$${this.name}_evaluation`,
+                handle  : `$${this.name}_evaluation`,
                 result  : [this.constraintCount, 0],
                 params  : [
-                    { name: '$_r',  dimensions: [this.traceWidth, 0] },
-                    { name: '$_n',  dimensions: [this.traceWidth, 0] },
-                    { name: '$_k',  dimensions: [staticRegisterCount, 0] }
+                    { name: ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
+                    { name: ProcedureParams.nextTraceRow, dimensions: [this.traceWidth, 0] },
+                    { name: ProcedureParams.staticRow,    dimensions: [staticRegisterCount, 0] }
                 ]
-            }
+            },
+            inputRegisters, segmentMasks, staticRegisterOffset
         };
     }
 
@@ -197,11 +196,12 @@ export class Module {
         const registers: InputRegister[] = [];
         const registerSet = new Set<string>();
 
-        let previousInputsCount = 0;
+        let anchorIdx = 0;
         for (let i = 0; i < template.loops.length; i++) {
             let inputs = template.loops[i].inputs;
             // TODO: handle multiple parents
-            let parentIdx = (i === 0 ? undefined : registers.length - previousInputsCount);
+            let parentIdx = (i === 0 ? undefined : anchorIdx);
+            anchorIdx = registers.length;
 
             inputs.forEach(input => {
                 validate(!registerSet.has(input), errors.overusedInputRegister(input));
@@ -210,16 +210,15 @@ export class Module {
     
                 const isLeaf = (i === template.loops.length - 1);
                 registers.push({
-                    scope   : register.scope,
-                    binary  : register.binary,
-                    parent  : parentIdx,
-                    steps   : isLeaf ? template.cycleLength : undefined
+                    scope       : register.scope,
+                    binary      : register.binary,
+                    parent      : parentIdx,
+                    steps       : isLeaf ? template.cycleLength : undefined,
+                    loopAnchor  : anchorIdx === registers.length
                 });
 
                 registerSet.add(input);
             });
-            
-            previousInputsCount = inputs.size;
         }
 
         return registers;
@@ -233,11 +232,11 @@ export class Module {
                 symbols.set(symbol, info);
             }
             else if (info.type === 'input') {
-                symbols.set(symbol, { ...info, type: 'param', handle: '$_k' });
+                symbols.set(symbol, { ...info, type: 'param', handle: ProcedureParams.staticRow });
             }
             else if (info.type === 'static') {
                 let offset = info.offset! + staticOffset;
-                symbols.set(symbol, { ...info, type: 'param', handle: '$_k', offset });
+                symbols.set(symbol, { ...info, type: 'param', handle: ProcedureParams.staticRow, offset });
             }
             else {
                 // TODO: throw error
@@ -246,6 +245,7 @@ export class Module {
 
         symbols.set('$i', { type: 'param', handle: '$_k', dimensions: [this.inputCount, 0], subset: false });
         symbols.set('$k', { type: 'param', handle: '$_k', dimensions: [this.staticCount, 0], subset: false });
+
         symbols.set('$r', { type: 'param', handle: '$_r', dimensions: [this.traceWidth, 0], subset: false });
         symbols.set('$n', { type: 'param', handle: '$_n', dimensions: [this.traceWidth, 0], subset: false });
         for (let i = 0; i < this.traceWidth; i++) {

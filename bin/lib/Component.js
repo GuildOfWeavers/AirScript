@@ -7,34 +7,40 @@ const utils_1 = require("./utils");
 class Component {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(schema, procedures, segmentMasks, inputRegisters, loopDrivers, symbols, functions) {
+    constructor(schema, procedures, symbols, functions) {
         this.schema = schema;
         this.procedures = procedures;
-        this.loopDrivers = loopDrivers;
-        this.segmentMasks = segmentMasks;
-        this.inputRegisters = inputRegisters;
         this.symbols = symbols;
         this.functions = functions;
+        this.maskRegisters = [];
+        procedures.inputRegisters.forEach((r, i) => {
+            if (r.loopAnchor) {
+                this.maskRegisters.push({ input: i });
+            }
+        });
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
     get field() {
         return this.schema.field;
     }
-    get cycleLength() {
-        return this.segmentMasks[0].length;
+    get transitionFunctionHandle() {
+        return this.procedures.transition.handle;
     }
-    get loopCount() {
-        return this.loopDrivers.length;
+    get constraintEvaluatorHandle() {
+        return this.procedures.evaluation.handle;
+    }
+    get inputRegisters() {
+        return this.procedures.inputRegisters;
+    }
+    get segmentMasks() {
+        return this.procedures.segmentMasks;
+    }
+    get cycleLength() {
+        return this.procedures.segmentMasks[0].length;
     }
     get segmentCount() {
-        return this.segmentMasks.length;
-    }
-    get inputRegisterCount() {
-        return this.inputRegisters.length;
-    }
-    get maskRegisters() {
-        return this.loopDrivers.map(d => ({ input: d }));
+        return this.procedures.segmentMasks.length;
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
@@ -42,11 +48,11 @@ class Component {
         const specs = (procedure === 'transition')
             ? this.procedures.transition
             : this.procedures.evaluation;
-        const context = this.schema.createFunctionContext(specs.result, specs.name);
+        const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
         return new ExecutionContext_1.ExecutionContext(context, this.symbols, this.functions, {
-            loop: this.inputRegisterCount,
-            segment: this.inputRegisterCount + this.loopCount
+            loop: this.inputRegisters.length,
+            segment: this.inputRegisters.length + this.maskRegisters.length
         });
     }
     setTransitionFunction(context, initializers, segments) {

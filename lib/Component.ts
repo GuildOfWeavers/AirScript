@@ -8,10 +8,11 @@ import { CONTROLLER_NAME } from "./utils";
 // INTERFACES
 // ================================================================================================
 export interface InputRegister {
-    readonly scope  : string;
-    readonly binary : boolean;
-    readonly parent?: number;
-    readonly steps? : number;
+    readonly scope      : string;
+    readonly binary     : boolean;
+    readonly parent?    : number;
+    readonly steps?     : number;
+    readonly loopAnchor : boolean;
 }
 
 export interface MaskRegister {
@@ -20,15 +21,18 @@ export interface MaskRegister {
 
 export interface ProcedureSpecs {
     readonly transition: {
-        readonly name   : string,
+        readonly handle : string,
         readonly result : Dimensions;
         readonly params : { name: string, dimensions: Dimensions }[];
     };
     readonly evaluation: {
-        readonly name   : string,
+        readonly handle : string,
         readonly result : Dimensions;
         readonly params : { name: string, dimensions: Dimensions }[];
     };
+    readonly inputRegisters         : InputRegister[];
+    readonly segmentMasks           : bigint[][];
+    readonly staticRegisterOffset   : number;
 }
 
 // CLASS DEFINITION
@@ -36,24 +40,26 @@ export interface ProcedureSpecs {
 export class Component {
 
     readonly schema             : AirSchema;
-    readonly procedures         : ProcedureSpecs;
-    readonly loopDrivers        : number[];
-    readonly segmentMasks       : bigint[][];
-    readonly inputRegisters     : InputRegister[];
-    
+    readonly maskRegisters      : MaskRegister[];
+
+    private readonly procedures : ProcedureSpecs;
     private readonly symbols    : Map<string, SymbolInfo>;
     private readonly functions  : Map<string, FunctionInfo>;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(schema: AirSchema, procedures: ProcedureSpecs, segmentMasks: bigint[][], inputRegisters: InputRegister[], loopDrivers: number[], symbols: Map<string, SymbolInfo>, functions: Map<string, FunctionInfo>) {
+    constructor(schema: AirSchema, procedures: ProcedureSpecs, symbols: Map<string, SymbolInfo>, functions: Map<string, FunctionInfo>) {
         this.schema = schema;
         this.procedures = procedures;
-        this.loopDrivers = loopDrivers;
-        this.segmentMasks = segmentMasks;
-        this.inputRegisters = inputRegisters;
         this.symbols = symbols;
         this.functions = functions;
+
+        this.maskRegisters = [];
+        procedures.inputRegisters.forEach((r, i) => {
+            if (r.loopAnchor) {
+                this.maskRegisters.push({ input: i });
+            }
+        });
     }
 
     // ACCESSORS
@@ -62,24 +68,28 @@ export class Component {
         return this.schema.field;
     }
 
-    get cycleLength(): number {
-        return this.segmentMasks[0].length;
+    get transitionFunctionHandle(): string {
+        return this.procedures.transition.handle;
     }
 
-    get loopCount(): number {
-        return this.loopDrivers.length;
+    get constraintEvaluatorHandle(): string {
+        return this.procedures.evaluation.handle;
+    }
+
+    get inputRegisters(): InputRegister[] {
+        return this.procedures.inputRegisters;
+    }
+
+    get segmentMasks(): bigint[][] {
+        return this.procedures.segmentMasks;
+    }
+
+    get cycleLength(): number {
+        return this.procedures.segmentMasks[0].length;
     }
 
     get segmentCount(): number {
-        return this.segmentMasks.length;
-    }
-
-    get inputRegisterCount(): number {
-        return this.inputRegisters.length;
-    }
-
-    get maskRegisters(): MaskRegister[] {
-        return this.loopDrivers.map(d => ({ input: d }));
+        return this.procedures.segmentMasks.length;
     }
 
     // PUBLIC METHODS
@@ -89,11 +99,11 @@ export class Component {
             ? this.procedures.transition
             : this.procedures.evaluation;
 
-        const context = this.schema.createFunctionContext(specs.result, specs.name);
+        const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
         return new ExecutionContext(context, this.symbols, this.functions, {
-            loop    : this.inputRegisterCount,
-            segment : this.inputRegisterCount + this.loopCount
+            loop    : this.inputRegisters.length,
+            segment : this.inputRegisters.length + this.maskRegisters.length
         });
     }
 

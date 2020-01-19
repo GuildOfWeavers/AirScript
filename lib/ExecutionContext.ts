@@ -78,7 +78,7 @@ export class ExecutionContext {
             const info = this.symbols.get(symbol);
             if (info) {
                 validate(info.type !== 'const', errors.cannotAssignToConst(symbol));
-                // TODO: check for other matches
+                throw new Error(`cannot assign to non-variable symbol '${symbol}'`);
             }
             block = this.currentBlock;
         }
@@ -94,10 +94,11 @@ export class ExecutionContext {
         loopIdx = this.offsets.loop + loopIdx;
         let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, loopIdx);
+        const one = this.base.buildLiteralValue(this.base.field.one);
         for (let i = loopIdx - 1; i >= this.offsets.loop; i--) {
             let parent: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
             parent = this.base.buildGetVectorElementExpression(parent, loopIdx);
-            parent = this.base.buildBinaryOperation('sub', this.base.buildLiteralValue(1n), parent); // TODO: get from field
+            parent = this.base.buildBinaryOperation('sub', one, parent);
             result = this.base.buildBinaryOperation('mul', result, parent);
         }
         return result;
@@ -124,14 +125,6 @@ export class ExecutionContext {
         fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
 
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
-    }
-
-    buildTransitionFunctionCall(): Expression {
-        const params = [
-            this.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow),
-            this.base.buildLoadExpression('load.param', ProcedureParams.staticRow)
-        ];
-        return this.buildFunctionCall(this.functions.get('transition')!.handle, params);
     }
 
     // STATEMENT BLOCKS
@@ -182,7 +175,9 @@ export class ExecutionContext {
     }
 
     buildFunctionCall(func: string, params: Expression[]): Expression {
-        return this.base.buildCallExpression(func, params);
+        const info = this.functions.get(func);
+        validate(info !== undefined, errors.undefinedFuncReference(func));
+        return this.base.buildCallExpression(info.handle, params);
     }
 }
 
@@ -228,6 +223,7 @@ class ExpressionBlock {
 // ================================================================================================
 const errors = {
     undeclaredVarReference  : (s: any) => `variable ${s} is referenced before declaration`,
+    undefinedFuncReference  : (f: any) => `function ${f} has not been defined`,
     cannotAssignToConst     : (c: any) => `cannot assign a value to a constant ${c}`,
     cannotAssignToOuterScope: (v: any) => `cannot assign a value to an outer scope variable ${v}`
 };

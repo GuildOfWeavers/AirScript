@@ -14,7 +14,6 @@ interface Segment {
 
 interface Loop {
     readonly inputs : Set<string>;
-    readonly driver : number;
     readonly init   : any;
 }
 
@@ -48,16 +47,14 @@ export class ExecutionTemplate {
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     addLoop(inputs: string[], init: any): void {
-        let driverIdx = 0;
         if (this.loops.length > 0) {
             let outerLoop = this.loops[this.loops.length - 1];
             inputs.forEach(input => {
                 validate(outerLoop.inputs.has(input), errors.inputNotInOuterLoop(input));
                 outerLoop.inputs.delete(input);
             });
-            driverIdx = outerLoop.driver + outerLoop.inputs.size;
         }
-        this.loops.push({ inputs: new Set(inputs), driver: driverIdx, init });
+        this.loops.push({ inputs: new Set(inputs), init });
     }
 
     addSegment(intervals: Interval[], body: any): void {

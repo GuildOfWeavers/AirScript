@@ -5,6 +5,7 @@ const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
 const Module_1 = require("./Module");
 const ExecutionTemplate_1 = require("./ExecutionTemplate");
+const utils_1 = require("./utils");
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser_1.parser.getBaseCstVisitorConstructor();
@@ -216,7 +217,11 @@ class AirVisitor extends BaseCstVisitor {
         if (registers !== '$r') {
             throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
         }
-        return exc.buildTransitionFunctionCall();
+        const params = [
+            exc.base.buildLoadExpression('load.param', utils_1.ProcedureParams.thisTraceRow),
+            exc.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow)
+        ];
+        return exc.buildFunctionCall('transition', params);
     }
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------
