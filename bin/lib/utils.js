@@ -4,6 +4,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // ================================================================================================
 exports.CONTROLLER_NAME = '$_c';
 exports.BLOCK_ID_PREFIX = '$_b';
+var ProcedureParams;
+(function (ProcedureParams) {
+    ProcedureParams["thisTraceRow"] = "$_r";
+    ProcedureParams["nextTraceRow"] = "$_n";
+    ProcedureParams["staticRow"] = "$_k";
+})(ProcedureParams = exports.ProcedureParams || (exports.ProcedureParams = {}));
 // MATH
 // ================================================================================================
 function isPowerOf2(value) {

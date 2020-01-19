@@ -21,20 +21,16 @@ class ExecutionTemplate {
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     addLoop(inputs, init) {
-        let driver = 0;
+        let driverIdx = 0;
         if (this.loops.length > 0) {
             let outerLoop = this.loops[this.loops.length - 1];
-            inputs.forEach(register => {
-                if (outerLoop.inputs.has(register)) {
-                    outerLoop.inputs.delete(register);
-                }
-                else {
-                    throw new Error(`TODO: input not present in outer block`);
-                }
+            inputs.forEach(input => {
+                utils_1.validate(outerLoop.inputs.has(input), errors.inputNotInOuterLoop(input));
+                outerLoop.inputs.delete(input);
             });
-            driver = outerLoop.driver + outerLoop.inputs.size;
+            driverIdx = outerLoop.driver + outerLoop.inputs.size;
         }
-        this.loops.push({ inputs: new Set(inputs), driver, init });
+        this.loops.push({ inputs: new Set(inputs), driver: driverIdx, init });
     }
     addSegment(intervals, body) {
         for (let interval of intervals) {
@@ -80,6 +76,7 @@ exports.ExecutionTemplate = ExecutionTemplate;
 // ERRORS
 // ================================================================================================
 const errors = {
+    inputNotInOuterLoop: (i) => `input ${i} is missing from the outer loop`,
     intervalStartTooLow: (s, e) => `invalid step interval [${s}..${e}]: start index must be greater than 0`,
     intervalStartAfterEnd: (s, e) => `invalid step interval [${s}..${e}]: start index must be smaller than end index`,
     intervalStepOverlap: (s1, e1, i2) => `step interval [${s1}..${e1}] overlaps with interval [${i2[0]}..${i2[1]}]`

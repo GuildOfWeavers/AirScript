@@ -1,6 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { FiniteField, AirSchema, ProcedureName, Expression, StoreOperation, Dimensions } from "@guildofweavers/air-assembly";
+import { SymbolInfo } from './Module';
 import { ExecutionContext } from "./ExecutionContext";
 import { CONTROLLER_NAME } from "./utils";
 
@@ -26,6 +27,10 @@ export interface ProcedureSpecs {
     };
 }
 
+export interface FunctionInfo {
+    readonly handle : string;
+}
+
 // CLASS DEFINITION
 // ================================================================================================
 export class Component {
@@ -35,15 +40,18 @@ export class Component {
     readonly loopDrivers    : number[];
     readonly segmentMasks   : bigint[][];
     readonly inputRegisters : InputRegister[];
+    
+    private readonly symbols: Map<string, SymbolInfo>;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(schema: AirSchema, procedures: ProcedureSpecs, segmentMasks: bigint[][], inputRegisters: InputRegister[], loopDrivers: number[]) {
+    constructor(schema: AirSchema, procedures: ProcedureSpecs, segmentMasks: bigint[][], inputRegisters: InputRegister[], loopDrivers: number[], symbols: Map<string, SymbolInfo>) {
         this.schema = schema;
         this.procedures = procedures;
         this.loopDrivers = loopDrivers;
         this.segmentMasks = segmentMasks;
         this.inputRegisters = inputRegisters;
+        this.symbols = symbols;
     }
 
     // ACCESSORS
@@ -67,9 +75,15 @@ export class Component {
             ? this.procedures.transition
             : this.procedures.evaluation;
         
+        const functions = new Map<string, FunctionInfo>();
+        functions.set('transition', { handle: this.procedures.transition.name });
+
         const context = this.schema.createFunctionContext(specs.result, specs.name);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext(context, this.procedures, this.loopDrivers.length);
+        return new ExecutionContext(context, this.symbols, functions, {
+            loop    : this.loopDrivers.length,
+            segment : this.inputRegisters.length + this.loopDrivers.length
+        });
     }
 
     setTransitionFunction(context: ExecutionContext, initializers: Expression[], segments: Expression[]): void {
@@ -102,9 +116,9 @@ export class Component {
             const resultHandle = `${CONTROLLER_NAME}_${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
 
+            const resultControl = context.getLoopController(i);
             statements.push(context.base.buildStoreOperation(resultHandle, expression));
             expression = context.base.buildLoadExpression(`load.local`, resultHandle);
-            const resultControl = context.getLoopController(i);
             expression = context.buildBinaryOperation('mul', expression, resultControl);
 
             result = result ? context.buildBinaryOperation('add', result, expression) : expression;
@@ -114,7 +128,7 @@ export class Component {
             const resultHandle = `${CONTROLLER_NAME}${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
 
-            const resultControl = context.getSegmentModifier(i);
+            const resultControl = context.getSegmentController(i);
             expression = context.buildBinaryOperation('mul', expression, resultControl);
             statements.push(context.base.buildStoreOperation(resultHandle, expression));
             expression = context.base.buildLoadExpression(`load.local`, resultHandle);

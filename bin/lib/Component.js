@@ -7,12 +7,13 @@ const utils_1 = require("./utils");
 class Component {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(schema, procedures, segmentMasks, inputRegisters, loopDrivers) {
+    constructor(schema, procedures, segmentMasks, inputRegisters, loopDrivers, symbols) {
         this.schema = schema;
         this.procedures = procedures;
         this.loopDrivers = loopDrivers;
         this.segmentMasks = segmentMasks;
         this.inputRegisters = inputRegisters;
+        this.symbols = symbols;
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -31,9 +32,14 @@ class Component {
         const specs = (procedure === 'transition')
             ? this.procedures.transition
             : this.procedures.evaluation;
+        const functions = new Map();
+        functions.set('transition', { handle: this.procedures.transition.name });
         const context = this.schema.createFunctionContext(specs.result, specs.name);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext_1.ExecutionContext(context, this.procedures, this.loopDrivers.length);
+        return new ExecutionContext_1.ExecutionContext(context, this.symbols, functions, {
+            loop: this.loopDrivers.length,
+            segment: this.inputRegisters.length + this.loopDrivers.length
+        });
     }
     setTransitionFunction(context, initializers, segments) {
         const { statements, result } = this.buildFunction(context, initializers, segments);
@@ -59,16 +65,16 @@ class Component {
             }
             const resultHandle = `${utils_1.CONTROLLER_NAME}_${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
+            const resultControl = context.getLoopController(i);
             statements.push(context.base.buildStoreOperation(resultHandle, expression));
             expression = context.base.buildLoadExpression(`load.local`, resultHandle);
-            const resultControl = context.getLoopController(i);
             expression = context.buildBinaryOperation('mul', expression, resultControl);
             result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
         segments.forEach((expression, i) => {
             const resultHandle = `${utils_1.CONTROLLER_NAME}${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
-            const resultControl = context.getSegmentModifier(i);
+            const resultControl = context.getSegmentController(i);
             expression = context.buildBinaryOperation('mul', expression, resultControl);
             statements.push(context.base.buildStoreOperation(resultHandle, expression));
             expression = context.base.buildLoadExpression(`load.local`, resultHandle);

@@ -1,19 +1,23 @@
 // IMPORTS
 // ================================================================================================
-import { AirSchema, ProcedureContext, Expression, FiniteField } from "@guildofweavers/air-assembly";
+import { AirSchema, ProcedureContext, Expression, FiniteField, Dimensions } from "@guildofweavers/air-assembly";
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
 import { ExecutionTemplate } from "./ExecutionTemplate";
 import { validate, validateSymbolName, CONTROLLER_NAME, isPowerOf2 } from "./utils";
 
 // INTERFACES
 // ================================================================================================
+export interface SymbolInfo {
+    readonly type       : 'const' | 'input' | 'static' | 'param';
+    readonly handle     : string;
+    readonly dimensions : Dimensions;
+    readonly subset     : boolean;
+    readonly offset?    : number;
+}
+
 interface Input {
     readonly scope  : string;
     readonly binary : boolean;
-}
-
-interface SymbolInfo {
-    readonly type   : 'const' | 'input' | 'static';
 }
 
 // CLASS DEFINITION
@@ -60,22 +64,25 @@ export class Module {
     addConstant(name: string, value: bigint | bigint[] | bigint[][]): void {
         validateSymbolName(name);
         validate(!this.symbols.has(name), errors.constSymbolReDeclared(name));
-        this.symbols.set(name, { type: 'const' });
-        this.schema.addConstant(value, `$${name}`);
+        const handle = `$${name}`;
+        const index = this.schema.constants.length;
+        this.schema.addConstant(value, handle);
+        const dimensions = this.schema.constants[index].dimensions;
+        this.symbols.set(name, { type: 'const', handle, dimensions, subset: false });
     }
 
     addInput(name: string, index: number, scope: string, binary: boolean): void {
         validate(!this.symbols.has(name), errors.inputRegisterOverlap(name));
         validate(index === this.inputRegisterCount, errors.inputRegisterOutOfOrder(name));
-        this.symbols.set(name, { type: 'input' });
         this.inputRegisters.set(name, { scope, binary });
+        this.symbols.set(name, { type: 'input', handle: name, offset: index, dimensions: [0, 0], subset: true });
     }
 
     addStatic(name: string, index: number, values: bigint[]): void {
         validate(!this.symbols.has(name), errors.staticRegisterOverlap(name));
         validate(index === this.staticRegisterCount, errors.staticRegisterOutOfOrder(name));
-        this.symbols.set(name, { type: 'static' });
         this.staticRegisters.set(name, values);
+        this.symbols.set(name, { type: 'static', handle: name, offset: index, dimensions: [0, 0], subset: true });
     }
 
     createComponent(template: ExecutionTemplate): Component {
@@ -89,7 +96,8 @@ export class Module {
         const segmentMasks = template.segments.map(s => s.mask);
         const procedureSpecs = this.buildProcedureSpecs(segmentMasks.length, loopDrivers.length);
         const inputRegisters = this.buildInputRegisters(template);
-        return new Component(this.schema, procedureSpecs, segmentMasks, inputRegisters, loopDrivers);
+        const symbols = this.transformSymbols(segmentMasks.length, loopDrivers.length);
+        return new Component(this.schema, procedureSpecs, segmentMasks, inputRegisters, loopDrivers, symbols);
     }
 
     setComponent(component: Component, componentName: string): void {
@@ -107,21 +115,23 @@ export class Module {
         });
         this.staticRegisters.forEach(v => c.addCyclicRegister(v));
 
+        const controllerCount = component.segmentCount + component.loopDrivers.length;
+
         // set trace initializer to return a result of applying transition function to a vector of all zeros
         const initContext = c.createProcedureContext('init');
-        const initParams = this.buildProcedureParams(initContext, component.segmentCount, component.loopDrivers.length);
+        const initParams = this.buildProcedureParams(initContext, controllerCount);
         const initCall = initContext.buildCallExpression(component.procedures.transition.name, initParams);
         c.setTraceInitializer(initContext, [], initCall);
 
         // set transition function procedure to call transition function
         const tfContext = c.createProcedureContext('transition');
-        const tfParams = this.buildProcedureParams(tfContext, component.segmentCount, component.loopDrivers.length);
+        const tfParams = this.buildProcedureParams(tfContext, controllerCount);
         const tfCall = tfContext.buildCallExpression(component.procedures.transition.name, tfParams);
         c.setTransitionFunction(tfContext, [], tfCall);
 
         // set constraint evaluator procedure to call constraint evaluator function
         const evContext = c.createProcedureContext('evaluation');
-        const evParams = this.buildProcedureParams(evContext, component.segmentCount, component.loopDrivers.length);
+        const evParams = this.buildProcedureParams(evContext, controllerCount);
         const evCall = evContext.buildCallExpression(component.procedures.evaluation.name, evParams);
         c.setConstraintEvaluator(evContext, [], evCall);
 
@@ -132,16 +142,14 @@ export class Module {
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
     private buildProcedureSpecs(segmentCount: number, loopCount: number): ProcedureSpecs {
-        const cVar = CONTROLLER_NAME;
+        const staticRegisterCount = this.staticRegisterCount + segmentCount + this.inputRegisterCount + loopCount;
         return {
             transition: {
                 name    : `$${this.name}_transition`,
                 result  : [this.traceWidth, 0],
                 params  : [
                     { name: '$_r',  dimensions: [this.traceWidth, 0] },
-                    { name: '$_i',  dimensions: [this.inputRegisters.size, 0] },
-                    { name: cVar,   dimensions: [segmentCount + loopCount, 0] },
-                    { name: '$_k',  dimensions: [this.staticRegisters.size, 0] }
+                    { name: '$_k',  dimensions: [staticRegisterCount, 0] }
                 ]
             },
             evaluation: {
@@ -150,15 +158,13 @@ export class Module {
                 params  : [
                     { name: '$_r',  dimensions: [this.traceWidth, 0] },
                     { name: '$_n',  dimensions: [this.traceWidth, 0] },
-                    { name: '$_i',  dimensions: [this.inputRegisters.size, 0] },
-                    { name: cVar,   dimensions: [segmentCount + loopCount, 0] },
-                    { name: '$_k',  dimensions: [this.staticRegisters.size, 0] }
+                    { name: '$_k',  dimensions: [staticRegisterCount, 0] }
                 ]
             }
         };
     }
 
-    private buildProcedureParams(context: ProcedureContext, segmentCount: number, loopCount: number): Expression[] {
+    private buildProcedureParams(context: ProcedureContext, controllerCount: number): Expression[] {
         const params: Expression[] = [];
         
         if (context.name === 'init') {
@@ -173,12 +179,15 @@ export class Module {
             }
         }
 
+        params.push(context.buildLoadExpression('load.static', 0));
+
+        /*
         let startIdx = 0, endIdx = this.inputRegisters.size - 1;
         let loadExpression = context.buildLoadExpression('load.static', 0);
         params.push(context.buildSliceVectorExpression(loadExpression, startIdx, endIdx));
 
         startIdx = endIdx + 1;
-        endIdx = startIdx + segmentCount + loopCount - 1;
+        endIdx = startIdx + controllerCount - 1;
         loadExpression = context.buildLoadExpression('load.static', 0);
         params.push(context.buildSliceVectorExpression(loadExpression, startIdx, endIdx));
 
@@ -188,6 +197,7 @@ export class Module {
             loadExpression = context.buildLoadExpression('load.static', 0);
             params.push(context.buildSliceVectorExpression(loadExpression, startIdx, endIdx));
         }
+        */
 
         return params;
     }
@@ -222,6 +232,37 @@ export class Module {
         }
 
         return registers;
+    }
+
+    private transformSymbols(segmentCount: number, loopCount: number) {
+        const symbols = new Map<string, SymbolInfo>();
+        const staticOffset = this.inputRegisterCount + loopCount + segmentCount;
+        for (let [symbol, info] of this.symbols) {
+            if (info.type === 'const') {
+                symbols.set(symbol, info);
+            }
+            else if (info.type === 'input') {
+                symbols.set(symbol, { ...info, type: 'param', handle: '$_k' });
+            }
+            else if (info.type === 'static') {
+                let offset = info.offset! + staticOffset;
+                symbols.set(symbol, { ...info, type: 'param', handle: '$_k', offset });
+            }
+            else {
+                // TODO: throw error
+            }
+        }
+
+        symbols.set('$i', { type: 'param', handle: '$_k', dimensions: [this.inputRegisterCount, 0], subset: false });
+        symbols.set('$k', { type: 'param', handle: '$_k', dimensions: [this.staticRegisterCount, 0], subset: false });
+        symbols.set('$r', { type: 'param', handle: '$_r', dimensions: [this.traceWidth, 0], subset: false });
+        symbols.set('$n', { type: 'param', handle: '$_n', dimensions: [this.traceWidth, 0], subset: false });
+        for (let i = 0; i < this.traceWidth; i++) {
+            symbols.set(`$r${i}`, { type: 'param', handle: '$_r', offset: i, dimensions: [0, 0], subset: true });
+            symbols.set(`$n${i}`, { type: 'param', handle: '$_n', offset: i, dimensions: [0, 0], subset: true });
+        }
+
+        return symbols;
     }
 }
 

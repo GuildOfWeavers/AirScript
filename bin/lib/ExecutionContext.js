@@ -6,15 +6,14 @@ const utils_1 = require("./utils");
 class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base, procedures, loopCount) {
+    constructor(base, symbols, functions, offsets) {
         this.base = base;
+        this.symbols = symbols;
+        this.functions = functions;
+        this.offsets = offsets;
         this.statements = [];
         this.blocks = [];
         this.lastBlockId = 0;
-        this.procedures = procedures;
-        this.loopCount = loopCount;
-        this.constants = new Map();
-        this.base.constants.forEach((c, i) => this.constants.set(c.handle.substring(1), i));
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -25,31 +24,34 @@ class ExecutionContext {
     // --------------------------------------------------------------------------------------------
     getSymbolReference(symbol) {
         let result;
-        if (symbol.startsWith('$')) {
-            let param = `$_${symbol.substring(1, 2)}`;
-            result = this.base.buildLoadExpression(`load.param`, param);
-            if (symbol.length > 2) {
-                let index = Number(symbol.substring(2));
-                result = this.base.buildGetVectorElementExpression(result, index);
+        const info = this.symbols.get(symbol);
+        if (info !== undefined) {
+            result = this.base.buildLoadExpression(`load.${info.type}`, info.handle);
+            if (info.subset) {
+                const symbolLength = info.dimensions[0];
+                if (symbolLength === 0) {
+                    result = this.base.buildGetVectorElementExpression(result, info.offset);
+                }
+                else {
+                    result = this.base.buildSliceVectorExpression(result, info.offset, symbolLength);
+                }
             }
         }
         else {
-            let index = this.constants.get(symbol);
-            if (index !== undefined) {
-                result = this.base.buildLoadExpression(`load.const`, index);
-            }
-            else {
-                const block = this.findLocalVariableBlock(symbol);
-                utils_1.validate(block !== undefined, errors.undeclaredVarReference(symbol));
-                result = block.loadLocal(symbol);
-            }
+            const block = this.findLocalVariableBlock(symbol);
+            utils_1.validate(block !== undefined, errors.undeclaredVarReference(symbol));
+            result = block.loadLocal(symbol);
         }
         return result;
     }
     setVariableAssignment(symbol, value) {
         let block = this.findLocalVariableBlock(symbol);
         if (!block) {
-            utils_1.validate(!this.constants.has(symbol), errors.cannotAssignToConst(symbol));
+            const info = this.symbols.get(symbol);
+            if (info) {
+                utils_1.validate(info.type !== 'const', errors.cannotAssignToConst(symbol));
+                // TODO: check for other matches
+            }
             block = this.currentBlock;
         }
         utils_1.validate(block === this.currentBlock, errors.cannotAssignToOuterScope(symbol));
@@ -59,19 +61,21 @@ class ExecutionContext {
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
     getLoopController(loopIdx) {
-        let result = this.base.buildLoadExpression('load.param', utils_1.CONTROLLER_NAME);
+        loopIdx = this.offsets.loop + loopIdx;
+        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, loopIdx);
-        for (let i = loopIdx - 1; i >= 0; i++) {
-            let parent = this.base.buildLoadExpression('load.param', utils_1.CONTROLLER_NAME);
-            parent = this.base.buildGetVectorElementExpression(result, loopIdx);
+        for (let i = loopIdx - 1; i >= this.offsets.loop; i++) {
+            let parent = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+            parent = this.base.buildGetVectorElementExpression(parent, loopIdx);
             parent = this.base.buildBinaryOperation('sub', this.base.buildLiteralValue(1n), parent); // TODO: get from field
             result = this.base.buildBinaryOperation('mul', result, parent);
         }
         return result;
     }
-    getSegmentModifier(segmentIdx) {
-        let result = this.base.buildLoadExpression('load.param', utils_1.CONTROLLER_NAME);
-        result = this.base.buildGetVectorElementExpression(result, this.loopCount + segmentIdx);
+    getSegmentController(segmentIdx) {
+        segmentIdx = this.offsets.segment + segmentIdx;
+        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
         return result;
     }
     buildConditionalExpression(condition, tBlock, fBlock) {
@@ -87,10 +91,11 @@ class ExecutionContext {
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
     }
     buildTransitionFunctionCall() {
-        const params = this.procedures.transition.params.map(p => {
-            return this.base.buildLoadExpression('load.param', p.name);
-        });
-        return this.buildFunctionCall(this.procedures.transition.name, params);
+        const params = [
+            this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.thisTraceRow),
+            this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow)
+        ];
+        return this.buildFunctionCall(this.functions.get('transition').handle, params);
     }
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------

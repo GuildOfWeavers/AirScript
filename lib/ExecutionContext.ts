@@ -4,34 +4,41 @@ import {
     FunctionContext, Expression, LiteralValue, BinaryOperation, UnaryOperation, MakeVector,
     GetVectorElement, SliceVector, MakeMatrix, StoreOperation, LoadExpression
 } from "@guildofweavers/air-assembly";
-import { ProcedureSpecs } from "./Component";
-import { validate, CONTROLLER_NAME, BLOCK_ID_PREFIX } from './utils';
+import { SymbolInfo } from './Module';
+import { FunctionInfo } from "./Component";
+import { validate, BLOCK_ID_PREFIX, ProcedureParams } from './utils';
+
+// INTERFACES
+// ================================================================================================
+interface ControllerOffsets {
+    readonly loop   : number;
+    readonly segment: number;
+}
 
 // CLASS DEFINITION
 // ================================================================================================
 export class ExecutionContext {
 
     readonly base               : FunctionContext;
-    readonly constants          : Map<string, number>;
     readonly blocks             : ExpressionBlock[];
     readonly statements         : StoreOperation[];
 
     private lastBlockId         : number;
-    private loopCount           : number;
-    private procedures          : ProcedureSpecs;
+
+    private readonly symbols    : Map<string, SymbolInfo>;
+    private readonly functions  : Map<string, FunctionInfo>;
+    private readonly offsets    : ControllerOffsets;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base: FunctionContext, procedures: ProcedureSpecs, loopCount: number) {
+    constructor(base: FunctionContext, symbols: Map<string, SymbolInfo>, functions: Map<string, FunctionInfo>, offsets: ControllerOffsets) {
         this.base = base;
+        this.symbols = symbols;
+        this.functions = functions;
+        this.offsets = offsets;
         this.statements = [];
         this.blocks = [];
         this.lastBlockId = 0;
-        this.procedures = procedures;
-        this.loopCount = loopCount;
-
-        this.constants = new Map();
-        this.base.constants.forEach((c, i) => this.constants.set(c.handle!.substring(1), i));
     }
 
     // ACCESSORS
@@ -44,24 +51,23 @@ export class ExecutionContext {
     // --------------------------------------------------------------------------------------------
     getSymbolReference(symbol: string): Expression {
         let result: Expression;
-        if (symbol.startsWith('$')) {
-            let param = `$_${symbol.substring(1, 2)}`;
-            result = this.base.buildLoadExpression(`load.param`, param);
-            if (symbol.length > 2) {
-                let index = Number(symbol.substring(2));
-                result = this.base.buildGetVectorElementExpression(result, index);
+        const info = this.symbols.get(symbol);    
+        if (info !== undefined) {
+            result = this.base.buildLoadExpression(`load.${info.type}`, info.handle);
+            if (info.subset) {
+                const symbolLength = info.dimensions[0];
+                if (symbolLength === 0) {
+                    result = this.base.buildGetVectorElementExpression(result, info.offset!);
+                }
+                else {
+                    result = this.base.buildSliceVectorExpression(result, info.offset!, symbolLength);
+                }
             }
         }
         else {
-            let index = this.constants.get(symbol);
-            if (index !== undefined) {
-                result = this.base.buildLoadExpression(`load.const`, index);
-            }
-            else {
-                const block = this.findLocalVariableBlock(symbol);
-                validate(block !== undefined, errors.undeclaredVarReference(symbol));
-                result = block.loadLocal(symbol);
-            }
+            const block = this.findLocalVariableBlock(symbol);
+            validate(block !== undefined, errors.undeclaredVarReference(symbol));
+            result = block.loadLocal(symbol);
         }
 
         return result;
@@ -70,7 +76,11 @@ export class ExecutionContext {
     setVariableAssignment(symbol: string, value: Expression): void {
         let block = this.findLocalVariableBlock(symbol);
         if (!block) {
-            validate(!this.constants.has(symbol), errors.cannotAssignToConst(symbol));
+            const info = this.symbols.get(symbol);
+            if (info) {
+                validate(info.type !== 'const', errors.cannotAssignToConst(symbol));
+                // TODO: check for other matches
+            }
             block = this.currentBlock;
         }
         
@@ -82,20 +92,22 @@ export class ExecutionContext {
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
     getLoopController(loopIdx: number): Expression {
-        let result: Expression = this.base.buildLoadExpression('load.param', CONTROLLER_NAME);
+        loopIdx = this.offsets.loop + loopIdx;
+        let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, loopIdx);
-        for (let i = loopIdx - 1; i >= 0; i++) {
-            let parent: Expression = this.base.buildLoadExpression('load.param', CONTROLLER_NAME);
-            parent = this.base.buildGetVectorElementExpression(result, loopIdx);
+        for (let i = loopIdx - 1; i >= this.offsets.loop; i++) {
+            let parent: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
+            parent = this.base.buildGetVectorElementExpression(parent, loopIdx);
             parent = this.base.buildBinaryOperation('sub', this.base.buildLiteralValue(1n), parent); // TODO: get from field
             result = this.base.buildBinaryOperation('mul', result, parent);
         }
         return result;
     }
 
-    getSegmentModifier(segmentIdx: number): Expression {
-        let result: Expression = this.base.buildLoadExpression('load.param', CONTROLLER_NAME);
-        result = this.base.buildGetVectorElementExpression(result, this.loopCount + segmentIdx);
+    getSegmentController(segmentIdx: number): Expression {
+        segmentIdx = this.offsets.segment + segmentIdx;
+        let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
+        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
         return result;
     }
 
@@ -116,10 +128,11 @@ export class ExecutionContext {
     }
 
     buildTransitionFunctionCall(): Expression {
-        const params = this.procedures.transition.params.map(p => {
-            return this.base.buildLoadExpression('load.param', p.name);
-        });
-        return this.buildFunctionCall(this.procedures.transition.name, params);
+        const params = [
+            this.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow),
+            this.base.buildLoadExpression('load.param', ProcedureParams.staticRow)
+        ];
+        return this.buildFunctionCall(this.functions.get('transition')!.handle, params);
     }
 
     // STATEMENT BLOCKS

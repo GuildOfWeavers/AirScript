@@ -3,6 +3,12 @@
 export const CONTROLLER_NAME = '$_c';
 export const BLOCK_ID_PREFIX = '$_b';
 
+export enum ProcedureParams {
+    thisTraceRow = '$_r',
+    nextTraceRow = '$_n',
+    staticRow    = '$_k'
+}
+
 // MATH
 // ================================================================================================
 export function isPowerOf2(value: number | bigint): boolean {
