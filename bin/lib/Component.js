@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const ExecutionContext_1 = require("./ExecutionContext");
-const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
 class Component {
@@ -77,7 +76,7 @@ class Component {
             if (expression.isScalar) {
                 expression = context.buildMakeVectorExpression([expression]);
             }
-            const resultHandle = `${utils_1.CONTROLLER_NAME}_${i}`;
+            const resultHandle = `$_init_${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
             const resultControl = context.getLoopController(i);
             statements.push(context.base.buildStoreOperation(resultHandle, expression));
@@ -86,7 +85,7 @@ class Component {
             result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
         segments.forEach((expression, i) => {
-            const resultHandle = `${utils_1.CONTROLLER_NAME}${i}`;
+            const resultHandle = `$_seg_${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
             const resultControl = context.getSegmentController(i);
             expression = context.buildBinaryOperation('mul', expression, resultControl);

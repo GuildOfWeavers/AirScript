@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 // CONSTANTS
 // ================================================================================================
-exports.CONTROLLER_NAME = '$_c';
 exports.BLOCK_ID_PREFIX = '$_b';
 var ProcedureParams;
 (function (ProcedureParams) {
@@ -10,6 +9,8 @@ var ProcedureParams;
     ProcedureParams["nextTraceRow"] = "$_n";
     ProcedureParams["staticRow"] = "$_k";
 })(ProcedureParams = exports.ProcedureParams || (exports.ProcedureParams = {}));
+const MAX_SYMBOL_LENGTH = 128;
+const SYMBOL_REGEXP = /[a-zA-Z]\w*/g;
 // MATH
 // ================================================================================================
 function isPowerOf2(value) {
@@ -29,7 +30,9 @@ function validate(condition, errorMessage) {
 }
 exports.validate = validate;
 function validateSymbolName(name) {
-    // TODO: check regex and length
+    validate(name.length <= MAX_SYMBOL_LENGTH, `symbol '${name}' is invalid: symbol length cannot exceed ${MAX_SYMBOL_LENGTH} characters`);
+    const matches = name.match(SYMBOL_REGEXP);
+    validate(matches !== null && matches.length === 1, `symbol '${name}' is invalid`);
 }
 exports.validateSymbolName = validateSymbolName;
 //# sourceMappingURL=utils.js.map

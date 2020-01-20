@@ -5,7 +5,6 @@ import {
 } from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo } from './Module';
 import { ExecutionContext } from "./ExecutionContext";
-import { CONTROLLER_NAME } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -136,7 +135,7 @@ export class Component {
             if (expression.isScalar) {
                 expression = context.buildMakeVectorExpression([expression]);
             }
-            const resultHandle = `${CONTROLLER_NAME}_${i}`;
+            const resultHandle = `$_init_${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
 
             const resultControl = context.getLoopController(i);
@@ -148,7 +147,7 @@ export class Component {
         });
 
         segments.forEach((expression, i) => {
-            const resultHandle = `${CONTROLLER_NAME}${i}`;
+            const resultHandle = `$_seg_${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
 
             const resultControl = context.getSegmentController(i);
