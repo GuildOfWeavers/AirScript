@@ -25,6 +25,7 @@ export const Enforce     = createToken({ name: "Enforce",     pattern: /enforce/
 
 export const Const       = createToken({ name: "Const",       pattern: /const/,         longer_alt: Identifier });
 export const Static      = createToken({ name: "Static",      pattern: /static/,        longer_alt: Identifier });
+export const Repeat      = createToken({ name: "Repeat",      pattern: /repeat/,        longer_alt: Identifier });
 export const Input       = createToken({ name: "Input",       pattern: /input/,         longer_alt: Identifier });
 export const Public      = createToken({ name: "Public",      pattern: /public/,        longer_alt: Identifier });
 export const Secret      = createToken({ name: "Secret",      pattern: /secret/,        longer_alt: Identifier });
@@ -43,8 +44,6 @@ export const Nothing     = createToken({ name: "Nothing",     pattern: /nothing/
 export const When        = createToken({ name: "When",        pattern: /when/,          longer_alt: Identifier });
 export const Else        = createToken({ name: "Else",        pattern: /else/,          longer_alt: Identifier });
 export const All         = createToken({ name: "All",         pattern: /all/,           longer_alt: Identifier });
-
-export const Repeat      = createToken({ name: "Repeat",      pattern: /repeat/,        longer_alt: Identifier });
 
 export const Import      = createToken({ name: "Import",      pattern: /import/,        longer_alt: Identifier });
 export const From        = createToken({ name: "From",        pattern: /from/,          longer_alt: Identifier });
@@ -65,7 +64,6 @@ export const ExpOp      = createToken({ name: "ExpOp",      pattern: /\^/ });
 
 export const Equals     = createToken({ name: "Equals",     pattern: /=/ });
 export const AssignOp   = createToken({ name: "AssignOp",   pattern: /<-/ });
-export const ResolveOp  = createToken({ name: "ResolveOp",  pattern: /->/ });
 
 // SYMBOLS
 // ================================================================================================
@@ -82,7 +80,6 @@ export const Colon      = createToken({ name: "Colon",      pattern: /:/        
 export const Semicolon  = createToken({ name: "Semicolon",  pattern: /;/        });
 export const Ellipsis   = createToken({ name: 'Ellipsis',   pattern: /\.\.\./   });
 export const DoubleDot  = createToken({ name: 'DoubleDot',  pattern: /\.\./     });
-export const Pipe       = createToken({ name: 'Pipe',       pattern: /\|/       });
 export const Tilde      = createToken({ name: 'Tilde',      pattern: /~/        });
 export const Ampersand  = createToken({ name: 'Ampersand',  pattern: /&/        });
 export const QMark      = createToken({ name: 'QMark',      pattern: /\?/       });
@@ -111,10 +108,10 @@ export const allTokens = [
     For, Each, Do, With, Nothing, When, Else, Repeat, Const, Input, Public, Secret,
     Static, Import, From, As, All, Init,
 
-    AssignOp, ResolveOp, Equals, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
+    AssignOp, Equals, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 
     LCurly, RCurly, LSquare, RSquare, LParen, RParen, LWedge, RWedge, Comma, Colon, Semicolon,
-    Ellipsis, DoubleDot, Pipe, Tilde, Ampersand, QMark, EMark,
+    Ellipsis, DoubleDot, Tilde, Ampersand, QMark, EMark,
 
     Identifier,
 

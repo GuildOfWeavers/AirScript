@@ -10,12 +10,12 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
     const alpha: 3;
     
-    secret input startValue[1];
-
     static roundConstant: repeat [
         42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931,
         10000042, 19487209, 35831850, 62748495, 105413546, 170859333
     ];
+
+    secret input startValue[1];
 
     // transition function definition
     transition 1 register {

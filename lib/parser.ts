@@ -22,9 +22,9 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     public script = this.RULE('script', () => {
         this.CONSUME(Define);
-        this.CONSUME(Identifier,                             { LABEL: 'starkName'             });
+        this.CONSUME(Identifier,                                  { LABEL: 'starkName'        });
         this.CONSUME(Over);
-        this.SUBRULE(this.fieldDeclaration,                  { LABEL: 'fieldDeclaration'      });
+        this.SUBRULE(this.fieldDeclaration,                       { LABEL: 'fieldDeclaration' });
         this.CONSUME(LCurly);
         this.MANY(() => {
             this.OR([
@@ -85,19 +85,10 @@ class AirParser extends CstParser {
         this.CONSUME(LSquare);
         this.AT_LEAST_ONE_SEP({
             SEP : Comma,
-            DEF : () => this.SUBRULE(this.literalMatrixRow, { LABEL: 'rows' })
+            DEF : () => this.SUBRULE(this.literalVector, { LABEL: 'rows' })
         })
         this.CONSUME(RSquare);
     });
-
-    private literalMatrixRow = this.RULE('literalMatrixRow', () => {
-        this.CONSUME(LSquare);
-        this.AT_LEAST_ONE_SEP({
-            SEP : Comma,
-            DEF : () => this.SUBRULE(this.literalExpression, { LABEL: 'elements' })
-        })
-        this.CONSUME(RSquare);
-    })
 
     // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------

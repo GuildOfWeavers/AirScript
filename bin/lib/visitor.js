@@ -28,8 +28,10 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.moduleConstants) {
             ctx.moduleConstants.forEach((element) => this.visit(element, aModule));
         }
-        this.visit(ctx.inputRegisters, aModule);
-        this.visit(ctx.staticRegisters, aModule);
+        if (ctx.staticRegisters) {
+            ctx.staticRegisters.forEach((element) => this.visit(element, aModule));
+        }
+        ctx.inputRegisters.forEach((element) => this.visit(element, aModule));
         // determine transition function structure and use it to create a component object
         const template = this.visit(ctx.transitionFunction, aModule);
         const component = aModule.createComponent(template);
@@ -92,14 +94,6 @@ class AirVisitor extends BaseCstVisitor {
             matrix[i] = row;
         }
         return matrix;
-    }
-    literalMatrixRow(ctx, field) {
-        const row = new Array(ctx.elements.length);
-        for (let i = 0; i < ctx.elements.length; i++) {
-            let element = this.visit(ctx.elements[i], field);
-            row[i] = element;
-        }
-        return row;
     }
     // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
