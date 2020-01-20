@@ -59,7 +59,9 @@ export class ExecutionContext {
                     result = this.base.buildGetVectorElementExpression(result, info.offset!);
                 }
                 else {
-                    result = this.base.buildSliceVectorExpression(result, info.offset!, symbolLength);
+                    const startIdx = info.offset!;
+                    const endIdx = startIdx + symbolLength - 1;
+                    result = this.base.buildSliceVectorExpression(result, startIdx, endIdx);
                 }
             }
         }

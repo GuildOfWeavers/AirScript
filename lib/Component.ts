@@ -1,6 +1,8 @@
 // IMPORTS
 // ================================================================================================
-import { FiniteField, AirSchema, ProcedureName, Expression, StoreOperation, Dimensions } from "@guildofweavers/air-assembly";
+import {
+    FiniteField, AirSchema, ProcedureName, Expression, StoreOperation, Dimensions, InputRegisterMaster
+} from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo } from './Module';
 import { ExecutionContext } from "./ExecutionContext";
 import { CONTROLLER_NAME } from "./utils";
@@ -10,7 +12,7 @@ import { CONTROLLER_NAME } from "./utils";
 export interface InputRegister {
     readonly scope      : string;
     readonly binary     : boolean;
-    readonly parent?    : number;
+    readonly master?    : InputRegisterMaster;
     readonly steps?     : number;
     readonly loopAnchor : boolean;
 }

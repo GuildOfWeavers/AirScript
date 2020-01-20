@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { AirSchema, ProcedureContext, Expression, FiniteField, Dimensions } from "@guildofweavers/air-assembly";
+import { AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, InputRegisterMaster } from "@guildofweavers/air-assembly";
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
 import { ExecutionTemplate } from "./ExecutionTemplate";
 import { validate, validateSymbolName, isPowerOf2, ProcedureParams } from "./utils";
@@ -110,7 +110,7 @@ export class Module {
         const c = this.schema.createComponent(componentName, this.traceWidth, this.constraintCount, component.cycleLength);
 
         // add static registers to the component
-        component.inputRegisters.forEach(r => c.addInputRegister(r.scope, r.binary, r.parent, r.steps, -1));
+        component.inputRegisters.forEach(r => c.addInputRegister(r.scope, r.binary, r.master, r.steps, -1));
         component.maskRegisters.forEach(r => c.addMaskRegister(r.input, false));
         component.segmentMasks.forEach(m => {
             // rotate the mask by one position to the left, to align it with input position
@@ -195,31 +195,36 @@ export class Module {
     private buildInputRegisters(template: ExecutionTemplate): InputRegister[] {
         const registers: InputRegister[] = [];
         const registerSet = new Set<string>();
+        const anchors: number[] = [];
+        
+        let masterParent : InputRegisterMaster | undefined = undefined;
+        template.loops.forEach((loop, i) => {
+            anchors.push(registers.length);
+            
+            let j = 0;
+            const masterPeer: InputRegisterMaster = { relation: 'peerof', index: registers.length };
+            loop.inputs.forEach(inputName => {
+                validate(!registerSet.has(inputName), errors.overusedInputRegister(inputName));
+                const register = this.inputs.get(inputName);
+                validate(register !== undefined, errors.undeclaredInputRegister(inputName));
 
-        let anchorIdx = 0;
-        for (let i = 0; i < template.loops.length; i++) {
-            let inputs = template.loops[i].inputs;
-            // TODO: handle multiple parents
-            let parentIdx = (i === 0 ? undefined : anchorIdx);
-            anchorIdx = registers.length;
-
-            inputs.forEach(input => {
-                validate(!registerSet.has(input), errors.overusedInputRegister(input));
-                const register = this.inputs.get(input);
-                validate(register !== undefined, errors.undeclaredInputRegister(input));
-    
+                const isAnchor = (j === 0);
                 const isLeaf = (i === template.loops.length - 1);
+
                 registers.push({
                     scope       : register.scope,
                     binary      : register.binary,
-                    parent      : parentIdx,
+                    master      : isAnchor || isLeaf ? masterParent : masterPeer,
                     steps       : isLeaf ? template.cycleLength : undefined,
-                    loopAnchor  : anchorIdx === registers.length
+                    loopAnchor  : isAnchor
                 });
 
-                registerSet.add(input);
+                registerSet.add(inputName);
+                j++;
             });
-        }
+
+            masterParent = { relation: 'childof', index: anchors[anchors.length - 1] };
+        });
 
         return registers;
     }
@@ -243,8 +248,9 @@ export class Module {
             }
         }
 
-        symbols.set('$i', { type: 'param', handle: '$_k', dimensions: [this.inputCount, 0], subset: false });
-        symbols.set('$k', { type: 'param', handle: '$_k', dimensions: [this.staticCount, 0], subset: false });
+        // TODO: improve
+        symbols.set('$i', { type: 'param', handle: '$_k', dimensions: [this.inputCount, 0], subset: true });
+        symbols.set('$k', { type: 'param', handle: '$_k', dimensions: [this.staticCount, 0], offset: staticOffset, subset: true });
 
         symbols.set('$r', { type: 'param', handle: '$_r', dimensions: [this.traceWidth, 0], subset: false });
         symbols.set('$n', { type: 'param', handle: '$_n', dimensions: [this.traceWidth, 0], subset: false });

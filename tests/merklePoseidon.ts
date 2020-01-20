@@ -19,24 +19,25 @@ define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
         [ 56257924185444874124459580258315826298,   6609414732577910747612629775769094818, 222516026778809277319420550386007789953, 186298854479664158795006770633754553086,  83847903426790374369611045128936398695,  18289323526456896741189879358874983848]
     ];
 
-    require 4 input {
+    require 5 input {
         secret $i0;
         secret $i1;
         secret $i2;
-        secret binary $i3; // binary representation of node index
+        secret $i3;
+        public binary $i4; // binary representation of node index
     }
 
     transition 12 registers {
-        for each ($i0, $i1, $i2, $i3) {
+        for each ($i0, $i1, $i2, $i3, $i4) {
             init {
                 S1 <- [$i0, $i1, $i2, $i3, 0, 0];
                 S2 <- [$i2, $i3, $i0, $i1, 0, 0];
                 yield [...S1, ...S2];
             }
 
-            for each ($i2, $i3) {
+            for each ($i2, $i3, $i4) {
                 init {
-                    H <- $i3 ? $r[6..7] : $r[0..1];
+                    H <- $i4 ? $r[6..7] : $r[0..1];
                     S1 <- [...H, $i2, $i3, 0, 0];
                     S2 <- [$i2, $i3, ...H, 0, 0];
                     yield [...S1, ...S2];
@@ -188,7 +189,13 @@ console.log(`degree: ${air.maxConstraintDegree}`);
 
 const gStart = Date.now();
 let start = Date.now();
-const pContext = air.initProvingContext([[42n, 43n, [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n], [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n]]]);
+const pContext = air.initProvingContext([
+    [42n],                                  // $i0
+    [43n],                                  // $i1
+    [[1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n]],     // $i2
+    [[1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n]],     // $i3
+    [[0n, 1n, 0n, 1n, 0n, 1n, 0n, 1n]]      // $i4
+]);
 console.log(`Initialized proof object in ${Date.now() - start} ms`);
 
 start = Date.now();
@@ -216,7 +223,7 @@ console.log(`Extended constraints in ${Date.now() - start} ms`);
 console.log(`Total time: ${Date.now() - gStart} ms`);
 
 start = Date.now();
-const vContext = air.initVerificationContext(pContext.inputShapes, [[0n, 1n, 0n, 1n, 0n, 1n, 0n, 1n]]);
+const vContext = air.initVerificationContext(pContext.inputShapes, [[[0n, 1n, 0n, 1n, 0n, 1n, 0n, 1n]]]);
 console.log(`Initialized verification object in ${Date.now() - start} ms`);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
