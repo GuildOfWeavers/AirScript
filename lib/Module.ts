@@ -24,6 +24,10 @@ interface Input {
     readonly binary : boolean;
 }
 
+interface StaticRegister {
+    readonly values : bigint[];
+}
+
 // CLASS DEFINITION
 // ================================================================================================
 export class Module {
@@ -33,9 +37,10 @@ export class Module {
     readonly traceWidth         : number;
     readonly constraintCount    : number;
     readonly inputs             : Map<string, Input>;
-    readonly statics            : Map<string, bigint[]>;
+    readonly staticRegisters    : StaticRegister[];
 
     private readonly symbols    : Map<string, SymbolInfo>;
+    private inputRegisterCount  : number;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -45,8 +50,9 @@ export class Module {
         this.traceWidth = traceWidth;
         this.constraintCount = constraintCount;
         this.inputs = new Map();
-        this.statics = new Map();
+        this.staticRegisters = [];
         this.symbols = new Map();
+        this.inputRegisterCount = 0;
     }
 
     // ACCESSORS
@@ -60,7 +66,7 @@ export class Module {
     }
 
     get staticCount(): number {
-        return this.statics.size;
+        return this.staticRegisters.length;
     }
 
     // PUBLIC METHODS
@@ -75,18 +81,21 @@ export class Module {
         this.symbols.set(name, { type: 'const', handle, dimensions, subset: false });
     }
 
-    addInput(name: string, index: number, scope: string, binary: boolean): void {
+    addInput(name: string, width: number, scope: string, binary: boolean): void {
         validate(!this.symbols.has(name), errors.inputRegisterOverlap(name));
-        validate(index === this.inputCount, errors.inputRegisterOutOfOrder(name));
+        const index = this.inputRegisterCount;
+        this.inputRegisterCount = index + width;
+        const dimensions: Dimensions = width === 1 ? [0, 0] : [width, 0];
         this.inputs.set(name, { scope, binary });
-        this.symbols.set(name, { type: 'input', handle: name, offset: index, dimensions: [0, 0], subset: true });
+        this.symbols.set(name, { type: 'input', handle: name, offset: index, dimensions, subset: true });
     }
 
-    addStatic(name: string, index: number, values: bigint[]): void {
+    addStatic(name: string, values: bigint[][]): void {
         validate(!this.symbols.has(name), errors.staticRegisterOverlap(name));
-        validate(index === this.staticCount, errors.staticRegisterOutOfOrder(name));
-        this.statics.set(name, values);
-        this.symbols.set(name, { type: 'static', handle: name, offset: index, dimensions: [0, 0], subset: true });
+        const index = this.staticRegisters.length;
+        values.forEach((v => this.staticRegisters.push({ values: v })));
+        const dimensions: Dimensions = values.length === 1 ? [0, 0] : [values.length, 0];
+        this.symbols.set(name, { type: 'static', handle: name, offset: index, dimensions, subset: true });
     }
 
     createComponent(template: ExecutionTemplate): Component {
@@ -118,7 +127,7 @@ export class Module {
             m.push(m.shift()!);
             c.addCyclicRegister(m);
         });
-        this.statics.forEach(v => c.addCyclicRegister(v));
+        this.staticRegisters.forEach(r => c.addCyclicRegister(r.values));
 
         // set trace initializer to return a result of applying transition function to a vector of all zeros
         const initContext = c.createProcedureContext('init');
@@ -204,23 +213,26 @@ export class Module {
             let j = 0;
             const masterPeer: InputRegisterMaster = { relation: 'peerof', index: registers.length };
             loop.inputs.forEach(inputName => {
-                validate(!registerSet.has(inputName), errors.overusedInputRegister(inputName));
-                const register = this.inputs.get(inputName);
-                validate(register !== undefined, errors.undeclaredInputRegister(inputName));
-
-                const isAnchor = (j === 0);
-                const isLeaf = (i === template.loops.length - 1);
-
-                registers.push({
-                    scope       : register.scope,
-                    binary      : register.binary,
-                    master      : isAnchor || isLeaf ? masterParent : masterPeer,
-                    steps       : isLeaf ? template.cycleLength : undefined,
-                    loopAnchor  : isAnchor
-                });
+                validate(!registerSet.has(inputName), errors.overusedInput(inputName));
+                const input = this.inputs.get(inputName);
+                validate(input !== undefined, errors.undeclaredInput(inputName));
+                const symbol = this.symbols.get(inputName)!
+                
+                for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
+                    const isAnchor = (j === 0);
+                    const isLeaf = (i === template.loops.length - 1);
+    
+                    registers.push({
+                        scope       : input.scope,
+                        binary      : input.binary,
+                        master      : isAnchor || isLeaf ? masterParent : masterPeer,
+                        steps       : isLeaf ? template.cycleLength : undefined,
+                        loopAnchor  : isAnchor
+                    });
+                    j++;
+                }
 
                 registerSet.add(inputName);
-                j++;
             });
 
             masterParent = { relation: 'childof', index: anchors[anchors.length - 1] };
@@ -249,9 +261,6 @@ export class Module {
         }
 
         // TODO: improve
-        symbols.set('$i', { type: 'param', handle: '$_k', dimensions: [this.inputCount, 0], subset: true });
-        symbols.set('$k', { type: 'param', handle: '$_k', dimensions: [this.staticCount, 0], offset: staticOffset, subset: true });
-
         symbols.set('$r', { type: 'param', handle: '$_r', dimensions: [this.traceWidth, 0], subset: false });
         symbols.set('$n', { type: 'param', handle: '$_n', dimensions: [this.traceWidth, 0], subset: false });
         for (let i = 0; i < this.traceWidth; i++) {
@@ -266,11 +275,10 @@ export class Module {
 // ERRORS
 // ================================================================================================
 const errors = {
-    undeclaredInputRegister : (r: any) => `input register ${r} is used without being declared`,
-    overusedInputRegister   : (r: any) => `input register ${r} cannot resurface in inner loops`,
+    undeclaredInput         : (r: any) => `input '${r}' is used without being declared`,
+    overusedInput           : (r: any) => `input '${r}' cannot resurface in inner loops`,
     constSymbolReDeclared   : (s: any) => `symbol '${s}' is declared multiple times`,
-    inputRegisterOverlap    : (r: any) => `input register ${r} is declared more than once`,
-    inputRegisterOutOfOrder : (r: any) => `input register ${r} is declared out of order`,
+    inputRegisterOverlap    : (r: any) => `input ${r} is declared more than once`,
     staticRegisterOverlap   : (r: any) => `static register ${r} is declared more than once`,
     staticRegisterOutOfOrder: (r: any) => `static register ${r} is declared out of order`,
     cycleLengthNotPowerOf2  : (s: any) => `total number of steps is ${s} but must be a power of 2`,

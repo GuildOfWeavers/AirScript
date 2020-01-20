@@ -8,11 +8,8 @@ const errors_1 = require("./errors");
 // ================================================================================================
 exports.IntegerLiteral = chevrotain_1.createToken({ name: "IntegerLiteral", pattern: /0|[1-9]\d*/ });
 exports.Identifier = chevrotain_1.createToken({ name: "Identifier", pattern: /[a-zA-Z]\w*/ });
-exports.RegisterRef = chevrotain_1.createToken({ name: "RegisterRef", pattern: chevrotain_1.Lexer.NA });
-exports.InputRegister = chevrotain_1.createToken({ name: "InputRegister", pattern: /\$\i\d{1,2}/, categories: exports.RegisterRef });
-exports.TraceRegister = chevrotain_1.createToken({ name: "TraceRegister", pattern: /\$[rn]\d{1,2}/, categories: exports.RegisterRef });
-exports.StaticRegister = chevrotain_1.createToken({ name: "StaticRegister", pattern: /\$\k\d{1,2}/, categories: exports.RegisterRef });
-exports.RegisterBank = chevrotain_1.createToken({ name: "RegisterBank", pattern: /\$[rnk]/ });
+exports.TraceRegister = chevrotain_1.createToken({ name: "TraceRegister", pattern: /\$[rn]\d{1,2}/ });
+exports.RegisterBank = chevrotain_1.createToken({ name: "RegisterBank", pattern: /\$[rn]/ });
 // KEYWORDS
 // ================================================================================================
 exports.Define = chevrotain_1.createToken({ name: "Define", pattern: /define/, longer_alt: exports.Identifier });
@@ -23,6 +20,7 @@ exports.Field = chevrotain_1.createToken({ name: "Field", pattern: /field/, long
 exports.ResultExp = chevrotain_1.createToken({ name: "ResultExp", pattern: chevrotain_1.Lexer.NA });
 exports.Yield = chevrotain_1.createToken({ name: "Yield", pattern: /yield/, longer_alt: exports.Identifier, categories: exports.ResultExp });
 exports.Enforce = chevrotain_1.createToken({ name: "Enforce", pattern: /enforce/, longer_alt: exports.Identifier, categories: exports.ResultExp });
+exports.Const = chevrotain_1.createToken({ name: "Const", pattern: /const/, longer_alt: exports.Identifier });
 exports.Transition = chevrotain_1.createToken({ name: "Transition", pattern: /transition/, longer_alt: exports.Identifier });
 exports.Registers = chevrotain_1.createToken({ name: "Registers", pattern: /registers?/, longer_alt: exports.Identifier });
 exports.Constraints = chevrotain_1.createToken({ name: "Constraints", pattern: /constraints?/, longer_alt: exports.Identifier });
@@ -96,13 +94,13 @@ exports.Comment = chevrotain_1.createToken({
 exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Yield, exports.Enforce, exports.Constraints,
-    exports.For, exports.Each, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Using, exports.Require, exports.Inputs, exports.Public, exports.Secret,
+    exports.For, exports.Each, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Using, exports.Const, exports.Require, exports.Inputs, exports.Public, exports.Secret,
     exports.Static, exports.Import, exports.From, exports.As, exports.All, exports.Init,
     exports.AssignOp, exports.ResolveOp, exports.Equals, exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.LWedge, exports.RWedge, exports.Comma, exports.Colon, exports.Semicolon,
     exports.Ellipsis, exports.DoubleDot, exports.Pipe, exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,
-    exports.TraceRegister, exports.InputRegister, exports.StaticRegister, exports.RegisterRef, exports.RegisterBank,
+    exports.TraceRegister, exports.RegisterBank,
     exports.IntegerLiteral
 ];
 // EXPORT LEXER INSTANCE

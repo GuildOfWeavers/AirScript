@@ -5,14 +5,11 @@ import { lexerErrorMessageProvider } from "./errors";
 
 // LITERALS, REGISTERS, and IDENTIFIERS
 // ================================================================================================
-export const IntegerLiteral     = createToken({ name: "IntegerLiteral",   pattern: /0|[1-9]\d*/    })
+export const IntegerLiteral     = createToken({ name: "IntegerLiteral",   pattern: /0|[1-9]\d*/    });
 export const Identifier         = createToken({ name: "Identifier",       pattern: /[a-zA-Z]\w*/   });
 
-export const RegisterRef        = createToken({ name: "RegisterRef",      pattern: Lexer.NA });
-export const InputRegister      = createToken({ name: "InputRegister",    pattern: /\$\i\d{1,2}/,    categories: RegisterRef });
-export const TraceRegister      = createToken({ name: "TraceRegister",    pattern: /\$[rn]\d{1,2}/,  categories: RegisterRef });
-export const StaticRegister     = createToken({ name: "StaticRegister",   pattern: /\$\k\d{1,2}/,    categories: RegisterRef });
-export const RegisterBank       = createToken({ name: "RegisterBank",     pattern: /\$[rnk]/ });
+export const TraceRegister      = createToken({ name: "TraceRegister",    pattern: /\$[rn]\d{1,2}/ });
+export const RegisterBank       = createToken({ name: "RegisterBank",     pattern: /\$[rn]/ });
 
 // KEYWORDS
 // ================================================================================================
@@ -25,6 +22,8 @@ export const Field       = createToken({ name: "Field",       pattern: /field/, 
 export const ResultExp   = createToken({ name: "ResultExp",   pattern: Lexer.NA });
 export const Yield       = createToken({ name: "Yield",       pattern: /yield/,         longer_alt: Identifier, categories: ResultExp });
 export const Enforce     = createToken({ name: "Enforce",     pattern: /enforce/,       longer_alt: Identifier, categories: ResultExp });
+
+export const Const       = createToken({ name: "Const",       pattern: /const/,    longer_alt: Identifier });
 
 export const Transition  = createToken({ name: "Transition",  pattern: /transition/,    longer_alt: Identifier });
 export const Registers   = createToken({ name: "Registers",   pattern: /registers?/,    longer_alt: Identifier });
@@ -111,7 +110,7 @@ export const allTokens = [
     WhiteSpace, Comment,
     
     Define, Over, Prime, Binary, Field, Transition, Registers, Steps, Yield, Enforce, Constraints,
-    For, Each, Do, With, Nothing, When, Else, Repeat, Using, Require, Inputs, Public, Secret,
+    For, Each, Do, With, Nothing, When, Else, Repeat, Using, Const, Require, Inputs, Public, Secret,
     Static, Import, From, As, All, Init,
 
     AssignOp, ResolveOp, Equals, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
@@ -121,7 +120,7 @@ export const allTokens = [
 
     Identifier,
 
-    TraceRegister, InputRegister, StaticRegister, RegisterRef, RegisterBank,
+    TraceRegister, RegisterBank,
 
     IntegerLiteral
 ];

@@ -3,10 +3,10 @@
 import { CstParser } from "chevrotain";
 import {
     allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, Require, Inputs, Transition,
-    Registers, Static, Repeat, Binary, RegisterBank, For, All, Each, Init, Yield,
+    Registers, Static, Repeat, Binary, TraceRegister, RegisterBank, For, All, Each, Init, Yield,
     LParen, RParen, LCurly, RCurly, LSquare, RSquare, Slash, QMark, Comma, Colon, Semicolon,
     ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals,
-    Steps, Enforce, Constraints,  When, Else, RegisterRef, StaticRegister, InputRegister, Using, Public, Secret
+    Steps, Enforce, Constraints, When, Else, Using, Public, Secret
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -110,6 +110,7 @@ class AirParser extends CstParser {
         this.CONSUME(Require);
         this.CONSUME(IntegerLiteral, { LABEL: 'registerCount'    });
         this.CONSUME(Inputs);
+        this.CONSUME(Registers);
         this.CONSUME(LCurly);
         this.AT_LEAST_ONE(() => this.SUBRULE(this.inputRegisterDefinition, { LABEL: 'registers' }));
         this.CONSUME(RCurly);
@@ -121,11 +122,11 @@ class AirParser extends CstParser {
             { ALT: () => this.CONSUME(Secret,   { LABEL: 'scope'   })}
         ]);
         this.OPTION1(() => this.CONSUME(Binary, { LABEL: 'binary'  }));
-        this.CONSUME1(InputRegister,            { LABEL: 'name'    });
+        this.CONSUME(Identifier,                { LABEL: 'name'    });
         this.OPTION2(() => {
-            this.CONSUME(For);
-            this.CONSUME(Each);
-            this.CONSUME2(InputRegister,        { LABEL: 'parent'  });
+            this.CONSUME(LSquare);
+            this.CONSUME(IntegerLiteral,        { LABEL: 'width'   });
+            this.CONSUME(RSquare);
         });
         this.CONSUME(Semicolon);
     });
@@ -141,10 +142,25 @@ class AirParser extends CstParser {
     });
 
     private staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
-        this.CONSUME(StaticRegister,        { LABEL: 'name'    });
+        this.CONSUME(Identifier,                          { LABEL: 'name'    });
         this.CONSUME(Colon);
-        this.CONSUME(Repeat,                { LABEL: 'pattern' });
-        this.SUBRULE(this.literalVector,    { LABEL: 'values'  });
+        this.OR([
+            { ALT: () => {
+                this.CONSUME1(Repeat);
+                this.SUBRULE1(this.literalVector,         { LABEL: 'values'  });
+            }},
+            { ALT: () => {
+                this.CONSUME(LSquare);
+                this.AT_LEAST_ONE_SEP({
+                    SEP: Comma,
+                    DEF: () => {
+                        this.CONSUME2(Repeat);
+                        this.SUBRULE2(this.literalVector, { LABEL: 'values'  });
+                    }
+                });
+                this.CONSUME(RSquare);
+            }}
+        ]);
         this.CONSUME(Semicolon);
     });
 
@@ -178,7 +194,7 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP: Comma,
-            DEF: () => this.CONSUME(InputRegister,      { LABEL: 'registers' })
+            DEF: () => this.CONSUME(Identifier,         { LABEL: 'inputs' })
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
@@ -287,11 +303,11 @@ class AirParser extends CstParser {
         this.OR([
             { ALT: () => {
                 this.CONSUME(LParen);
-                this.CONSUME1(RegisterRef,  { LABEL: 'register' });
+                this.CONSUME1(Identifier,   { LABEL: 'register' }); // TODO: rename
                 this.CONSUME(RParen);
             }},
             { ALT: () => {
-                this.CONSUME2(RegisterRef,  { LABEL: 'register' });
+                this.CONSUME2(Identifier,   { LABEL: 'register' }); // TODO: rename
             }}
         ]);
     });
@@ -404,7 +420,7 @@ class AirParser extends CstParser {
             { ALT: () => this.SUBRULE(this.vector,          { LABEL: 'expression' })},
             { ALT: () => this.SUBRULE(this.transitionCall,  { LABEL: 'expression' })},
             { ALT: () => this.CONSUME(Identifier,           { LABEL: 'symbol'     })},
-            { ALT: () => this.CONSUME(RegisterRef,          { LABEL: 'symbol'     })},
+            { ALT: () => this.CONSUME(TraceRegister,        { LABEL: 'symbol'     })},
             { ALT: () => this.CONSUME(RegisterBank,         { LABEL: 'symbol'     })},
             { ALT: () => this.CONSUME(IntegerLiteral,       { LABEL: 'literal'    })}
         ]);

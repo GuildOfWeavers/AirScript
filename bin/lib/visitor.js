@@ -106,16 +106,19 @@ class AirVisitor extends BaseCstVisitor {
     inputRegisters(ctx, aModule) {
         ctx.registers.forEach((declaration) => this.visit(declaration, aModule));
         const regCount = Number(ctx.registerCount[0].image);
+        /*
+        // TODO
         if (regCount !== aModule.inputCount) {
             throw new Error(`expected ${regCount} input registers, but ${aModule.inputCount} registers were defined`);
         }
+        */
     }
     inputRegisterDefinition(ctx, aModule) {
         const scope = ctx.scope[0].image;
-        const registerName = ctx.name[0].image;
-        const registerIndex = Number(registerName.slice(2));
+        const inputName = ctx.name[0].image;
+        const inputWidth = ctx.width ? Number(ctx.width[0].image) : 1;
         const binary = ctx.binary ? true : false;
-        aModule.addInput(registerName, registerIndex, scope, binary);
+        aModule.addInput(inputName, inputWidth, scope, binary);
     }
     staticRegisters(ctx, aModule) {
         if (ctx.registers) {
@@ -128,10 +131,9 @@ class AirVisitor extends BaseCstVisitor {
     }
     staticRegisterDefinition(ctx, aModule) {
         const registerName = ctx.name[0].image;
-        const registerIndex = Number(registerName.slice(2));
-        const values = this.visit(ctx.values);
+        const values = ctx.values.map((v) => this.visit(v));
         // TODO: handle parsing of PRNG sequences
-        aModule.addStatic(registerName, registerIndex, values);
+        aModule.addStatic(registerName, values);
     }
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
@@ -158,8 +160,8 @@ class AirVisitor extends BaseCstVisitor {
     // LOOPS
     // --------------------------------------------------------------------------------------------
     inputBlock(ctx, template) {
-        const registers = ctx.registers.map((register) => register.image);
-        template.addLoop(registers, ctx.initExpression);
+        const inputs = ctx.inputs.map((register) => register.image);
+        template.addLoop(inputs, ctx.initExpression);
         // parse body expression
         if (ctx.inputBlock) {
             this.visit(ctx.inputBlock, template);
