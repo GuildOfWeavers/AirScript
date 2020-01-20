@@ -93,13 +93,14 @@ class AirParser extends CstParser {
     // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
     private inputDeclaration = this.RULE('inputDeclaration', () => {
+        this.CONSUME(Input);
+        this.CONSUME(Identifier,                { LABEL: 'name'    });
+        this.CONSUME(Colon);
         this.OR([
             { ALT: () => this.CONSUME(Public,   { LABEL: 'scope'   })},
             { ALT: () => this.CONSUME(Secret,   { LABEL: 'scope'   })}
         ]);
-        this.CONSUME(Input);
         this.OPTION1(() => this.CONSUME(Binary, { LABEL: 'binary'  }));
-        this.CONSUME(Identifier,                { LABEL: 'name'    });
         this.OPTION2(() => {
             this.CONSUME(LSquare);
             this.CONSUME(IntegerLiteral,        { LABEL: 'width'   });

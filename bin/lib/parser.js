@@ -80,13 +80,14 @@ class AirParser extends chevrotain_1.CstParser {
         // INPUT AND STATIC REGISTERS
         // --------------------------------------------------------------------------------------------
         this.inputDeclaration = this.RULE('inputDeclaration', () => {
+            this.CONSUME(lexer_1.Input);
+            this.CONSUME(lexer_1.Identifier, { LABEL: 'name' });
+            this.CONSUME(lexer_1.Colon);
             this.OR([
                 { ALT: () => this.CONSUME(lexer_1.Public, { LABEL: 'scope' }) },
                 { ALT: () => this.CONSUME(lexer_1.Secret, { LABEL: 'scope' }) }
             ]);
-            this.CONSUME(lexer_1.Input);
             this.OPTION1(() => this.CONSUME(lexer_1.Binary, { LABEL: 'binary' }));
-            this.CONSUME(lexer_1.Identifier, { LABEL: 'name' });
             this.OPTION2(() => {
                 this.CONSUME(lexer_1.LSquare);
                 this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'width' });

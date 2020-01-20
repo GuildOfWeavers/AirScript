@@ -21,8 +21,8 @@ define Rescue over prime field (2^64 - 21 * 2^30 + 1) {
         [16397105823254198500, 12297829367440648875]
     ];
 
-    secret input value1;
-    secret input value2;
+    input value1: secret[1];
+    input value2: secret[1];
 
     transition 2 register {
         for each (value1, value2) {

@@ -15,7 +15,7 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
         10000042, 19487209, 35831850, 62748495, 105413546, 170859333
     ];
 
-    secret input startValue[1];
+    input startValue: secret[1];
 
     // transition function definition
     transition 1 register {
