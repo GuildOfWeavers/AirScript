@@ -103,33 +103,14 @@ class AirVisitor extends BaseCstVisitor {
     }
     // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
-    inputRegisters(ctx, aModule) {
-        ctx.registers.forEach((declaration) => this.visit(declaration, aModule));
-        const regCount = Number(ctx.registerCount[0].image);
-        /*
-        // TODO
-        if (regCount !== aModule.inputCount) {
-            throw new Error(`expected ${regCount} input registers, but ${aModule.inputCount} registers were defined`);
-        }
-        */
-    }
-    inputRegisterDefinition(ctx, aModule) {
+    inputDeclaration(ctx, aModule) {
         const scope = ctx.scope[0].image;
         const inputName = ctx.name[0].image;
         const inputWidth = ctx.width ? Number(ctx.width[0].image) : 1;
         const binary = ctx.binary ? true : false;
         aModule.addInput(inputName, inputWidth, scope, binary);
     }
-    staticRegisters(ctx, aModule) {
-        if (ctx.registers) {
-            ctx.registers.forEach((declaration) => this.visit(declaration, aModule));
-            const regCount = Number(ctx.registerCount[0].image);
-            if (regCount !== aModule.staticCount) {
-                throw new Error(`expected ${regCount} static registers, but ${aModule.staticCount} registers were defined`);
-            }
-        }
-    }
-    staticRegisterDefinition(ctx, aModule) {
+    staticDeclaration(ctx, aModule) {
         const registerName = ctx.name[0].image;
         const values = ctx.values.map((v) => this.visit(v));
         // TODO: handle parsing of PRNG sequences
@@ -208,9 +189,9 @@ class AirVisitor extends BaseCstVisitor {
         return exc.buildConditionalExpression(condition, tBlock, fBlock);
     }
     whenCondition(ctx, exc) {
-        const registerName = ctx.register[0].image;
-        const registerRef = exc.getSymbolReference(registerName);
-        return registerRef;
+        const symbol = ctx.value[0].image;
+        const result = exc.getSymbolReference(symbol);
+        return result;
     }
     // TRANSITION CALL EXPRESSION
     // --------------------------------------------------------------------------------------------
@@ -412,10 +393,7 @@ exports.visitor = new AirVisitor();
 function validateScriptSections(ctx) {
     // make sure exactly one input register section is present
     if (!ctx.inputRegisters || ctx.inputRegisters.length === 0) {
-        throw new Error('input registers section is missing');
-    }
-    else if (ctx.inputRegisters.length > 1) {
-        throw new Error('input registers section is defined more than once');
+        throw new Error('at least one input must be declared');
     }
     // make sure exactly one transition function is present
     if (!ctx.transitionFunction || ctx.transitionFunction.length === 0) {
@@ -430,12 +408,6 @@ function validateScriptSections(ctx) {
     }
     else if (ctx.transitionConstraints.length > 1) {
         throw new Error('transition constraints section is defined more than once');
-    }
-    // make sure at most one static register section is present
-    if (ctx.staticRegisters) {
-        if (ctx.staticRegisters.length > 1) {
-            throw new Error('static registers section is defined more than once');
-        }
     }
 }
 //# sourceMappingURL=visitor.js.map

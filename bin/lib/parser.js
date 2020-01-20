@@ -20,15 +20,9 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.LCurly);
             this.MANY(() => {
                 this.OR([
-                    { ALT: () => {
-                            this.SUBRULE(this.constantDeclaration, { LABEL: 'moduleConstants' });
-                        } },
-                    { ALT: () => {
-                            this.SUBRULE(this.inputRegisters, { LABEL: 'inputRegisters' });
-                        } },
-                    { ALT: () => {
-                            this.SUBRULE(this.staticRegisters, { LABEL: 'staticRegisters' });
-                        } },
+                    { ALT: () => this.SUBRULE(this.constDeclaration, { LABEL: 'moduleConstants' }) },
+                    { ALT: () => this.SUBRULE(this.inputDeclaration, { LABEL: 'inputRegisters' }) },
+                    { ALT: () => this.SUBRULE(this.staticDeclaration, { LABEL: 'staticRegisters' }) },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Transition);
                             this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'traceRegisterCount' });
@@ -56,7 +50,8 @@ class AirParser extends chevrotain_1.CstParser {
         });
         // MODULE CONSTANTS
         // --------------------------------------------------------------------------------------------
-        this.constantDeclaration = this.RULE('constantDeclaration', () => {
+        this.constDeclaration = this.RULE('constantDeclaration', () => {
+            this.CONSUME(lexer_1.Const);
             this.CONSUME(lexer_1.Identifier, { LABEL: 'constantName' });
             this.CONSUME(lexer_1.Colon);
             this.OR([
@@ -92,20 +87,12 @@ class AirParser extends chevrotain_1.CstParser {
         });
         // INPUT AND STATIC REGISTERS
         // --------------------------------------------------------------------------------------------
-        this.inputRegisters = this.RULE('inputRegisters', () => {
-            this.CONSUME(lexer_1.Require);
-            this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'registerCount' });
-            this.CONSUME(lexer_1.Inputs);
-            this.CONSUME(lexer_1.Registers);
-            this.CONSUME(lexer_1.LCurly);
-            this.AT_LEAST_ONE(() => this.SUBRULE(this.inputRegisterDefinition, { LABEL: 'registers' }));
-            this.CONSUME(lexer_1.RCurly);
-        });
-        this.inputRegisterDefinition = this.RULE('inputRegisterDefinition', () => {
+        this.inputDeclaration = this.RULE('inputDeclaration', () => {
             this.OR([
                 { ALT: () => this.CONSUME(lexer_1.Public, { LABEL: 'scope' }) },
                 { ALT: () => this.CONSUME(lexer_1.Secret, { LABEL: 'scope' }) }
             ]);
+            this.CONSUME(lexer_1.Input);
             this.OPTION1(() => this.CONSUME(lexer_1.Binary, { LABEL: 'binary' }));
             this.CONSUME(lexer_1.Identifier, { LABEL: 'name' });
             this.OPTION2(() => {
@@ -115,16 +102,8 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.CONSUME(lexer_1.Semicolon);
         });
-        this.staticRegisters = this.RULE('staticRegisters', () => {
-            this.CONSUME(lexer_1.Using);
-            this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'registerCount' });
+        this.staticDeclaration = this.RULE('staticDeclaration', () => {
             this.CONSUME(lexer_1.Static);
-            this.CONSUME(lexer_1.Registers);
-            this.CONSUME(lexer_1.LCurly);
-            this.AT_LEAST_ONE(() => this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'registers' }));
-            this.CONSUME(lexer_1.RCurly);
-        });
-        this.staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'name' });
             this.CONSUME(lexer_1.Colon);
             this.OR([
@@ -275,11 +254,11 @@ class AirParser extends chevrotain_1.CstParser {
             this.OR([
                 { ALT: () => {
                         this.CONSUME(lexer_1.LParen);
-                        this.CONSUME1(lexer_1.Identifier, { LABEL: 'register' }); // TODO: rename
+                        this.CONSUME1(lexer_1.Identifier, { LABEL: 'value' });
                         this.CONSUME(lexer_1.RParen);
                     } },
                 { ALT: () => {
-                        this.CONSUME2(lexer_1.Identifier, { LABEL: 'register' }); // TODO: rename
+                        this.CONSUME2(lexer_1.Identifier, { LABEL: 'value' });
                     } }
             ]);
         });

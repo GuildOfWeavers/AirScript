@@ -127,18 +127,7 @@ class AirVisitor extends BaseCstVisitor {
 
     // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
-    inputRegisters(ctx: any, aModule: Module): void {
-        ctx.registers.forEach((declaration: any) => this.visit(declaration, aModule));
-        const regCount = Number(ctx.registerCount[0].image);
-        /*
-        // TODO
-        if (regCount !== aModule.inputCount) {
-            throw new Error(`expected ${regCount} input registers, but ${aModule.inputCount} registers were defined`);
-        }
-        */
-    }
-
-    inputRegisterDefinition(ctx: any, aModule: Module): void {
+    inputDeclaration(ctx: any, aModule: Module): void {
         const scope = ctx.scope[0].image;
         const inputName = ctx.name[0].image;
         const inputWidth = ctx.width ? Number(ctx.width[0].image) : 1;
@@ -146,17 +135,7 @@ class AirVisitor extends BaseCstVisitor {
         aModule.addInput(inputName, inputWidth, scope, binary);
     }
 
-    staticRegisters(ctx: any, aModule: Module): void {
-        if (ctx.registers) {
-            ctx.registers.forEach((declaration: any) => this.visit(declaration, aModule));
-            const regCount = Number(ctx.registerCount[0].image);
-            if (regCount !== aModule.staticCount) {
-                throw new Error(`expected ${regCount} static registers, but ${aModule.staticCount} registers were defined`);
-            }
-        }
-    }
-
-    staticRegisterDefinition(ctx: any,  aModule: Module): void {
+    staticDeclaration(ctx: any,  aModule: Module): void {
         const registerName = ctx.name[0].image;
         const values: bigint[][] = ctx.values.map((v: any) => this.visit(v));
         // TODO: handle parsing of PRNG sequences
@@ -249,9 +228,9 @@ class AirVisitor extends BaseCstVisitor {
     }
 
     whenCondition(ctx: any, exc: ExecutionContext): Expression {
-        const registerName: string = ctx.register[0].image;
-        const registerRef = exc.getSymbolReference(registerName);
-        return registerRef;
+        const symbol: string = ctx.value[0].image;
+        const result = exc.getSymbolReference(symbol);
+        return result;
     }
 
     // TRANSITION CALL EXPRESSION
@@ -476,12 +455,10 @@ export const visitor = new AirVisitor();
 // HELPER FUNCTIONS
 // ================================================================================================
 function validateScriptSections(ctx: any) {
+
     // make sure exactly one input register section is present
     if (!ctx.inputRegisters || ctx.inputRegisters.length === 0) {
-        throw new Error('input registers section is missing');
-    }
-    else if (ctx.inputRegisters.length > 1) {
-        throw new Error('input registers section is defined more than once');
+        throw new Error('at least one input must be declared');
     }
 
     // make sure exactly one transition function is present
@@ -498,12 +475,5 @@ function validateScriptSections(ctx: any) {
     }
     else if (ctx.transitionConstraints.length > 1) {
         throw new Error('transition constraints section is defined more than once');
-    }
-
-    // make sure at most one static register section is present
-    if (ctx.staticRegisters) {
-        if (ctx.staticRegisters.length > 1) {
-            throw new Error('static registers section is defined more than once');
-        }
     }
 }

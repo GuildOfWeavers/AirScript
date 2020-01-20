@@ -35,7 +35,7 @@ class Module {
     // --------------------------------------------------------------------------------------------
     addConstant(name, value) {
         utils_1.validateSymbolName(name);
-        utils_1.validate(!this.symbols.has(name), errors.constSymbolReDeclared(name));
+        utils_1.validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
         const handle = `$${name}`;
         const index = this.schema.constants.length;
         this.schema.addConstant(value, handle);
@@ -43,7 +43,7 @@ class Module {
         this.symbols.set(name, { type: 'const', handle, dimensions, subset: false });
     }
     addInput(name, width, scope, binary) {
-        utils_1.validate(!this.symbols.has(name), errors.inputRegisterOverlap(name));
+        utils_1.validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
         const index = this.inputRegisterCount;
         this.inputRegisterCount = index + width;
         const dimensions = width === 1 ? [0, 0] : [width, 0];
@@ -51,7 +51,7 @@ class Module {
         this.symbols.set(name, { type: 'input', handle: name, offset: index, dimensions, subset: true });
     }
     addStatic(name, values) {
-        utils_1.validate(!this.symbols.has(name), errors.staticRegisterOverlap(name));
+        utils_1.validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
         const index = this.staticRegisters.length;
         values.forEach((v => this.staticRegisters.push({ values: v })));
         const dimensions = values.length === 1 ? [0, 0] : [values.length, 0];
@@ -178,27 +178,34 @@ class Module {
     }
     transformSymbols(staticOffset) {
         const symbols = new Map();
+        const type = 'param';
+        // transform custom symbols
         for (let [symbol, info] of this.symbols) {
             if (info.type === 'const') {
                 symbols.set(symbol, info);
             }
             else if (info.type === 'input') {
-                symbols.set(symbol, { ...info, type: 'param', handle: utils_1.ProcedureParams.staticRow });
+                symbols.set(symbol, { ...info, type, handle: utils_1.ProcedureParams.staticRow });
             }
             else if (info.type === 'static') {
                 let offset = info.offset + staticOffset;
-                symbols.set(symbol, { ...info, type: 'param', handle: utils_1.ProcedureParams.staticRow, offset });
+                symbols.set(symbol, { ...info, type, handle: utils_1.ProcedureParams.staticRow, offset });
             }
             else {
-                // TODO: throw error
+                throw new Error(`cannot transform ${info.type} symbol to component form`);
             }
         }
-        // TODO: improve
-        symbols.set('$r', { type: 'param', handle: '$_r', dimensions: [this.traceWidth, 0], subset: false });
-        symbols.set('$n', { type: 'param', handle: '$_n', dimensions: [this.traceWidth, 0], subset: false });
+        // create symbols for trace rows
+        let dimensions = [this.traceWidth, 0];
+        let subset = false;
+        symbols.set('$r', { type, handle: utils_1.ProcedureParams.thisTraceRow, dimensions, subset });
+        symbols.set('$n', { type, handle: utils_1.ProcedureParams.nextTraceRow, dimensions, subset });
+        // create symbols for trace registers
+        dimensions = [0, 0];
+        subset = true;
         for (let i = 0; i < this.traceWidth; i++) {
-            symbols.set(`$r${i}`, { type: 'param', handle: '$_r', offset: i, dimensions: [0, 0], subset: true });
-            symbols.set(`$n${i}`, { type: 'param', handle: '$_n', offset: i, dimensions: [0, 0], subset: true });
+            symbols.set(`$r${i}`, { type, handle: utils_1.ProcedureParams.thisTraceRow, offset: i, dimensions, subset });
+            symbols.set(`$n${i}`, { type, handle: utils_1.ProcedureParams.nextTraceRow, offset: i, dimensions, subset });
         }
         return symbols;
     }
@@ -209,10 +216,7 @@ exports.Module = Module;
 const errors = {
     undeclaredInput: (r) => `input '${r}' is used without being declared`,
     overusedInput: (r) => `input '${r}' cannot resurface in inner loops`,
-    constSymbolReDeclared: (s) => `symbol '${s}' is declared multiple times`,
-    inputRegisterOverlap: (r) => `input ${r} is declared more than once`,
-    staticRegisterOverlap: (r) => `static register ${r} is declared more than once`,
-    staticRegisterOutOfOrder: (r) => `static register ${r} is declared out of order`,
+    dupSymbolDeclaration: (s) => `symbol '${s}' is declared multiple times`,
     cycleLengthNotPowerOf2: (s) => `total number of steps is ${s} but must be a power of 2`,
     intervalStepNotCovered: (i) => `step ${i} is not covered by any expression`
 };

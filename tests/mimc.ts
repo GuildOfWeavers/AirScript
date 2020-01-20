@@ -8,13 +8,14 @@ import { instantiate } from '@guildofweavers/air-assembly';
 const script = Buffer.from(`
 define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
 
-    // constants used in transition function and constraint computations
-    alpha: 3;
+    const alpha: 3;
+    
+    secret input startValue[1];
 
-    // input registers accessible in transition function and constraints
-    require 1 input register {
-        secret startValue;
-    }
+    static roundConstant: repeat [
+        42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931,
+        10000042, 19487209, 35831850, 62748495, 105413546, 170859333
+    ];
 
     // transition function definition
     transition 1 register {
@@ -34,13 +35,6 @@ define MiMC over prime field (2^128 - 9 * 2^32 + 1) {
         }
     }
 
-    // static registers accessible in transition function and constraints
-    using 1 static register {
-        roundConstant: repeat [
-            42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931,
-            10000042, 19487209, 35831850, 62748495, 105413546, 170859333
-        ];
-    }
 }`);
 
 // TESTING

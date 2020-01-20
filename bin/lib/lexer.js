@@ -21,6 +21,10 @@ exports.ResultExp = chevrotain_1.createToken({ name: "ResultExp", pattern: chevr
 exports.Yield = chevrotain_1.createToken({ name: "Yield", pattern: /yield/, longer_alt: exports.Identifier, categories: exports.ResultExp });
 exports.Enforce = chevrotain_1.createToken({ name: "Enforce", pattern: /enforce/, longer_alt: exports.Identifier, categories: exports.ResultExp });
 exports.Const = chevrotain_1.createToken({ name: "Const", pattern: /const/, longer_alt: exports.Identifier });
+exports.Static = chevrotain_1.createToken({ name: "Static", pattern: /static/, longer_alt: exports.Identifier });
+exports.Input = chevrotain_1.createToken({ name: "Input", pattern: /input/, longer_alt: exports.Identifier });
+exports.Public = chevrotain_1.createToken({ name: "Public", pattern: /public/, longer_alt: exports.Identifier });
+exports.Secret = chevrotain_1.createToken({ name: "Secret", pattern: /secret/, longer_alt: exports.Identifier });
 exports.Transition = chevrotain_1.createToken({ name: "Transition", pattern: /transition/, longer_alt: exports.Identifier });
 exports.Registers = chevrotain_1.createToken({ name: "Registers", pattern: /registers?/, longer_alt: exports.Identifier });
 exports.Constraints = chevrotain_1.createToken({ name: "Constraints", pattern: /constraints?/, longer_alt: exports.Identifier });
@@ -34,12 +38,6 @@ exports.Nothing = chevrotain_1.createToken({ name: "Nothing", pattern: /nothing/
 exports.When = chevrotain_1.createToken({ name: "When", pattern: /when/, longer_alt: exports.Identifier });
 exports.Else = chevrotain_1.createToken({ name: "Else", pattern: /else/, longer_alt: exports.Identifier });
 exports.All = chevrotain_1.createToken({ name: "All", pattern: /all/, longer_alt: exports.Identifier });
-exports.Require = chevrotain_1.createToken({ name: "Require", pattern: /require/, longer_alt: exports.Identifier });
-exports.Inputs = chevrotain_1.createToken({ name: "Inputs", pattern: /inputs?/, longer_alt: exports.Identifier });
-exports.Public = chevrotain_1.createToken({ name: "Public", pattern: /public/, longer_alt: exports.Identifier });
-exports.Secret = chevrotain_1.createToken({ name: "Secret", pattern: /secret/, longer_alt: exports.Identifier });
-exports.Using = chevrotain_1.createToken({ name: "Using", pattern: /using/, longer_alt: exports.Identifier });
-exports.Static = chevrotain_1.createToken({ name: "Static", pattern: /static/, longer_alt: exports.Identifier });
 exports.Repeat = chevrotain_1.createToken({ name: "Repeat", pattern: /repeat/, longer_alt: exports.Identifier });
 exports.Import = chevrotain_1.createToken({ name: "Import", pattern: /import/, longer_alt: exports.Identifier });
 exports.From = chevrotain_1.createToken({ name: "From", pattern: /from/, longer_alt: exports.Identifier });
@@ -94,7 +92,7 @@ exports.Comment = chevrotain_1.createToken({
 exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
     exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Yield, exports.Enforce, exports.Constraints,
-    exports.For, exports.Each, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Using, exports.Const, exports.Require, exports.Inputs, exports.Public, exports.Secret,
+    exports.For, exports.Each, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Const, exports.Input, exports.Public, exports.Secret,
     exports.Static, exports.Import, exports.From, exports.As, exports.All, exports.Init,
     exports.AssignOp, exports.ResolveOp, exports.Equals, exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.LWedge, exports.RWedge, exports.Comma, exports.Colon, exports.Semicolon,

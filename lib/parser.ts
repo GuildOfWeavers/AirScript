@@ -2,11 +2,11 @@
 // ================================================================================================
 import { CstParser } from "chevrotain";
 import {
-    allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, Require, Inputs, Transition,
+    allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, Input, Transition,
     Registers, Static, Repeat, Binary, TraceRegister, RegisterBank, For, All, Each, Init, Yield,
     LParen, RParen, LCurly, RCurly, LSquare, RSquare, Slash, QMark, Comma, Colon, Semicolon,
     ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals,
-    Steps, Enforce, Constraints, When, Else, Using, Public, Secret
+    Steps, Enforce, Constraints, When, Else, Public, Secret, Const
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -28,15 +28,9 @@ class AirParser extends CstParser {
         this.CONSUME(LCurly);
         this.MANY(() => {
             this.OR([
-                { ALT: () => {
-                    this.SUBRULE(this.constantDeclaration,   { LABEL: 'moduleConstants'       });
-                }},
-                { ALT: () => {
-                    this.SUBRULE(this.inputRegisters,        { LABEL: 'inputRegisters'        });
-                }},
-                { ALT: () => {
-                    this.SUBRULE(this.staticRegisters,       { LABEL: 'staticRegisters'       });
-                }},
+                { ALT: () => this.SUBRULE(this.constDeclaration,  { LABEL: 'moduleConstants'  })},
+                { ALT: () => this.SUBRULE(this.inputDeclaration,  { LABEL: 'inputRegisters'   })},
+                { ALT: () => this.SUBRULE(this.staticDeclaration, { LABEL: 'staticRegisters'  })},
                 { ALT: () => {
                     this.CONSUME(Transition);
                     this.CONSUME1(IntegerLiteral,            { LABEL: 'traceRegisterCount'    });
@@ -66,7 +60,8 @@ class AirParser extends CstParser {
 
     // MODULE CONSTANTS
     // --------------------------------------------------------------------------------------------
-    private constantDeclaration = this.RULE('constantDeclaration', () => {
+    private constDeclaration = this.RULE('constantDeclaration', () => {
+        this.CONSUME(Const);
         this.CONSUME(Identifier, { LABEL: 'constantName' });
         this.CONSUME(Colon);
         this.OR([
@@ -106,21 +101,12 @@ class AirParser extends CstParser {
 
     // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
-    private inputRegisters = this.RULE('inputRegisters', () => {
-        this.CONSUME(Require);
-        this.CONSUME(IntegerLiteral, { LABEL: 'registerCount'    });
-        this.CONSUME(Inputs);
-        this.CONSUME(Registers);
-        this.CONSUME(LCurly);
-        this.AT_LEAST_ONE(() => this.SUBRULE(this.inputRegisterDefinition, { LABEL: 'registers' }));
-        this.CONSUME(RCurly);
-    });
-
-    private inputRegisterDefinition = this.RULE('inputRegisterDefinition', () => {
+    private inputDeclaration = this.RULE('inputDeclaration', () => {
         this.OR([
             { ALT: () => this.CONSUME(Public,   { LABEL: 'scope'   })},
             { ALT: () => this.CONSUME(Secret,   { LABEL: 'scope'   })}
         ]);
+        this.CONSUME(Input);
         this.OPTION1(() => this.CONSUME(Binary, { LABEL: 'binary'  }));
         this.CONSUME(Identifier,                { LABEL: 'name'    });
         this.OPTION2(() => {
@@ -131,17 +117,8 @@ class AirParser extends CstParser {
         this.CONSUME(Semicolon);
     });
 
-    private staticRegisters = this.RULE('staticRegisters', () => {
-        this.CONSUME(Using);
-        this.CONSUME(IntegerLiteral, { LABEL: 'registerCount' });
+    private staticDeclaration = this.RULE('staticDeclaration', () => {
         this.CONSUME(Static);
-        this.CONSUME(Registers);
-        this.CONSUME(LCurly);
-        this.AT_LEAST_ONE(() => this.SUBRULE(this.staticRegisterDefinition, { LABEL: 'registers' }));
-        this.CONSUME(RCurly);
-    });
-
-    private staticRegisterDefinition = this.RULE('staticRegisterDefinition', () => {
         this.CONSUME(Identifier,                          { LABEL: 'name'    });
         this.CONSUME(Colon);
         this.OR([
@@ -303,11 +280,11 @@ class AirParser extends CstParser {
         this.OR([
             { ALT: () => {
                 this.CONSUME(LParen);
-                this.CONSUME1(Identifier,   { LABEL: 'register' }); // TODO: rename
+                this.CONSUME1(Identifier,   { LABEL: 'value' });
                 this.CONSUME(RParen);
             }},
             { ALT: () => {
-                this.CONSUME2(Identifier,   { LABEL: 'register' }); // TODO: rename
+                this.CONSUME2(Identifier,   { LABEL: 'value' });
             }}
         ]);
     });
