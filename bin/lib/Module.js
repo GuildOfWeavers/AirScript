@@ -37,6 +37,7 @@ class Module {
     }
     addInput(name, width, rank, scope, binary) {
         utils_1.validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
+        utils_1.validate(width > 0, errors.invalidInputWidth(name));
         const offset = this.inputRegisterCount;
         this.inputRegisterCount = offset + width;
         const dimensions = width === 1 ? [0, 0] : [width, 0];
@@ -151,7 +152,7 @@ class Module {
                 const symbol = this.symbols.get(inputName);
                 utils_1.validate(symbol !== undefined, errors.undeclaredInput(inputName));
                 utils_1.validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
-                utils_1.validate(symbol.input.rank === i, errors.invalidInputRank(inputName));
+                utils_1.validate(symbol.input.rank === i, errors.inputRankMismatch(inputName));
                 for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
                     const isAnchor = (j === 0);
                     const isLeaf = (i === template.loops.length - 1);
@@ -211,7 +212,8 @@ const errors = {
     undeclaredInput: (r) => `input '${r}' is used without being declared`,
     overusedInput: (r) => `input '${r}' cannot resurface in inner loops`,
     invalidLoopInput: (s) => `symbol '${s}' cannot be used in loop header`,
-    invalidInputRank: (s) => `rank of input '${s}' does not match loop depth`,
+    invalidInputWidth: (s) => `input '${s}' is invalid: input width must be greater than 0`,
+    inputRankMismatch: (s) => `rank of input '${s}' does not match loop depth`,
     dupSymbolDeclaration: (s) => `symbol '${s}' is declared multiple times`,
     cycleLengthNotPowerOf2: (s) => `total number of steps is ${s} but must be a power of 2`,
     intervalStepNotCovered: (i) => `step ${i} is not covered by any expression`

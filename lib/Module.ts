@@ -75,6 +75,7 @@ export class Module {
 
     addInput(name: string, width: number, rank: number, scope: string, binary: boolean): void {
         validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
+        validate(width > 0, errors.invalidInputWidth(name));
         const offset = this.inputRegisterCount;
         this.inputRegisterCount = offset + width;
         const dimensions: Dimensions = width === 1 ? [0, 0] : [width, 0];
@@ -209,7 +210,7 @@ export class Module {
                 const symbol = this.symbols.get(inputName)!;
                 validate(symbol !== undefined, errors.undeclaredInput(inputName));
                 validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
-                validate(symbol.input!.rank === i, errors.invalidInputRank(inputName));
+                validate(symbol.input!.rank === i, errors.inputRankMismatch(inputName));
                 
                 for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
                     const isAnchor = (j === 0);
@@ -279,7 +280,8 @@ const errors = {
     undeclaredInput         : (r: any) => `input '${r}' is used without being declared`,
     overusedInput           : (r: any) => `input '${r}' cannot resurface in inner loops`,
     invalidLoopInput        : (s: any) => `symbol '${s}' cannot be used in loop header`,
-    invalidInputRank        : (s: any) => `rank of input '${s}' does not match loop depth`,
+    invalidInputWidth       : (s: any) => `input '${s}' is invalid: input width must be greater than 0`,
+    inputRankMismatch       : (s: any) => `rank of input '${s}' does not match loop depth`,
     dupSymbolDeclaration    : (s: any) => `symbol '${s}' is declared multiple times`,
     cycleLengthNotPowerOf2  : (s: any) => `total number of steps is ${s} but must be a power of 2`,
     intervalStepNotCovered  : (i: any) => `step ${i} is not covered by any expression`
