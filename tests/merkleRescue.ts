@@ -5,8 +5,9 @@ import { instantiate } from '@guildofweavers/air-assembly';
 
 // SOURCE CODE
 // ================================================================================================
+// AirScript for verifying Merkle proofs based on Rescue hash function
 const script = Buffer.from(`
-define Rescue over prime field (2^64 - 21 * 2^30 + 1) {
+define MerkleBranch over prime field (2^64 - 21 * 2^30 + 1) {
 
     const alpha: 3;
     const inv_alpha: 6148914683720324437;
@@ -21,28 +22,52 @@ define Rescue over prime field (2^64 - 21 * 2^30 + 1) {
         [16397105823254198500, 12297829367440648875]
     ];
 
-    secret input value1: boolean[1];
-    secret input value2: element[1];
+    secret input leaf     : element[1];     // leaf of the merkle branch
+    secret input node     : element[1][1];  // nodes in the merkle branch
+    public input indexBit : boolean[1][1];  // binary representation of leaf position
 
-    transition 2 register {
-        for each (value1, value2) {
-            init { yield [value1, value2]; }
+    transition 4 register {
+        for each (leaf, node, indexBit) {
+            init { yield [leaf, node, node, leaf]; }
 
-            for steps [1..31] {
-                S <- MDS # $r^alpha + roundConstants1;
-                yield MDS # (/S)^inv_alpha + roundConstants2;
+            for each (node, indexBit) {
+                init {
+                    h <- indexBit ? $r0 : $r2;
+                    yield [h, node, node, h];
+                }
+
+                for steps [1..31] {
+                    S1 <- MDS # $r[0..1]^alpha + roundConstants1;
+                    S1 <- MDS # (/S1)^inv_alpha + roundConstants2;
+
+                    S2 <- MDS # $r[2..3]^alpha + roundConstants1;
+                    S2 <- MDS # (/S2)^inv_alpha + roundConstants2;
+
+                    yield [...S1, ...S2];
+                }
             }
         }
     }
 
-    enforce 2 constraint {
-        for each (value1, value2) {
-            init { enforce [value1, value2] = $n; }
+    enforce 4 constraint {
+        for each (leaf, node, indexBit) {
+            init { enforce $n = [leaf, node, node, leaf]; }
 
-            for steps [1..31] {
-                T1 <- MDS # $r^alpha + roundConstants1;
-                T2 <- (INV_MDS # ($n - roundConstants2))^alpha;
-                enforce T1 = T2;
+            for each (node, indexBit) {
+                init {
+                    h <- indexBit ? $r0 : $r2;
+                    enforce $n = [h, node, node, h];
+                }
+
+                for steps [1..31] {
+                    S1 <- MDS # $r[0..1]^alpha + roundConstants1;
+                    T1 <- (INV_MDS # ($n[0..1] - roundConstants2))^alpha;
+
+                    S2 <- MDS # $r[2..3]^alpha + roundConstants1;
+                    T2 <- (INV_MDS # ($n[2..3] - roundConstants2))^alpha;
+
+                    enforce [...S1, ...S2] = [...T1, ...T2];
+                }
             }
         }
     }
@@ -69,7 +94,6 @@ define Rescue over prime field (2^64 - 21 * 2^30 + 1) {
            15272332635899000284,  8293330822552540371,  3663678680344765735,  6202077743967849795
         ]
     ];
-
     static roundConstants2: [
         cycle [
             13832924244624368586,  9528928158945462573, 14179395919100586062,  6969939104331843825,
@@ -104,7 +128,7 @@ console.log(`degree: ${air.maxConstraintDegree}`);
 
 const gStart = Date.now();
 let start = Date.now();
-const pContext = air.initProvingContext([[42n], [0n]]);
+const pContext = air.initProvingContext([[42n], [[1n, 2n, 3n, 4n]], [[0n, 1n, 0n, 1n]]]);
 console.log(`Initialized proof object in ${Date.now() - start} ms`);
 
 start = Date.now();
@@ -123,24 +147,22 @@ start = Date.now();
 const cEvaluations = pContext.evaluateTransitionConstraints(pPolys);
 console.log(`Constraints evaluated in ${Date.now() - start} ms`);
 
+const hRegisterValues = pContext.secretRegisterTraces;
+
 start = Date.now();
 const qPolys = air.field.interpolateRoots(pContext.compositionDomain, cEvaluations);
 const qEvaluations = air.field.evalPolysAtRoots(qPolys, pContext.evaluationDomain);
 console.log(`Extended constraints in ${Date.now() - start} ms`);
 console.log(`Total time: ${Date.now() - gStart} ms`);
 
-const hEvaluations = pContext.secretRegisterTraces;
-
-start = Date.now();
-const vContext = air.initVerificationContext(pContext.inputShapes);
-console.log(`Initialized verification object in ${Date.now() - start} ms`);
+const vContext = air.initVerificationContext(pContext.inputShapes, [[[0n, 1n, 0n, 1n]]]);
 
 const x = air.field.exp(vContext.rootOfUnity, 2n);
-const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2)];
-const nValues = [pEvaluations.getValue(0, 18), pEvaluations.getValue(1, 18)];
-const hValues = [hEvaluations[0].getValue(2), hEvaluations[1].getValue(2)];
+const rValues = [pEvaluations.getValue(0, 2), pEvaluations.getValue(1, 2), pEvaluations.getValue(2, 2), pEvaluations.getValue(3, 2)];
+const nValues = [pEvaluations.getValue(0, 18), pEvaluations.getValue(1, 18), pEvaluations.getValue(2, 18), pEvaluations.getValue(3, 18)];
+const hValues = [hRegisterValues[0].getValue(2), hRegisterValues[1].getValue(2)];
 const qValues = vContext.evaluateConstraintsAt(x, rValues, nValues, hValues);
 
 console.log(qEvaluations.getValue(0, 2) === qValues[0]);
 
-console.log('done!');
+console.log('done!')

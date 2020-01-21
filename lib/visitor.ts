@@ -1,36 +1,15 @@
 // IMPORTS
 // ================================================================================================
-import {
-    StarkLimits, ReadonlyRegisterSpecs, ReadonlyRegisterGroup, InputRegisterSpecs, ReadonlyValuePattern
-} from '@guildofweavers/air-script';
-import { FiniteField, createPrimeField, WasmOptions } from '@guildofweavers/galois';
+import { AirSchema, Expression } from '@guildofweavers/air-assembly';
+import { FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
-import { ScriptSpecs } from './ScriptSpecs';
+import { Module } from './Module';
+import { Component } from './Component';
 import { ExecutionContext } from './ExecutionContext';
-import {
-    Expression, InputBlock, SegmentLoop, SegmentLoopBlock, StatementBlock, Statement, TransitionFunctionBody, TransitionConstraintsBody
-} from './expressions';
-import * as expressions from './expressions';
-import { Dimensions, validateVariableName, isPowerOf2 } from './utils';
-
-// INTERFACES
-// ================================================================================================
-export interface ConstantDeclaration {
-    name            : string;
-    value           : bigint | bigint [] | bigint[][];
-    dimensions      : Dimensions;
-}
-
-export interface ReadonlyRegisterDeclaration {
-    name            : string;
-    type            : 'k' | 'p' | 's';
-    index           : number;
-    pattern         : ReadonlyValuePattern;
-    binary          : boolean;
-    values?         : bigint[];    
-}
+import { ExecutionTemplate } from './ExecutionTemplate';
+import { ProcedureParams } from './utils';
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -39,86 +18,79 @@ const BaseCstVisitor = parser.getBaseCstVisitorConstructor();
 class AirVisitor extends BaseCstVisitor {
 
     constructor() {
-        super()
+        super();
         this.validateVisitor()
     }
 
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
-    script(ctx: any, config: { limits: StarkLimits; wasmOptions?: WasmOptions; }): ScriptSpecs {
+    script(ctx: any, componentName = 'default'): AirSchema {
 
-        const starkName = ctx.starkName[0].image;
+        validateScriptSections(ctx);
 
-        // set up the field
-        const field: FiniteField = this.visit(ctx.fieldDeclaration, config.wasmOptions);
+        // build module
+        const moduleName: string = ctx.starkName[0].image;
+        const modulus: bigint = this.visit(ctx.fieldDeclaration);
+        const traceRegisterCount = Number(ctx.traceRegisterCount[0].image);
+        const constraintCount = Number(ctx.constraintCount[0].image);
+        const aModule = new Module(moduleName, modulus, traceRegisterCount, constraintCount);
 
-        // build script specs
-        const specs = new ScriptSpecs(starkName, field, config.limits);
-        specs.setMutableRegisterCount(this.visit(ctx.mutableRegisterCount));
-        specs.setReadonlyRegisterCount(this.visit(ctx.readonlyRegisterCount));
-        specs.setConstraintCount(this.visit(ctx.constraintCount));
-        if (ctx.globalConstants) {
-            specs.setGlobalConstants(ctx.globalConstants.map((element: any) => this.visit(element, field)));
+        // parse and add constants, inputs, and static registers to the module
+        if (ctx.moduleConstants) {
+            ctx.moduleConstants.forEach((element: any) => this.visit(element, aModule));
         }
-
-        // build readonly registers
-        let readonlyRegisters: ReadonlyRegisterGroup;
-        if (specs.readonlyRegisterCount > 0) {
-            validateReadonlyRegisterDefinitions(ctx.readonlyRegisters);
-            readonlyRegisters = this.visit(ctx.readonlyRegisters, specs);
+        if (ctx.staticRegisters) {
+            ctx.staticRegisters.forEach((element: any) => this.visit(element, aModule));
         }
-        else {
-            readonlyRegisters = { staticRegisters: [], secretRegisters: [], publicRegisters: [] };
-        }
-        specs.setReadonlyRegisters(readonlyRegisters);
+        ctx.inputRegisters.forEach((element: any) => this.visit(element, aModule));
 
-        // parse transition function and transition constraints
-        validateTransitionFunction(ctx.transitionFunction);
-        const tFunctionBody: TransitionFunctionBody = this.visit(ctx.transitionFunction, specs);
-        specs.setTransitionFunction(tFunctionBody);
-        
-        validateTransitionConstraints(ctx.transitionConstraints);
-        const tConstraintsBody: TransitionConstraintsBody = this.visit(ctx.transitionConstraints, specs);
-        specs.setTransitionConstraints(tConstraintsBody);
+        // determine transition function structure and use it to create a component object
+        const template: ExecutionTemplate = this.visit(ctx.transitionFunction, aModule);
+        const component = aModule.createComponent(template);
 
-        // build and return AIR config
-        return specs;
+        // parse transition function
+        const exc = component.createExecutionContext('transition');
+        const inits: Expression[] = template.loops.map(loop => this.visit(loop.init, exc));
+        const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
+        component.setTransitionFunction(exc, inits, segments);
+
+        // parse constraint evaluator
+        this.visit(ctx.transitionConstraints, component);
+
+        // finalize the component and return the schema
+        aModule.setComponent(component, componentName);
+        return aModule.schema;
     }
 
     // FINITE FIELD
     // --------------------------------------------------------------------------------------------
-    fieldDeclaration(ctx: any, wasmOptions?: WasmOptions) {
+    fieldDeclaration(ctx: any): bigint {
         const modulus = this.visit(ctx.modulus);
-        return createPrimeField(modulus, wasmOptions);
+        return BigInt(modulus)
     }
 
-    // STATIC CONSTANTS
+    // MODULE CONSTANTS
     // --------------------------------------------------------------------------------------------
-    constantDeclaration(ctx: any, field?: FiniteField): ConstantDeclaration {
+    constantDeclaration(ctx: any, aModule: Module): void {
         const name = ctx.constantName[0].image;
-        let value: any;
-        let dimensions: Dimensions;
+        let value: bigint | bigint[] | bigint[][];
+
         if (ctx.value) {
-            value = this.visit(ctx.value, field);
-            dimensions = [0, 0];
+            value = this.visit(ctx.value, aModule.schema.field);
         }
         else if (ctx.vector) {
-            value = this.visit(ctx.vector, field);
-            dimensions = [value.length, 0];
+            value = this.visit(ctx.vector, aModule.schema.field);
         }
         else if (ctx.matrix) {
-            value = this.visit(ctx.matrix, field);
-            dimensions = [value.length, value[0].length];
+            value = this.visit(ctx.matrix, aModule.schema.field);
         }
         else {
-            throw new Error(`Failed to parse the value of static constant '${name}'`);
+            throw new Error(`Failed to parse the value of module constant '${name}'`);
         }
-
-        validateVariableName(name, dimensions);
-        return { name, value, dimensions };
+        aModule.addConstant(name, value);
     }
 
-    literalVector(ctx: any, field?: FiniteField) {
+    literalVector(ctx: any, field: FiniteField): bigint[] {
         const vector = new Array<bigint>(ctx.elements.length);
         for (let i = 0; i < ctx.elements.length; i++) {
             let element: bigint = this.visit(ctx.elements[i], field);
@@ -127,7 +99,7 @@ class AirVisitor extends BaseCstVisitor {
         return vector;
     }
 
-    literalMatrix(ctx: any, field?: FiniteField) {
+    literalMatrix(ctx: any, field: FiniteField): bigint[][] {
 
         let colCount = 0;
         const rowCount = ctx.rows.length;
@@ -146,205 +118,113 @@ class AirVisitor extends BaseCstVisitor {
         return matrix;
     }
 
-    literalMatrixRow(ctx: any, field?: FiniteField) {
-        const row = new Array<bigint>(ctx.elements.length);
-        for (let i = 0; i < ctx.elements.length; i++) {
-            let element = this.visit(ctx.elements[i], field);
-            row[i] = element;
-        }
-        return row;
-    }
-
-    // READONLY REGISTERS
+    // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
-    readonlyRegisters(ctx: any, specs: ScriptSpecs): ReadonlyRegisterGroup {
-
-        const registerNames = new Set<string>();
-        const staticRegisters: ReadonlyRegisterSpecs[] = [];
-        const secretRegisters: InputRegisterSpecs[] = [];
-        const publicRegisters: InputRegisterSpecs[] = [];
-
-        if (ctx.registers) {
-            ctx.registers.forEach((declaration: any) => {
-                let register: ReadonlyRegisterDeclaration = this.visit(declaration, specs);
-                if (registerNames.has(register.name)) {
-                    throw new Error(`readonly register ${register.name} is defined more than once`);
-                }
-                registerNames.add(register.name);
-
-                let insertIndex: number | undefined;
-                if (register.type === 'k') {
-                    staticRegisters.push({ pattern: register.pattern, values: register.values!, binary: register.binary });
-                    insertIndex = staticRegisters.length - 1;
-                }
-                else if (register.type === 'p') {
-                    publicRegisters.push({ pattern: register.pattern, binary: register.binary });
-                    insertIndex = publicRegisters.length - 1;
-                }
-                else if (register.type === 's') {
-                    secretRegisters.push({ pattern: register.pattern, binary: register.binary });
-                    insertIndex = secretRegisters.length - 1;
-                }
-
-                if (register.index !== insertIndex) {
-                    throw new Error(`readonly register ${register.name} is declared out of order`);
-                }
-            });
-        }
-
-        return { staticRegisters, secretRegisters, publicRegisters };
+    inputDeclaration(ctx: any, aModule: Module): void {
+        const scope = ctx.scope[0].image;
+        const inputName = ctx.name[0].image;
+        const registerCount = Number(ctx.width[0].image);
+        const inputRank = ctx.rank ? Number(ctx.rank[0].image) : 0;
+        const binary = ctx.boolean ? true : false;
+        aModule.addInput(inputName, registerCount, inputRank, scope, binary);
     }
 
-    readonlyRegisterDefinition(ctx: any, specs: ScriptSpecs): ReadonlyRegisterDeclaration {
+    staticDeclaration(ctx: any,  aModule: Module): void {
         const registerName = ctx.name[0].image;
-        const registerType = registerName.slice(1,2);
-        const registerIndex = Number.parseInt(registerName.slice(2), 10);
-        const pattern = ctx.pattern[0].image;
-        const binary: boolean = ctx.binary ? true : false;
-
-        let values: bigint[] | undefined;
-        if (registerType === 'k') {
-            // parse values for static registers
-            if (!ctx.values) throw new Error(`invalid definition for static register ${registerName}: static values must be provided for the register`);
-            values = this.visit(ctx.values) as bigint[];
-            if (!isPowerOf2(values.length)) {
-                throw new Error(`invalid definition for static register ${registerName}: number of values must be a power of 2`);
-            }
-    
-            if (binary) {
-                for (let value of values) {
-                    if (value !== specs.field.zero && value !== specs.field.one) {
-                        throw new Error(`invalid definition for binary readonly register ${registerName}: the register contains non-binary values`);
-                    }
-                }
-            }
-        }
-        else if (registerType === 'p' || registerType === 's') {
-            if (ctx.values) throw new Error(`invalid definition for input register ${registerName}: static values cannot be provided for the register`);
-        }
-        else {
-            throw new Error(`invalid readonly register definition: register name ${registerName} is invalid`);
-        }
-
-        return { name: registerName, type: registerType, index: registerIndex, pattern, binary, values };
+        const values: bigint[][] = ctx.values.map((v: any) => this.visit(v));
+        // TODO: handle parsing of PRNG sequences
+        aModule.addStatic(registerName, values);
     }
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, specs: ScriptSpecs): TransitionFunctionBody {
-        const exc = new ExecutionContext(specs);
-        const inputBlock: InputBlock = this.visit(ctx.inputBlock, exc);
-        const result = new TransitionFunctionBody(inputBlock);
-        return result;
+    transitionFunction(ctx: any, aModule: Module): ExecutionTemplate {
+        const template = new ExecutionTemplate(aModule.field);
+        this.visit(ctx.inputBlock, template);
+        return template;
     }
 
-    transitionConstraints(ctx: any, specs: ScriptSpecs): TransitionConstraintsBody {
-        const exc = new ExecutionContext(specs);
-        let root: Expression;
+    transitionConstraints(ctx: any, component: Component): void {
         if (ctx.allStepBlock) {
-            root = this.visit(ctx.allStepBlock, exc);
+            const exc = component.createExecutionContext('evaluation');
+            const result: Expression = this.visit(ctx.allStepBlock, exc);
+            component.setConstraintEvaluator(exc, result);
         }
         else {
-            root = this.visit(ctx.inputBlock, exc);
+            const template = new ExecutionTemplate(component.field);
+            this.visit(ctx.inputBlock, template);
+
+            const exc = component.createExecutionContext('evaluation');
+            const inits: Expression[] = template.loops.map(loop => this.visit(loop.init, exc));
+            const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
+            component.setConstraintEvaluator(exc, inits, segments);
         }
-        return new TransitionConstraintsBody(root, specs.inputBlock);
     }
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputBlock(ctx: any, exc: ExecutionContext): InputBlock {
-
-        const registers: string[] = ctx.registers.map((register: any) => register.image);
-        const controlIndex = exc.addLoopFrame(registers);
-
-        // parse init expression
-        const initExpression: Expression = this.visit(ctx.initExpression, exc);
+    inputBlock(ctx: any, template: ExecutionTemplate): void {
+        const inputs: string[] = ctx.inputs.map((register: any) => register.image);
+        template.addLoop(inputs, ctx.initExpression);
 
         // parse body expression
-        let bodyExpression: InputBlock | SegmentLoopBlock;
         if (ctx.inputBlock) {
-            bodyExpression = this.visit(ctx.inputBlock, exc);
+            this.visit(ctx.inputBlock, template);
         }
         else {
-            const loops: SegmentLoop[] = ctx.segmentLoops.map((loop: any) => this.visit(loop, exc));
-            bodyExpression = new SegmentLoopBlock(loops);
+            ctx.segmentLoops.map((loop: any) => this.visit(loop, template));
         }
-
-        const indexSet = new Set(registers.map(register => Number.parseInt(register.slice(2))));
-        const controller = exc.getControlReference(controlIndex);
-        return new InputBlock(controlIndex, initExpression, bodyExpression, indexSet, controller);
     }
 
-    transitionInit(ctx: any, exc: ExecutionContext): Expression {
-        return this.visit(ctx.expression, exc);
+    transitionInit(ctx: any, template: ExecutionTemplate): Expression {
+        return this.visit(ctx.expression, template);
     }
 
-    segmentLoop(ctx: any, exc: ExecutionContext): SegmentLoop {
+    segmentLoop(ctx: any, template: ExecutionTemplate): void {
         const intervals: [number, number][] = ctx.ranges.map((range: any) => this.visit(range));
-        const controlIndex = exc.addLoopFrame();
-        const statements: StatementBlock = this.visit(ctx.statements, exc);
-        const controller = exc.getControlReference(controlIndex);
-        return new SegmentLoop(statements, intervals, controller);
+        template.addSegment(intervals, ctx.body);
     }
 
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
-    statementBlock(ctx: any, exc: ExecutionContext): StatementBlock {
-        let statements: Statement[] | undefined;
+    statementBlock(ctx: any, exc: ExecutionContext): Expression {
+        exc.enterBlock();
         if (ctx.statements) {
-            statements = ctx.statements.map((stmt: any) => this.visit(stmt, exc));
+            ctx.statements.forEach((stmt: any) => this.visit(stmt, exc));
         }
 
-        let out: Expression = this.visit(ctx.expression, exc);
+        let result: Expression = this.visit(ctx.expression, exc);
         if (ctx.constraint) {
-            if (exc.inTransitionFunction) {
-                throw new Error('comparison operator cannot be used in transition function');
-            }
             const constraint: Expression = this.visit(ctx.constraint, exc);
-            out = expressions.BinaryOperation.sub(constraint, out);
+            result = exc.buildBinaryOperation('sub', result, constraint);
         }
 
-        return new StatementBlock(out, statements);
+        exc.exitBlock();
+        return result;
     }
 
-    statement(ctx: any, exc: ExecutionContext): Statement {
+    statement(ctx: any, exc: ExecutionContext): void {
         const expression = this.visit(ctx.expression, exc);
-        const variable = exc.setVariableAssignment(ctx.variableName[0].image, expression);
-        return { variable: variable.symbol, expression };
+        exc.setVariableAssignment(ctx.variableName[0].image, expression);
     }
 
     assignableExpression(ctx: any, exc: ExecutionContext): Expression {
         return this.visit(ctx.expression, exc);
     }
 
-    // WHEN...ELSE EXPRESSION
+    // CONDITIONAL EXPRESSION
     // --------------------------------------------------------------------------------------------
     whenExpression(ctx: any, exc: ExecutionContext): Expression {
-        const id = exc.getNextConditionalBlockId();
-        const condition = this.visit(ctx.condition, exc);
-
-        // build subroutines for true and false conditions
-        exc.createNewVariableFrame();
-        const tBlock: StatementBlock = this.visit(ctx.tExpression, exc);
-        exc.destroyVariableFrame();
-
-        exc.createNewVariableFrame();
-        const fBlock: StatementBlock = this.visit(ctx.fExpression, exc);
-        exc.destroyVariableFrame();
-
-        return new expressions.WhenExpression(id, condition, tBlock, fBlock);
+        const condition: Expression = this.visit(ctx.condition, exc);
+        const tBlock: Expression = this.visit(ctx.tExpression, exc);
+        const fBlock: Expression = this.visit(ctx.fExpression, exc);
+        return exc.buildConditionalExpression(condition, tBlock, fBlock);
     }
 
     whenCondition(ctx: any, exc: ExecutionContext): Expression {
-        const registerName: string = ctx.register[0].image;
-        const registerRef = exc.getSymbolReference(registerName);
-
-        // make sure the condition register holds only binary values
-        if (!exc.isBinaryRegister(registerName)) {
-            throw new Error(`conditional expression must be based on a binary register`);
-        }
-
-        return registerRef;
+        const symbol: string = ctx.value[0].image;
+        const result = exc.getSymbolReference(symbol);
+        return result;
     }
 
     // TRANSITION CALL EXPRESSION
@@ -354,24 +234,28 @@ class AirVisitor extends BaseCstVisitor {
         if (registers !== '$r') {
             throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
         }
-        return exc.getTransitionFunctionCall();
+        const params = [
+            exc.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow),
+            exc.base.buildLoadExpression('load.param', ProcedureParams.staticRow)
+        ];
+        return exc.buildFunctionCall('transition', params);
     }
 
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------
     vector(ctx: any, exc: ExecutionContext): Expression {
-        const elements = ctx.elements.map((e: any) => this.visit(e, exc));
-        return new expressions.CreateVector(elements);
+        const elements: Expression[] = ctx.elements.map((e: any) => this.visit(e, exc));
+        return exc.buildMakeVectorExpression(elements);
     }
 
     vectorDestructuring(ctx: any, exc: ExecutionContext): Expression {
-        const vector = this.visit(ctx.vector, exc);
-        return new expressions.DestructureVector(vector);
+        const vector: Expression = this.visit(ctx.vector, exc);
+        return vector;
     }
 
     matrix(ctx: any, exc: ExecutionContext): Expression {
-        const elements = ctx.rows.map((r: any) => this.visit(r, exc));
-        return new expressions.CreateMatrix(elements);
+        const elements: Expression[][] = ctx.rows.map((r: any) => this.visit(r, exc));
+        return exc.buildMakeMatrixExpression(elements);
     }
 
     matrixRow(ctx: any, exc: ExecutionContext): Expression[] {
@@ -387,10 +271,10 @@ class AirVisitor extends BaseCstVisitor {
                 let rhs: Expression = this.visit(rhsOperand, exc);
                 let opToken = ctx.AddOp[i];
                 if (tokenMatcher(opToken, Plus)) {
-                    result = expressions.BinaryOperation.add(result, rhs);
+                    result = exc.buildBinaryOperation('add', result, rhs);
                 }
                 else if (tokenMatcher(opToken, Minus)) {
-                    result = expressions.BinaryOperation.sub(result, rhs);
+                    result = exc.buildBinaryOperation('sub', result, rhs);
                 }
                 else {
                     throw new Error(`Invalid operator '${opToken.image}'`);
@@ -407,13 +291,13 @@ class AirVisitor extends BaseCstVisitor {
                 let rhs: Expression = this.visit(rhsOperand, exc);
                 let opToken = ctx.MulOp[i];
                 if (tokenMatcher(opToken, Star)) {
-                    result = expressions.BinaryOperation.mul(result, rhs);
+                    result = exc.buildBinaryOperation('mul', result, rhs);
                 }
                 else if (tokenMatcher(opToken, Slash)) {
-                    result = expressions.BinaryOperation.div(result, rhs);
+                    result = exc.buildBinaryOperation('div', result, rhs);
                 }
                 else if (tokenMatcher(opToken, Pound)) {
-                    result = expressions.BinaryOperation.prod(result, rhs);
+                    result = exc.buildBinaryOperation('prod', result, rhs);
                 }
                 else {
                     throw new Error(`Invalid operator '${opToken.image}'`);
@@ -428,7 +312,7 @@ class AirVisitor extends BaseCstVisitor {
         if (ctx.exponent) {
             ctx.exponent.forEach((expOperand: any, i: number) => {
                 let exponent: Expression = this.visit(expOperand, exc);
-                result = expressions.BinaryOperation.exp(result, exponent);
+                result = exc.buildBinaryOperation('exp', result, exponent);
             });
         }
         return result;
@@ -437,13 +321,13 @@ class AirVisitor extends BaseCstVisitor {
     vectorExpression(ctx: any, exc: ExecutionContext): Expression {
         let result: Expression = this.visit(ctx.expression, exc);
         if (ctx.rangeStart) {
-            const rangeStart = Number.parseInt(ctx.rangeStart[0].image, 10);
-            const rangeEnd = Number.parseInt(ctx.rangeEnd[0].image, 10);
-            result = new expressions.SliceVector(result, rangeStart, rangeEnd);
+            const rangeStart = Number(ctx.rangeStart[0].image);
+            const rangeEnd = Number(ctx.rangeEnd[0].image);
+            result = exc.buildSliceVectorExpression(result, rangeStart, rangeEnd);
         }
         else if (ctx.index) {
-            const index = Number.parseInt(ctx.index[0].image, 10);
-            result = new expressions.ExtractVectorElement(result, index);
+            const index = Number(ctx.index[0].image);
+            result = exc.buildGetVectorElementExpression(result, index);
         }
         return result;
     }
@@ -458,19 +342,19 @@ class AirVisitor extends BaseCstVisitor {
             result = exc.getSymbolReference(symbol);
         }
         else if (ctx.literal) {
-            const value: string = ctx.literal[0].image;
-            result = new expressions.LiteralExpression(value);
+            const value = BigInt(ctx.literal[0].image);
+            result = exc.buildLiteralValue(value);
         }
         else {
             throw new Error('Invalid expression syntax');
         }
 
         if (ctx.neg) {
-            result = expressions.UnaryOperation.neg(result);
+            result = exc.buildUnaryOperation('neg', result);
         }
 
         if (ctx.inv) {
-            result = expressions.UnaryOperation.inv(result);
+            result = exc.buildUnaryOperation('inv', result);
         }
 
         return result;
@@ -564,26 +448,26 @@ export const visitor = new AirVisitor();
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function validateTransitionFunction(value: any[] | undefined) {
-    if (!value || value.length === 0) {
+function validateScriptSections(ctx: any) {
+
+    // make sure exactly one input register section is present
+    if (!ctx.inputRegisters || ctx.inputRegisters.length === 0) {
+        throw new Error('at least one input must be declared');
+    }
+
+    // make sure exactly one transition function is present
+    if (!ctx.transitionFunction || ctx.transitionFunction.length === 0) {
         throw new Error('transition function section is missing');
     }
-    else if (value.length > 1) {
+    else if (ctx.transitionFunction.length > 1) {
         throw new Error('transition function section is defined more than once');
     }
-}
 
-function validateTransitionConstraints(value: any[] | undefined) {
-    if (!value || value.length === 0) {
+    // make sure exactly one transition constraints section is present
+    if (!ctx.transitionConstraints || ctx.transitionConstraints.length === 0) {
         throw new Error('transition constraints section is missing');
     }
-    else if (value.length > 1) {
+    else if (ctx.transitionConstraints.length > 1) {
         throw new Error('transition constraints section is defined more than once');
-    }
-}
-
-function validateReadonlyRegisterDefinitions(value: any[]) {
-    if (value.length > 1) {
-        throw new Error('readonly registers section is defined more than once');
     }
 }

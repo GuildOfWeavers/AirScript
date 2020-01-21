@@ -20,27 +20,20 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.LCurly);
             this.MANY(() => {
                 this.OR([
-                    { ALT: () => {
-                            this.SUBRULE(this.constantDeclaration, { LABEL: 'globalConstants' });
-                        } },
+                    { ALT: () => this.SUBRULE(this.constDeclaration, { LABEL: 'moduleConstants' }) },
+                    { ALT: () => this.SUBRULE(this.inputDeclaration, { LABEL: 'inputRegisters' }) },
+                    { ALT: () => this.SUBRULE(this.staticDeclaration, { LABEL: 'staticRegisters' }) },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Transition);
-                            this.SUBRULE1(this.literalExpression, { LABEL: 'mutableRegisterCount' });
-                            this.CONSUME1(lexer_1.Registers);
+                            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'traceRegisterCount' });
+                            this.CONSUME(lexer_1.Registers);
                             this.SUBRULE(this.transitionFunction, { LABEL: 'transitionFunction' });
                         } },
                     { ALT: () => {
                             this.CONSUME(lexer_1.Enforce);
-                            this.SUBRULE2(this.literalExpression, { LABEL: 'constraintCount' });
+                            this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'constraintCount' });
                             this.CONSUME(lexer_1.Constraints);
                             this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
-                        } },
-                    { ALT: () => {
-                            this.CONSUME(lexer_1.Using);
-                            this.SUBRULE3(this.literalExpression, { LABEL: 'readonlyRegisterCount' });
-                            this.CONSUME(lexer_1.Readonly);
-                            this.CONSUME2(lexer_1.Registers);
-                            this.SUBRULE(this.readonlyRegisters, { LABEL: 'readonlyRegisters' });
                         } }
                 ]);
             });
@@ -55,9 +48,10 @@ class AirParser extends chevrotain_1.CstParser {
             this.SUBRULE(this.literalExpression, { LABEL: 'modulus' });
             this.CONSUME(lexer_1.RParen);
         });
-        // GLOBAL CONSTANTS
+        // MODULE CONSTANTS
         // --------------------------------------------------------------------------------------------
-        this.constantDeclaration = this.RULE('constantDeclaration', () => {
+        this.constDeclaration = this.RULE('constantDeclaration', () => {
+            this.CONSUME(lexer_1.Const);
             this.CONSUME(lexer_1.Identifier, { LABEL: 'constantName' });
             this.CONSUME(lexer_1.Colon);
             this.OR([
@@ -79,41 +73,53 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.LSquare);
             this.AT_LEAST_ONE_SEP({
                 SEP: lexer_1.Comma,
-                DEF: () => this.SUBRULE(this.literalMatrixRow, { LABEL: 'rows' })
+                DEF: () => this.SUBRULE(this.literalVector, { LABEL: 'rows' })
             });
             this.CONSUME(lexer_1.RSquare);
         });
-        this.literalMatrixRow = this.RULE('literalMatrixRow', () => {
-            this.CONSUME(lexer_1.LSquare);
-            this.AT_LEAST_ONE_SEP({
-                SEP: lexer_1.Comma,
-                DEF: () => this.SUBRULE(this.literalExpression, { LABEL: 'elements' })
-            });
-            this.CONSUME(lexer_1.RSquare);
-        });
-        // READONLY REGISTERS
+        // INPUT AND STATIC REGISTERS
         // --------------------------------------------------------------------------------------------
-        this.readonlyRegisters = this.RULE('readonlyRegisters', () => {
-            this.CONSUME(lexer_1.LCurly);
-            this.AT_LEAST_ONE(() => this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registers' }));
-            this.CONSUME(lexer_1.RCurly);
-        });
-        this.readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
-            this.CONSUME1(lexer_1.ReadonlyRegister, { LABEL: 'name' });
-            this.CONSUME(lexer_1.Colon);
+        this.inputDeclaration = this.RULE('inputDeclaration', () => {
             this.OR1([
-                { ALT: () => this.CONSUME2(lexer_1.Repeat, { LABEL: 'pattern' }) },
-                { ALT: () => this.CONSUME2(lexer_1.Spread, { LABEL: 'pattern' }) }
+                { ALT: () => this.CONSUME(lexer_1.Public, { LABEL: 'scope' }) },
+                { ALT: () => this.CONSUME(lexer_1.Secret, { LABEL: 'scope' }) }
             ]);
-            this.OPTION(() => this.CONSUME(lexer_1.Binary, { LABEL: 'binary' }));
+            this.CONSUME(lexer_1.Input);
+            this.CONSUME(lexer_1.Identifier, { LABEL: 'name' });
+            this.CONSUME(lexer_1.Colon);
             this.OR2([
+                { ALT: () => this.CONSUME(lexer_1.Element, { LABEL: 'type' }) },
+                { ALT: () => this.CONSUME(lexer_1.Boolean, { LABEL: 'type' }) },
+            ]);
+            this.CONSUME1(lexer_1.LSquare);
+            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'width' });
+            this.CONSUME1(lexer_1.RSquare);
+            this.OPTION(() => {
+                this.CONSUME2(lexer_1.LSquare);
+                this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'rank' });
+                this.CONSUME2(lexer_1.RSquare);
+            });
+            this.CONSUME(lexer_1.Semicolon);
+        });
+        this.staticDeclaration = this.RULE('staticDeclaration', () => {
+            this.CONSUME(lexer_1.Static);
+            this.CONSUME(lexer_1.Identifier, { LABEL: 'name' });
+            this.CONSUME(lexer_1.Colon);
+            this.OR([
                 { ALT: () => {
-                        this.CONSUME(lexer_1.LSquare);
-                        this.CONSUME(lexer_1.Ellipsis);
-                        this.CONSUME(lexer_1.RSquare);
+                        this.CONSUME1(lexer_1.Cycle);
+                        this.SUBRULE1(this.literalVector, { LABEL: 'values' });
                     } },
                 { ALT: () => {
-                        this.SUBRULE(this.literalVector, { LABEL: 'values' });
+                        this.CONSUME(lexer_1.LSquare);
+                        this.AT_LEAST_ONE_SEP({
+                            SEP: lexer_1.Comma,
+                            DEF: () => {
+                                this.CONSUME2(lexer_1.Cycle);
+                                this.SUBRULE2(this.literalVector, { LABEL: 'values' });
+                            }
+                        });
+                        this.CONSUME(lexer_1.RSquare);
                     } }
             ]);
             this.CONSUME(lexer_1.Semicolon);
@@ -122,58 +128,50 @@ class AirParser extends chevrotain_1.CstParser {
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' });
+            this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: ['yield'] });
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
             this.OR([
-                { ALT: () => {
-                        this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' });
-                    } },
+                { ALT: () => this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: ['enforce'] }) },
                 { ALT: () => {
                         this.CONSUME(lexer_1.For);
                         this.CONSUME(lexer_1.All);
                         this.CONSUME(lexer_1.Steps);
-                        this.SUBRULE(this.statementBlock, { LABEL: 'allStepBlock' });
+                        this.SUBRULE(this.statementBlock, { LABEL: 'allStepBlock', ARGS: ['enforce'] });
                     } }
             ]);
             this.CONSUME(lexer_1.RCurly);
         });
         // LOOPS
         // --------------------------------------------------------------------------------------------
-        this.inputBlock = this.RULE('inputBlock', () => {
+        this.inputBlock = this.RULE('inputBlock', (context) => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Each);
             this.CONSUME(lexer_1.LParen);
             this.AT_LEAST_ONE_SEP({
                 SEP: lexer_1.Comma,
-                DEF: () => this.CONSUME(lexer_1.InitRegister, { LABEL: 'registers' })
+                DEF: () => this.CONSUME(lexer_1.Identifier, { LABEL: 'inputs' })
             });
             this.CONSUME(lexer_1.RParen);
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.transitionInit, { LABEL: 'initExpression' });
-            this.OR2([
-                { ALT: () => this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock' }) },
+            this.SUBRULE(this.transitionInit, { LABEL: 'initExpression', ARGS: [context] });
+            this.OR([
+                { ALT: () => this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: [context] }) },
                 { ALT: () => {
                         this.AT_LEAST_ONE(() => {
-                            this.SUBRULE(this.segmentLoop, { LABEL: 'segmentLoops' });
+                            this.SUBRULE(this.segmentLoop, { LABEL: 'segmentLoops', ARGS: [context] });
                         });
                     } }
             ]);
             this.CONSUME(lexer_1.RCurly);
         });
-        this.transitionInit = this.RULE('transitionInit', () => {
+        this.transitionInit = this.RULE('transitionInit', (context) => {
             this.CONSUME(lexer_1.Init);
-            this.OR([
-                { ALT: () => this.SUBRULE(this.statementBlock, { LABEL: 'expression' }) },
-                { ALT: () => {
-                        this.SUBRULE(this.expression, { LABEL: 'expression' });
-                        this.CONSUME(lexer_1.Semicolon);
-                    } }
-            ]);
+            this.SUBRULE(this.statementBlock, { LABEL: 'expression', ARGS: [context] });
         });
-        this.segmentLoop = this.RULE('segmentLoop', () => {
+        this.segmentLoop = this.RULE('segmentLoop', (context) => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Steps);
             this.CONSUME(lexer_1.LSquare);
@@ -182,23 +180,29 @@ class AirParser extends chevrotain_1.CstParser {
                 DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
             });
             this.CONSUME(lexer_1.RSquare);
-            this.SUBRULE(this.statementBlock, { LABEL: 'statements' });
+            this.SUBRULE(this.statementBlock, { LABEL: 'body', ARGS: [context] });
         });
         // STATEMENTS
         // --------------------------------------------------------------------------------------------
-        this.statementBlock = this.RULE('statementBlock', () => {
+        this.statementBlock = this.RULE('statementBlock', (context) => {
             this.CONSUME(lexer_1.LCurly);
-            this.MANY(() => {
-                this.SUBRULE(this.statement, { LABEL: 'statements' });
-            });
-            this.SUBRULE1(this.assignableExpression, { LABEL: 'expression' });
-            this.OPTION1(() => {
+            this.MANY(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
+            if (context === 'yield') {
+                this.CONSUME(lexer_1.Yield);
+                this.SUBRULE1(this.assignableExpression, { LABEL: 'expression' });
+                this.CONSUME1(lexer_1.Semicolon);
+            }
+            else if (context === 'enforce') {
+                this.CONSUME(lexer_1.Enforce);
+                this.SUBRULE2(this.assignableExpression, { LABEL: 'expression' });
                 this.CONSUME(lexer_1.Equals);
-                this.SUBRULE2(this.expression, { LABEL: 'constraint' });
-            });
-            this.OPTION2(() => {
-                this.CONSUME(lexer_1.Semicolon);
-            });
+                this.SUBRULE(this.expression, { LABEL: 'constraint' });
+                this.CONSUME2(lexer_1.Semicolon);
+            }
+            else {
+                this.SUBRULE3(this.assignableExpression, { LABEL: 'expression' });
+                this.OPTION(() => this.CONSUME3(lexer_1.Semicolon));
+            }
             this.CONSUME(lexer_1.RCurly);
         });
         this.statement = this.RULE('statement', () => {
@@ -249,11 +253,11 @@ class AirParser extends chevrotain_1.CstParser {
             this.OR([
                 { ALT: () => {
                         this.CONSUME(lexer_1.LParen);
-                        this.CONSUME1(lexer_1.RegisterRef, { LABEL: 'register' });
+                        this.CONSUME1(lexer_1.Identifier, { LABEL: 'value' });
                         this.CONSUME(lexer_1.RParen);
                     } },
                 { ALT: () => {
-                        this.CONSUME2(lexer_1.RegisterRef, { LABEL: 'register' });
+                        this.CONSUME2(lexer_1.Identifier, { LABEL: 'value' });
                     } }
             ]);
         });
@@ -356,7 +360,7 @@ class AirParser extends chevrotain_1.CstParser {
                 { ALT: () => this.SUBRULE(this.vector, { LABEL: 'expression' }) },
                 { ALT: () => this.SUBRULE(this.transitionCall, { LABEL: 'expression' }) },
                 { ALT: () => this.CONSUME(lexer_1.Identifier, { LABEL: 'symbol' }) },
-                { ALT: () => this.CONSUME(lexer_1.RegisterRef, { LABEL: 'symbol' }) },
+                { ALT: () => this.CONSUME(lexer_1.TraceRegister, { LABEL: 'symbol' }) },
                 { ALT: () => this.CONSUME(lexer_1.RegisterBank, { LABEL: 'symbol' }) },
                 { ALT: () => this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'literal' }) }
             ]);

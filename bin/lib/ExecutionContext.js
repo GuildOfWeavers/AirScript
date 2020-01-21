@@ -1,220 +1,177 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
-const expressions_1 = require("./expressions");
 // CLASS DEFINITION
 // ================================================================================================
 class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(specs) {
-        this.subroutines = new Map();
-        this.localVariables = [new Map()];
-        this.globalConstants = specs.globalConstants;
-        this.mutableRegisterCount = specs.mutableRegisterCount;
-        this.staticRegisters = specs.staticRegisters;
-        this.secretRegisters = specs.secretRegisters;
-        this.publicRegisters = specs.publicRegisters;
-        if (specs.transitionFunction) {
-            this.tFunctionDegree = specs.transitionFunctionDegree;
-        }
-        this.loopFrames = [];
-        this.conditionalBlockCounter = -1;
+    constructor(base, symbols, functions, offsets) {
+        this.base = base;
+        this.symbols = symbols;
+        this.functions = functions;
+        this.offsets = offsets;
+        this.statements = [];
+        this.blocks = [];
+        this.lastBlockId = 0;
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    get inTransitionFunction() {
-        return (this.tFunctionDegree === undefined);
-    }
-    get inInputBlock() {
-        return (this.loopFrames.length !== 0);
+    get currentBlock() {
+        return this.blocks[this.blocks.length - 1];
     }
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
     getSymbolReference(symbol) {
-        if (symbol.startsWith('$')) {
-            if (symbol.length > 2) {
-                return this.getRegisterReference(symbol);
-            }
-            else {
-                return this.getRegisterBankReference(symbol);
-            }
-        }
-        else {
-            const ref = this.getVariableReference(symbol);
-            if (!ref) {
-                throw new Error(`variable '${symbol}' is not defined`);
-            }
-            else {
-                return ref;
-            }
-        }
-    }
-    // LOOPS
-    // --------------------------------------------------------------------------------------------
-    addLoopFrame(registers) {
-        if (!registers) {
-            return this.loopFrames.push(undefined) - 1;
-        }
-        else {
-            const lastFrame = this.loopFrames[this.loopFrames.length - 1];
-            const newFrame = new Set();
-            for (let i = 0; i < registers.length; i++) {
-                let regIdx = Number.parseInt(registers[i].slice(2), 10);
-                if (lastFrame && !lastFrame.has(regIdx))
-                    throw new Error(`invalid loop declaration: register $i${regIdx} is absent from the parent loop`);
-                else if (newFrame.has(regIdx))
-                    throw new Error(`invalid loop declaration: register $i${regIdx} is listed more than once`);
-                newFrame.add(regIdx);
-            }
-            return this.loopFrames.push(newFrame) - 1;
-        }
-    }
-    getControlReference(index) {
-        const controlCount = Math.ceil(Math.log2(this.loopFrames.length));
-        const degree = new Array(this.loopFrames.length).fill(BigInt(controlCount));
-        const controlBank = new expressions_1.SymbolReference('c', [this.loopFrames.length, 0], degree);
-        return new expressions_1.ExtractVectorElement(controlBank, index);
-    }
-    // VARIABLES
-    // --------------------------------------------------------------------------------------------
-    setVariableAssignment(variable, expression) {
-        if (this.globalConstants.has(variable)) {
-            throw new Error(`value of global constant '${variable}' cannot be changed`);
-        }
-        // get the last frame from the local variable stack
-        const localVariables = this.localVariables[this.localVariables.length - 1];
-        const refCode = `$${variable}`;
-        let sExpression = localVariables.get(variable);
-        if (sExpression) {
-            if (!sExpression.isSameDimensions(expression)) {
-                throw new Error(`dimensions of variable '${variable}' cannot be changed`);
-            }
-            if (sExpression.degree !== expression.degree) {
-                sExpression = new expressions_1.SymbolReference(refCode, expression.dimensions, expression.degree);
-                localVariables.set(variable, sExpression);
-            }
-        }
-        else {
-            if (this.getVariableReference(variable)) {
-                throw new Error(`value of variable '${variable}' cannot be changed out of scope`);
-            }
-            utils_1.validateVariableName(variable, expression.dimensions);
-            sExpression = new expressions_1.SymbolReference(refCode, expression.dimensions, expression.degree);
-            localVariables.set(variable, sExpression);
-        }
-        return sExpression;
-    }
-    getVariableReference(variable) {
-        if (this.globalConstants.has(variable)) {
-            // check for variable in global constants
-            return this.globalConstants.get(variable);
-        }
-        else {
-            // search for the variable in the local variable stack
-            for (let i = this.localVariables.length - 1; i >= 0; i--) {
-                let scope = this.localVariables[i];
-                if (scope.has(variable)) {
-                    return scope.get(variable);
+        let result;
+        const info = this.symbols.get(symbol);
+        if (info !== undefined) {
+            result = this.base.buildLoadExpression(`load.${info.type}`, info.handle);
+            if (info.subset) {
+                const symbolLength = info.dimensions[0];
+                if (symbolLength === 0) {
+                    result = this.base.buildGetVectorElementExpression(result, info.offset);
+                }
+                else {
+                    const startIdx = info.offset;
+                    const endIdx = startIdx + symbolLength - 1;
+                    result = this.base.buildSliceVectorExpression(result, startIdx, endIdx);
                 }
             }
         }
-    }
-    createNewVariableFrame() {
-        this.localVariables.push(new Map());
-    }
-    destroyVariableFrame() {
-        if (this.localVariables.length === 1) {
-            throw new Error('cannot destroy last variable frame');
+        else {
+            const block = this.findLocalVariableBlock(symbol);
+            utils_1.validate(block !== undefined, errors.undeclaredVarReference(symbol));
+            result = block.loadLocal(symbol);
         }
-        this.localVariables.pop();
+        return result;
     }
-    // REGISTERS
-    // --------------------------------------------------------------------------------------------
-    isBinaryRegister(register) {
-        const bankName = register.slice(1, 2);
-        const index = Number.parseInt(register.slice(2), 10);
-        if (bankName === 'k')
-            return this.staticRegisters[index].binary;
-        else if (bankName === 's')
-            return this.secretRegisters[index].binary;
-        else if (bankName === 'p')
-            return this.publicRegisters[index].binary;
-        else
-            throw new Error(`register ${register} cannot be restricted to binary values`);
-    }
-    getRegisterReference(reference) {
-        const bankName = reference.slice(1, 2);
-        const index = Number.parseInt(reference.slice(2), 10);
-        const bankLength = this.getRegisterBankLength(bankName);
-        if (index >= bankLength) {
-            if (bankLength === 0)
-                throw new Error(`invalid register reference ${reference}: no $${bankName} registers have been defined`);
-            else if (bankLength === 1)
-                throw new Error(`invalid register reference ${reference}: only 1 $${bankName} register has been defined`);
-            else
-                throw new Error(`invalid register reference ${reference}: only ${bankLength} $${bankName} registers have been defined`);
-        }
-        else if (bankName === 'i') {
-            const lastFrame = this.loopFrames[this.loopFrames.length - 1];
-            if (!lastFrame.has(index)) {
-                throw new Error(`register ${reference} is out of scope`);
+    setVariableAssignment(symbol, value) {
+        let block = this.findLocalVariableBlock(symbol);
+        if (!block) {
+            const info = this.symbols.get(symbol);
+            if (info) {
+                utils_1.validate(info.type !== 'const', errors.cannotAssignToConst(symbol));
+                throw new Error(`cannot assign to non-variable symbol '${symbol}'`);
             }
+            block = this.currentBlock;
         }
-        const bankRef = new expressions_1.SymbolReference(bankName, [bankLength, 0], new Array(bankLength).fill(1n));
-        return new expressions_1.ExtractVectorElement(bankRef, index);
+        utils_1.validate(block === this.currentBlock, errors.cannotAssignToOuterScope(symbol));
+        const statement = block.setLocal(symbol, value);
+        this.statements.push(statement);
     }
-    getRegisterBankReference(reference) {
-        const bankName = reference.slice(1, 2);
-        const bankLength = this.getRegisterBankLength(bankName);
-        return new expressions_1.SymbolReference(bankName, [bankLength, 0], new Array(bankLength).fill(1n));
-    }
-    getRegisterBankLength(bankName) {
-        const loopFrame = this.loopFrames[this.loopFrames.length - 1];
-        if (bankName === 'i') {
-            if (!loopFrame) {
-                throw new Error(`$i registers cannot be accessed outside of init block`);
-            }
-            return this.loopFrames[0].size;
-        }
-        else if (bankName === 'n') {
-            if (this.inTransitionFunction) {
-                throw new Error(`$n registers cannot be accessed in transition function`);
-            }
-            return this.mutableRegisterCount;
-        }
-        else if (loopFrame && this.loopFrames.length === 1) {
-            throw new Error(`$${bankName} registers cannot be accessed in the init clause of a top-level input loop`);
-        }
-        else if (bankName === 'r')
-            return this.mutableRegisterCount;
-        else if (bankName === 'k')
-            return this.staticRegisters.length;
-        else if (bankName === 's')
-            return this.secretRegisters.length;
-        else if (bankName === 'p')
-            return this.publicRegisters.length;
-        else
-            throw new Error(`register bank name $${bankName} is invalid`);
-    }
-    // SUBROUTINES
+    // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
-    getTransitionFunctionCall() {
-        if (this.inTransitionFunction) {
-            throw new Error(`transition function cannot call itself recursively`);
+    getLoopController(loopIdx) {
+        loopIdx = this.offsets.loop + loopIdx;
+        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+        result = this.base.buildGetVectorElementExpression(result, loopIdx);
+        const one = this.base.buildLiteralValue(this.base.field.one);
+        for (let i = loopIdx - 1; i >= this.offsets.loop; i--) {
+            let parent = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+            parent = this.base.buildGetVectorElementExpression(parent, loopIdx);
+            parent = this.base.buildBinaryOperation('sub', one, parent);
+            result = this.base.buildBinaryOperation('mul', result, parent);
         }
-        else if (this.inInputBlock) {
-            throw new Error(`transition function cannot be called from an input block`);
-        }
-        const dimensions = [this.mutableRegisterCount, 0];
-        return new expressions_1.SubroutineCall('applyTransition', ['r', 'k', 's', 'p', 'c', 'i'], dimensions, this.tFunctionDegree);
+        return result;
     }
-    // CONDITIONAL EXPRESSIONS
+    getSegmentController(segmentIdx) {
+        segmentIdx = this.offsets.segment + segmentIdx;
+        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
+        return result;
+    }
+    buildConditionalExpression(condition, tBlock, fBlock) {
+        /* TODO
+        if (registerRef.isBinary) {
+            throw new Error(`conditional expression must be based on a binary value`);
+        }
+        */
+        tBlock = this.base.buildBinaryOperation('mul', tBlock, condition);
+        const one = this.base.buildLiteralValue(this.base.field.one);
+        condition = this.base.buildBinaryOperation('sub', one, condition);
+        fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
+        return this.base.buildBinaryOperation('add', tBlock, fBlock);
+    }
+    // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------
-    getNextConditionalBlockId() {
-        this.conditionalBlockCounter++;
-        return this.conditionalBlockCounter;
+    enterBlock() {
+        this.blocks.push(new ExpressionBlock(this.lastBlockId, this.base));
+        this.lastBlockId++;
+    }
+    exitBlock() {
+        this.blocks.pop();
+    }
+    findLocalVariableBlock(variable) {
+        for (let i = this.blocks.length - 1; i >= 0; i--) {
+            if (this.blocks[i].hasLocal(variable))
+                return this.blocks[i];
+        }
+    }
+    // PASS-THROUGH METHODS
+    // --------------------------------------------------------------------------------------------
+    buildLiteralValue(value) {
+        return this.base.buildLiteralValue(value);
+    }
+    buildBinaryOperation(operation, lhs, rhs) {
+        return this.base.buildBinaryOperation(operation, lhs, rhs);
+    }
+    buildUnaryOperation(operation, operand) {
+        return this.base.buildUnaryOperation(operation, operand);
+    }
+    buildMakeVectorExpression(elements) {
+        return this.base.buildMakeVectorExpression(elements);
+    }
+    buildGetVectorElementExpression(source, index) {
+        return this.base.buildGetVectorElementExpression(source, index);
+    }
+    buildSliceVectorExpression(source, start, end) {
+        return this.base.buildSliceVectorExpression(source, start, end);
+    }
+    buildMakeMatrixExpression(elements) {
+        return this.base.buildMakeMatrixExpression(elements);
+    }
+    buildFunctionCall(func, params) {
+        const info = this.functions.get(func);
+        utils_1.validate(info !== undefined, errors.undefinedFuncReference(func));
+        return this.base.buildCallExpression(info.handle, params);
     }
 }
 exports.ExecutionContext = ExecutionContext;
+// EXPRESSION BLOCK CLASS
+// ================================================================================================
+class ExpressionBlock {
+    constructor(id, context) {
+        this.id = `${utils_1.BLOCK_ID_PREFIX}${id}`;
+        this.locals = new Map();
+        this.context = context;
+    }
+    hasLocal(variable) {
+        return this.locals.has(`${this.id}_${variable}`);
+    }
+    setLocal(variable, value) {
+        const handle = `${this.id}_${variable}`;
+        if (!this.locals.has(handle)) {
+            this.locals.set(handle, this.locals.size);
+            this.context.addLocal(value.dimensions, handle);
+        }
+        return this.context.buildStoreOperation(handle, value);
+    }
+    loadLocal(variable) {
+        const handle = `${this.id}_${variable}`;
+        utils_1.validate(this.locals.has(handle), errors.undeclaredVarReference(variable));
+        return this.context.buildLoadExpression(`load.local`, handle);
+    }
+    getLocalIndex(variable) {
+        return this.locals.get(`${this.id}_${variable}`);
+    }
+}
+// ERRORS
+// ================================================================================================
+const errors = {
+    undeclaredVarReference: (s) => `variable ${s} is referenced before declaration`,
+    undefinedFuncReference: (f) => `function ${f} has not been defined`,
+    cannotAssignToConst: (c) => `cannot assign a value to a constant ${c}`,
+    cannotAssignToOuterScope: (v) => `cannot assign a value to an outer scope variable ${v}`
+};
 //# sourceMappingURL=ExecutionContext.js.map

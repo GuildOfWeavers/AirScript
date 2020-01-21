@@ -1,22 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-function isScalar(dim) {
-    return (dim[0] === 0 && dim[1] === 0);
-}
-exports.isScalar = isScalar;
-function isVector(dim) {
-    return (dim[0] > 0 && dim[1] === 0);
-}
-exports.isVector = isVector;
-function isMatrix(dim) {
-    return (dim[1] > 0);
-}
-exports.isMatrix = isMatrix;
-function areSameDimensions(d1, d2) {
-    return d1[0] === d2[0] && d1[1] === d2[1];
-}
-exports.areSameDimensions = areSameDimensions;
-// OTHER
+// CONSTANTS
+// ================================================================================================
+exports.BLOCK_ID_PREFIX = '$_b';
+var ProcedureParams;
+(function (ProcedureParams) {
+    ProcedureParams["thisTraceRow"] = "$_r";
+    ProcedureParams["nextTraceRow"] = "$_n";
+    ProcedureParams["staticRow"] = "$_k";
+})(ProcedureParams = exports.ProcedureParams || (exports.ProcedureParams = {}));
+const MAX_SYMBOL_LENGTH = 128;
+const SYMBOL_REGEXP = /[a-zA-Z]\w*/g;
+// MATH
 // ================================================================================================
 function isPowerOf2(value) {
     if (typeof value === 'bigint') {
@@ -27,23 +22,17 @@ function isPowerOf2(value) {
     }
 }
 exports.isPowerOf2 = isPowerOf2;
-function validateVariableName(variable, dimensions) {
-    const errorMessage = `Variable name '${variable}' is invalid:`;
-    if (isScalar(dimensions)) {
-        if (variable != variable.toLowerCase()) {
-            throw new Error(`${errorMessage} scalar variable names cannot contain uppercase characters`);
-        }
-    }
-    else if (isVector(dimensions)) {
-        if (variable != variable.toUpperCase()) {
-            throw new Error(`${errorMessage} vector variable names cannot contain lowercase characters`);
-        }
-    }
-    else {
-        if (variable != variable.toUpperCase()) {
-            throw new Error(`${errorMessage} matrix variable names cannot contain lowercase characters`);
-        }
-    }
+// VALIDATORS
+// ================================================================================================
+function validate(condition, errorMessage) {
+    if (!condition)
+        throw new Error(errorMessage);
 }
-exports.validateVariableName = validateVariableName;
+exports.validate = validate;
+function validateSymbolName(name) {
+    validate(name.length <= MAX_SYMBOL_LENGTH, `symbol '${name}' is invalid: symbol length cannot exceed ${MAX_SYMBOL_LENGTH} characters`);
+    const matches = name.match(SYMBOL_REGEXP);
+    validate(matches !== null && matches.length === 1, `symbol '${name}' is invalid`);
+}
+exports.validateSymbolName = validateSymbolName;
 //# sourceMappingURL=utils.js.map

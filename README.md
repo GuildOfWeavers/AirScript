@@ -1,5 +1,5 @@
 # AirScript
-This library contains grammar rules and provides a simple parser for AirScript - a language for defining Arithmetic Intermediate Representation (AIR) of computations. AIR is used in [zk-STARKs](https://eprint.iacr.org/2018/046.pdf) to define transition functions and constraints.
+This library contains grammar rules and provides a simple parser for AirScript - a language for defining Algebraic Intermediate Representation (AIR) of computations. AIR is used in [zk-STARKs](https://eprint.iacr.org/2018/046) to define transition functions and constraints.
 
 ### Motivation
 Writing out transition functions and constraints, even for moderately complex STARKs, is extremely tedious and error-prone. AirScript aims to provide a higher-level language to simplify this task.
@@ -17,15 +17,25 @@ The example below defines a STARK for MiMC computation. This is similar to the c
 ```
 define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
 
-    // constants used in transition function and constraint computations
-    alpha: 3;
+    // constant used in transition function and constraint computations
+    const alpha: 3;
+    
+    // a repeating set of value accessible in transition function and constraints
+    static roundConstant: cycle [
+        42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931,
+        10000042, 19487209, 35831850, 62748495, 105413546, 170859333
+    ];
+
+    // the computation requires a single input
+    secret input startValue: element[1];
 
     // transition function definition
     transition 1 register {
-        for each ($i0) {
-            init $i0;
-            for steps [1...8192] {
-                $r0^alpha + $k0;
+        for each (startValue) {
+            init { yield startValue; }
+
+            for steps [1..255] {
+                yield $r0^3 + roundConstant;
             }
         }
     }
@@ -33,16 +43,8 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
     // transition constraint definition
     enforce 1 constraint {
         for all steps {
-            transition($r) = $n;
+            enforce transition($r) = $n;
         }
-    }
-
-    // readonly registers accessible in transition function and constraints
-    using 1 readonly register {
-        $k0: repeat [
-            42, 43, 170, 2209, 16426, 78087, 279978, 823517, 2097194, 4782931,
-            10000042, 19487209, 35831850, 62748495, 105413546, 170859333
-        ];
     }
 }
 ```
@@ -50,7 +52,7 @@ define MiMC over prime field (2^256 - 351 * 2^32 + 1) {
 ## STARK declaration
 Every STARK definition in AirScript starts with a declaration:
 ```
-define [name] over [field] { ... }
+define <name> over <field> { ... }
 ```
 where:
 
@@ -60,72 +62,107 @@ where:
 
 The body of a STARK is placed between curly braces following the declaration. The elements of the body are described below.
 
-## Global constants
-Global constants are used to bind constant values to names. Once a global constant is defined, you can reference it by name in transition functions and constraints.
+## Constants
+Constants are used to bind constant values to names. Once a constant is defined, you can reference it by name in transition functions and constraints.
 
-Values of global constants can be of 3 types: ***scalars***, ***vectors***, and ***matrixes***. Here are a few examples:
+Values of constants can be of 3 types: ***scalars***, ***vectors***, and ***matrixes***. Here are a few examples:
 ```
-a: 123;                     // scalar constant
-V: [1, 2, 3];               // vector with 3 elements
-M: [[1, 2, 3], [4, 5, 6]];  // 2x3 matrix
+const s: 123;                     // scalar constant
+const v: [1, 2, 3];               // vector with 3 elements
+const m: [[1, 2, 3], [4, 5, 6]];  // 2x3 matrix
 ```
-Names of statics constants must adhere to the following convention:
+Names of constants can contain letters, numbers, and underscores and must start with a letter.
 
-* Names can contain letters, numbers, and underscores and must start with a letter;
-* Letters in scalar constant names must be all lower-case; 
-* Letters in vector and matrix constant names must be all upper-case.
+## Static variables
+Static variables are used to define values that repeat in a cyclic pattern. These variables can be referenced by name in transition functions and constraints.
+
+Here are a few examples of static variable declarations:
+```
+static foo: cycle [1, 2, 3, 4];
+static bar: [
+    cycle [1, 2, 3, 4],
+    cycle [5, 6, 7, 8]
+];
+```
+In the above example, referencing to `foo` will resolve to a scalar value. This value will be `1` at step 0 of the computation, `2` at step 1, `3` at step 2, `4` at step 3, and then again `1` at step 4 (value repeat in a cycle).
+
+On the other hand, references to `bar` will resolve to a vector of 2 values. This vector will be `[1, 5]` at step 0, `[2, 6]` at step 1 etc.
+
+Names of static variables can contain letters, numbers, and underscores and must start with a letter.
+
+## Inputs
+Input variables define the number and type of inputs required by the computation. An input declaration has the following form:
+```
+<scope> input <name>: <type>[<width>][<rank>]?;
+```
+where:
+  * `scope` can be either `public` or `secret`. Public inputs must be known to both, the prover and the verifier; `secret` inputs are assumed to be known only to the prover.
+  * `name` is the name which can be used to reference the input in transition functions and constraints. Input names can contain letters, numbers, and underscores and must start with a letter.
+  * `type` can be either `element` or `boolean`. Boolean inputs are restricted to values of `0` and `1`, while element inputs can contain values representing full field elements.
+  * `width` specifies the number of elements covered by the input. For example, if the width is set to `1`, the input will resolve to scalar values. If, however, the width is set to `2`, the input will resolve to a vector of 2 elements. Setting input width to `0` is not allowed and will result in an error.
+  * `rank` specifies the rank of the input in the input hierarchy (see [input loops](#Input-loops) for more info). If the `rank` is omitted, it is assumed to be `0`.
+
+Here are a few examples of input declarations:
+```
+public input foo: element[1];
+secret input bar: boolean[1][1];
+secret input baz: element[2][1];
+```
+In the above example, references to `foo` will resolve to a scalar value; references to `bar` will resolve to a scalar value which will be either `0` or `1`; and references to `baz` will resolve to a vector of 2 values. Moreover, for each value of `foo`, the computation expects one or more values of `bar` and `baz` to be provided.
 
 ## Transition function
 A core component of a STARK's definition is a state transition function. A transition function can be defined like so:
 ```
-transition [number of registers] registers { ... }
+transition <number of registers> registers { ... }
 ```
 where:
 
-* **number of registers** specifies the number of mutable registers which hold values of the computation's execution trace.
+* **number of registers** specifies the number of trace registers which hold values of the computation's execution trace.
 
 The body of a transition function is defined by an [input loop](#Input-loops) which, given the current state, evaluates to the next state of the computation. For example:
 ```
 transition 1 register {
-    for each ($i0) {
-        init $i0;
+    for each (foo) {
+        init { yield foo; };
+
         for steps [1..31] {
-            $r0 + $k0 + 1;
+            yield $r0 + 1;
         }
     }
 }
 ```
-This transition function works with a single *mutable* register (`$r0`) and a single *readonly* register (`$k0`), and does the following:
+This transition function works with a single trace register (`$r0`) and does the following:
 
-1. Initializes the the value of `$r0` to be the value passed in via [input register](#Input-registers) `$i0`.
-2. For 31 steps, computes the next value of `$r0` as: the current value of `$r0`, plus the current value of `$k0`, plus 1.
+1. Initializes the the value of `$r0` to be the value passed in via [input](#Inputs) `foo`.
+2. For 31 steps, computes the next value of `$r0` as: the current value of `$r0` plus 1.
 
-If your computation involves more than 1 mutable register, your transition function should return a vector with values for the next state for all registers. Here is an example:
+If your computation involves more than 1 trace register, your transition function should return a vector with values for the next state for all registers. Here is an example:
 ```
 transition 2 registers {
-    for each ($i0) {
-        init [$i0, $i0];
+    for each (foo) {
+        init { yield [foo, foo]; };
+
         for steps [1..31] {
             a0 <- $r0 + $r1;
             a1 <- a0 + $r1;
-            [a0, a1];
+            yield [a0, a1];
         }
     }
 ```
 The above example describes a state transition function that operates over 2 registers (`$r0` and `$r1`):
 
-* Both registers are initialized to the same value.
+* Both registers are initialized to the same value (passed in via input variable `foo`).
 * The next value of register `$r0` is set to the sum of the current values of both registers;
 * The next value of register `$r1` is set to the same sum plus current value of register `$r1` again.
 
 (this is actually a somewhat convoluted way to describe a transition function for a Fibonacci sequence).
 
-In general, the length of the vector to which the transition function resolves must be equal to the number of mutable registers specified in the declaration of the transition function.
+In general, the length of the vector to which the transition function resolves must be equal to the number of trace registers specified in the declaration of the transition function.
 
 ## Transition constraints
 Another core component of a STARK's definition is a set of transition constraints. A computation is considered valid only if transition constraints are satisfied for all steps (except the last one). Transition constraints can be defined like so:
 ```
-enforce [number of constraints] constraints { ... }
+enforce <number of constraints> constraints { ... }
 ```
 where:
 
@@ -133,50 +170,44 @@ where:
 
 Similarly to transition functions, the body of transition constraints is defined by an [input loop](#Input-loops). But, there are a few differences.
 
-First, unlike transition functions, transition constraints can reference future states of mutable registers. For example:
+First, unlike transition functions, transition constraints can reference future states of trace registers. For example:
 ```
 enforce 1 constraint {
-    for each ($i0) {
-        init $n0 - $i0;
+    for each (foo) {
+        init { 
+            enforce $n0 = foo;
+        }
+
         for steps [1..31] {
-            $n0 - ($r0 + $k0 + 1);
+            enforce $n0 = $r0 + 1;
         }
     }
 ```
 where `$n0` contains value of register `$r0` at the next step of the computation.
 
-Second, you can use comparison operator (`=`) to add clarity to the the constraints. So, the above example can be re-written as:
-```
-enforce 1 constraint {
-    for each ($i0) {
-        init $i0 = $n0;
-        for steps [1..31] {
-            $r0 + $k0 + 1 = $n0;
-        }
-    }
-```
+Second, instead of yielding values for the next state of the computation, transition constraints enforce equality between two values by using `enforce` statement as shown in the example above.
 
 Thirds, if your constraints don't do anything fancy and just compare current and next state of the execution trace, you can write them simply like this:
 ```
 enforce 1 constraint {
     for all steps {
-        transition($r) = $n;
+        enforce transition($r) = $n;
     }
 }
 ```
 This wil evaluate as:
 
 1. First apply the transition function to the current state;
-2. Then subtract the resulting values from `$n` register bank and return the result.
+2. Then enforce equality between the resulting value and the next state of the computation (`$n`).
 
 ### Constraint degree
 One of the key components of proof complexity is the arithmetic degree of transition constraints. AirScript automatically infers the degree of each constraint based on the arithmetic operations performed. But it is important to keep this degree in mind lest it becomes too large. Here are a few pointers:
 
-* All registers (*mutable* and *readonly*) have a degree of `1`.
+* All trace registers, static variables, and inputs have a degree of `1`.
 * Raising an expression to a power increases the degree of the expression by that power. For example, the degree of `$r0^3` is `3`.
-* Multiplying an expression by a register raises the degree of the expression by `1`. For example, the degree of `($r0 + 2) * $k0` is `2`.
+* Multiplying an expression by a register raises the degree of the expression by `1`. For example, the degree of `($r0 + 2) * $r0` is `2`.
 * Using [conditional expressions](#Conditional-expressions) increases the degree of the expression by `1`.
-* Both input and segment loops increase the degree as log<sub>2</sub>(n), where n is the number of loops. So, for example, if your constraints consists of one input loop and one segment loop, the degree will increase by 1.
+* [Input loops](#Input-loops) increase degree of an expression by `n`, where `n` is the depth of the loop.
 
 ## Loops
 Loop constructs in AirScript are somewhat different from loops in regular programming languages. For example, loops in AirScript always resolve to a single value for a single iteration (this value could be a number or a vector of numbers). In a way, loops allow you to define blocks of [arithmetic statements](#arithmetic-statements) which should be evaluated at specific steps. Currently, AirScript support two types of loops:
@@ -185,42 +216,42 @@ Loop constructs in AirScript are somewhat different from loops in regular progra
 2. `for steps` loops or [segment loops](#Segment-loops) which iterate over segments of execution trace.
 
 ### Input loops
-Transition functions and transition constraints contain a single top-level input loop. This loop specifies what inputs are to be expected, and how these inputs are to be used to initialize the execution trace. You can define an input loop like so:
+Transition functions and transition constraints contain a single top-level input loop. This loop specifies how the inputs are to be used to initialize the execution trace. You can define an input loop like so:
 ```
-for each ([list of registers]) { ... }
+for each (<list of inputs>) { ... }
 ```
 where:
 
-* **list of registers** is a comma-separated list of [input registers](#Input-registers).
+* **list of inputs** is a comma-separated list of [inputs](#Inputs).
 
-A body of an input loop must have an `init` clause, which should be followed by one or more segment loops (input loops can also be [nested](#Nested-input-loops)). Here is an example:
+A body of an input loop must have an `init` clause, which should be followed by one or more [segment loops](#Segment-loops) (input loops can also be [nested](#Nested-input-loops)). Here is an example:
 ```
-for each ($i0) {
-    init { [$i0, $i0 * 2] }
+for each (foo) {
+    init { yield [foo, foo * 2]; }
 
-    for steps [1..31] { $r^2 }
-    for steps [32..63] { $r^3 }
+    for steps [1..31] { yield $r^2; }
+    for steps [32..63] { yield $r^3; }
 }
 ```
 Here is what's happening here:
 
-* The loop expects a single input register `$i0`;
-* The execution trace has 2 registers. The first register is initialized to the value of `$i0` and the second one is initialized to 2 * `$i0`;
+* The loop expects a single input `foo`;
+* The execution trace has 2 registers. The first register is initialized to the value of `foo`, and the second one is initialized to `2*foo`;
 * Then, for 31 steps, state transition is defined as squaring of the values in each of the registers.
 * Then, for 32 more steps, state transition is defined as cubing of values in each of the registers.
 
 A couple of things to note:
 
-* `$i` registers can be referenced only within the `init` clause. Referencing them anywhere else will result in an error.
-* The `init` clause of the top-level loop cannot reference any other registers besides the `$i` registers (this is not the case for nested loops).
+* Input `foo` can be referenced only within the `init` clause. Referencing it anywhere else will result in an error.
+* The `init` clause must terminate with a `yield` expression for transition functions, and with `enforce` expression for transition constraints.
 
 #### Nested input loops
 Input loops can be nested to a significant depth (though, the greeter is the depth, the higher is the arithmetic degree of transition function/constraints). Here is an example of how this would look like:
 ```
-for each ($i0, $i1) {
+for each (foo, bar) {
     init { ... }
 
-    for each ($i1) {
+    for each (bar) {
         init { ... }
 
         for steps [1..31] { ... }
@@ -228,50 +259,51 @@ for each ($i0, $i1) {
     }
 }
 ```
-In this example, two input registers are defined such that for every value provided in the `$i0` register, multiple values are expected to be provided in the `$i1` register (you can say that a relationship between them is "one-to-many"). Here is how valid inputs for this loop could look like:
+In this example, two inputs are expected such that for every value of `foo`, one or many values of `bar` are expected (you can say that a relationship between them is "one-to-many"). Here is how valid inputs for this loop structure could look like:
 ```
 [
-    [1, [1, 2]],  // $i0 = 1, $i1 = [1, 2]
-    [2, [3, 4]]   // $i0 = 2, $i1 = [3, 4]
+    [1, 2],             // values for foo
+    [[3, 4], [5, 6]]    // values for bar
 ]
 ```
 To understand how these inputs are consumed by the code, imagine a tape with two columns that looks like so:
 
-| $i0 | $i1 |
+| foo | bar |
 | :-: | :-: |
-| 1   | 1   |
-|     | 2   |
-| 2   | 3   |
+| 1   | 3   |
 |     | 4   |
+| 2   | 5   |
+|     | 6   |
 
-This tape is consumed one row at a time. Whenever values for both `$i0` and `$i1` are present, the `init` clause of the out loop is executed. But when only value for `$i1` is available, the `init` clause of the inner loop is executed instead. In either case, after an `init` clause is executed, the segment loops are executed for the specified number of steps (in this case for 63 steps total). So, the execution will unroll like so:
+This tape is consumed one row at a time. Whenever values for both `foo` and `bar` are present, the `init` clause of the out loop is executed. But when only value for `bar` is available, the `init` clause of the inner loop is executed instead. In either case, after an `init` clause is executed, the segment loops are executed for the specified number of steps (in this case for 63 steps total). So, the execution will unroll like so:
 
-1. `init` clause of the outer loop is evaluated with `$i0=1, $i1=1`.
+1. `init` clause of the outer loop is evaluated with `$foo=1, bar=3`.
 2. Segment loops are evaluated for a total of 63 steps.
-3. `init` clause of the inner loop is evaluated with `$i1=2`.
+3. `init` clause of the inner loop is evaluated with `bar=4`.
 4. Segment loops are evaluated for a total of 63 steps.
-5. `init` clause of the outer loop is evaluated with `$i0=2, $i1=3`.
+5. `init` clause of the outer loop is evaluated with `foo=2, bar=5`.
 6. Segment loops are evaluated for a total of 63 steps.
-7. `init` clause of the inner loop is evaluated with `$i1=4`.
+7. `init` clause of the inner loop is evaluated with `bar=6`.
 8. Segment loops are evaluated for a total of 63 steps.
 
 In the end, the execution trace for the above set of inputs will be 256 steps long.
 
-One thing to note: when defining inner loops, the set of input registers must always narrow. For example, if you have loops nested 3 levels deep, the top level loop may operate with registers `($i0, $i1, $i2)`. The loop next level down must narrow this, for example, to `($i1, $i2)`. And the inner-most loop must down it further to just `($i2)`.
+One thing to note: when defining inner loops, the set of inputs must always narrow. An input's rank is increased with each additional loop level.
+
+For example, if you have loops nested 3 levels deep, the top level loop may operate with inputs `(foo, bar, baz)`. The loop next level down must narrow this, for example, to `(bar, baz)`. And the inner-most loop must down it further to just `(baz)`. In this example, rank of `foo` would be `0`, rank of `bar` would be `1`, and rank of `baz` would be `2`.
 
 ### Segment loops
 Segment loops can be used to specify different state transition logic for different segments (groups of steps) of a computation. Here is how you can define a segment loop:
 ```
-for steps [list of intervals] { ... }
+for steps <list of intervals> { ... }
 ```
-
 where:
-
 * **list of intervals** is a comma-separated list of step intervals. Each interval is specified by defining start and end points of the interval (both inclusive).
 
+Body of each of the segments must terminate with a `yield` statement for transition functions, and with `enforce` statement for transition constraints as shown in the example below:
 ```
-for steps [1..4, 60..62] { $r0^2 }
-for steps [5..59, 63] { $r0^3 }
+for steps [1..4, 60..62] { yield $r0^2; }
+for steps [5..59, 63] { yield $r0^3; }
 ```
 In this example, the transition logic is defined as follows:
 
@@ -290,13 +322,13 @@ Bodies of loops are nothing more than a series of arithmetic statements (separat
 
 ```
 a0 <- $r0 + $r1;
-a1 <- $k0 * a0;
+a1 <- $r0 * a0;
 [a0, a1];
 ```
 Here is what this means:
 
-* Define variable `a0` to be the sum of values from *mutable* registers `$r0` and `$r1`.
-* Define variable `a1` to be the product of value from *readonly* register `$k0` and variable `a0`.
+* Define variable `a0` to be the sum of values from trace registers `$r0` and `$r1`.
+* Define variable `a1` to be the product of value trace register `$r0` and variable `a0`.
 * Set the return value of the statement block to a vector of two elements with values of `a0` and `a1` being first and second elements respectively.
 
 Every arithmetic statement is an *assignment* statement. The assignment operator (`<-`) assigns a value of an expression (the right side) to a variable (the left side). Every block of statements must terminate with expression which defines the return value of the entire block.
@@ -304,27 +336,14 @@ Every arithmetic statement is an *assignment* statement. The assignment operator
 Within the statements you can reference registers, constants, variables, and perform arithmetic operations with them. All of this is described below.
 
 ### Registers
-A computation's execution trace consists of a series of state transitions. A state of a computation at a given step is held in an array of registers. There are tree types of registers:
+A computation's execution trace consists of a series of state transitions. A state of a computation at a given step is held in an array of registers. These registers are available in transition functions and constraints via implicit variables:
 
-* **mutable** registers - values in these registers are defined by the state [transition function](#Transition-function).
-* **readonly** registers - values in these registers are defined by the [readonly register definitions](#Readonly-registers).
-* **input** registers - values for these registers are defined by the structure of the transition function as described [below](#Input-registers).
+* **$r** variable holds values of trace registers for the *current step* of the computation. This variable is accessible in transition functions and transition constraints.
+* **$n** variable holds values of trace registers for the *next step* of the computation. This variable is accessible only in transition constraints.
 
-To reference a given register you need to specify the name of the register bank and the index of the register within that bank. Names of all register banks start with `$` - so, register references can look like this: `$r1`, `$k23`, `$n11` etc. You can also reference an entire register bank by omitting register index (e.t. `$r`, `$kn`, `$n`). In this case, the reference resolves to a vector of values.
+Both `$r` and `$n` variables are vectors. So, to reference a specific register, you can use an [extraction expression](#Vector-element-extraction) like so: `$r[0]`. This will resolve to the value of the first register at the current step. You can also use a shorthand notation like so: `$r0` - this will resolve to the same value as `$r[0]`.
 
-Currently, there are 6 register banks:
-
-* **$r** bank holds values of *mutable* registers for the current step of the computation.
-* **$n** bank holds values of *mutable* registers for the next step of the computation. This bank can be referenced only in transition constraints (not in the transition function).
-* **$i** bank holds values of input registers at the current step of the computation.
-* **$p** bank holds values of auxiliary public input registers for the current step of the computation.
-* **$s** bank holds values of auxiliary secret input registers for the current step of the computation.
-* **$k** bank holds values of static registers for the current step of the computation.
-
-#### Input registers
-The number and depth of input registers depend on the structure of the transition function as defined by [input loops](#Input-loops). Specifically, the top-level input loop specifies all required input registers. The depth of input registers is defined by the [nesting](#Nested-input-loops) of input loops.
-
-Input registers stand out somewhat as compared to other registers because they can be referenced only within `init` clauses of input loops.
+**Note:** variables `$r` and `$n` are *read-only* and trying to assign values to them will result in an error.
 
 ### Variables
 To simplify your scripts you can aggregate common computations into variables. Once a variable is defined, it can be used in all subsequent statements. You can also change the value of a variable by re-assigning to it. For example, something like this is perfectly valid:
@@ -333,10 +352,10 @@ a0 <- $r0 + 1;
 a0 <- a0 + $r1;
 a0;
 ```
-Variable can be of 3 different types: ***scalars***, ***vectors***, and ***matrixes***.
+A name of a variable can include letters, numbers, and underscores (and must start with a letter). Variable can be of 3 different types: ***scalars***, ***vectors***, and ***matrixes***.
 
 #### Scalars
-A variable that holds a simple numerical value is a scalar. Implicitly, all registers hold scalar values. All constant literals are also scalars. A name of scalar variable can include lower-case letters, numbers, and underscores (and must start with a letter). Here are a few examples:
+A variable that represents a single field element is a scalar. Implicitly, all registers hold scalar values. All constant literals are also scalars. Here are a few examples:
 ```
 a0 <- 1;
 foo <- $r0;
@@ -344,33 +363,33 @@ foo_bar <- $r0 + 1;
 ```
 
 #### Vectors
-Scalars can be aggregated into vectors (a vector is just a 1-dimensional array). You can define a vector by putting a comma-separated list of scalars between square brackets. All register banks are also vectors. A name of a vector variable can include upper-case letters, numbers, and underscores (and must start with a letter). Here are a few examples:
+Scalars can be aggregated into vectors (a vector is just a 1-dimensional array). You can define a vector by putting a comma-separated list of scalars between square brackets. Register banks `$r` and `$n` are also vectors. Here are a few examples:
 ```
-V0 <- [1, 2];
-FOO <- [$r0, $r1];
-FOO_BAR <- [$r0, $r1 + 1, $k0];
+v0 <- [1, 2];
+foo <- [$r0, $r1];
+foo_bar <- [$r0, $r1 + 1];
 ```
 
 ##### Vector composition
 You can combine multiple vectors into a single vector using destructuring syntax like so:
 ```
-V0 <- [1, 2];
-V1 <- [3, 4];
-V3 <- [...V0, ...V1, 5]; // will contain [1, 2, 3, 4, 5]
+v0 <- [1, 2];
+v1 <- [3, 4];
+v3 <- [...v0, ...v1, 5]; // will contain [1, 2, 3, 4, 5]
 ```
 
 ##### Vector element extraction
 You can extract a subset of elements from a vector like so:
 ```
-A <- [1, 2, 3, 4];
-b <- A[1];      // b is equal to 2
-C <- A[2..3];   // C is equal to [3, 4]
+a <- [1, 2, 3, 4];
+b <- a[1];      // b is equal to 2
+c <- b[2..3];   // C is equal to [3, 4]
 ```
 #### Matrixes
-A matrix is a 2-dimensional array of scalars. Similarly to vectors, matrix variable names can include upper-case letters, numbers, and underscores. You can define a matrix by listing its elements in a row-major form. Here are a couple of examples:
+A matrix is a 2-dimensional array of scalars. You can define a matrix by listing its elements in a row-major form. Here are a couple of examples:
 ```
-M0 <- [[1, 2], [1, 2]];
-FOO <- [[$k0, $r0, 1], [$r1 + $r2, 42, $r3 * 8]];
+m0 <- [[1, 2], [1, 2]];
+foo <- [[$r0, $r1, 1], [$r1 + $r2, 42, $r3 * 8]];
 ```
 
 ### Operations
@@ -378,15 +397,15 @@ To do something useful with registers, variables etc. you can apply arithmetic o
 
 When you work with scalar values, these operations behave as you've been taught in the elementary school (though, the math takes place in a finite field). But you can also apply these operations to vectors and matrixes. In such cases, these are treated as **element-wise** operations. Here are a few examples:
 ```
-V0 <- [1, 2];
-V1 <- [3, 4];
-V2 <- V0 + V1;    // V2 is [4, 6]
-v2 <- V1^2;       // V2 is [9, 16]
+v0 <- [1, 2];
+v1 <- [3, 4];
+v2 <- v0 + v1;    // v2 is [4, 6]
+v2 <- v1^2;       // v2 is [9, 16]
 ```
 You can also replace the second operand with a scalar. Here is how it'll work:
 ```
-V0 <- [1, 2];
-V1 <- V0 * 2;     // V2 is [2, 4]
+v0 <- [1, 2];
+v1 <- V0 * 2;     // v2 is [2, 4]
 ```
 One important thing to note: if both operands are vectors, the operations make sense only if vectors have the same dimensions (i.e. you can't do element-wise addition between vectors of different lengths).
 
@@ -407,9 +426,9 @@ c <- (/a);  // equivalent to computing 1/a in the STARK's field
 ```
 Unary operators can also be applied to vectors and matrixes to compute element-wise negations and inversions. For example:
 ```
-A <- [1, 2];
-B <- (-A);  // is equivalent to computing [0 - 1, 0 - 2]
-C <- (/A);  // is equivalent to computing [1/1, 1/2]
+a <- [1, 2];
+b <- (-a);  // is equivalent to computing [0 - 1, 0 - 2]
+c <- (/a);  // is equivalent to computing [1/1, 1/2]
 ```
 
 ### Conditional expressions
@@ -418,26 +437,26 @@ Sometimes you may want to set a value of a variable (or variables) predicated on
 #### Ternary expression
 Using ternary expression you can set a value of a variable to one of two options where each option is a single expression. The syntax for the expression is:
 ```
-[variable]: [selector] ? [expression 1] : [expression 2];
+<variable> <- <selector> ? <expression 1> : <expression 2>;
 ```
 For example:
 ```
-v <- $k0 ? ($r0 + $k1) : $r1;
+v <- foo ? ($r0 + bar) : $r1;
 ```
 The above is just syntactic sugar for writing something like this:
 ```
-v <- ($r0 + $k1) * $k0 + $r1 * (1 - $k0);
+v <- ($r0 + bar) * foo + $r1 * (1 - foo);
 ```
-The only restriction imposed by the ternary expression is that `selector` must be a [binary register](#Binary-registers).
+The only restriction imposed by the ternary expression is that `selector` must be a boolean value.
 
 #### When...else statement
 `when...else` statements are similar to ternary expressions but now your options can be entire blocks of arithmetic expressions. The syntax for the statement is:
 ```
-when ([selector]) {[block 1]} else {[block 2]}
+when (<selector>) {<block 1>} else {<block 2>}
 ```
 For example:
 ```
-A <- when ($k0) {
+A <- when (foo) {
     a0 <- $r0 + $r1;
     a1 <- a0 + $r1;
     [a0, a1];
@@ -448,14 +467,14 @@ else {
     [a0, a1];
 }
 ```
-Both blocks must resolve to a vector of the same length. Also, similarly to ternary expressions, the `selector` must be a [binary register](#Binary-registers).
+Both blocks must resolve to a vector of the same length. Also, similarly to ternary expressions, the `selector` must be a boolean value.
 
-In the above, `when...else` statement is equivalent to multiplying the result of evaluating `when` block by `$k0`, multiplying the result of `else` block by `1 - $k0`, and then performing an element-wise sum of resulting vectors.
+In the above, `when...else` statement is equivalent to multiplying the result of evaluating `when` block by `$foo`, multiplying the result of `else` block by `1 - foo`, and then performing an element-wise sum of resulting vectors.
 
 You can also nest `when...else` to create more sophisticated selection conditions. For example:
 ```
-A <- when ($k0) {
-    when ($k1) {
+A <- when (foo) {
+    when (bar) {
         [$r0 + 1, $r0 - 1];
     }
     else {
@@ -471,118 +490,15 @@ else {
 }
 ```
 
-## Readonly registers
-
-In addition to mutable registers (`$r`, `$n`) and input registers (`$i`), you can define STARKs with readonly registers. A readonly register is a register whose value cannot be changed by a transition function. There are 3 types of readonly registers:
-
-* **Static registers** - values for these registers are a part of STARK's definition. To reference these registers in transition function and transition constraints use `$k` prefix.
-* **Auxiliary public input registers** - values for these registers are known both to the prover and to the verifier, and are provided when a proof is generated and when it is verified. To reference these registers in transition function and transition constraints use `$p` prefix.
-* **Auxiliary secret input registers** - values for these registers are known only to the prover, and are provided only when a proof is generated. To reference these registers in transition function and transition constraints use `$s` prefix.
-
-Readonly registers can be defined like so:
-```
-using [number of registers] readonly registers { ... }
-```
-where:
-
-* **number of registers** specifies the total number of readonly registers.
-
-The body of the readonly registers block must contain definitions for all readonly registers specified in the declaration. A register can be defined like so:
-```
-$[register bank][register index]: [pattern] binary? [values];
-```
-A few examples:
-```
-$k0: repeat [1, 2, 3, 4];
-$k1: spread [1, 2, 3, 4];
-
-$p0: repeat [...];
-
-$s0: spread [...];
-```
-
-Registers of a given bank must be defined in order. That is `$k1` should go after `$k0`, `$k2` after `$k1` etc. But you don't need to group registers by their bank. For example, the following is perfectly valid:
-```
-$k0: repeat [1, 2, 3, 4];
-$p0: repeat [...];
-$k1: spread [1, 2, 3, 4];
-```
-Since values for the auxiliary public and secret input registers are not known at the time of STARK definition, you can't provide them within the script. Instead, use `[...]` to indicate that the values will be provided at the time of proof generation and/or verification.
-
-
-### Value pattern
-Value pattern can be one of the following: 
-
-* **repeat** - the values will be "cycled" during execution. For example, if `values = [1, 2, 3, 4]`, and the execution trace is 16 steps long, the values will appear in the execution trace as: `[1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4]`.
-* **spread** - the values will be "spread" during execution. For example, if `values = [1, 2, 3, 4]`, and the execution trace is 16 steps long, the values will appear as: `[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]`.
-
-### Binary registers
-You can indicate that a given readonly register contains only binary values (either `1` or `0`). To do this, put a `binary` keyword after the pattern indicator. For example:
-```
-$k0: repeat binary [1, 0, 1, 0];
-$p0: repeat binary [...];
-```
-Binary registers can be used as selectors in [conditional expressions](#Conditional-expressions).
-
 ## Comments
 To annotate your scripts with comments, use `//`. Anything following `//` until the end of the line will not be processed by the parser. Currently, this is the only style of comments supported.
 
 # API
-This module exposes a single `parseScript()` method:
+This module exposes a single `compile()` function which has the following signature:
 
-* **parseScript**(script: `string`, options?: `ScriptOptions`): `AirModule`
+* **parseScript**(source: `string` | `Buffer`, componentName?: `string`): `AirSchema`
 
-where:
-```TypeScript
-interface ScriptOptions {
-    limits?             : Partial<StarkLimits>;
-    wasmOptions?        : Partial<WasmOptions> | boolean;
-    extensionFactor?    : number;
-}
-```
-
-
-`StarkLimits` object can include any of the following properties:
-
-| Property             | Description |
-| -------------------- | ----------- |
-| maxTraceLength       | Maximum number of steps allowed for the execution trace; the default is 2^20. |
-| maxMutableRegisters  | Maximum number of mutable registers; the default is 64. |
-| maxReadonlyRegisters | Maximum number of readonly registers; the default is 64. |
-| maxConstraintCount   | Maximum number of transition constraints; the default is 1024. |
-| maxConstraintDegree  | Maximum degree of transition constraints; the default is 16. |
-
-`wasmOptions` object may include any of the following properties:
-
-| Property  | Description |
-| ----------| ----------- |
-| memory    | A WebAssembly `Memory` object which will be passed to the underlying `FiniteField` object. |
-
-`extensionFactor` can be used to specify factor by which the execution trace will be stretched during STARK computations. If omitted, the extension factor is assumed to be 2 * [smallest power of 2 greater than maxConstraint degree].
-
-### AirModule
-If parsing of the script is successful, the `parseScript()` method returns an `AirModule` with the following properties:
-
-| Property             | Description |
-| -------------------- | ----------- |
-| name                 | Name from the STARK declaration. |
-| field                | Finite field specified for the computation. |
-| stateWidth           | Number of mutable registers defined for the computation. |
-| iRegisterCount       | Number of input registers defined for the computation. |
-| pRegisterCount       | Number of auxiliary public input registers defined for the computation. |
-| sRegisterCount       | Number of auxiliary secret input registers defined for the computation. |
-| kRegisterCount       | Number of static registers defined for the computation. |
-| constraints          | An array of constraint specification objects. |
-| maxConstraintDegree  | Maximum algebraic degree of transition constraints required for the computation. |
-| extensionFactor      | Execution trace extension factor set for this computation. |
-
-`AirModule` also exposes the following methods:
-
-* **initVerification**(traceShape: `number[]`, auxPublicInputs: `bigint[][]`): `VerificationObject`<br />
-  Creates a `VerificationObject` for the computation. This object can be used to evaluate transition constraints at at a single point.
-
-* **initProof**(inputs: `any[]`, auxPublicInputs: `bigint[][]`, auxSecretInputs: `bigint[][]`): `ProofObject`<br />
-  Creates a `ProofObject` for the computation. This object can be used to generate execution traces and evaluate transition constraints.
+This function parses and compiles provided AirScript code into an [AirSchema](https://github.com/GuildOfWeavers/AirAssembly#air-schema) object. If `source` parameter is a `Buffer`, it is expected to contain AirScript code. If `source` is a string, it is expected to be a path to a file containing AirScript code. If `componentName` parameter is provided, it will be used as the name for the component within `AirSchema` object. Otherwise, the name will be set to `default`.
 
 If parsing of the script fails, the `parseScript()` method throws an `AirScriptError` which contains a list of errors (under `.errors` property) that caused the failure.
 

@@ -1,5 +1,12 @@
 # Release History
 
+### v0.6 - January 21, 2020
+
+* Implemented compilation of AirScript to AirAssembly
+* [breaking] Implemented aliasing of static and input registers
+* [breaking] Added `yield` and `enforce` expressions
+* Enabled reading scripts from files
+
 ### v0.5.2, v0.5.3, v0.5.5 - October 14, 2019
 
 * Minor bugfixes

@@ -2,10 +2,11 @@
 // ================================================================================================
 import { CstParser } from "chevrotain";
 import {
-    allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, LParen, RParen, LCurly, RCurly, LSquare, RSquare,
-    ExpOp, MulOp, AddOp, AssignOp, Transition, Registers, Steps, Enforce, Constraints,  When, Else,
-    RegisterRef, ReadonlyRegister, InitRegister, Comma, Using, DoubleDot, Colon, Semicolon, Equals,
-    Readonly, Repeat, Spread, Ellipsis, Binary, RegisterBank, Minus, Slash, QMark, For, All, Each, Init
+    allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, Transition,
+    Registers, Static, Cycle, TraceRegister, RegisterBank, For, All, Each, Init, Yield,
+    LParen, RParen, LCurly, RCurly, LSquare, RSquare, Slash, QMark, Comma, Colon, Semicolon,
+    ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals,
+    Steps, Enforce, Constraints, When, Else, Public, Secret, Input, Boolean, Element, Const
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -21,33 +22,26 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     public script = this.RULE('script', () => {
         this.CONSUME(Define);
-        this.CONSUME(Identifier,                             { LABEL: 'starkName'             });
+        this.CONSUME(Identifier,                                  { LABEL: 'starkName'        });
         this.CONSUME(Over);
-        this.SUBRULE(this.fieldDeclaration,                  { LABEL: 'fieldDeclaration'      });
+        this.SUBRULE(this.fieldDeclaration,                       { LABEL: 'fieldDeclaration' });
         this.CONSUME(LCurly);
         this.MANY(() => {
             this.OR([
-                { ALT: () => {
-                    this.SUBRULE(this.constantDeclaration,   { LABEL: 'globalConstants'       });
-                }},
+                { ALT: () => this.SUBRULE(this.constDeclaration,  { LABEL: 'moduleConstants'  })},
+                { ALT: () => this.SUBRULE(this.inputDeclaration,  { LABEL: 'inputRegisters'   })},
+                { ALT: () => this.SUBRULE(this.staticDeclaration, { LABEL: 'staticRegisters'  })},
                 { ALT: () => {
                     this.CONSUME(Transition);
-                    this.SUBRULE1(this.literalExpression,    { LABEL: 'mutableRegisterCount'  });
-                    this.CONSUME1(Registers);
+                    this.CONSUME1(IntegerLiteral,            { LABEL: 'traceRegisterCount'    });
+                    this.CONSUME(Registers);
                     this.SUBRULE(this.transitionFunction,    { LABEL: 'transitionFunction'    });
                 }},
                 { ALT: () => {
                     this.CONSUME(Enforce);
-                    this.SUBRULE2(this.literalExpression,    { LABEL: 'constraintCount'       });
+                    this.CONSUME2(IntegerLiteral,            { LABEL: 'constraintCount'       });
                     this.CONSUME(Constraints);
                     this.SUBRULE(this.transitionConstraints, { LABEL: 'transitionConstraints' });
-                }},
-                { ALT: () => {
-                    this.CONSUME(Using);
-                    this.SUBRULE3(this.literalExpression,    { LABEL: 'readonlyRegisterCount' });
-                    this.CONSUME(Readonly);
-                    this.CONSUME2(Registers);
-                    this.SUBRULE(this.readonlyRegisters,     { LABEL: 'readonlyRegisters'     });
                 }}
             ]);
         });
@@ -64,9 +58,10 @@ class AirParser extends CstParser {
         this.CONSUME(RParen);
     });
 
-    // GLOBAL CONSTANTS
+    // MODULE CONSTANTS
     // --------------------------------------------------------------------------------------------
-    private constantDeclaration = this.RULE('constantDeclaration', () => {
+    private constDeclaration = this.RULE('constantDeclaration', () => {
+        this.CONSUME(Const);
         this.CONSUME(Identifier, { LABEL: 'constantName' });
         this.CONSUME(Colon);
         this.OR([
@@ -90,46 +85,57 @@ class AirParser extends CstParser {
         this.CONSUME(LSquare);
         this.AT_LEAST_ONE_SEP({
             SEP : Comma,
-            DEF : () => this.SUBRULE(this.literalMatrixRow, { LABEL: 'rows' })
+            DEF : () => this.SUBRULE(this.literalVector, { LABEL: 'rows' })
         })
         this.CONSUME(RSquare);
     });
 
-    private literalMatrixRow = this.RULE('literalMatrixRow', () => {
-        this.CONSUME(LSquare);
-        this.AT_LEAST_ONE_SEP({
-            SEP : Comma,
-            DEF : () => this.SUBRULE(this.literalExpression, { LABEL: 'elements' })
-        })
-        this.CONSUME(RSquare);
-    })
-
-    // READONLY REGISTERS
+    // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
-    private readonlyRegisters = this.RULE('readonlyRegisters', () => {
-        this.CONSUME(LCurly);
-        this.AT_LEAST_ONE(() => this.SUBRULE(this.readonlyRegisterDefinition, { LABEL: 'registers' }));
-        this.CONSUME(RCurly);
+    private inputDeclaration = this.RULE('inputDeclaration', () => {
+        this.OR1([
+            { ALT: () => this.CONSUME(Public,   { LABEL: 'scope'   })},
+            { ALT: () => this.CONSUME(Secret,   { LABEL: 'scope'   })}
+        ]);
+        this.CONSUME(Input);
+        this.CONSUME(Identifier,                { LABEL: 'name'    });
+        this.CONSUME(Colon);
+        this.OR2([
+            { ALT: () => this.CONSUME(Element,  { LABEL: 'type'   })},
+            { ALT: () => this.CONSUME(Boolean,  { LABEL: 'type'   })},
+        ]);
+        this.CONSUME1(LSquare);
+        this.CONSUME1(IntegerLiteral,           { LABEL: 'width'   });
+        this.CONSUME1(RSquare);
+        this.OPTION(() => {
+            this.CONSUME2(LSquare);
+            this.CONSUME2(IntegerLiteral,       { LABEL: 'rank'   });
+            this.CONSUME2(RSquare);
+        });
+        this.CONSUME(Semicolon);
     });
 
-    private readonlyRegisterDefinition = this.RULE('readonlyRegisterDefinition', () => {
-        this.CONSUME1(ReadonlyRegister,          { LABEL: 'name' });
+    private staticDeclaration = this.RULE('staticDeclaration', () => {
+        this.CONSUME(Static);
+        this.CONSUME(Identifier,                          { LABEL: 'name'    });
         this.CONSUME(Colon);
-        this.OR1([
-            { ALT: () => this.CONSUME2(Repeat,   { LABEL: 'pattern' }) },
-            { ALT: () => this.CONSUME2(Spread,   { LABEL: 'pattern' }) }
-        ]);
-        this.OPTION(() => this.CONSUME(Binary,   { LABEL: 'binary'  }) );
-        this.OR2([
+        this.OR([
             { ALT: () => {
-                this.CONSUME(LSquare);
-                this.CONSUME(Ellipsis);
-                this.CONSUME(RSquare);
+                this.CONSUME1(Cycle);
+                this.SUBRULE1(this.literalVector,         { LABEL: 'values'  });
             }},
             { ALT: () => {
-                this.SUBRULE(this.literalVector, { LABEL: 'values' });
+                this.CONSUME(LSquare);
+                this.AT_LEAST_ONE_SEP({
+                    SEP: Comma,
+                    DEF: () => {
+                        this.CONSUME2(Cycle);
+                        this.SUBRULE2(this.literalVector, { LABEL: 'values'  });
+                    }
+                });
+                this.CONSUME(RSquare);
             }}
-        ]);        
+        ]);
         this.CONSUME(Semicolon);
     });
 
@@ -137,21 +143,19 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private transitionFunction = this.RULE('transitionFunction', () => {
         this.CONSUME(LCurly);
-        this.SUBRULE(this.inputBlock,             { LABEL: 'inputBlock' });
+        this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: [ 'yield' ] });
         this.CONSUME(RCurly);
     });
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
         this.CONSUME(LCurly);
         this.OR([
-            { ALT: () => {
-                this.SUBRULE(this.inputBlock,     { LABEL: 'inputBlock' });
-            }},
+            { ALT: () => this.SUBRULE(this.inputBlock,  { LABEL: 'inputBlock', ARGS: [ 'enforce' ] })},
             { ALT: () => {
                 this.CONSUME(For);
                 this.CONSUME(All);
                 this.CONSUME(Steps);
-                this.SUBRULE(this.statementBlock, { LABEL: 'allStepBlock' })
+                this.SUBRULE(this.statementBlock,       { LABEL: 'allStepBlock', ARGS: [ 'enforce' ] })
             }}
         ]);
         this.CONSUME(RCurly);
@@ -159,40 +163,34 @@ class AirParser extends CstParser {
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    private inputBlock = this.RULE('inputBlock', () => {
+    private inputBlock = this.RULE('inputBlock', (context: 'yield' | 'enforce') => {
         this.CONSUME(For);
         this.CONSUME(Each);
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP: Comma,
-            DEF: () => this.CONSUME(InitRegister,           { LABEL: 'registers' })
+            DEF: () => this.CONSUME(Identifier,         { LABEL: 'inputs' })
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
-        this.SUBRULE(this.transitionInit,                   { LABEL: 'initExpression' });
-        this.OR2([
-            { ALT: () => this.SUBRULE(this.inputBlock,      { LABEL: 'inputBlock'     })},
+        this.SUBRULE(this.transitionInit,               { LABEL: 'initExpression', ARGS: [ context ] });
+        this.OR([
+            { ALT: () => this.SUBRULE(this.inputBlock,  { LABEL: 'inputBlock',     ARGS: [ context ] })},
             { ALT: () => {
                 this.AT_LEAST_ONE(() => {
-                    this.SUBRULE(this.segmentLoop,          { LABEL: 'segmentLoops'    });
+                    this.SUBRULE(this.segmentLoop,      { LABEL: 'segmentLoops',   ARGS: [ context ] });
                 });
             }}
         ]);
         this.CONSUME(RCurly);
     });
 
-    private transitionInit = this.RULE('transitionInit', () => {
+    private transitionInit = this.RULE('transitionInit', (context: 'yield' | 'enforce') => {
         this.CONSUME(Init);
-        this.OR([
-            { ALT: () => this.SUBRULE(this.statementBlock,  { LABEL: 'expression' })},
-            { ALT: () => {
-                this.SUBRULE(this.expression,               { LABEL: 'expression' });
-                this.CONSUME(Semicolon);
-            }}
-        ]);
+        this.SUBRULE(this.statementBlock, { LABEL: 'expression', ARGS: [ context ] });
     });
 
-    private segmentLoop = this.RULE('segmentLoop', () => {
+    private segmentLoop = this.RULE('segmentLoop', (context: 'yield' | 'enforce') => {
         this.CONSUME(For);
         this.CONSUME(Steps);
         this.CONSUME(LSquare);
@@ -201,24 +199,31 @@ class AirParser extends CstParser {
             DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
         });
         this.CONSUME(RSquare);
-        this.SUBRULE(this.statementBlock,                        { LABEL: 'statements' });
+        this.SUBRULE(this.statementBlock,   { LABEL: 'body', ARGS: [ context ] });
     });
 
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
-    public statementBlock = this.RULE('statementBlock', () => {
+    public statementBlock = this.RULE('statementBlock', (context?: 'yield' | 'enforce') => {
         this.CONSUME(LCurly);
-        this.MANY(() => {
-            this.SUBRULE(this.statement,         { LABEL: 'statements' });
-        });
-        this.SUBRULE1(this.assignableExpression, { LABEL: 'expression' });
-        this.OPTION1(() => {
+        this.MANY(() => this.SUBRULE(this.statement,    { LABEL: 'statements' }));
+
+        if (context === 'yield') {
+            this.CONSUME(Yield);
+            this.SUBRULE1(this.assignableExpression,    { LABEL: 'expression' });
+            this.CONSUME1(Semicolon);
+        }
+        else if (context === 'enforce') {
+            this.CONSUME(Enforce);
+            this.SUBRULE2(this.assignableExpression,    { LABEL: 'expression' });
             this.CONSUME(Equals);
-            this.SUBRULE2(this.expression,       { LABEL: 'constraint' });
-        });
-        this.OPTION2(() => {
-            this.CONSUME(Semicolon);
-        });
+            this.SUBRULE(this.expression,               { LABEL: 'constraint' });
+            this.CONSUME2(Semicolon);
+        }
+        else {
+            this.SUBRULE3(this.assignableExpression,    { LABEL: 'expression' });
+            this.OPTION(() => this.CONSUME3(Semicolon));
+        }
         this.CONSUME(RCurly);
     });
 
@@ -273,11 +278,11 @@ class AirParser extends CstParser {
         this.OR([
             { ALT: () => {
                 this.CONSUME(LParen);
-                this.CONSUME1(RegisterRef,  { LABEL: 'register' });
+                this.CONSUME1(Identifier,   { LABEL: 'value' });
                 this.CONSUME(RParen);
             }},
             { ALT: () => {
-                this.CONSUME2(RegisterRef,  { LABEL: 'register' });
+                this.CONSUME2(Identifier,   { LABEL: 'value' });
             }}
         ]);
     });
@@ -390,7 +395,7 @@ class AirParser extends CstParser {
             { ALT: () => this.SUBRULE(this.vector,          { LABEL: 'expression' })},
             { ALT: () => this.SUBRULE(this.transitionCall,  { LABEL: 'expression' })},
             { ALT: () => this.CONSUME(Identifier,           { LABEL: 'symbol'     })},
-            { ALT: () => this.CONSUME(RegisterRef,          { LABEL: 'symbol'     })},
+            { ALT: () => this.CONSUME(TraceRegister,        { LABEL: 'symbol'     })},
             { ALT: () => this.CONSUME(RegisterBank,         { LABEL: 'symbol'     })},
             { ALT: () => this.CONSUME(IntegerLiteral,       { LABEL: 'literal'    })}
         ]);
