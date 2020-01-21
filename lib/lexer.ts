@@ -16,7 +16,6 @@ export const RegisterBank       = createToken({ name: "RegisterBank",     patter
 export const Define      = createToken({ name: "Define",      pattern: /define/,        longer_alt: Identifier });
 export const Over        = createToken({ name: "Over",        pattern: /over/,          longer_alt: Identifier });
 export const Prime       = createToken({ name: "Prime",       pattern: /prime/,         longer_alt: Identifier });
-export const Binary      = createToken({ name: "Binary",      pattern: /binary/,        longer_alt: Identifier });
 export const Field       = createToken({ name: "Field",       pattern: /field/,         longer_alt: Identifier });
 
 export const ResultExp   = createToken({ name: "ResultExp",   pattern: Lexer.NA });
@@ -25,10 +24,12 @@ export const Enforce     = createToken({ name: "Enforce",     pattern: /enforce/
 
 export const Const       = createToken({ name: "Const",       pattern: /const/,         longer_alt: Identifier });
 export const Static      = createToken({ name: "Static",      pattern: /static/,        longer_alt: Identifier });
-export const Repeat      = createToken({ name: "Repeat",      pattern: /repeat/,        longer_alt: Identifier });
+export const Cycle       = createToken({ name: "Cycle",       pattern: /cycle/,         longer_alt: Identifier });
 export const Input       = createToken({ name: "Input",       pattern: /input/,         longer_alt: Identifier });
 export const Public      = createToken({ name: "Public",      pattern: /public/,        longer_alt: Identifier });
 export const Secret      = createToken({ name: "Secret",      pattern: /secret/,        longer_alt: Identifier });
+export const Element     = createToken({ name: "Element",     pattern: /element/,       longer_alt: Identifier });
+export const Boolean     = createToken({ name: "Boolean",     pattern: /boolean/,       longer_alt: Identifier });
 
 export const Transition  = createToken({ name: "Transition",  pattern: /transition/,    longer_alt: Identifier });
 export const Registers   = createToken({ name: "Registers",   pattern: /registers?/,    longer_alt: Identifier });
@@ -104,8 +105,8 @@ export const Comment = createToken({
 export const allTokens = [
     WhiteSpace, Comment,
     
-    Define, Over, Prime, Binary, Field, Transition, Registers, Steps, Yield, Enforce, Constraints,
-    For, Each, Do, With, Nothing, When, Else, Repeat, Const, Input, Public, Secret,
+    Define, Over, Prime, Field, Transition, Registers, Steps, Yield, Enforce, Constraints,
+    For, Each, Do, With, Nothing, When, Else, Cycle, Const, Input, Public, Secret, Element, Boolean,
     Static, Import, From, As, All, Init,
 
     AssignOp, Equals, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,

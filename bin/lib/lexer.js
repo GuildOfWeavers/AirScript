@@ -15,17 +15,18 @@ exports.RegisterBank = chevrotain_1.createToken({ name: "RegisterBank", pattern:
 exports.Define = chevrotain_1.createToken({ name: "Define", pattern: /define/, longer_alt: exports.Identifier });
 exports.Over = chevrotain_1.createToken({ name: "Over", pattern: /over/, longer_alt: exports.Identifier });
 exports.Prime = chevrotain_1.createToken({ name: "Prime", pattern: /prime/, longer_alt: exports.Identifier });
-exports.Binary = chevrotain_1.createToken({ name: "Binary", pattern: /binary/, longer_alt: exports.Identifier });
 exports.Field = chevrotain_1.createToken({ name: "Field", pattern: /field/, longer_alt: exports.Identifier });
 exports.ResultExp = chevrotain_1.createToken({ name: "ResultExp", pattern: chevrotain_1.Lexer.NA });
 exports.Yield = chevrotain_1.createToken({ name: "Yield", pattern: /yield/, longer_alt: exports.Identifier, categories: exports.ResultExp });
 exports.Enforce = chevrotain_1.createToken({ name: "Enforce", pattern: /enforce/, longer_alt: exports.Identifier, categories: exports.ResultExp });
 exports.Const = chevrotain_1.createToken({ name: "Const", pattern: /const/, longer_alt: exports.Identifier });
 exports.Static = chevrotain_1.createToken({ name: "Static", pattern: /static/, longer_alt: exports.Identifier });
-exports.Repeat = chevrotain_1.createToken({ name: "Repeat", pattern: /repeat/, longer_alt: exports.Identifier });
+exports.Cycle = chevrotain_1.createToken({ name: "Cycle", pattern: /cycle/, longer_alt: exports.Identifier });
 exports.Input = chevrotain_1.createToken({ name: "Input", pattern: /input/, longer_alt: exports.Identifier });
 exports.Public = chevrotain_1.createToken({ name: "Public", pattern: /public/, longer_alt: exports.Identifier });
 exports.Secret = chevrotain_1.createToken({ name: "Secret", pattern: /secret/, longer_alt: exports.Identifier });
+exports.Element = chevrotain_1.createToken({ name: "Element", pattern: /element/, longer_alt: exports.Identifier });
+exports.Boolean = chevrotain_1.createToken({ name: "Boolean", pattern: /boolean/, longer_alt: exports.Identifier });
 exports.Transition = chevrotain_1.createToken({ name: "Transition", pattern: /transition/, longer_alt: exports.Identifier });
 exports.Registers = chevrotain_1.createToken({ name: "Registers", pattern: /registers?/, longer_alt: exports.Identifier });
 exports.Constraints = chevrotain_1.createToken({ name: "Constraints", pattern: /constraints?/, longer_alt: exports.Identifier });
@@ -89,8 +90,8 @@ exports.Comment = chevrotain_1.createToken({
 // ================================================================================================
 exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
-    exports.Define, exports.Over, exports.Prime, exports.Binary, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Yield, exports.Enforce, exports.Constraints,
-    exports.For, exports.Each, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Repeat, exports.Const, exports.Input, exports.Public, exports.Secret,
+    exports.Define, exports.Over, exports.Prime, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Yield, exports.Enforce, exports.Constraints,
+    exports.For, exports.Each, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Cycle, exports.Const, exports.Input, exports.Public, exports.Secret, exports.Element, exports.Boolean,
     exports.Static, exports.Import, exports.From, exports.As, exports.All, exports.Init,
     exports.AssignOp, exports.Equals, exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.LWedge, exports.RWedge, exports.Comma, exports.Colon, exports.Semicolon,

@@ -2,11 +2,11 @@
 // ================================================================================================
 import { CstParser } from "chevrotain";
 import {
-    allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, Input, Transition,
-    Registers, Static, Repeat, Binary, TraceRegister, RegisterBank, For, All, Each, Init, Yield,
+    allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, Transition,
+    Registers, Static, Cycle, TraceRegister, RegisterBank, For, All, Each, Init, Yield,
     LParen, RParen, LCurly, RCurly, LSquare, RSquare, Slash, QMark, Comma, Colon, Semicolon,
     ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals,
-    Steps, Enforce, Constraints, When, Else, Public, Secret, Const
+    Steps, Enforce, Constraints, When, Else, Public, Secret, Input, Boolean, Element, Const
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -93,18 +93,24 @@ class AirParser extends CstParser {
     // INPUT AND STATIC REGISTERS
     // --------------------------------------------------------------------------------------------
     private inputDeclaration = this.RULE('inputDeclaration', () => {
-        this.CONSUME(Input);
-        this.CONSUME(Identifier,                { LABEL: 'name'    });
-        this.CONSUME(Colon);
-        this.OR([
+        this.OR1([
             { ALT: () => this.CONSUME(Public,   { LABEL: 'scope'   })},
             { ALT: () => this.CONSUME(Secret,   { LABEL: 'scope'   })}
         ]);
-        this.OPTION1(() => this.CONSUME(Binary, { LABEL: 'binary'  }));
-        this.OPTION2(() => {
-            this.CONSUME(LSquare);
-            this.CONSUME(IntegerLiteral,        { LABEL: 'width'   });
-            this.CONSUME(RSquare);
+        this.CONSUME(Input);
+        this.CONSUME(Identifier,                { LABEL: 'name'    });
+        this.CONSUME(Colon);
+        this.OR2([
+            { ALT: () => this.CONSUME(Element,  { LABEL: 'type'   })},
+            { ALT: () => this.CONSUME(Boolean,  { LABEL: 'type'   })},
+        ]);
+        this.CONSUME1(LSquare);
+        this.CONSUME1(IntegerLiteral,           { LABEL: 'width'   });
+        this.CONSUME1(RSquare);
+        this.OPTION(() => {
+            this.CONSUME2(LSquare);
+            this.CONSUME2(IntegerLiteral,       { LABEL: 'rank'   });
+            this.CONSUME2(RSquare);
         });
         this.CONSUME(Semicolon);
     });
@@ -115,7 +121,7 @@ class AirParser extends CstParser {
         this.CONSUME(Colon);
         this.OR([
             { ALT: () => {
-                this.CONSUME1(Repeat);
+                this.CONSUME1(Cycle);
                 this.SUBRULE1(this.literalVector,         { LABEL: 'values'  });
             }},
             { ALT: () => {
@@ -123,7 +129,7 @@ class AirParser extends CstParser {
                 this.AT_LEAST_ONE_SEP({
                     SEP: Comma,
                     DEF: () => {
-                        this.CONSUME2(Repeat);
+                        this.CONSUME2(Cycle);
                         this.SUBRULE2(this.literalVector, { LABEL: 'values'  });
                     }
                 });

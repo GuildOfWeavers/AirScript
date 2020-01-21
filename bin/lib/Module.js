@@ -15,7 +15,6 @@ class Module {
         this.schema = new air_assembly_1.AirSchema('prime', modulus);
         this.traceWidth = traceWidth;
         this.constraintCount = constraintCount;
-        this.inputs = new Map();
         this.staticRegisters = [];
         this.symbols = new Map();
         this.inputRegisterCount = 0;
@@ -24,12 +23,6 @@ class Module {
     // --------------------------------------------------------------------------------------------
     get field() {
         return this.schema.field;
-    }
-    get inputCount() {
-        return this.inputs.size;
-    }
-    get staticCount() {
-        return this.staticRegisters.length;
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
@@ -42,13 +35,13 @@ class Module {
         const dimensions = this.schema.constants[index].dimensions;
         this.symbols.set(name, { type: 'const', handle, dimensions, subset: false });
     }
-    addInput(name, width, scope, binary) {
+    addInput(name, width, rank, scope, binary) {
         utils_1.validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
-        const index = this.inputRegisterCount;
-        this.inputRegisterCount = index + width;
+        const offset = this.inputRegisterCount;
+        this.inputRegisterCount = offset + width;
         const dimensions = width === 1 ? [0, 0] : [width, 0];
-        this.inputs.set(name, { scope, binary });
-        this.symbols.set(name, { type: 'input', handle: name, offset: index, dimensions, subset: true });
+        const input = { scope, binary, rank };
+        this.symbols.set(name, { type: 'input', handle: name, offset, dimensions, subset: true, input });
     }
     addStatic(name, values) {
         utils_1.validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
@@ -106,7 +99,7 @@ class Module {
         const inputRegisters = this.buildInputRegisters(template);
         const segmentMasks = template.segments.map(s => s.mask);
         const staticRegisterOffset = inputRegisters.length + segmentMasks.length + template.loops.length;
-        const staticRegisterCount = staticRegisterOffset + this.staticCount;
+        const staticRegisterCount = staticRegisterOffset + this.staticRegisters.length;
         return {
             transition: {
                 handle: `$${this.name}_transition`,
@@ -155,15 +148,16 @@ class Module {
             const masterPeer = { relation: 'peerof', index: registers.length };
             loop.inputs.forEach(inputName => {
                 utils_1.validate(!registerSet.has(inputName), errors.overusedInput(inputName));
-                const input = this.inputs.get(inputName);
-                utils_1.validate(input !== undefined, errors.undeclaredInput(inputName));
                 const symbol = this.symbols.get(inputName);
+                utils_1.validate(symbol !== undefined, errors.undeclaredInput(inputName));
+                utils_1.validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
+                utils_1.validate(symbol.input.rank === i, errors.invalidInputRank(inputName));
                 for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
                     const isAnchor = (j === 0);
                     const isLeaf = (i === template.loops.length - 1);
                     registers.push({
-                        scope: input.scope,
-                        binary: input.binary,
+                        scope: symbol.input.scope,
+                        binary: symbol.input.binary,
                         master: isAnchor || isLeaf ? masterParent : masterPeer,
                         steps: isLeaf ? template.cycleLength : undefined,
                         loopAnchor: isAnchor
@@ -216,6 +210,8 @@ exports.Module = Module;
 const errors = {
     undeclaredInput: (r) => `input '${r}' is used without being declared`,
     overusedInput: (r) => `input '${r}' cannot resurface in inner loops`,
+    invalidLoopInput: (s) => `symbol '${s}' cannot be used in loop header`,
+    invalidInputRank: (s) => `rank of input '${s}' does not match loop depth`,
     dupSymbolDeclaration: (s) => `symbol '${s}' is declared multiple times`,
     cycleLengthNotPowerOf2: (s) => `total number of steps is ${s} but must be a power of 2`,
     intervalStepNotCovered: (i) => `step ${i} is not covered by any expression`

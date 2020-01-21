@@ -80,18 +80,24 @@ class AirParser extends chevrotain_1.CstParser {
         // INPUT AND STATIC REGISTERS
         // --------------------------------------------------------------------------------------------
         this.inputDeclaration = this.RULE('inputDeclaration', () => {
-            this.CONSUME(lexer_1.Input);
-            this.CONSUME(lexer_1.Identifier, { LABEL: 'name' });
-            this.CONSUME(lexer_1.Colon);
-            this.OR([
+            this.OR1([
                 { ALT: () => this.CONSUME(lexer_1.Public, { LABEL: 'scope' }) },
                 { ALT: () => this.CONSUME(lexer_1.Secret, { LABEL: 'scope' }) }
             ]);
-            this.OPTION1(() => this.CONSUME(lexer_1.Binary, { LABEL: 'binary' }));
-            this.OPTION2(() => {
-                this.CONSUME(lexer_1.LSquare);
-                this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'width' });
-                this.CONSUME(lexer_1.RSquare);
+            this.CONSUME(lexer_1.Input);
+            this.CONSUME(lexer_1.Identifier, { LABEL: 'name' });
+            this.CONSUME(lexer_1.Colon);
+            this.OR2([
+                { ALT: () => this.CONSUME(lexer_1.Element, { LABEL: 'type' }) },
+                { ALT: () => this.CONSUME(lexer_1.Boolean, { LABEL: 'type' }) },
+            ]);
+            this.CONSUME1(lexer_1.LSquare);
+            this.CONSUME1(lexer_1.IntegerLiteral, { LABEL: 'width' });
+            this.CONSUME1(lexer_1.RSquare);
+            this.OPTION(() => {
+                this.CONSUME2(lexer_1.LSquare);
+                this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'rank' });
+                this.CONSUME2(lexer_1.RSquare);
             });
             this.CONSUME(lexer_1.Semicolon);
         });
@@ -101,7 +107,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.Colon);
             this.OR([
                 { ALT: () => {
-                        this.CONSUME1(lexer_1.Repeat);
+                        this.CONSUME1(lexer_1.Cycle);
                         this.SUBRULE1(this.literalVector, { LABEL: 'values' });
                     } },
                 { ALT: () => {
@@ -109,7 +115,7 @@ class AirParser extends chevrotain_1.CstParser {
                         this.AT_LEAST_ONE_SEP({
                             SEP: lexer_1.Comma,
                             DEF: () => {
-                                this.CONSUME2(lexer_1.Repeat);
+                                this.CONSUME2(lexer_1.Cycle);
                                 this.SUBRULE2(this.literalVector, { LABEL: 'values' });
                             }
                         });

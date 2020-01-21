@@ -13,6 +13,7 @@ export interface SymbolInfo {
     readonly dimensions : Dimensions;
     readonly subset     : boolean;
     readonly offset?    : number;
+    readonly input?     : Input;
 }
 
 export interface FunctionInfo {
@@ -22,6 +23,7 @@ export interface FunctionInfo {
 interface Input {
     readonly scope  : string;
     readonly binary : boolean;
+    readonly rank   : number;
 }
 
 interface StaticRegister {
@@ -36,7 +38,6 @@ export class Module {
     readonly schema             : AirSchema;
     readonly traceWidth         : number;
     readonly constraintCount    : number;
-    readonly inputs             : Map<string, Input>;
     readonly staticRegisters    : StaticRegister[];
 
     private readonly symbols    : Map<string, SymbolInfo>;
@@ -49,7 +50,6 @@ export class Module {
         this.schema = new AirSchema('prime', modulus);
         this.traceWidth = traceWidth;
         this.constraintCount = constraintCount;
-        this.inputs = new Map();
         this.staticRegisters = [];
         this.symbols = new Map();
         this.inputRegisterCount = 0;
@@ -59,14 +59,6 @@ export class Module {
     // --------------------------------------------------------------------------------------------
     get field(): FiniteField {
         return this.schema.field;
-    }
-
-    get inputCount(): number {
-        return this.inputs.size;
-    }
-
-    get staticCount(): number {
-        return this.staticRegisters.length;
     }
 
     // PUBLIC METHODS
@@ -81,13 +73,13 @@ export class Module {
         this.symbols.set(name, { type: 'const', handle, dimensions, subset: false });
     }
 
-    addInput(name: string, width: number, scope: string, binary: boolean): void {
+    addInput(name: string, width: number, rank: number, scope: string, binary: boolean): void {
         validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
-        const index = this.inputRegisterCount;
-        this.inputRegisterCount = index + width;
+        const offset = this.inputRegisterCount;
+        this.inputRegisterCount = offset + width;
         const dimensions: Dimensions = width === 1 ? [0, 0] : [width, 0];
-        this.inputs.set(name, { scope, binary });
-        this.symbols.set(name, { type: 'input', handle: name, offset: index, dimensions, subset: true });
+        const input = { scope, binary, rank };
+        this.symbols.set(name, { type: 'input', handle: name, offset, dimensions, subset: true, input });
     }
 
     addStatic(name: string, values: bigint[][]): void {
@@ -157,7 +149,7 @@ export class Module {
         const inputRegisters = this.buildInputRegisters(template);
         const segmentMasks = template.segments.map(s => s.mask);
         const staticRegisterOffset = inputRegisters.length + segmentMasks.length + template.loops.length;
-        const staticRegisterCount = staticRegisterOffset + this.staticCount;
+        const staticRegisterCount = staticRegisterOffset + this.staticRegisters.length;
 
         return {
             transition: {
@@ -214,17 +206,18 @@ export class Module {
             const masterPeer: InputRegisterMaster = { relation: 'peerof', index: registers.length };
             loop.inputs.forEach(inputName => {
                 validate(!registerSet.has(inputName), errors.overusedInput(inputName));
-                const input = this.inputs.get(inputName);
-                validate(input !== undefined, errors.undeclaredInput(inputName));
-                const symbol = this.symbols.get(inputName)!
+                const symbol = this.symbols.get(inputName)!;
+                validate(symbol !== undefined, errors.undeclaredInput(inputName));
+                validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
+                validate(symbol.input!.rank === i, errors.invalidInputRank(inputName));
                 
                 for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
                     const isAnchor = (j === 0);
                     const isLeaf = (i === template.loops.length - 1);
     
                     registers.push({
-                        scope       : input.scope,
-                        binary      : input.binary,
+                        scope       : symbol.input!.scope,
+                        binary      : symbol.input!.binary,
                         master      : isAnchor || isLeaf ? masterParent : masterPeer,
                         steps       : isLeaf ? template.cycleLength : undefined,
                         loopAnchor  : isAnchor
@@ -285,6 +278,8 @@ export class Module {
 const errors = {
     undeclaredInput         : (r: any) => `input '${r}' is used without being declared`,
     overusedInput           : (r: any) => `input '${r}' cannot resurface in inner loops`,
+    invalidLoopInput        : (s: any) => `symbol '${s}' cannot be used in loop header`,
+    invalidInputRank        : (s: any) => `rank of input '${s}' does not match loop depth`,
     dupSymbolDeclaration    : (s: any) => `symbol '${s}' is declared multiple times`,
     cycleLengthNotPowerOf2  : (s: any) => `total number of steps is ${s} but must be a power of 2`,
     intervalStepNotCovered  : (i: any) => `step ${i} is not covered by any expression`
