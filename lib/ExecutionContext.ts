@@ -99,7 +99,7 @@ export class ExecutionContext {
         const one = this.base.buildLiteralValue(this.base.field.one);
         for (let i = loopIdx - 1; i >= this.offsets.loop; i--) {
             let parent: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
-            parent = this.base.buildGetVectorElementExpression(parent, loopIdx);
+            parent = this.base.buildGetVectorElementExpression(parent, i);
             parent = this.base.buildBinaryOperation('sub', one, parent);
             result = this.base.buildBinaryOperation('mul', result, parent);
         }
