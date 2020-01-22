@@ -79,9 +79,9 @@ class Component {
             const resultHandle = `$_init_${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
             const resultControl = context.getLoopController(i);
+            expression = context.buildBinaryOperation('mul', expression, resultControl);
             statements.push(context.base.buildStoreOperation(resultHandle, expression));
             expression = context.base.buildLoadExpression(`load.local`, resultHandle);
-            expression = context.buildBinaryOperation('mul', expression, resultControl);
             result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
         segments.forEach((expression, i) => {
