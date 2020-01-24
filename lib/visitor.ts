@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { AirSchema, Expression } from '@guildofweavers/air-assembly';
+import { AirSchema, Expression, PrngSequence } from '@guildofweavers/air-assembly';
 import { FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
@@ -129,11 +129,27 @@ class AirVisitor extends BaseCstVisitor {
         aModule.addInput(inputName, registerCount, inputRank, scope, binary);
     }
 
-    staticDeclaration(ctx: any,  aModule: Module): void {
-        const registerName = ctx.name[0].image;
-        const values: bigint[][] = ctx.values.map((v: any) => this.visit(v));
-        // TODO: handle parsing of PRNG sequences
-        aModule.addStatic(registerName, values);
+    staticDeclaration(ctx: any, aModule: Module): void {
+        const staticName = ctx.name[0].image;
+        const registers: (bigint[] | PrngSequence)[] = ctx.registers.map((r: any) => this.visit(r));
+        
+        aModule.addStatic(staticName, registers);
+    }
+
+    staticRegister(ctx: any, aModule: Module): bigint[] | PrngSequence {
+        if (ctx.values) {
+            return this.visit(ctx.values, aModule) as bigint[];
+        }
+        else {
+            return this.visit(ctx.sequence, aModule) as PrngSequence;
+        }
+    }
+
+    prngSequence(ctx: any, aModule: Module): PrngSequence {
+        const method: string = ctx.method[0].image;
+        const seed = BigInt(ctx.seed[0].image);
+        const count = Number(ctx.count[0].image);
+        return new PrngSequence(method, seed, count);
     }
 
     // TRANSITION FUNCTION AND CONSTRAINTS

@@ -106,23 +106,34 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.Identifier, { LABEL: 'name' });
             this.CONSUME(lexer_1.Colon);
             this.OR([
-                { ALT: () => {
-                        this.CONSUME1(lexer_1.Cycle);
-                        this.SUBRULE1(this.literalVector, { LABEL: 'values' });
-                    } },
+                { ALT: () => this.SUBRULE1(this.staticRegister, { LABEL: 'registers' }) },
                 { ALT: () => {
                         this.CONSUME(lexer_1.LSquare);
                         this.AT_LEAST_ONE_SEP({
                             SEP: lexer_1.Comma,
-                            DEF: () => {
-                                this.CONSUME2(lexer_1.Cycle);
-                                this.SUBRULE2(this.literalVector, { LABEL: 'values' });
-                            }
+                            DEF: () => this.SUBRULE2(this.staticRegister, { LABEL: 'registers' })
                         });
                         this.CONSUME(lexer_1.RSquare);
                     } }
             ]);
             this.CONSUME(lexer_1.Semicolon);
+        });
+        this.staticRegister = this.RULE('staticRegister', () => {
+            this.CONSUME(lexer_1.Cycle);
+            this.OR([
+                { ALT: () => this.SUBRULE(this.literalVector, { LABEL: 'values' }) },
+                { ALT: () => this.SUBRULE(this.prngSequence, { LABEL: 'sequence' }) }
+            ]);
+        });
+        this.prngSequence = this.RULE('prngSequence', () => {
+            this.CONSUME(lexer_1.Prng);
+            this.CONSUME(lexer_1.LParen);
+            this.CONSUME(lexer_1.Identifier, { LABEL: 'method' });
+            this.CONSUME1(lexer_1.Comma);
+            this.CONSUME(lexer_1.HexLiteral, { LABEL: 'seed' });
+            this.CONSUME2(lexer_1.Comma);
+            this.CONSUME(lexer_1.IntegerLiteral, { LABEL: 'count' });
+            this.CONSUME(lexer_1.RParen);
         });
         // TRANSITION FUNCTION AND CONSTRAINTS
         // --------------------------------------------------------------------------------------------

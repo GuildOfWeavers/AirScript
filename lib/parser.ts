@@ -6,7 +6,7 @@ import {
     Registers, Static, Cycle, TraceRegister, RegisterBank, For, All, Each, Init, Yield,
     LParen, RParen, LCurly, RCurly, LSquare, RSquare, Slash, QMark, Comma, Colon, Semicolon,
     ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals,
-    Steps, Enforce, Constraints, When, Else, Public, Secret, Input, Boolean, Element, Const
+    Steps, Enforce, Constraints, When, Else, Public, Secret, Input, Boolean, Element, Const, Prng, HexLiteral
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -117,26 +117,39 @@ class AirParser extends CstParser {
 
     private staticDeclaration = this.RULE('staticDeclaration', () => {
         this.CONSUME(Static);
-        this.CONSUME(Identifier,                          { LABEL: 'name'    });
+        this.CONSUME(Identifier,                                  { LABEL: 'name'    });
         this.CONSUME(Colon);
         this.OR([
-            { ALT: () => {
-                this.CONSUME1(Cycle);
-                this.SUBRULE1(this.literalVector,         { LABEL: 'values'  });
-            }},
+            { ALT: () => this.SUBRULE1(this.staticRegister,       { LABEL: 'registers' })},
             { ALT: () => {
                 this.CONSUME(LSquare);
                 this.AT_LEAST_ONE_SEP({
                     SEP: Comma,
-                    DEF: () => {
-                        this.CONSUME2(Cycle);
-                        this.SUBRULE2(this.literalVector, { LABEL: 'values'  });
-                    }
+                    DEF: () => this.SUBRULE2(this.staticRegister, { LABEL: 'registers' })
                 });
                 this.CONSUME(RSquare);
             }}
         ]);
         this.CONSUME(Semicolon);
+    });
+
+    private staticRegister = this.RULE('staticRegister', () => {
+        this.CONSUME(Cycle);
+        this.OR([
+            { ALT: () => this.SUBRULE(this.literalVector, { LABEL: 'values'   })},
+            { ALT: () => this.SUBRULE(this.prngSequence,  { LABEL: 'sequence' })}
+        ]);
+    });
+
+    private prngSequence = this.RULE('prngSequence', () => {
+        this.CONSUME(Prng);
+        this.CONSUME(LParen);
+        this.CONSUME(Identifier,     { LABEL: 'method' });
+        this.CONSUME1(Comma);
+        this.CONSUME(HexLiteral,     { LABEL: 'seed' });
+        this.CONSUME2(Comma);
+        this.CONSUME(IntegerLiteral, { LABEL: 'count' });
+        this.CONSUME(RParen);
     });
 
     // TRANSITION FUNCTION AND CONSTRAINTS

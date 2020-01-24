@@ -1,6 +1,8 @@
 // IMPORTS
 // ================================================================================================
-import { AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, InputRegisterMaster } from "@guildofweavers/air-assembly";
+import {
+    AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, InputRegisterMaster, PrngSequence
+} from "@guildofweavers/air-assembly";
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
 import { ExecutionTemplate } from "./ExecutionTemplate";
 import { validate, validateSymbolName, isPowerOf2, ProcedureParams } from "./utils";
@@ -27,7 +29,7 @@ interface Input {
 }
 
 interface StaticRegister {
-    readonly values : bigint[];
+    readonly values : bigint[] | PrngSequence;
 }
 
 // CLASS DEFINITION
@@ -83,7 +85,7 @@ export class Module {
         this.symbols.set(name, { type: 'input', handle: name, offset, dimensions, subset: true, input });
     }
 
-    addStatic(name: string, values: bigint[][]): void {
+    addStatic(name: string, values: (bigint[] | PrngSequence)[]): void {
         validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
         const index = this.staticRegisters.length;
         values.forEach((v => this.staticRegisters.push({ values: v })));

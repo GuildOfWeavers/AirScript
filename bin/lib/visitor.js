@@ -1,5 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+// IMPORTS
+// ================================================================================================
+const air_assembly_1 = require("@guildofweavers/air-assembly");
 const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
@@ -106,10 +109,23 @@ class AirVisitor extends BaseCstVisitor {
         aModule.addInput(inputName, registerCount, inputRank, scope, binary);
     }
     staticDeclaration(ctx, aModule) {
-        const registerName = ctx.name[0].image;
-        const values = ctx.values.map((v) => this.visit(v));
-        // TODO: handle parsing of PRNG sequences
-        aModule.addStatic(registerName, values);
+        const staticName = ctx.name[0].image;
+        const registers = ctx.registers.map((r) => this.visit(r));
+        aModule.addStatic(staticName, registers);
+    }
+    staticRegister(ctx, aModule) {
+        if (ctx.values) {
+            return this.visit(ctx.values, aModule);
+        }
+        else {
+            return this.visit(ctx.sequence, aModule);
+        }
+    }
+    prngSequence(ctx, aModule) {
+        const method = ctx.method[0].image;
+        const seed = BigInt(ctx.seed[0].image);
+        const count = Number(ctx.count[0].image);
+        return new air_assembly_1.PrngSequence(method, seed, count);
     }
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
