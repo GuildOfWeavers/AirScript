@@ -158,8 +158,14 @@ class AirVisitor extends BaseCstVisitor {
         }
         else {
             const exc = mOrC.createExecutionContext('transition');
-            const inits: Expression[] = template.loops.map(loop => this.visit(loop.init, exc));
+            // TODO: refactor
+            const inits: Expression[] = template.loops.map(loop => {
+                exc.enterBlock();
+                loop.statements.forEach(statement => this.visit(statement, exc));
+                return this.visit(loop.init, exc);
+            });
             const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
+            template.loops.forEach(loop => exc.exitBlock());
             mOrC.setTransitionFunction(exc, inits, segments);
         }
     }
@@ -173,10 +179,15 @@ class AirVisitor extends BaseCstVisitor {
         else {
             const template = new ExecutionTemplate(component.field);
             this.visit(ctx.inputLoop, template);
-
+            // TODO: refactor
             const exc = component.createExecutionContext('evaluation');
-            const inits: Expression[] = template.loops.map(loop => this.visit(loop.init, exc));
+            const inits: Expression[] = template.loops.map(loop => {
+                exc.enterBlock();
+                loop.statements.forEach(statement => this.visit(statement, exc));
+                return this.visit(loop.init, exc);
+            });
             const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
+            template.loops.forEach(loop => exc.exitBlock());
             component.setConstraintEvaluator(exc, inits, segments);
         }
     }
