@@ -156,19 +156,19 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private transitionFunction = this.RULE('transitionFunction', () => {
         this.CONSUME(LCurly);
-        this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: [ 'yield' ] });
+        this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: [ 'yield' ] });
         this.CONSUME(RCurly);
     });
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
         this.CONSUME(LCurly);
         this.OR([
-            { ALT: () => this.SUBRULE(this.inputBlock,  { LABEL: 'inputBlock', ARGS: [ 'enforce' ] })},
+            { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: [ 'enforce' ] })},
             { ALT: () => {
                 this.CONSUME(For);
                 this.CONSUME(All);
                 this.CONSUME(Steps);
-                this.SUBRULE(this.statementBlock,       { LABEL: 'allStepBlock', ARGS: [ 'enforce' ] })
+                this.SUBRULE(this.statementBlock,      { LABEL: 'allStepBlock', ARGS: [ 'enforce' ] })
             }}
         ]);
         this.CONSUME(RCurly);
@@ -176,29 +176,30 @@ class AirParser extends CstParser {
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    private inputBlock = this.RULE('inputBlock', (context: 'yield' | 'enforce') => {
+    private inputLoop = this.RULE('inputLoop', (context: 'yield' | 'enforce') => {
         this.CONSUME(For);
         this.CONSUME(Each);
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP: Comma,
-            DEF: () => this.CONSUME(Identifier,         { LABEL: 'inputs' })
+            DEF: () => this.CONSUME(Identifier,       { LABEL: 'inputs' })
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
-        this.SUBRULE(this.transitionInit,               { LABEL: 'initExpression', ARGS: [ context ] });
+        this.MANY(() => this.SUBRULE(this.statement,  { LABEL: 'statements' }));
+        this.SUBRULE(this.inputLoopInit,              { LABEL: 'initExpression', ARGS: [ context ] });
         this.OR([
-            { ALT: () => this.SUBRULE(this.inputBlock,  { LABEL: 'inputBlock',     ARGS: [ context ] })},
+            { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop',      ARGS: [ context ] })},
             { ALT: () => {
                 this.AT_LEAST_ONE(() => {
-                    this.SUBRULE(this.segmentLoop,      { LABEL: 'segmentLoops',   ARGS: [ context ] });
+                    this.SUBRULE(this.segmentLoop,    { LABEL: 'segmentLoops',   ARGS: [ context ] });
                 });
             }}
         ]);
         this.CONSUME(RCurly);
     });
 
-    private transitionInit = this.RULE('transitionInit', (context: 'yield' | 'enforce') => {
+    private inputLoopInit = this.RULE('inputLoopInit', (context: 'yield' | 'enforce') => {
         this.CONSUME(Init);
         this.SUBRULE(this.statementBlock, { LABEL: 'expression', ARGS: [ context ] });
     });

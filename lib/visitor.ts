@@ -48,13 +48,8 @@ class AirVisitor extends BaseCstVisitor {
         const template: ExecutionTemplate = this.visit(ctx.transitionFunction, aModule);
         const component = aModule.createComponent(template);
 
-        // parse transition function
-        const exc = component.createExecutionContext('transition');
-        const inits: Expression[] = template.loops.map(loop => this.visit(loop.init, exc));
-        const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
-        component.setTransitionFunction(exc, inits, segments);
-
-        // parse constraint evaluator
+        // parse transition function and constraint evaluator
+        this.visit(ctx.transitionFunction, component);
         this.visit(ctx.transitionConstraints, component);
 
         // finalize the component and return the schema
@@ -154,10 +149,19 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, aModule: Module): ExecutionTemplate {
-        const template = new ExecutionTemplate(aModule.field);
-        this.visit(ctx.inputBlock, template);
-        return template;
+    transitionFunction(ctx: any, mOrC: Module | Component): ExecutionTemplate | void {
+        const template = new ExecutionTemplate(mOrC.field);
+        this.visit(ctx.inputLoop, template);
+
+        if (mOrC instanceof Module) {
+            return template;
+        }
+        else {
+            const exc = mOrC.createExecutionContext('transition');
+            const inits: Expression[] = template.loops.map(loop => this.visit(loop.init, exc));
+            const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
+            mOrC.setTransitionFunction(exc, inits, segments);
+        }
     }
 
     transitionConstraints(ctx: any, component: Component): void {
@@ -168,7 +172,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         else {
             const template = new ExecutionTemplate(component.field);
-            this.visit(ctx.inputBlock, template);
+            this.visit(ctx.inputLoop, template);
 
             const exc = component.createExecutionContext('evaluation');
             const inits: Expression[] = template.loops.map(loop => this.visit(loop.init, exc));
@@ -179,20 +183,21 @@ class AirVisitor extends BaseCstVisitor {
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputBlock(ctx: any, template: ExecutionTemplate): void {
+    inputLoop(ctx: any, template: ExecutionTemplate): void {
         const inputs: string[] = ctx.inputs.map((register: any) => register.image);
-        template.addLoop(inputs, ctx.initExpression);
-
+        const statements: any[] = ctx.statements || [];
+        template.addLoop(inputs, ctx.initExpression, statements);
+    
         // parse body expression
-        if (ctx.inputBlock) {
-            this.visit(ctx.inputBlock, template);
+        if (ctx.inputLoop) {
+            this.visit(ctx.inputLoop, template);
         }
         else {
             ctx.segmentLoops.map((loop: any) => this.visit(loop, template));
         }
     }
 
-    transitionInit(ctx: any, template: ExecutionTemplate): Expression {
+    inputLoopInit(ctx: any, template: ExecutionTemplate): Expression {
         return this.visit(ctx.expression, template);
     }
 

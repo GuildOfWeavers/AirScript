@@ -139,13 +139,13 @@ class AirParser extends chevrotain_1.CstParser {
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: ['yield'] });
+            this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: ['yield'] });
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
             this.OR([
-                { ALT: () => this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: ['enforce'] }) },
+                { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: ['enforce'] }) },
                 { ALT: () => {
                         this.CONSUME(lexer_1.For);
                         this.CONSUME(lexer_1.All);
@@ -157,7 +157,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         // LOOPS
         // --------------------------------------------------------------------------------------------
-        this.inputBlock = this.RULE('inputBlock', (context) => {
+        this.inputLoop = this.RULE('inputLoop', (context) => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Each);
             this.CONSUME(lexer_1.LParen);
@@ -167,9 +167,10 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.CONSUME(lexer_1.RParen);
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.transitionInit, { LABEL: 'initExpression', ARGS: [context] });
+            this.MANY(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
+            this.SUBRULE(this.inputLoopInit, { LABEL: 'initExpression', ARGS: [context] });
             this.OR([
-                { ALT: () => this.SUBRULE(this.inputBlock, { LABEL: 'inputBlock', ARGS: [context] }) },
+                { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: [context] }) },
                 { ALT: () => {
                         this.AT_LEAST_ONE(() => {
                             this.SUBRULE(this.segmentLoop, { LABEL: 'segmentLoops', ARGS: [context] });
@@ -178,7 +179,7 @@ class AirParser extends chevrotain_1.CstParser {
             ]);
             this.CONSUME(lexer_1.RCurly);
         });
-        this.transitionInit = this.RULE('transitionInit', (context) => {
+        this.inputLoopInit = this.RULE('inputLoopInit', (context) => {
             this.CONSUME(lexer_1.Init);
             this.SUBRULE(this.statementBlock, { LABEL: 'expression', ARGS: [context] });
         });
