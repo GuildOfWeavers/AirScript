@@ -7,6 +7,7 @@ import { lexerErrorMessageProvider } from "./errors";
 // ================================================================================================
 export const HexLiteral         = createToken({ name: "HexLiteral",       pattern: /0x[0-9a-f]+/   });
 export const IntegerLiteral     = createToken({ name: "IntegerLiteral",   pattern: /0|[1-9]\d*/    });
+export const StringLiteral      = createToken({ name: "StringLiteral",    pattern: /'([^'\\]|\\.)*'/ });
 export const Identifier         = createToken({ name: "Identifier",       pattern: /[a-zA-Z]\w*/   });
 
 export const TraceRegister      = createToken({ name: "TraceRegister",    pattern: /\$[rn]\d{1,2}/ });
@@ -121,7 +122,7 @@ export const allTokens = [
 
     TraceRegister, RegisterBank,
 
-    HexLiteral, IntegerLiteral
+    HexLiteral, IntegerLiteral, StringLiteral
 ];
 
 // EXPORT LEXER INSTANCE

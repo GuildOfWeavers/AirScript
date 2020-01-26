@@ -35,6 +35,11 @@ class AirVisitor extends BaseCstVisitor {
         const constraintCount = Number(ctx.constraintCount[0].image);
         const aModule = new Module(moduleName, modulus, traceRegisterCount, constraintCount);
 
+        // parse imports
+        if (ctx.imports) {
+            ctx.imports.forEach((imp: any) => this.visit(imp, aModule));
+        }
+
         // parse and add constants, inputs, and static registers to the module
         if (ctx.moduleConstants) {
             ctx.moduleConstants.forEach((element: any) => this.visit(element, aModule));
@@ -478,6 +483,15 @@ class AirVisitor extends BaseCstVisitor {
         let start = Number.parseInt(ctx.start[0].image, 10);
         let end = ctx.end ? Number.parseInt(ctx.end[0].image, 10) : start;
         return [start, end];
+    }
+
+    // IMPORTS
+    // --------------------------------------------------------------------------------------------
+    importExpression(ctx: any, aModule: Module): void {
+        const members = ctx.members.map((member: any) => member.image);
+        const path = ctx.path[0].image;
+        // TODO: implement
+        const imp = { members, path };
     }
 }
 

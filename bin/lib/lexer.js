@@ -8,6 +8,7 @@ const errors_1 = require("./errors");
 // ================================================================================================
 exports.HexLiteral = chevrotain_1.createToken({ name: "HexLiteral", pattern: /0x[0-9a-f]+/ });
 exports.IntegerLiteral = chevrotain_1.createToken({ name: "IntegerLiteral", pattern: /0|[1-9]\d*/ });
+exports.StringLiteral = chevrotain_1.createToken({ name: "StringLiteral", pattern: /'([^'\\]|\\.)*'/ });
 exports.Identifier = chevrotain_1.createToken({ name: "Identifier", pattern: /[a-zA-Z]\w*/ });
 exports.TraceRegister = chevrotain_1.createToken({ name: "TraceRegister", pattern: /\$[rn]\d{1,2}/ });
 exports.RegisterBank = chevrotain_1.createToken({ name: "RegisterBank", pattern: /\$[rn]/ });
@@ -100,7 +101,7 @@ exports.allTokens = [
     exports.Ellipsis, exports.DoubleDot, exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,
     exports.TraceRegister, exports.RegisterBank,
-    exports.HexLiteral, exports.IntegerLiteral
+    exports.HexLiteral, exports.IntegerLiteral, exports.StringLiteral
 ];
 // EXPORT LEXER INSTANCE
 // ================================================================================================

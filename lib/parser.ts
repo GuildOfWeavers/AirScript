@@ -2,11 +2,11 @@
 // ================================================================================================
 import { CstParser } from "chevrotain";
 import {
-    allTokens, Identifier, IntegerLiteral, Define, Over, Prime, Field, Transition,
-    Registers, Static, Cycle, TraceRegister, RegisterBank, For, All, Each, Init, Yield,
+    allTokens, Define, Over, Prime, Field, Const, Static, Cycle, Prng, Input, Public, Secret, Element,
+    Boolean, Transition, Registers, Enforce, Constraints, For, All, Steps, Each, Init, Yield, When, Else,
+    Import, From, Identifier, IntegerLiteral, TraceRegister, RegisterBank, HexLiteral, StringLiteral,
     LParen, RParen, LCurly, RCurly, LSquare, RSquare, Slash, QMark, Comma, Colon, Semicolon,
-    ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals,
-    Steps, Enforce, Constraints, When, Else, Public, Secret, Input, Boolean, Element, Const, Prng, HexLiteral
+    ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -21,12 +21,13 @@ class AirParser extends CstParser {
     // SCRIPT
     // --------------------------------------------------------------------------------------------
     public script = this.RULE('script', () => {
+        this.MANY1(() => this.SUBRULE(this.importExpression,      { LABEL: 'imports'          }));
         this.CONSUME(Define);
         this.CONSUME(Identifier,                                  { LABEL: 'starkName'        });
         this.CONSUME(Over);
         this.SUBRULE(this.fieldDeclaration,                       { LABEL: 'fieldDeclaration' });
         this.CONSUME(LCurly);
-        this.MANY(() => {
+        this.MANY2(() => {
             this.OR([
                 { ALT: () => this.SUBRULE(this.constDeclaration,  { LABEL: 'moduleConstants'  })},
                 { ALT: () => this.SUBRULE(this.inputDeclaration,  { LABEL: 'inputRegisters'   })},
@@ -466,6 +467,23 @@ class AirParser extends CstParser {
             this.CONSUME(DoubleDot);
             this.CONSUME2(IntegerLiteral,   { LABEL: 'end'   });
         });
+    });
+
+    // IMPORTS
+    // --------------------------------------------------------------------------------------------
+    private importExpression = this.RULE('importExpression', () => { 
+        this.CONSUME(Import);
+        this.CONSUME(LCurly);
+        this.AT_LEAST_ONE_SEP({
+            SEP : Comma,
+            DEF : () => {
+                this.CONSUME(Identifier, { LABEL: 'members' });
+            }
+        });
+        this.CONSUME(RCurly);
+        this.CONSUME(From);
+        this.CONSUME(StringLiteral,      { LABEL: 'path'     });
+        this.CONSUME(Semicolon);
     });
 }
 

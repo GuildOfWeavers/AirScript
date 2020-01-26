@@ -13,12 +13,13 @@ class AirParser extends chevrotain_1.CstParser {
         // SCRIPT
         // --------------------------------------------------------------------------------------------
         this.script = this.RULE('script', () => {
+            this.MANY1(() => this.SUBRULE(this.importExpression, { LABEL: 'imports' }));
             this.CONSUME(lexer_1.Define);
             this.CONSUME(lexer_1.Identifier, { LABEL: 'starkName' });
             this.CONSUME(lexer_1.Over);
             this.SUBRULE(this.fieldDeclaration, { LABEL: 'fieldDeclaration' });
             this.CONSUME(lexer_1.LCurly);
-            this.MANY(() => {
+            this.MANY2(() => {
                 this.OR([
                     { ALT: () => this.SUBRULE(this.constDeclaration, { LABEL: 'moduleConstants' }) },
                     { ALT: () => this.SUBRULE(this.inputDeclaration, { LABEL: 'inputRegisters' }) },
@@ -424,6 +425,22 @@ class AirParser extends chevrotain_1.CstParser {
                 this.CONSUME(lexer_1.DoubleDot);
                 this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'end' });
             });
+        });
+        // IMPORTS
+        // --------------------------------------------------------------------------------------------
+        this.importExpression = this.RULE('importExpression', () => {
+            this.CONSUME(lexer_1.Import);
+            this.CONSUME(lexer_1.LCurly);
+            this.AT_LEAST_ONE_SEP({
+                SEP: lexer_1.Comma,
+                DEF: () => {
+                    this.CONSUME(lexer_1.Identifier, { LABEL: 'members' });
+                }
+            });
+            this.CONSUME(lexer_1.RCurly);
+            this.CONSUME(lexer_1.From);
+            this.CONSUME(lexer_1.StringLiteral, { LABEL: 'path' });
+            this.CONSUME(lexer_1.Semicolon);
         });
         this.performSelfAnalysis();
     }
