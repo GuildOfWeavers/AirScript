@@ -5,6 +5,7 @@ import {
 } from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo } from './Module';
 import { ExecutionContext } from "./ExecutionContext";
+import { ProcedureParams } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -34,6 +35,13 @@ export interface ProcedureSpecs {
     readonly inputRegisters         : InputRegister[];
     readonly segmentMasks           : bigint[][];
     readonly staticRegisterOffset   : number;
+}
+
+export interface StaticRegisterCounts {
+    readonly inputs     : number;
+    readonly loops      : number;
+    readonly segments   : number;
+    readonly statics    : number;
 }
 
 // CLASS DEFINITION
@@ -89,8 +97,9 @@ export class Component {
         return this.procedures.segmentMasks[0].length;
     }
 
-    get segmentCount(): number {
-        return this.procedures.segmentMasks.length;
+    get staticRegisterCount(): number {
+        const param = this.procedures.transition.params.filter(p => p.name === ProcedureParams.staticRow)[0];
+        return param.dimensions[0];
     }
 
     // PUBLIC METHODS
@@ -100,12 +109,16 @@ export class Component {
             ? this.procedures.transition
             : this.procedures.evaluation;
 
+        const staticRegisters: StaticRegisterCounts = {
+            inputs  : this.inputRegisters.length,
+            loops   : this.maskRegisters.length,
+            segments: this.segmentMasks.length,
+            statics : this.staticRegisterCount - this.procedures.staticRegisterOffset
+        };
+
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext(context, this.symbols, this.functions, {
-            loop    : this.inputRegisters.length,
-            segment : this.inputRegisters.length + this.maskRegisters.length
-        });
+        return new ExecutionContext(context, this.symbols, this.functions, staticRegisters);
     }
 
     setTransitionFunction(context: ExecutionContext): void {

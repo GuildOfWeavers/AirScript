@@ -138,6 +138,7 @@ class AirVisitor extends BaseCstVisitor {
         }
     }
     transitionConstraints(ctx, component) {
+        // TODO: validate execution template
         const exc = component.createExecutionContext('evaluation');
         if (ctx.allStepBlock) {
             const result = this.visit(ctx.allStepBlock, exc);

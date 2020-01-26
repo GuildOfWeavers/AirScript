@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const ExecutionContext_1 = require("./ExecutionContext");
+const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
 class Component {
@@ -38,8 +39,9 @@ class Component {
     get cycleLength() {
         return this.procedures.segmentMasks[0].length;
     }
-    get segmentCount() {
-        return this.procedures.segmentMasks.length;
+    get staticRegisterCount() {
+        const param = this.procedures.transition.params.filter(p => p.name === utils_1.ProcedureParams.staticRow)[0];
+        return param.dimensions[0];
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
@@ -47,12 +49,15 @@ class Component {
         const specs = (procedure === 'transition')
             ? this.procedures.transition
             : this.procedures.evaluation;
+        const staticRegisters = {
+            inputs: this.inputRegisters.length,
+            loops: this.maskRegisters.length,
+            segments: this.segmentMasks.length,
+            statics: this.staticRegisterCount - this.procedures.staticRegisterOffset
+        };
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext_1.ExecutionContext(context, this.symbols, this.functions, {
-            loop: this.inputRegisters.length,
-            segment: this.inputRegisters.length + this.maskRegisters.length
-        });
+        return new ExecutionContext_1.ExecutionContext(context, this.symbols, this.functions, staticRegisters);
     }
     setTransitionFunction(context) {
         const { statements, result } = this.buildFunction(context);
