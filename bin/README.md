@@ -90,6 +90,24 @@ On the other hand, references to `bar` will resolve to a vector of 2 values. Thi
 
 Names of static variables can contain letters, numbers, and underscores and must start with a letter.
 
+### Pseudorandom cycles
+In many situations it may be desirable to have a static sequence of values generated pseudorandomly. It is of course possible to generate the values beforehand, and then to embed them into the script as static variables - but, for a long sequence of values, this is not very compact. To aid with this, AirScript allows specifying pseudorandom sequences like so:
+
+```
+static <name>: cycle prng(<method>, <seed>, <length>);
+```
+where:
+* `name` is the name of the static variable.
+* `method` is the method of generating a pseudorandom sequence. Currently, the only supported method is `sha256`.
+* `seed` is a hexadecimal representation of the seed from which the sequence is derived.
+* `length` is the number of values in the sequence. This must be a power of 2.
+
+For example:
+```
+static foo: cycle prng(sha256, 0x01, 64);
+```
+The above statement will generate a sequence of 64 values using `sha256` method and value `1` as the seed.
+
 ## Inputs
 Input variables define the number and type of inputs required by the computation. An input declaration has the following form:
 ```
