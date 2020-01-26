@@ -1,7 +1,7 @@
 import { compile } from '../index';
 
 const script = Buffer.from(`
-import { PoseidonHash } from './lib128.aa';
+import { PoseidonHash as Hash } from './lib128.aa';
 
 define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
 

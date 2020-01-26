@@ -19,6 +19,7 @@
 //    return root === v;
 // }
 
+import { PoseidonHash as Hash } from './lib128.aa';
 
 define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
 

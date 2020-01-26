@@ -6,7 +6,7 @@ import {
     Boolean, Transition, Registers, Enforce, Constraints, For, All, Steps, Each, Init, Yield, When, Else,
     Import, From, Identifier, IntegerLiteral, TraceRegister, RegisterBank, HexLiteral, StringLiteral,
     LParen, RParen, LCurly, RCurly, LSquare, RSquare, Slash, QMark, Comma, Colon, Semicolon,
-    ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals
+    ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals, As
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -471,19 +471,25 @@ class AirParser extends CstParser {
 
     // IMPORTS
     // --------------------------------------------------------------------------------------------
-    private importExpression = this.RULE('importExpression', () => { 
+    private importExpression = this.RULE('importExpression', () => {
         this.CONSUME(Import);
         this.CONSUME(LCurly);
         this.AT_LEAST_ONE_SEP({
             SEP : Comma,
-            DEF : () => {
-                this.CONSUME(Identifier, { LABEL: 'members' });
-            }
+            DEF : () => this.SUBRULE(this.importMember, { LABEL: 'members' })
         });
         this.CONSUME(RCurly);
         this.CONSUME(From);
-        this.CONSUME(StringLiteral,      { LABEL: 'path'     });
+        this.CONSUME(StringLiteral,                     { LABEL: 'path'    });
         this.CONSUME(Semicolon);
+    });
+
+    private importMember = this.RULE('importMember', () => {
+        this.CONSUME1(Identifier,       { LABEL: 'member' });
+        this.OPTION(() => {
+            this.CONSUME(As);
+            this.CONSUME2(Identifier,   { LABEL: 'alias'  });
+        });
     });
 }
 

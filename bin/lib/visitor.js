@@ -425,10 +425,15 @@ class AirVisitor extends BaseCstVisitor {
     // IMPORTS
     // --------------------------------------------------------------------------------------------
     importExpression(ctx, aModule) {
-        const members = ctx.members.map((member) => member.image);
+        const members = ctx.members.map((member) => this.visit(member));
         const path = ctx.path[0].image;
         // TODO: implement
         const imp = { members, path };
+    }
+    importMember(ctx) {
+        const member = ctx.member[0].image;
+        const alias = ctx.alias ? ctx.alias[0].image : undefined;
+        return { member, alias };
     }
 }
 // EXPORT VISITOR INSTANCE

@@ -433,14 +433,19 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.LCurly);
             this.AT_LEAST_ONE_SEP({
                 SEP: lexer_1.Comma,
-                DEF: () => {
-                    this.CONSUME(lexer_1.Identifier, { LABEL: 'members' });
-                }
+                DEF: () => this.SUBRULE(this.importMember, { LABEL: 'members' })
             });
             this.CONSUME(lexer_1.RCurly);
             this.CONSUME(lexer_1.From);
             this.CONSUME(lexer_1.StringLiteral, { LABEL: 'path' });
             this.CONSUME(lexer_1.Semicolon);
+        });
+        this.importMember = this.RULE('importMember', () => {
+            this.CONSUME1(lexer_1.Identifier, { LABEL: 'member' });
+            this.OPTION(() => {
+                this.CONSUME(lexer_1.As);
+                this.CONSUME2(lexer_1.Identifier, { LABEL: 'alias' });
+            });
         });
         this.performSelfAnalysis();
     }
