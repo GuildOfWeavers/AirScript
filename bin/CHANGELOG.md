@@ -1,5 +1,9 @@
 # Release History
 
+### v0.6.3 - January 26, 2020
+
+* Implemented pseudorandom cycles for static variables
+
 ### v0.6 - January 21, 2020
 
 * Implemented compilation of AirScript to AirAssembly
