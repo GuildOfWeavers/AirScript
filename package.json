@@ -35,7 +35,7 @@
     "rimraf": "3.0.x"
   },
   "dependencies": {
-    "@guildofweavers/air-assembly": "0.3.x",
+    "@guildofweavers/air-assembly": "^0.3.2",
     "@guildofweavers/galois": "0.4.x",
     "chevrotain": "6.5.x"
   }

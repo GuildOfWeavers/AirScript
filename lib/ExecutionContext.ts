@@ -5,6 +5,7 @@ import {
     GetVectorElement, SliceVector, MakeMatrix, StoreOperation, LoadExpression
 } from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo } from './Module';
+import { StaticRegisterCounts } from "./Component";
 import { validate, BLOCK_ID_PREFIX, ProcedureParams } from './utils';
 
 // INTERFACES
@@ -19,24 +20,29 @@ interface ControllerOffsets {
 export class ExecutionContext {
 
     readonly base               : FunctionContext;
+
     readonly blocks             : ExpressionBlock[];
     readonly statements         : StoreOperation[];
+    readonly initializers       : Expression[];
+    readonly segments           : Expression[];
+    readonly staticRegisters    : StaticRegisterCounts;
 
     private lastBlockId         : number;
 
     private readonly symbols    : Map<string, SymbolInfo>;
     private readonly functions  : Map<string, FunctionInfo>;
-    private readonly offsets    : ControllerOffsets;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base: FunctionContext, symbols: Map<string, SymbolInfo>, functions: Map<string, FunctionInfo>, offsets: ControllerOffsets) {
+    constructor(base: FunctionContext, symbols: Map<string, SymbolInfo>, functions: Map<string, FunctionInfo>, staticRegisters: StaticRegisterCounts) {
         this.base = base;
         this.symbols = symbols;
         this.functions = functions;
-        this.offsets = offsets;
+        this.staticRegisters = staticRegisters;
         this.statements = [];
         this.blocks = [];
+        this.initializers = [];
+        this.segments = [];
         this.lastBlockId = 0;
     }
 
@@ -44,6 +50,14 @@ export class ExecutionContext {
     // --------------------------------------------------------------------------------------------
     get currentBlock(): ExpressionBlock {
         return this.blocks[this.blocks.length - 1];
+    }
+
+    get loopOffset(): number {
+        return this.staticRegisters.inputs;
+    }
+
+    get segmentOffset(): number {
+        return this.staticRegisters.inputs + this.staticRegisters.loops;
     }
 
     // SYMBOLIC REFERENCES
@@ -92,12 +106,24 @@ export class ExecutionContext {
 
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
+    addInitializer(initResult: Expression): void {
+        validate(this.initializers.length < this.staticRegisters.loops,
+            errors.tooManyLoops(this.staticRegisters.loops));
+        this.initializers.push(initResult);
+    }
+
+    addSegment(segmentResult: Expression): void {
+        validate(this.segments.length < this.staticRegisters.segments,
+            errors.tooManySegments(this.staticRegisters.segments));
+        this.segments.push(segmentResult);
+    }
+
     getLoopController(loopIdx: number): Expression {
-        loopIdx = this.offsets.loop + loopIdx;
+        loopIdx = this.loopOffset + loopIdx;
         let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, loopIdx);
         const one = this.base.buildLiteralValue(this.base.field.one);
-        for (let i = loopIdx - 1; i >= this.offsets.loop; i--) {
+        for (let i = loopIdx - 1; i >= this.loopOffset; i--) {
             let parent: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
             parent = this.base.buildGetVectorElementExpression(parent, i);
             parent = this.base.buildBinaryOperation('sub', one, parent);
@@ -107,7 +133,7 @@ export class ExecutionContext {
     }
 
     getSegmentController(segmentIdx: number): Expression {
-        segmentIdx = this.offsets.segment + segmentIdx;
+        segmentIdx = this.segmentOffset + segmentIdx;
         let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, segmentIdx);
         return result;
@@ -227,5 +253,7 @@ const errors = {
     undeclaredVarReference  : (s: any) => `variable ${s} is referenced before declaration`,
     undefinedFuncReference  : (f: any) => `function ${f} has not been defined`,
     cannotAssignToConst     : (c: any) => `cannot assign a value to a constant ${c}`,
-    cannotAssignToOuterScope: (v: any) => `cannot assign a value to an outer scope variable ${v}`
+    cannotAssignToOuterScope: (v: any) => `cannot assign a value to an outer scope variable ${v}`,
+    tooManyLoops            : (e: any) => `number of input loops cannot exceed ${e}`,
+    tooManySegments         : (e: any) => `number of segment loops cannot exceed ${e}`
 };

@@ -5,7 +5,9 @@ import { lexerErrorMessageProvider } from "./errors";
 
 // LITERALS, REGISTERS, and IDENTIFIERS
 // ================================================================================================
+export const HexLiteral         = createToken({ name: "HexLiteral",       pattern: /0x[0-9a-f]+/   });
 export const IntegerLiteral     = createToken({ name: "IntegerLiteral",   pattern: /0|[1-9]\d*/    });
+export const StringLiteral      = createToken({ name: "StringLiteral",    pattern: /'([^'\\]|\\.)*'/ });
 export const Identifier         = createToken({ name: "Identifier",       pattern: /[a-zA-Z]\w*/   });
 
 export const TraceRegister      = createToken({ name: "TraceRegister",    pattern: /\$[rn]\d{1,2}/ });
@@ -45,6 +47,8 @@ export const Nothing     = createToken({ name: "Nothing",     pattern: /nothing/
 export const When        = createToken({ name: "When",        pattern: /when/,          longer_alt: Identifier });
 export const Else        = createToken({ name: "Else",        pattern: /else/,          longer_alt: Identifier });
 export const All         = createToken({ name: "All",         pattern: /all/,           longer_alt: Identifier });
+
+export const Prng        = createToken({ name: "Prng",        pattern: /prng/,          longer_alt: Identifier });
 
 export const Import      = createToken({ name: "Import",      pattern: /import/,        longer_alt: Identifier });
 export const From        = createToken({ name: "From",        pattern: /from/,          longer_alt: Identifier });
@@ -107,7 +111,7 @@ export const allTokens = [
     
     Define, Over, Prime, Field, Transition, Registers, Steps, Yield, Enforce, Constraints,
     For, Each, Do, With, Nothing, When, Else, Cycle, Const, Input, Public, Secret, Element, Boolean,
-    Static, Import, From, As, All, Init,
+    Static, Import, From, As, All, Init, Prng,
 
     AssignOp, Equals, Plus, Minus, Star, Slash, Pound, ExpOp, MulOp, AddOp,
 
@@ -118,7 +122,7 @@ export const allTokens = [
 
     TraceRegister, RegisterBank,
 
-    IntegerLiteral
+    HexLiteral, IntegerLiteral, StringLiteral
 ];
 
 // EXPORT LEXER INSTANCE

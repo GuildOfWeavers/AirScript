@@ -8,13 +8,11 @@ import { validate } from "./utils";
 type Interval = [number, number];
 
 interface Segment {
-    readonly mask   : bigint[];
-    readonly body   : any;
+    readonly mask       : bigint[];
 }
 
 interface Loop {
-    readonly inputs : Set<string>;
-    readonly init   : any;
+    readonly inputs     : Set<string>;
 }
 
 // CLASS DEFINITION
@@ -46,7 +44,7 @@ export class ExecutionTemplate {
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    addLoop(inputs: string[], init: any): void {
+    addLoop(inputs: string[]): void {
         if (this.loops.length > 0) {
             let outerLoop = this.loops[this.loops.length - 1];
             inputs.forEach(input => {
@@ -54,10 +52,10 @@ export class ExecutionTemplate {
                 outerLoop.inputs.delete(input);
             });
         }
-        this.loops.push({ inputs: new Set(inputs), init });
+        this.loops.push({ inputs: new Set(inputs) });
     }
 
-    addSegment(intervals: Interval[], body: any): void {
+    addSegment(intervals: Interval[]): void {
 
         for (let interval of intervals) {
             let start = interval[0], end = interval[1];
@@ -98,7 +96,7 @@ export class ExecutionTemplate {
         }
 
         // build and add the new segment to the list
-        this.segments.push({ mask, body });
+        this.segments.push({ mask });
     }
 
     getIntervalAt(step: number): Interval | undefined {

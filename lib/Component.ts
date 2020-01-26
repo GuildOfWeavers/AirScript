@@ -5,6 +5,7 @@ import {
 } from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo } from './Module';
 import { ExecutionContext } from "./ExecutionContext";
+import { ProcedureParams } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -34,6 +35,13 @@ export interface ProcedureSpecs {
     readonly inputRegisters         : InputRegister[];
     readonly segmentMasks           : bigint[][];
     readonly staticRegisterOffset   : number;
+}
+
+export interface StaticRegisterCounts {
+    readonly inputs     : number;
+    readonly loops      : number;
+    readonly segments   : number;
+    readonly statics    : number;
 }
 
 // CLASS DEFINITION
@@ -89,8 +97,9 @@ export class Component {
         return this.procedures.segmentMasks[0].length;
     }
 
-    get segmentCount(): number {
-        return this.procedures.segmentMasks.length;
+    get staticRegisterCount(): number {
+        const param = this.procedures.transition.params.filter(p => p.name === ProcedureParams.staticRow)[0];
+        return param.dimensions[0];
     }
 
     // PUBLIC METHODS
@@ -100,38 +109,42 @@ export class Component {
             ? this.procedures.transition
             : this.procedures.evaluation;
 
+        const staticRegisters: StaticRegisterCounts = {
+            inputs  : this.inputRegisters.length,
+            loops   : this.maskRegisters.length,
+            segments: this.segmentMasks.length,
+            statics : this.staticRegisterCount - this.procedures.staticRegisterOffset
+        };
+
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext(context, this.symbols, this.functions, {
-            loop    : this.inputRegisters.length,
-            segment : this.inputRegisters.length + this.maskRegisters.length
-        });
+        return new ExecutionContext(context, this.symbols, this.functions, staticRegisters);
     }
 
-    setTransitionFunction(context: ExecutionContext, initializers: Expression[], segments: Expression[]): void {
-        const { statements, result } = this.buildFunction(context, initializers, segments);
+    setTransitionFunction(context: ExecutionContext): void {
+        const { statements, result } = this.buildFunction(context);
         this.schema.addFunction(context.base, statements, result);
     }
 
+    setConstraintEvaluator(context: ExecutionContext): void
     setConstraintEvaluator(context: ExecutionContext, result: Expression): void;
-    setConstraintEvaluator(context: ExecutionContext, initializers: Expression[], segments: Expression[]): void
-    setConstraintEvaluator(context: ExecutionContext, resultOrInitializer: Expression | Expression[], segments?: Expression[]): void {
-        if (Array.isArray(resultOrInitializer)) {
-            const { statements, result } = this.buildFunction(context, resultOrInitializer, segments!);
-            this.schema.addFunction(context.base, statements, result);
+    setConstraintEvaluator(context: ExecutionContext, result?: Expression): void {
+        if (result) {
+            this.schema.addFunction(context.base, context.statements, result);
         }
         else {
-            this.schema.addFunction(context.base, context.statements, resultOrInitializer);
+            const { statements, result } = this.buildFunction(context);
+            this.schema.addFunction(context.base, statements, result);
         }
     }
 
     // PRIVATE METHODS
     // --------------------------------------------------------------------------------------------
-    private buildFunction(context: ExecutionContext, initializers: Expression[], segments: Expression[]) {
+    private buildFunction(context: ExecutionContext) {
         let result: Expression | undefined;
         let statements: StoreOperation[] = context.statements;
 
-        initializers.forEach((expression, i) => {
+        context.initializers.forEach((expression, i) => {
             if (expression.isScalar) {
                 expression = context.buildMakeVectorExpression([expression]);
             }
@@ -146,7 +159,7 @@ export class Component {
             result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
 
-        segments.forEach((expression, i) => {
+        context.segments.forEach((expression, i) => {
             const resultHandle = `$_seg_${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
 

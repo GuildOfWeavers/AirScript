@@ -6,7 +6,9 @@ const chevrotain_1 = require("chevrotain");
 const errors_1 = require("./errors");
 // LITERALS, REGISTERS, and IDENTIFIERS
 // ================================================================================================
+exports.HexLiteral = chevrotain_1.createToken({ name: "HexLiteral", pattern: /0x[0-9a-f]+/ });
 exports.IntegerLiteral = chevrotain_1.createToken({ name: "IntegerLiteral", pattern: /0|[1-9]\d*/ });
+exports.StringLiteral = chevrotain_1.createToken({ name: "StringLiteral", pattern: /'([^'\\]|\\.)*'/ });
 exports.Identifier = chevrotain_1.createToken({ name: "Identifier", pattern: /[a-zA-Z]\w*/ });
 exports.TraceRegister = chevrotain_1.createToken({ name: "TraceRegister", pattern: /\$[rn]\d{1,2}/ });
 exports.RegisterBank = chevrotain_1.createToken({ name: "RegisterBank", pattern: /\$[rn]/ });
@@ -40,6 +42,7 @@ exports.Nothing = chevrotain_1.createToken({ name: "Nothing", pattern: /nothing/
 exports.When = chevrotain_1.createToken({ name: "When", pattern: /when/, longer_alt: exports.Identifier });
 exports.Else = chevrotain_1.createToken({ name: "Else", pattern: /else/, longer_alt: exports.Identifier });
 exports.All = chevrotain_1.createToken({ name: "All", pattern: /all/, longer_alt: exports.Identifier });
+exports.Prng = chevrotain_1.createToken({ name: "Prng", pattern: /prng/, longer_alt: exports.Identifier });
 exports.Import = chevrotain_1.createToken({ name: "Import", pattern: /import/, longer_alt: exports.Identifier });
 exports.From = chevrotain_1.createToken({ name: "From", pattern: /from/, longer_alt: exports.Identifier });
 exports.As = chevrotain_1.createToken({ name: "As", pattern: /as/, longer_alt: exports.Identifier });
@@ -92,13 +95,13 @@ exports.allTokens = [
     exports.WhiteSpace, exports.Comment,
     exports.Define, exports.Over, exports.Prime, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Yield, exports.Enforce, exports.Constraints,
     exports.For, exports.Each, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Cycle, exports.Const, exports.Input, exports.Public, exports.Secret, exports.Element, exports.Boolean,
-    exports.Static, exports.Import, exports.From, exports.As, exports.All, exports.Init,
+    exports.Static, exports.Import, exports.From, exports.As, exports.All, exports.Init, exports.Prng,
     exports.AssignOp, exports.Equals, exports.Plus, exports.Minus, exports.Star, exports.Slash, exports.Pound, exports.ExpOp, exports.MulOp, exports.AddOp,
     exports.LCurly, exports.RCurly, exports.LSquare, exports.RSquare, exports.LParen, exports.RParen, exports.LWedge, exports.RWedge, exports.Comma, exports.Colon, exports.Semicolon,
     exports.Ellipsis, exports.DoubleDot, exports.Tilde, exports.Ampersand, exports.QMark, exports.EMark,
     exports.Identifier,
     exports.TraceRegister, exports.RegisterBank,
-    exports.IntegerLiteral
+    exports.HexLiteral, exports.IntegerLiteral, exports.StringLiteral
 ];
 // EXPORT LEXER INSTANCE
 // ================================================================================================

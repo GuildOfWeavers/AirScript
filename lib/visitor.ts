@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { AirSchema, Expression } from '@guildofweavers/air-assembly';
+import { AirSchema, Expression, PrngSequence } from '@guildofweavers/air-assembly';
 import { FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
@@ -35,6 +35,11 @@ class AirVisitor extends BaseCstVisitor {
         const constraintCount = Number(ctx.constraintCount[0].image);
         const aModule = new Module(moduleName, modulus, traceRegisterCount, constraintCount);
 
+        // parse imports
+        if (ctx.imports) {
+            ctx.imports.forEach((imp: any) => this.visit(imp, aModule));
+        }
+
         // parse and add constants, inputs, and static registers to the module
         if (ctx.moduleConstants) {
             ctx.moduleConstants.forEach((element: any) => this.visit(element, aModule));
@@ -48,13 +53,8 @@ class AirVisitor extends BaseCstVisitor {
         const template: ExecutionTemplate = this.visit(ctx.transitionFunction, aModule);
         const component = aModule.createComponent(template);
 
-        // parse transition function
-        const exc = component.createExecutionContext('transition');
-        const inits: Expression[] = template.loops.map(loop => this.visit(loop.init, exc));
-        const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
-        component.setTransitionFunction(exc, inits, segments);
-
-        // parse constraint evaluator
+        // parse transition function and constraint evaluator
+        this.visit(ctx.transitionFunction, component);
         this.visit(ctx.transitionConstraints, component);
 
         // finalize the component and return the schema
@@ -129,60 +129,104 @@ class AirVisitor extends BaseCstVisitor {
         aModule.addInput(inputName, registerCount, inputRank, scope, binary);
     }
 
-    staticDeclaration(ctx: any,  aModule: Module): void {
-        const registerName = ctx.name[0].image;
-        const values: bigint[][] = ctx.values.map((v: any) => this.visit(v));
-        // TODO: handle parsing of PRNG sequences
-        aModule.addStatic(registerName, values);
+    staticDeclaration(ctx: any, aModule: Module): void {
+        const staticName = ctx.name[0].image;
+        const registers: (bigint[] | PrngSequence)[] = ctx.registers.map((r: any) => this.visit(r));
+        
+        aModule.addStatic(staticName, registers);
+    }
+
+    staticRegister(ctx: any, aModule: Module): bigint[] | PrngSequence {
+        if (ctx.values) {
+            return this.visit(ctx.values, aModule) as bigint[];
+        }
+        else {
+            return this.visit(ctx.sequence, aModule) as PrngSequence;
+        }
+    }
+
+    prngSequence(ctx: any, aModule: Module): PrngSequence {
+        const method: string = ctx.method[0].image;
+        const seed = BigInt(ctx.seed[0].image);
+        const count = Number(ctx.count[0].image);
+        return new PrngSequence(method, seed, count);
     }
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, aModule: Module): ExecutionTemplate {
-        const template = new ExecutionTemplate(aModule.field);
-        this.visit(ctx.inputBlock, template);
-        return template;
+    transitionFunction(ctx: any, mOrC: Module | Component): ExecutionTemplate | void {
+        if (mOrC instanceof Module) {
+            const template = new ExecutionTemplate(mOrC.field);
+            this.visit(ctx.inputLoop, template);
+            return template;
+        }
+        else {
+            const exc = mOrC.createExecutionContext('transition');
+            this.visit(ctx.inputLoop, exc);
+            mOrC.setTransitionFunction(exc);
+        }
     }
 
     transitionConstraints(ctx: any, component: Component): void {
+        // TODO: validate execution template
+        const exc = component.createExecutionContext('evaluation');
         if (ctx.allStepBlock) {
-            const exc = component.createExecutionContext('evaluation');
             const result: Expression = this.visit(ctx.allStepBlock, exc);
             component.setConstraintEvaluator(exc, result);
         }
         else {
-            const template = new ExecutionTemplate(component.field);
-            this.visit(ctx.inputBlock, template);
-
-            const exc = component.createExecutionContext('evaluation');
-            const inits: Expression[] = template.loops.map(loop => this.visit(loop.init, exc));
-            const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
-            component.setConstraintEvaluator(exc, inits, segments);
+            this.visit(ctx.inputLoop, exc);
+            component.setConstraintEvaluator(exc);
         }
     }
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputBlock(ctx: any, template: ExecutionTemplate): void {
-        const inputs: string[] = ctx.inputs.map((register: any) => register.image);
-        template.addLoop(inputs, ctx.initExpression);
-
-        // parse body expression
-        if (ctx.inputBlock) {
-            this.visit(ctx.inputBlock, template);
+    inputLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void {
+        if (tOrC instanceof ExecutionTemplate) {
+            // parse input names
+            tOrC.addLoop(ctx.inputs.map((input: any) => input.image));
+        
+            // parse body expression
+            if (ctx.inputLoop) {
+                this.visit(ctx.inputLoop, tOrC);
+            }
+            else {
+                ctx.segmentLoops.forEach((loop: any) => this.visit(loop, tOrC));
+            }
         }
         else {
-            ctx.segmentLoops.map((loop: any) => this.visit(loop, template));
+            tOrC.enterBlock();
+            // parse outer statements
+            if (ctx.statements) {
+                ctx.statements.forEach((s: any) => this.visit(s, tOrC));
+            }
+
+            // parse initializer
+            this.visit(ctx.initExpression, tOrC);
+
+            // parse body
+            if (ctx.inputLoop) {
+                this.visit(ctx.inputLoop, tOrC);
+            }
+            else {
+                ctx.segmentLoops.forEach((loop: any) => this.visit(loop, tOrC));
+            }
+            tOrC.exitBlock();
         }
     }
 
-    transitionInit(ctx: any, template: ExecutionTemplate): Expression {
-        return this.visit(ctx.expression, template);
+    inputLoopInit(ctx: any, exc: ExecutionContext): void {
+        exc.addInitializer(this.visit(ctx.expression, exc));
     }
 
-    segmentLoop(ctx: any, template: ExecutionTemplate): void {
-        const intervals: [number, number][] = ctx.ranges.map((range: any) => this.visit(range));
-        template.addSegment(intervals, ctx.body);
+    segmentLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void {
+        if (tOrC instanceof ExecutionTemplate) {
+            tOrC.addSegment(ctx.ranges.map((range: any) => this.visit(range)));
+        }
+        else {
+            tOrC.addSegment(this.visit(ctx.body, tOrC));
+        }
     }
 
     // STATEMENTS
@@ -439,6 +483,21 @@ class AirVisitor extends BaseCstVisitor {
         let start = Number.parseInt(ctx.start[0].image, 10);
         let end = ctx.end ? Number.parseInt(ctx.end[0].image, 10) : start;
         return [start, end];
+    }
+
+    // IMPORTS
+    // --------------------------------------------------------------------------------------------
+    importExpression(ctx: any, aModule: Module): void {
+        const members = ctx.members.map((member: any) => this.visit(member));
+        const path = ctx.path[0].image;
+        // TODO: implement
+        const imp = { members, path };
+    }
+
+    importMember(ctx: any): { member: string, alias?: string } {
+        const member = ctx.member[0].image;
+        const alias = ctx.alias ? ctx.alias[0].image : undefined;
+        return { member, alias };
     }
 }
 

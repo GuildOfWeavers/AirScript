@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const ExecutionContext_1 = require("./ExecutionContext");
+const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
 class Component {
@@ -38,8 +39,9 @@ class Component {
     get cycleLength() {
         return this.procedures.segmentMasks[0].length;
     }
-    get segmentCount() {
-        return this.procedures.segmentMasks.length;
+    get staticRegisterCount() {
+        const param = this.procedures.transition.params.filter(p => p.name === utils_1.ProcedureParams.staticRow)[0];
+        return param.dimensions[0];
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
@@ -47,32 +49,35 @@ class Component {
         const specs = (procedure === 'transition')
             ? this.procedures.transition
             : this.procedures.evaluation;
+        const staticRegisters = {
+            inputs: this.inputRegisters.length,
+            loops: this.maskRegisters.length,
+            segments: this.segmentMasks.length,
+            statics: this.staticRegisterCount - this.procedures.staticRegisterOffset
+        };
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext_1.ExecutionContext(context, this.symbols, this.functions, {
-            loop: this.inputRegisters.length,
-            segment: this.inputRegisters.length + this.maskRegisters.length
-        });
+        return new ExecutionContext_1.ExecutionContext(context, this.symbols, this.functions, staticRegisters);
     }
-    setTransitionFunction(context, initializers, segments) {
-        const { statements, result } = this.buildFunction(context, initializers, segments);
+    setTransitionFunction(context) {
+        const { statements, result } = this.buildFunction(context);
         this.schema.addFunction(context.base, statements, result);
     }
-    setConstraintEvaluator(context, resultOrInitializer, segments) {
-        if (Array.isArray(resultOrInitializer)) {
-            const { statements, result } = this.buildFunction(context, resultOrInitializer, segments);
-            this.schema.addFunction(context.base, statements, result);
+    setConstraintEvaluator(context, result) {
+        if (result) {
+            this.schema.addFunction(context.base, context.statements, result);
         }
         else {
-            this.schema.addFunction(context.base, context.statements, resultOrInitializer);
+            const { statements, result } = this.buildFunction(context);
+            this.schema.addFunction(context.base, statements, result);
         }
     }
     // PRIVATE METHODS
     // --------------------------------------------------------------------------------------------
-    buildFunction(context, initializers, segments) {
+    buildFunction(context) {
         let result;
         let statements = context.statements;
-        initializers.forEach((expression, i) => {
+        context.initializers.forEach((expression, i) => {
             if (expression.isScalar) {
                 expression = context.buildMakeVectorExpression([expression]);
             }
@@ -84,7 +89,7 @@ class Component {
             expression = context.base.buildLoadExpression(`load.local`, resultHandle);
             result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
-        segments.forEach((expression, i) => {
+        context.segments.forEach((expression, i) => {
             const resultHandle = `$_seg_${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
             const resultControl = context.getSegmentController(i);

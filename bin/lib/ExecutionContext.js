@@ -6,19 +6,27 @@ const utils_1 = require("./utils");
 class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base, symbols, functions, offsets) {
+    constructor(base, symbols, functions, staticRegisters) {
         this.base = base;
         this.symbols = symbols;
         this.functions = functions;
-        this.offsets = offsets;
+        this.staticRegisters = staticRegisters;
         this.statements = [];
         this.blocks = [];
+        this.initializers = [];
+        this.segments = [];
         this.lastBlockId = 0;
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
     get currentBlock() {
         return this.blocks[this.blocks.length - 1];
+    }
+    get loopOffset() {
+        return this.staticRegisters.inputs;
+    }
+    get segmentOffset() {
+        return this.staticRegisters.inputs + this.staticRegisters.loops;
     }
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
@@ -62,12 +70,20 @@ class ExecutionContext {
     }
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
+    addInitializer(initResult) {
+        utils_1.validate(this.initializers.length < this.staticRegisters.loops, errors.tooManyLoops(this.staticRegisters.loops));
+        this.initializers.push(initResult);
+    }
+    addSegment(segmentResult) {
+        utils_1.validate(this.segments.length < this.staticRegisters.segments, errors.tooManySegments(this.staticRegisters.segments));
+        this.segments.push(segmentResult);
+    }
     getLoopController(loopIdx) {
-        loopIdx = this.offsets.loop + loopIdx;
+        loopIdx = this.loopOffset + loopIdx;
         let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, loopIdx);
         const one = this.base.buildLiteralValue(this.base.field.one);
-        for (let i = loopIdx - 1; i >= this.offsets.loop; i--) {
+        for (let i = loopIdx - 1; i >= this.loopOffset; i--) {
             let parent = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
             parent = this.base.buildGetVectorElementExpression(parent, i);
             parent = this.base.buildBinaryOperation('sub', one, parent);
@@ -76,7 +92,7 @@ class ExecutionContext {
         return result;
     }
     getSegmentController(segmentIdx) {
-        segmentIdx = this.offsets.segment + segmentIdx;
+        segmentIdx = this.segmentOffset + segmentIdx;
         let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, segmentIdx);
         return result;
@@ -172,6 +188,8 @@ const errors = {
     undeclaredVarReference: (s) => `variable ${s} is referenced before declaration`,
     undefinedFuncReference: (f) => `function ${f} has not been defined`,
     cannotAssignToConst: (c) => `cannot assign a value to a constant ${c}`,
-    cannotAssignToOuterScope: (v) => `cannot assign a value to an outer scope variable ${v}`
+    cannotAssignToOuterScope: (v) => `cannot assign a value to an outer scope variable ${v}`,
+    tooManyLoops: (e) => `number of input loops cannot exceed ${e}`,
+    tooManySegments: (e) => `number of segment loops cannot exceed ${e}`
 };
 //# sourceMappingURL=ExecutionContext.js.map
