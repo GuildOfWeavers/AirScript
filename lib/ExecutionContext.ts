@@ -19,8 +19,11 @@ interface ControllerOffsets {
 export class ExecutionContext {
 
     readonly base               : FunctionContext;
+    
     readonly blocks             : ExpressionBlock[];
     readonly statements         : StoreOperation[];
+    readonly initializers       : Expression[];
+    readonly segments           : Expression[];
 
     private lastBlockId         : number;
 
@@ -37,6 +40,8 @@ export class ExecutionContext {
         this.offsets = offsets;
         this.statements = [];
         this.blocks = [];
+        this.initializers = [];
+        this.segments = [];
         this.lastBlockId = 0;
     }
 
@@ -92,6 +97,14 @@ export class ExecutionContext {
 
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
+    addInitializer(initResult: Expression): void {
+        this.initializers.push(initResult);
+    }
+
+    addSegment(segmentResult: Expression): void {
+        this.segments.push(segmentResult);
+    }
+
     getLoopController(loopIdx: number): Expression {
         loopIdx = this.offsets.loop + loopIdx;
         let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);

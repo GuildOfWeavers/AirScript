@@ -20,7 +20,7 @@ class ExecutionTemplate {
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    addLoop(inputs, init, statements) {
+    addLoop(inputs) {
         if (this.loops.length > 0) {
             let outerLoop = this.loops[this.loops.length - 1];
             inputs.forEach(input => {
@@ -28,9 +28,9 @@ class ExecutionTemplate {
                 outerLoop.inputs.delete(input);
             });
         }
-        this.loops.push({ inputs: new Set(inputs), init, statements });
+        this.loops.push({ inputs: new Set(inputs) });
     }
-    addSegment(intervals, body) {
+    addSegment(intervals) {
         for (let interval of intervals) {
             let start = interval[0], end = interval[1];
             // make sure the interval is valid
@@ -64,7 +64,7 @@ class ExecutionTemplate {
             }
         }
         // build and add the new segment to the list
-        this.segments.push({ mask, body });
+        this.segments.push({ mask });
     }
     getIntervalAt(step) {
         return this._stepsToIntervals.get(step);

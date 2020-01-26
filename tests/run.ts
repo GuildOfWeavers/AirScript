@@ -23,7 +23,9 @@ define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
             }
 
             for each (node, indexBit) {
+                
                 h <- indexBit ? $r3 : $r0;
+
                 init {
                     s1 <- [h, node, 0];
                     s2 <- [node, h, 0];

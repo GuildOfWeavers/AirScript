@@ -150,71 +150,77 @@ class AirVisitor extends BaseCstVisitor {
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx: any, mOrC: Module | Component): ExecutionTemplate | void {
-        const template = new ExecutionTemplate(mOrC.field);
-        this.visit(ctx.inputLoop, template);
-
         if (mOrC instanceof Module) {
+            const template = new ExecutionTemplate(mOrC.field);
+            this.visit(ctx.inputLoop, template);
             return template;
         }
         else {
             const exc = mOrC.createExecutionContext('transition');
-            // TODO: refactor
-            const inits: Expression[] = template.loops.map(loop => {
-                exc.enterBlock();
-                loop.statements.forEach(statement => this.visit(statement, exc));
-                return this.visit(loop.init, exc);
-            });
-            const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
-            template.loops.forEach(loop => exc.exitBlock());
-            mOrC.setTransitionFunction(exc, inits, segments);
+            this.visit(ctx.inputLoop, exc);
+            mOrC.setTransitionFunction(exc);
         }
     }
 
     transitionConstraints(ctx: any, component: Component): void {
+        const exc = component.createExecutionContext('evaluation');
         if (ctx.allStepBlock) {
-            const exc = component.createExecutionContext('evaluation');
             const result: Expression = this.visit(ctx.allStepBlock, exc);
             component.setConstraintEvaluator(exc, result);
         }
         else {
-            const template = new ExecutionTemplate(component.field);
-            this.visit(ctx.inputLoop, template);
-            // TODO: refactor
-            const exc = component.createExecutionContext('evaluation');
-            const inits: Expression[] = template.loops.map(loop => {
-                exc.enterBlock();
-                loop.statements.forEach(statement => this.visit(statement, exc));
-                return this.visit(loop.init, exc);
-            });
-            const segments: Expression[] = template.segments.map(segment => this.visit(segment.body, exc));
-            template.loops.forEach(loop => exc.exitBlock());
-            component.setConstraintEvaluator(exc, inits, segments);
+            this.visit(ctx.inputLoop, exc);
+            component.setConstraintEvaluator(exc);
         }
     }
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputLoop(ctx: any, template: ExecutionTemplate): void {
-        const inputs: string[] = ctx.inputs.map((register: any) => register.image);
-        const statements: any[] = ctx.statements || [];
-        template.addLoop(inputs, ctx.initExpression, statements);
-    
-        // parse body expression
-        if (ctx.inputLoop) {
-            this.visit(ctx.inputLoop, template);
+    inputLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void {
+        if (tOrC instanceof ExecutionTemplate) {
+            // parse input names
+            tOrC.addLoop(ctx.inputs.map((input: any) => input.image));
+        
+            // parse body expression
+            if (ctx.inputLoop) {
+                this.visit(ctx.inputLoop, tOrC);
+            }
+            else {
+                ctx.segmentLoops.forEach((loop: any) => this.visit(loop, tOrC));
+            }
         }
         else {
-            ctx.segmentLoops.map((loop: any) => this.visit(loop, template));
+            tOrC.enterBlock();
+            // parse outer statements
+            if (ctx.statements) {
+                ctx.statements.forEach((s: any) => this.visit(s, tOrC));
+            }
+
+            // parse initializer
+            this.visit(ctx.initExpression, tOrC);
+
+            // parse body
+            if (ctx.inputLoop) {
+                this.visit(ctx.inputLoop, tOrC);
+            }
+            else {
+                ctx.segmentLoops.forEach((loop: any) => this.visit(loop, tOrC));
+            }
+            tOrC.exitBlock();
         }
     }
 
-    inputLoopInit(ctx: any, template: ExecutionTemplate): Expression {
-        return this.visit(ctx.expression, template);
+    inputLoopInit(ctx: any, exc: ExecutionContext): void {
+        exc.addInitializer(this.visit(ctx.expression, exc));
     }
 
-    segmentLoop(ctx: any, template: ExecutionTemplate): void {
-        const intervals: [number, number][] = ctx.ranges.map((range: any) => this.visit(range));
-        template.addSegment(intervals, ctx.body);
+    segmentLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void {
+        if (tOrC instanceof ExecutionTemplate) {
+            tOrC.addSegment(ctx.ranges.map((range: any) => this.visit(range)));
+        }
+        else {
+            tOrC.addSegment(this.visit(ctx.body, tOrC));
+        }
     }
 
     // STATEMENTS

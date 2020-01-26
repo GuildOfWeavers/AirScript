@@ -13,6 +13,8 @@ class ExecutionContext {
         this.offsets = offsets;
         this.statements = [];
         this.blocks = [];
+        this.initializers = [];
+        this.segments = [];
         this.lastBlockId = 0;
     }
     // ACCESSORS
@@ -62,6 +64,12 @@ class ExecutionContext {
     }
     // FLOW CONTROLS
     // --------------------------------------------------------------------------------------------
+    addInitializer(initResult) {
+        this.initializers.push(initResult);
+    }
+    addSegment(segmentResult) {
+        this.segments.push(segmentResult);
+    }
     getLoopController(loopIdx) {
         loopIdx = this.offsets.loop + loopIdx;
         let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);

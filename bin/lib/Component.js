@@ -54,25 +54,25 @@ class Component {
             segment: this.inputRegisters.length + this.maskRegisters.length
         });
     }
-    setTransitionFunction(context, initializers, segments) {
-        const { statements, result } = this.buildFunction(context, initializers, segments);
+    setTransitionFunction(context) {
+        const { statements, result } = this.buildFunction(context);
         this.schema.addFunction(context.base, statements, result);
     }
-    setConstraintEvaluator(context, resultOrInitializer, segments) {
-        if (Array.isArray(resultOrInitializer)) {
-            const { statements, result } = this.buildFunction(context, resultOrInitializer, segments);
-            this.schema.addFunction(context.base, statements, result);
+    setConstraintEvaluator(context, result) {
+        if (result) {
+            this.schema.addFunction(context.base, context.statements, result);
         }
         else {
-            this.schema.addFunction(context.base, context.statements, resultOrInitializer);
+            const { statements, result } = this.buildFunction(context);
+            this.schema.addFunction(context.base, statements, result);
         }
     }
     // PRIVATE METHODS
     // --------------------------------------------------------------------------------------------
-    buildFunction(context, initializers, segments) {
+    buildFunction(context) {
         let result;
         let statements = context.statements;
-        initializers.forEach((expression, i) => {
+        context.initializers.forEach((expression, i) => {
             if (expression.isScalar) {
                 expression = context.buildMakeVectorExpression([expression]);
             }
@@ -84,7 +84,7 @@ class Component {
             expression = context.base.buildLoadExpression(`load.local`, resultHandle);
             result = result ? context.buildBinaryOperation('add', result, expression) : expression;
         });
-        segments.forEach((expression, i) => {
+        context.segments.forEach((expression, i) => {
             const resultHandle = `$_seg_${i}`;
             context.base.addLocal(expression.dimensions, resultHandle);
             const resultControl = context.getSegmentController(i);
