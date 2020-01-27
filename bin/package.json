@@ -1,6 +1,6 @@
 {
   "name": "@guildofweavers/air-script",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "A scripting language for defining zk-STARKs",
   "main": "index.js",
   "typings": "air-script.d.ts",
@@ -35,7 +35,7 @@
     "rimraf": "3.0.x"
   },
   "dependencies": {
-    "@guildofweavers/air-assembly": "^0.3.2",
+    "@guildofweavers/air-assembly": "0.3.x",
     "@guildofweavers/galois": "0.4.x",
     "chevrotain": "6.5.x"
   }
