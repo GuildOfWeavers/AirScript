@@ -26,6 +26,9 @@ class Module {
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
+    addImport(path, members) {
+        // TODO: implement
+    }
     addConstant(name, value) {
         utils_1.validateSymbolName(name);
         utils_1.validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));

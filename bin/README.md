@@ -151,7 +151,7 @@ transition 1 register {
 ```
 This transition function works with a single trace register (`$r0`) and does the following:
 
-1. Initializes the the value of `$r0` to be the value passed in via [input](#Inputs) `foo`.
+1. Initializes the value of `$r0` to be the value passed in via [input](#Inputs) `foo`.
 2. For 31 steps, computes the next value of `$r0` as: the current value of `$r0` plus 1.
 
 If your computation involves more than 1 trace register, your transition function should return a vector with values for the next state for all registers. Here is an example:

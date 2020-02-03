@@ -5,7 +5,7 @@ import { FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
-import { Module } from './Module';
+import { Module, ImportMember } from './Module';
 import { Component } from './Component';
 import { ExecutionContext } from './ExecutionContext';
 import { ExecutionTemplate } from './ExecutionTemplate';
@@ -488,13 +488,12 @@ class AirVisitor extends BaseCstVisitor {
     // IMPORTS
     // --------------------------------------------------------------------------------------------
     importExpression(ctx: any, aModule: Module): void {
-        const members = ctx.members.map((member: any) => this.visit(member));
+        const members: ImportMember[] = ctx.members.map((member: any) => this.visit(member));
         const path = ctx.path[0].image;
-        // TODO: implement
-        const imp = { members, path };
+        aModule.addImport(path, members);
     }
 
-    importMember(ctx: any): { member: string, alias?: string } {
+    importMember(ctx: any): ImportMember {
         const member = ctx.member[0].image;
         const alias = ctx.alias ? ctx.alias[0].image : undefined;
         return { member, alias };

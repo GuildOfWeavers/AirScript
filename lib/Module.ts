@@ -22,6 +22,11 @@ export interface FunctionInfo {
     readonly handle : string;
 }
 
+export interface ImportMember {
+    readonly member : string;
+    readonly alias? : string;
+}
+
 interface Input {
     readonly scope  : string;
     readonly binary : boolean;
@@ -65,6 +70,10 @@ export class Module {
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
+    addImport(path: string, members: ImportMember[]): void {
+        // TODO: implement
+    }
+
     addConstant(name: string, value: bigint | bigint[] | bigint[][]): void {
         validateSymbolName(name);
         validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));

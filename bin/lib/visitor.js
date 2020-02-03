@@ -427,8 +427,7 @@ class AirVisitor extends BaseCstVisitor {
     importExpression(ctx, aModule) {
         const members = ctx.members.map((member) => this.visit(member));
         const path = ctx.path[0].image;
-        // TODO: implement
-        const imp = { members, path };
+        aModule.addImport(path, members);
     }
     importMember(ctx) {
         const member = ctx.member[0].image;
