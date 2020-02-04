@@ -7,6 +7,7 @@ import * as path from 'path';
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
 import { ExecutionTemplate } from "./ExecutionTemplate";
 import { validate, validateSymbolName, isPowerOf2, ProcedureParams } from "./utils";
+import { importConstants, importFunctions, ImportOffsets } from "./importer";
 
 // INTERFACES
 // ================================================================================================
@@ -91,7 +92,17 @@ export class Module {
         catch(error) {
             throw new Error(`cannot not import from '${filePath}': ${error.message}`)
         }
-        
+
+        const offsets: ImportOffsets = {
+            constants   : this.schema.constants.length,
+            functions   : this.schema.functions.length,
+            statics     : 0 // TODO
+        };
+
+        // copy constants and functions
+        importConstants(schema, this.schema);
+        importFunctions(schema, this.schema, offsets);
+
         // TODO: extract members
     }
 

@@ -6,6 +6,7 @@ const air_assembly_1 = require("@guildofweavers/air-assembly");
 const path = require("path");
 const Component_1 = require("./Component");
 const utils_1 = require("./utils");
+const importer_1 = require("./importer");
 // CLASS DEFINITION
 // ================================================================================================
 class Module {
@@ -39,6 +40,14 @@ class Module {
         catch (error) {
             throw new Error(`cannot not import from '${filePath}': ${error.message}`);
         }
+        const offsets = {
+            constants: this.schema.constants.length,
+            functions: this.schema.functions.length,
+            statics: 0 // TODO
+        };
+        // copy constants and functions
+        importer_1.importConstants(schema, this.schema);
+        importer_1.importFunctions(schema, this.schema, offsets);
         // TODO: extract members
     }
     addConstant(name, value) {
