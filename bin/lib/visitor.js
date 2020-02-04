@@ -19,14 +19,14 @@ class AirVisitor extends BaseCstVisitor {
     }
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
-    script(ctx, componentName = 'default') {
+    script(ctx, options) {
         validateScriptSections(ctx);
         // build module
         const moduleName = ctx.starkName[0].image;
         const modulus = this.visit(ctx.fieldDeclaration);
         const traceRegisterCount = Number(ctx.traceRegisterCount[0].image);
         const constraintCount = Number(ctx.constraintCount[0].image);
-        const aModule = new Module_1.Module(moduleName, modulus, traceRegisterCount, constraintCount);
+        const aModule = new Module_1.Module(moduleName, options.basedir, modulus, traceRegisterCount, constraintCount);
         // parse imports
         if (ctx.imports) {
             ctx.imports.forEach((imp) => this.visit(imp, aModule));
@@ -46,7 +46,7 @@ class AirVisitor extends BaseCstVisitor {
         this.visit(ctx.transitionFunction, component);
         this.visit(ctx.transitionConstraints, component);
         // finalize the component and return the schema
-        aModule.setComponent(component, componentName);
+        aModule.setComponent(component, options.name);
         return aModule.schema;
     }
     // FINITE FIELD
@@ -426,7 +426,8 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     importExpression(ctx, aModule) {
         const members = ctx.members.map((member) => this.visit(member));
-        const path = ctx.path[0].image;
+        let path = ctx.path[0].image;
+        path = path.substring(1, path.length - 1);
         aModule.addImport(path, members);
     }
     importMember(ctx) {

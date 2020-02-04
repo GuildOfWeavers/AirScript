@@ -1,14 +1,20 @@
 // IMPORTS
 // ================================================================================================
 import {
-    AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, InputRegisterMaster, PrngSequence
+    compile, AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, InputRegisterMaster, PrngSequence
 } from "@guildofweavers/air-assembly";
+import * as path from 'path';
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
 import { ExecutionTemplate } from "./ExecutionTemplate";
 import { validate, validateSymbolName, isPowerOf2, ProcedureParams } from "./utils";
 
 // INTERFACES
 // ================================================================================================
+export interface ModuleOptions {
+    readonly name   : string;
+    readonly basedir: string;
+}
+
 export interface SymbolInfo {
     readonly type       : 'const' | 'input' | 'static' | 'param';
     readonly handle     : string;
@@ -42,6 +48,7 @@ interface StaticRegister {
 export class Module {
 
     readonly name               : string;
+    readonly basedir            : string;
     readonly schema             : AirSchema;
     readonly traceWidth         : number;
     readonly constraintCount    : number;
@@ -50,10 +57,12 @@ export class Module {
     private readonly symbols    : Map<string, SymbolInfo>;
     private inputRegisterCount  : number;
 
+
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(name: string, modulus: bigint, traceWidth: number, constraintCount: number) {
+    constructor(name: string, basedir: string, modulus: bigint, traceWidth: number, constraintCount: number) {
         this.name = name;
+        this.basedir = basedir;
         this.schema = new AirSchema('prime', modulus);
         this.traceWidth = traceWidth;
         this.constraintCount = constraintCount;
@@ -70,8 +79,20 @@ export class Module {
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    addImport(path: string, members: ImportMember[]): void {
-        // TODO: implement
+    addImport(filePath: string, members: ImportMember[]): void {
+        if (!path.isAbsolute(filePath)) {
+            filePath = path.resolve(this.basedir, filePath);
+        }
+
+        let schema: AirSchema;
+        try {
+            schema = compile(filePath);
+        }
+        catch(error) {
+            throw new Error(`cannot not import from '${filePath}': ${error.message}`)
+        }
+        
+        // TODO: extract members
     }
 
     addConstant(name: string, value: bigint | bigint[] | bigint[][]): void {

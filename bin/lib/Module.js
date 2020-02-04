@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // IMPORTS
 // ================================================================================================
 const air_assembly_1 = require("@guildofweavers/air-assembly");
+const path = require("path");
 const Component_1 = require("./Component");
 const utils_1 = require("./utils");
 // CLASS DEFINITION
@@ -10,8 +11,9 @@ const utils_1 = require("./utils");
 class Module {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(name, modulus, traceWidth, constraintCount) {
+    constructor(name, basedir, modulus, traceWidth, constraintCount) {
         this.name = name;
+        this.basedir = basedir;
         this.schema = new air_assembly_1.AirSchema('prime', modulus);
         this.traceWidth = traceWidth;
         this.constraintCount = constraintCount;
@@ -26,8 +28,18 @@ class Module {
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    addImport(path, members) {
-        // TODO: implement
+    addImport(filePath, members) {
+        if (!path.isAbsolute(filePath)) {
+            filePath = path.resolve(this.basedir, filePath);
+        }
+        let schema;
+        try {
+            schema = air_assembly_1.compile(filePath);
+        }
+        catch (error) {
+            throw new Error(`cannot not import from '${filePath}': ${error.message}`);
+        }
+        // TODO: extract members
     }
     addConstant(name, value) {
         utils_1.validateSymbolName(name);

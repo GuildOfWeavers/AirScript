@@ -5,7 +5,7 @@ import { FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
-import { Module, ImportMember } from './Module';
+import { Module, ImportMember, ModuleOptions } from './Module';
 import { Component } from './Component';
 import { ExecutionContext } from './ExecutionContext';
 import { ExecutionTemplate } from './ExecutionTemplate';
@@ -24,7 +24,7 @@ class AirVisitor extends BaseCstVisitor {
 
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
-    script(ctx: any, componentName = 'default'): AirSchema {
+    script(ctx: any, options: ModuleOptions): AirSchema {
 
         validateScriptSections(ctx);
 
@@ -33,7 +33,7 @@ class AirVisitor extends BaseCstVisitor {
         const modulus: bigint = this.visit(ctx.fieldDeclaration);
         const traceRegisterCount = Number(ctx.traceRegisterCount[0].image);
         const constraintCount = Number(ctx.constraintCount[0].image);
-        const aModule = new Module(moduleName, modulus, traceRegisterCount, constraintCount);
+        const aModule = new Module(moduleName, options.basedir, modulus, traceRegisterCount, constraintCount);
 
         // parse imports
         if (ctx.imports) {
@@ -58,7 +58,7 @@ class AirVisitor extends BaseCstVisitor {
         this.visit(ctx.transitionConstraints, component);
 
         // finalize the component and return the schema
-        aModule.setComponent(component, componentName);
+        aModule.setComponent(component, options.name);
         return aModule.schema;
     }
 
@@ -489,7 +489,8 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     importExpression(ctx: any, aModule: Module): void {
         const members: ImportMember[] = ctx.members.map((member: any) => this.visit(member));
-        const path = ctx.path[0].image;
+        let path: string = ctx.path[0].image;
+        path = path.substring(1, path.length - 1);
         aModule.addImport(path, members);
     }
 

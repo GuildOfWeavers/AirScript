@@ -1,7 +1,7 @@
 import { compile } from '../index';
 
 const script = Buffer.from(`
-import { PoseidonHash as Hash } from './lib128.aa';
+import { Poseidon as Hash } from './assembly/poseidon.aa';
 
 define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
 
@@ -18,6 +18,9 @@ define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
 
     transition 6 registers {
         for each (leaf, node, indexBit) {
+
+            // initialize the execution trace to hash(leaf, node) in registers [0..2]
+            // and hash(node, leaf) in registers [3..5]
             init {
                 s1 <- [leaf, node, 0];
                 s2 <- [node, leaf, 0];
@@ -25,15 +28,17 @@ define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
             }
 
             for each (node, indexBit) {
-                
-                h <- indexBit ? $r3 : $r0;
 
+                // based on node's index, figure out whether hash(p, v) or hash(v, p)
+                // should advance to the next iteration of the loop
                 init {
+                    h <- indexBit ? $r3 : $r0;
                     s1 <- [h, node, 0];
                     s2 <- [node, h, 0];
                     yield [...s1, ...s2];
                 }
 
+                // run Poseidon hash function
                 for steps [1..4, 60..63] {
                     // full round
                     s1 <- MDS # ($r[0..2] + roundConstants)^alpha;
@@ -43,8 +48,8 @@ define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
 
                 for steps [5..59] {
                     // partial round
-                    s1 <- MDS # [...$r[0..1], ($r2 + roundConstants[2])^alpha];	
-                    s2 <- MDS # [...$r[3..4], ($r5 + roundConstants[2])^alpha];
+                    s1 <- MDS # [...($r[0..1] + roundConstants[0..1]), ($r2 + roundConstants[2])^alpha];
+                    s2 <- MDS # [...($r[3..4] + roundConstants[0..1]), ($r5 + roundConstants[2])^alpha];
                     yield [...s1, ...s2];
                 }
             }
