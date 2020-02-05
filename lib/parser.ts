@@ -6,7 +6,7 @@ import {
     Boolean, Transition, Registers, Enforce, Constraints, For, All, Steps, Each, Init, Yield, When, Else,
     Import, From, Identifier, IntegerLiteral, TraceRegister, RegisterBank, HexLiteral, StringLiteral,
     LParen, RParen, LCurly, RCurly, LSquare, RSquare, Slash, QMark, Comma, Colon, Semicolon,
-    ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals, As
+    ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals, As, With
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -183,17 +183,18 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP: Comma,
-            DEF: () => this.CONSUME(Identifier,       { LABEL: 'inputs' })
+            DEF: () => this.CONSUME(Identifier,          { LABEL: 'inputs' })
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
-        this.MANY(() => this.SUBRULE(this.statement,  { LABEL: 'statements' }));
-        this.SUBRULE(this.inputLoopInit,              { LABEL: 'initExpression', ARGS: [ context ] });
+        this.MANY1(() => this.SUBRULE(this.statement,    { LABEL: 'statements' }));
+        this.MANY2(() => this.SUBRULE(this.functionCall, { LABEL: 'functionCalls',  ARGS: [ context ] }))
+        this.SUBRULE(this.inputLoopInit,                 { LABEL: 'initExpression', ARGS: [ context ] });
         this.OR([
-            { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop',      ARGS: [ context ] })},
+            { ALT: () => this.SUBRULE(this.inputLoop,    { LABEL: 'inputLoop',      ARGS: [ context ] })},
             { ALT: () => {
                 this.AT_LEAST_ONE(() => {
-                    this.SUBRULE(this.segmentLoop,    { LABEL: 'segmentLoops',   ARGS: [ context ] });
+                    this.SUBRULE(this.segmentLoop,       { LABEL: 'segmentLoops',   ARGS: [ context ] });
                 });
             }}
         ]);
@@ -302,13 +303,35 @@ class AirParser extends CstParser {
         ]);
     });
 
-    // TRANSITION CALL EXPRESSION
+    // FUNCTION CALLS
     // --------------------------------------------------------------------------------------------
     private transitionCall = this.RULE('transitionCall', () => {
         this.CONSUME(Transition);
         this.CONSUME(LParen);
         this.CONSUME(RegisterBank,  { LABEL: 'registers' });
         this.CONSUME(RParen);
+    });
+
+    private functionCall = this.RULE('functionCall', (context?: 'yield' | 'enforce') => {
+        this.CONSUME(With);
+        this.CONSUME(RegisterBank,                    { LABEL: 'registers' });
+        this.CONSUME(LSquare);
+        this.SUBRULE(this.literalRangeExpression,     { LABEL: 'range'     });
+        this.CONSUME(RSquare);
+        if (context === 'yield') {
+            this.CONSUME(Yield);
+        }
+        else {
+            this.CONSUME(Enforce);
+        }
+        this.CONSUME(Identifier,                      { LABEL: 'funcName'   });
+        this.CONSUME(LParen);
+        this.AT_LEAST_ONE_SEP({
+            SEP : Comma,
+            DEF : () => this.SUBRULE(this.expression, { LABEL: 'parameters' })
+        });
+        this.CONSUME(RParen);
+        this.CONSUME(Semicolon);
     });
 
     // VECTORS AND MATRIXES
@@ -323,7 +346,7 @@ class AirParser extends CstParser {
                     { ALT: () => this.SUBRULE(this.vectorDestructuring, { LABEL: 'elements' })}
                 ]);
             }
-        })
+        });
         this.CONSUME(RSquare);
     });
 

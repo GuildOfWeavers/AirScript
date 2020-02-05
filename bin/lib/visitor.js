@@ -173,6 +173,10 @@ class AirVisitor extends BaseCstVisitor {
             if (ctx.statements) {
                 ctx.statements.forEach((s) => this.visit(s, tOrC));
             }
+            // parse function calls
+            if (ctx.functionCalls) {
+                ctx.functionCalls.forEach((c) => this.visit(c, tOrC));
+            }
             // parse initializer
             this.visit(ctx.initExpression, tOrC);
             // parse body
@@ -231,7 +235,7 @@ class AirVisitor extends BaseCstVisitor {
         const result = exc.getSymbolReference(symbol);
         return result;
     }
-    // TRANSITION CALL EXPRESSION
+    // FUNCTION CALLS
     // --------------------------------------------------------------------------------------------
     transitionCall(ctx, exc) {
         const registers = ctx.registers[0].image;
@@ -243,6 +247,12 @@ class AirVisitor extends BaseCstVisitor {
             exc.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow)
         ];
         return exc.buildFunctionCall('transition', params);
+    }
+    functionCall(ctx, exc) {
+        const registers = ctx.registers[0].image;
+        const range = this.visit(ctx.range);
+        const funcName = ctx.funcName[0].image;
+        const params = ctx.parameters.map((p) => this.visit(p, exc));
     }
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------

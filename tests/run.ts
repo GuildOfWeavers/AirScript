@@ -29,10 +29,14 @@ define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
 
             for each (node, indexBit) {
 
+                h <- indexBit ? $r3 : $r0;
+
+                with $r[0..2] yield Hash(h, node);
+			    with $r[3..5] yield Hash(node, h);
+
                 // based on node's index, figure out whether hash(p, v) or hash(v, p)
                 // should advance to the next iteration of the loop
                 init {
-                    h <- indexBit ? $r3 : $r0;
                     s1 <- [h, node, 0];
                     s2 <- [node, h, 0];
                     yield [...s1, ...s2];

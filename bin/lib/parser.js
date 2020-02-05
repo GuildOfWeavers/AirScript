@@ -168,7 +168,8 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.CONSUME(lexer_1.RParen);
             this.CONSUME(lexer_1.LCurly);
-            this.MANY(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
+            this.MANY1(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
+            this.MANY2(() => this.SUBRULE(this.functionCall, { LABEL: 'functionCalls', ARGS: [context] }));
             this.SUBRULE(this.inputLoopInit, { LABEL: 'initExpression', ARGS: [context] });
             this.OR([
                 { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: [context] }) },
@@ -274,13 +275,34 @@ class AirParser extends chevrotain_1.CstParser {
                     } }
             ]);
         });
-        // TRANSITION CALL EXPRESSION
+        // FUNCTION CALLS
         // --------------------------------------------------------------------------------------------
         this.transitionCall = this.RULE('transitionCall', () => {
             this.CONSUME(lexer_1.Transition);
             this.CONSUME(lexer_1.LParen);
             this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
             this.CONSUME(lexer_1.RParen);
+        });
+        this.functionCall = this.RULE('functionCall', (context) => {
+            this.CONSUME(lexer_1.With);
+            this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
+            this.CONSUME(lexer_1.LSquare);
+            this.SUBRULE(this.literalRangeExpression, { LABEL: 'range' });
+            this.CONSUME(lexer_1.RSquare);
+            if (context === 'yield') {
+                this.CONSUME(lexer_1.Yield);
+            }
+            else {
+                this.CONSUME(lexer_1.Enforce);
+            }
+            this.CONSUME(lexer_1.Identifier, { LABEL: 'funcName' });
+            this.CONSUME(lexer_1.LParen);
+            this.AT_LEAST_ONE_SEP({
+                SEP: lexer_1.Comma,
+                DEF: () => this.SUBRULE(this.expression, { LABEL: 'parameters' })
+            });
+            this.CONSUME(lexer_1.RParen);
+            this.CONSUME(lexer_1.Semicolon);
         });
         // VECTORS AND MATRIXES
         // --------------------------------------------------------------------------------------------
