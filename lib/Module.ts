@@ -1,13 +1,14 @@
 // IMPORTS
 // ================================================================================================
 import {
-    compile, AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, InputRegisterMaster, PrngSequence
+    compile, AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, InputRegisterMaster,
+    PrngSequence
 } from "@guildofweavers/air-assembly";
 import * as path from 'path';
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
 import { ExecutionTemplate } from "./ExecutionTemplate";
 import { validate, validateSymbolName, isPowerOf2, ProcedureParams } from "./utils";
-import { importConstants, importFunctions, ImportOffsets } from "./importer";
+import { importConstants, importFunctions, ImportOffsets, importComponent } from "./importer";
 
 // INTERFACES
 // ================================================================================================
@@ -103,7 +104,10 @@ export class Module {
         importConstants(schema, this.schema);
         importFunctions(schema, this.schema, offsets);
 
-        // TODO: extract members
+        // extract members
+        members.forEach(member => {
+            importComponent(schema, this.schema, member, offsets);
+        });
     }
 
     addConstant(name: string, value: bigint | bigint[] | bigint[][]): void {

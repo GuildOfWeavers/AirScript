@@ -1,8 +1,10 @@
 // IMPORTS
 // ================================================================================================
 import { AirSchema, ExpressionVisitor, ExecutionContext, Expression, LiteralValue, BinaryOperation,
-    UnaryOperation, MakeVector, GetVectorElement, SliceVector, MakeMatrix, LoadExpression, CallExpression
+    UnaryOperation, MakeVector, GetVectorElement, SliceVector, MakeMatrix, LoadExpression, CallExpression, Dimensions
 } from "@guildofweavers/air-assembly";
+import { ImportMember } from "./Module";
+import { ProcedureParams } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -33,6 +35,55 @@ export function importFunctions(from: AirSchema, to: AirSchema, offsets: ImportO
         const result = importer.visit(func.result, ctx);
         to.addFunction(ctx, statements, result);
     }
+}
+
+export function importComponent(from: AirSchema, to: AirSchema, member: ImportMember, offsets: ImportOffsets): void {
+    const component = from.components.get(member.member);
+    if (!component) throw new Error('TODO: import component not found');
+    const alias = member.alias || member.member;
+    
+    const importer = new ExpressionImporter(offsets);
+
+    const traceDimensions = component.transitionFunction.result.dimensions;
+    const staticDimensions: Dimensions = [component.staticRegisters.length, 0];
+    const constraintDimensions = component.constraintEvaluator.result.dimensions;
+
+    // import trace initializer
+    let ctx = to.createFunctionContext(traceDimensions, `$${alias}_init`);
+    component.traceInitializer.params.forEach(param => ctx.addParam(param.dimensions, param.handle));
+    ctx.addParam(staticDimensions, ProcedureParams.staticRow);
+    component.traceInitializer.locals.forEach(local => ctx.addLocal(local.dimensions, local.handle));
+    let statements = component.traceInitializer.statements.map(s => {
+        const expression = importer.visit(s.expression, ctx);
+        return ctx.buildStoreOperation(s.handle || s.target, expression);
+    });
+    let result = importer.visit(component.traceInitializer.result, ctx);
+    to.addFunction(ctx, statements, result);
+
+    // import transition function
+    ctx = to.createFunctionContext(traceDimensions, `$${alias}_transition`);
+    ctx.addParam(traceDimensions, ProcedureParams.thisTraceRow);
+    ctx.addParam(staticDimensions, ProcedureParams.staticRow);
+    component.transitionFunction.locals.forEach(local => ctx.addLocal(local.dimensions, local.handle));
+    statements = component.transitionFunction.statements.map(s => {
+        const expression = importer.visit(s.expression, ctx);
+        return ctx.buildStoreOperation(s.handle || s.target, expression);
+    });
+    result = importer.visit(component.transitionFunction.result, ctx);
+    to.addFunction(ctx, statements, result);
+
+    // import constraint evaluator
+    ctx = to.createFunctionContext(constraintDimensions, `$${alias}_evaluation`);
+    ctx.addParam(traceDimensions, ProcedureParams.thisTraceRow);
+    ctx.addParam(traceDimensions, ProcedureParams.nextTraceRow);
+    ctx.addParam(staticDimensions, ProcedureParams.staticRow);
+    component.constraintEvaluator.locals.forEach(local => ctx.addLocal(local.dimensions, local.handle));
+    statements = component.constraintEvaluator.statements.map(s => {
+        const expression = importer.visit(s.expression, ctx);
+        return ctx.buildStoreOperation(s.handle || s.target, expression);
+    });
+    result = importer.visit(component.constraintEvaluator.result, ctx);
+    to.addFunction(ctx, statements, result);
 }
 
 // EXPRESSION IMPORTER
@@ -95,11 +146,22 @@ class ExpressionImporter extends ExpressionVisitor<Expression> {
     // --------------------------------------------------------------------------------------------
     loadExpression(e: LoadExpression, ctx: ExecutionContext): Expression {
         switch (e.source) {
-            case 'const':  return ctx.buildLoadExpression('load.const', this.constOffset + e.index);
+            case 'const':  {
+                return ctx.buildLoadExpression('load.const', this.constOffset + e.index);
+            }
+            case 'static': {
+                return ctx.buildLoadExpression('load.param', ProcedureParams.staticRow);
+            }
+            case 'trace': {
+                if (e.index === 0) {
+                    return ctx.buildLoadExpression('load.param', ProcedureParams.thisTraceRow);
+                }
+                else {
+                    return ctx.buildLoadExpression('load.param', ProcedureParams.nextTraceRow);
+                }
+            }
             case 'param':  return e;
             case 'local':  return e;
-            case 'trace':  return e;
-            case 'static': return e;
         }
     }
 

@@ -48,7 +48,10 @@ class Module {
         // copy constants and functions
         importer_1.importConstants(schema, this.schema);
         importer_1.importFunctions(schema, this.schema, offsets);
-        // TODO: extract members
+        // extract members
+        members.forEach(member => {
+            importer_1.importComponent(schema, this.schema, member, offsets);
+        });
     }
     addConstant(name, value) {
         utils_1.validateSymbolName(name);
