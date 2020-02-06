@@ -50,7 +50,9 @@ class Module {
         importer_1.importFunctions(schema, this.schema, offsets);
         // extract members
         members.forEach(member => {
-            importer_1.importComponent(schema, this.schema, member, offsets);
+            const symbols = importer_1.importComponent(schema, this.schema, member, offsets);
+            symbols.forEach(s => this.symbols.set(s.handle.substr(1), s));
+            // TODO: build function info
         });
     }
     addConstant(name, value) {
@@ -86,9 +88,7 @@ class Module {
         }
         const procedureSpecs = this.buildProcedureSpecs(template);
         const symbols = this.transformSymbols(procedureSpecs.staticRegisterOffset);
-        const functions = new Map();
-        functions.set('transition', { handle: procedureSpecs.transition.handle });
-        return new Component_1.Component(this.schema, procedureSpecs, symbols, functions);
+        return new Component_1.Component(this.schema, procedureSpecs, symbols);
     }
     setComponent(component, componentName) {
         // create component object
@@ -106,17 +106,17 @@ class Module {
         // set trace initializer to return a result of applying transition function to a vector of all zeros
         const initContext = c.createProcedureContext('init');
         const initParams = this.buildProcedureParams(initContext);
-        const initCall = initContext.buildCallExpression(component.transitionFunctionHandle, initParams);
+        const initCall = initContext.buildCallExpression(utils_1.TRANSITION_FN_HANDLE, initParams);
         c.setTraceInitializer(initContext, [], initCall);
         // set transition function procedure to call transition function
         const tfContext = c.createProcedureContext('transition');
         const tfParams = this.buildProcedureParams(tfContext);
-        const tfCall = tfContext.buildCallExpression(component.transitionFunctionHandle, tfParams);
+        const tfCall = tfContext.buildCallExpression(utils_1.TRANSITION_FN_HANDLE, tfParams);
         c.setTransitionFunction(tfContext, [], tfCall);
         // set constraint evaluator procedure to call constraint evaluator function
         const evContext = c.createProcedureContext('evaluation');
         const evParams = this.buildProcedureParams(evContext);
-        const evCall = evContext.buildCallExpression(component.constraintEvaluatorHandle, evParams);
+        const evCall = evContext.buildCallExpression(utils_1.EVALUATION_FN_HANDLE, evParams);
         c.setConstraintEvaluator(evContext, [], evCall);
         // add component to the schema
         this.schema.addComponent(c);
@@ -130,7 +130,7 @@ class Module {
         const staticRegisterCount = staticRegisterOffset + this.staticRegisters.length;
         return {
             transition: {
-                handle: `$${this.name}_transition`,
+                handle: utils_1.TRANSITION_FN_HANDLE,
                 result: [this.traceWidth, 0],
                 params: [
                     { name: utils_1.ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
@@ -138,7 +138,7 @@ class Module {
                 ]
             },
             evaluation: {
-                handle: `$${this.name}_evaluation`,
+                handle: utils_1.EVALUATION_FN_HANDLE,
                 result: [this.constraintCount, 0],
                 params: [
                     { name: utils_1.ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
@@ -203,7 +203,7 @@ class Module {
         const type = 'param';
         // transform custom symbols
         for (let [symbol, info] of this.symbols) {
-            if (info.type === 'const') {
+            if (info.type === 'const' || info.type === 'func') {
                 symbols.set(symbol, info);
             }
             else if (info.type === 'input') {

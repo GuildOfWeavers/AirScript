@@ -32,6 +32,7 @@ function importComponent(from, to, member, offsets) {
     if (!component)
         throw new Error('TODO: import component not found');
     const alias = member.alias || member.member;
+    const functions = [];
     const importer = new ExpressionImporter(offsets);
     const traceDimensions = component.transitionFunction.result.dimensions;
     const staticDimensions = [component.staticRegisters.length, 0];
@@ -47,8 +48,10 @@ function importComponent(from, to, member, offsets) {
     });
     let result = importer.visit(component.traceInitializer.result, ctx);
     to.addFunction(ctx, statements, result);
+    // TODO: add to functions?
     // import transition function
-    ctx = to.createFunctionContext(traceDimensions, `$${alias}_transition`);
+    let handle = `$${alias}${utils_1.TRANSITION_FN_POSTFIX}`;
+    ctx = to.createFunctionContext(traceDimensions, handle);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.thisTraceRow);
     ctx.addParam(staticDimensions, utils_1.ProcedureParams.staticRow);
     component.transitionFunction.locals.forEach(local => ctx.addLocal(local.dimensions, local.handle));
@@ -58,8 +61,10 @@ function importComponent(from, to, member, offsets) {
     });
     result = importer.visit(component.transitionFunction.result, ctx);
     to.addFunction(ctx, statements, result);
+    functions.push({ type: 'func', handle, dimensions: traceDimensions, subset: false });
     // import constraint evaluator
-    ctx = to.createFunctionContext(constraintDimensions, `$${alias}_evaluation`);
+    handle = `$${alias}${utils_1.EVALUATION_FN_POSTFIX}`;
+    ctx = to.createFunctionContext(constraintDimensions, handle);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.thisTraceRow);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.nextTraceRow);
     ctx.addParam(staticDimensions, utils_1.ProcedureParams.staticRow);
@@ -70,6 +75,8 @@ function importComponent(from, to, member, offsets) {
     });
     result = importer.visit(component.constraintEvaluator.result, ctx);
     to.addFunction(ctx, statements, result);
+    functions.push({ type: 'func', handle, dimensions: constraintDimensions, subset: false });
+    return functions;
 }
 exports.importComponent = importComponent;
 // EXPRESSION IMPORTER

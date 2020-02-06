@@ -2,6 +2,12 @@
 // ================================================================================================
 export const BLOCK_ID_PREFIX = '$_b';
 
+export const TRANSITION_FN_POSTFIX = '_transition';
+export const EVALUATION_FN_POSTFIX = '_evaluation';
+
+export const TRANSITION_FN_HANDLE = '$_transition';
+export const EVALUATION_FN_HANDLE = '$_evaluation';
+
 export enum ProcedureParams {
     thisTraceRow = '$_r',
     nextTraceRow = '$_n',

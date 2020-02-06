@@ -283,18 +283,19 @@ class AirVisitor extends BaseCstVisitor {
         if (registers !== '$r') {
             throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
         }
-        const params = [
-            exc.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow),
-            exc.base.buildLoadExpression('load.param', ProcedureParams.staticRow)
-        ];
-        return exc.buildFunctionCall('transition', params);
+        return exc.buildTransitionCall();
     }
 
     functionCall(ctx: any, exc: ExecutionContext): void {
         const registers = ctx.registers[0].image;
-        const range = this.visit(ctx.range);
+        if (registers !== '$r') {
+            throw new Error(`functions must be invoked over $r domain, but ${registers} domain was specified`);
+        }
+        const range: [number, number] = this.visit(ctx.range);
         const funcName = ctx.funcName[0].image;
         const params = ctx.parameters.map((p: any) => this.visit(p, exc));
+
+        exc.addFunctionCall(funcName, params, range);
     }
 
     // VECTORS AND MATRIXES

@@ -3,6 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // CONSTANTS
 // ================================================================================================
 exports.BLOCK_ID_PREFIX = '$_b';
+exports.TRANSITION_FN_POSTFIX = '_transition';
+exports.EVALUATION_FN_POSTFIX = '_evaluation';
+exports.TRANSITION_FN_HANDLE = '$_transition';
+exports.EVALUATION_FN_HANDLE = '$_evaluation';
 var ProcedureParams;
 (function (ProcedureParams) {
     ProcedureParams["thisTraceRow"] = "$_r";

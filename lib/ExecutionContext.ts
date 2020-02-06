@@ -2,18 +2,11 @@
 // ================================================================================================
 import {
     FunctionContext, Expression, LiteralValue, BinaryOperation, UnaryOperation, MakeVector,
-    GetVectorElement, SliceVector, MakeMatrix, StoreOperation, LoadExpression
+    GetVectorElement, SliceVector, MakeMatrix, StoreOperation, LoadExpression, ProcedureName
 } from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo } from './Module';
 import { StaticRegisterCounts } from "./Component";
-import { validate, BLOCK_ID_PREFIX, ProcedureParams } from './utils';
-
-// INTERFACES
-// ================================================================================================
-interface ControllerOffsets {
-    readonly loop   : number;
-    readonly segment: number;
-}
+import { validate, BLOCK_ID_PREFIX, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, TRANSITION_FN_POSTFIX, EVALUATION_FN_POSTFIX } from './utils';
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -30,14 +23,12 @@ export class ExecutionContext {
     private lastBlockId         : number;
 
     private readonly symbols    : Map<string, SymbolInfo>;
-    private readonly functions  : Map<string, FunctionInfo>;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base: FunctionContext, symbols: Map<string, SymbolInfo>, functions: Map<string, FunctionInfo>, staticRegisters: StaticRegisterCounts) {
+    constructor(base: FunctionContext, symbols: Map<string, SymbolInfo>, staticRegisters: StaticRegisterCounts) {
         this.base = base;
         this.symbols = symbols;
-        this.functions = functions;
         this.staticRegisters = staticRegisters;
         this.statements = [];
         this.blocks = [];
@@ -58,6 +49,18 @@ export class ExecutionContext {
 
     get segmentOffset(): number {
         return this.staticRegisters.inputs + this.staticRegisters.loops;
+    }
+
+    get procedureName(): ProcedureName {
+        if (this.base.handle === TRANSITION_FN_HANDLE) {
+            return 'transition';
+        }
+        else if (this.base.handle === EVALUATION_FN_HANDLE) {
+            return 'evaluation';
+        }
+        else {
+            throw new Error('TODO: invalid procedure');
+        }
     }
 
     // SYMBOLIC REFERENCES
@@ -172,6 +175,46 @@ export class ExecutionContext {
         }
     }
 
+    // FUNCTION CALLS
+    // --------------------------------------------------------------------------------------------
+    buildTransitionCall(): Expression {
+        const params = [
+            this.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow),
+            this.base.buildLoadExpression('load.param', ProcedureParams.staticRow)
+        ];
+        return this.base.buildCallExpression(TRANSITION_FN_HANDLE, params);
+    }
+
+    addFunctionCall(funcName: string, inputs: Expression[], domain: [number, number]): void {
+        // TODO: validate domain
+
+        const fName = funcName + (this.procedureName === 'transition' ? TRANSITION_FN_POSTFIX : EVALUATION_FN_POSTFIX);
+        const info = this.symbols.get(fName);
+        validate(info !== undefined, errors.undefinedFuncReference(funcName));
+        // TODO: make sure the symbol is a function
+        
+        let traceRow: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow);
+        if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
+            traceRow = this.base.buildSliceVectorExpression(traceRow, domain[0], domain[1]);
+        }
+
+        // TODO: if we are in evaluator, add next state as parameter as well
+        
+        let masks: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
+        // TODO: get offsets from function info object
+        masks = this.base.buildSliceVectorExpression(masks, this.loopOffset + 1, this.loopOffset + 1);
+
+        let statics2: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
+        // TODO: get offsets from function info object
+        const offset = this.segmentOffset;
+        statics2 = this.base.buildSliceVectorExpression(statics2, offset, offset + 3);
+
+        const statics = this.base.buildMakeVectorExpression([...inputs, masks, statics2]);
+        const callExpression = this.base.buildCallExpression(info.handle, [traceRow, statics]);
+
+        // TODO: store function call
+    }
+
     // PASS-THROUGH METHODS
     // --------------------------------------------------------------------------------------------
     buildLiteralValue(value: bigint | bigint[] | bigint[]): LiteralValue {
@@ -200,12 +243,6 @@ export class ExecutionContext {
 
     buildMakeMatrixExpression(elements: Expression[][]): MakeMatrix {
         return this.base.buildMakeMatrixExpression(elements);
-    }
-
-    buildFunctionCall(func: string, params: Expression[]): Expression {
-        const info = this.functions.get(func);
-        validate(info !== undefined, errors.undefinedFuncReference(func));
-        return this.base.buildCallExpression(info.handle, params);
     }
 }
 

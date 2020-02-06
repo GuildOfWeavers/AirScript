@@ -6,10 +6,9 @@ const utils_1 = require("./utils");
 class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(base, symbols, functions, staticRegisters) {
+    constructor(base, symbols, staticRegisters) {
         this.base = base;
         this.symbols = symbols;
-        this.functions = functions;
         this.staticRegisters = staticRegisters;
         this.statements = [];
         this.blocks = [];
@@ -27,6 +26,17 @@ class ExecutionContext {
     }
     get segmentOffset() {
         return this.staticRegisters.inputs + this.staticRegisters.loops;
+    }
+    get procedureName() {
+        if (this.base.handle === utils_1.TRANSITION_FN_HANDLE) {
+            return 'transition';
+        }
+        else if (this.base.handle === utils_1.EVALUATION_FN_HANDLE) {
+            return 'evaluation';
+        }
+        else {
+            throw new Error('TODO: invalid procedure');
+        }
     }
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
@@ -124,6 +134,37 @@ class ExecutionContext {
                 return this.blocks[i];
         }
     }
+    // FUNCTION CALLS
+    // --------------------------------------------------------------------------------------------
+    buildTransitionCall() {
+        const params = [
+            this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.thisTraceRow),
+            this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow)
+        ];
+        return this.base.buildCallExpression(utils_1.TRANSITION_FN_HANDLE, params);
+    }
+    addFunctionCall(funcName, inputs, domain) {
+        // TODO: validate domain
+        const fName = funcName + (this.procedureName === 'transition' ? utils_1.TRANSITION_FN_POSTFIX : utils_1.EVALUATION_FN_POSTFIX);
+        const info = this.symbols.get(fName);
+        utils_1.validate(info !== undefined, errors.undefinedFuncReference(funcName));
+        // TODO: make sure the symbol is a function
+        let traceRow = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.thisTraceRow);
+        if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
+            traceRow = this.base.buildSliceVectorExpression(traceRow, domain[0], domain[1]);
+        }
+        // TODO: if we are in evaluator, add next state as parameter as well
+        let masks = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+        // TODO: get offsets from function info object
+        masks = this.base.buildSliceVectorExpression(masks, this.loopOffset + 1, this.loopOffset + 1);
+        let statics2 = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+        // TODO: get offsets from function info object
+        const offset = this.segmentOffset;
+        statics2 = this.base.buildSliceVectorExpression(statics2, offset, offset + 3);
+        const statics = this.base.buildMakeVectorExpression([...inputs, masks, statics2]);
+        const callExpression = this.base.buildCallExpression(info.handle, [traceRow, statics]);
+        // TODO: store function call
+    }
     // PASS-THROUGH METHODS
     // --------------------------------------------------------------------------------------------
     buildLiteralValue(value) {
@@ -146,11 +187,6 @@ class ExecutionContext {
     }
     buildMakeMatrixExpression(elements) {
         return this.base.buildMakeMatrixExpression(elements);
-    }
-    buildFunctionCall(func, params) {
-        const info = this.functions.get(func);
-        utils_1.validate(info !== undefined, errors.undefinedFuncReference(func));
-        return this.base.buildCallExpression(info.handle, params);
     }
 }
 exports.ExecutionContext = ExecutionContext;

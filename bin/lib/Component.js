@@ -7,11 +7,10 @@ const utils_1 = require("./utils");
 class Component {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(schema, procedures, symbols, functions) {
+    constructor(schema, procedures, symbols) {
         this.schema = schema;
         this.procedures = procedures;
         this.symbols = symbols;
-        this.functions = functions;
         this.maskRegisters = [];
         procedures.inputRegisters.forEach((r, i) => {
             if (r.loopAnchor) {
@@ -23,12 +22,6 @@ class Component {
     // --------------------------------------------------------------------------------------------
     get field() {
         return this.schema.field;
-    }
-    get transitionFunctionHandle() {
-        return this.procedures.transition.handle;
-    }
-    get constraintEvaluatorHandle() {
-        return this.procedures.evaluation.handle;
     }
     get inputRegisters() {
         return this.procedures.inputRegisters;
@@ -57,7 +50,7 @@ class Component {
         };
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext_1.ExecutionContext(context, this.symbols, this.functions, staticRegisters);
+        return new ExecutionContext_1.ExecutionContext(context, this.symbols, staticRegisters);
     }
     setTransitionFunction(context) {
         const { statements, result } = this.buildFunction(context);

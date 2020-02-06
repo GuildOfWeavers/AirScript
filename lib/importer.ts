@@ -3,8 +3,8 @@
 import { AirSchema, ExpressionVisitor, ExecutionContext, Expression, LiteralValue, BinaryOperation,
     UnaryOperation, MakeVector, GetVectorElement, SliceVector, MakeMatrix, LoadExpression, CallExpression, Dimensions
 } from "@guildofweavers/air-assembly";
-import { ImportMember } from "./Module";
-import { ProcedureParams } from "./utils";
+import { ImportMember, SymbolInfo } from "./Module";
+import { ProcedureParams, TRANSITION_FN_POSTFIX, EVALUATION_FN_POSTFIX } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -37,11 +37,12 @@ export function importFunctions(from: AirSchema, to: AirSchema, offsets: ImportO
     }
 }
 
-export function importComponent(from: AirSchema, to: AirSchema, member: ImportMember, offsets: ImportOffsets): void {
+export function importComponent(from: AirSchema, to: AirSchema, member: ImportMember, offsets: ImportOffsets): SymbolInfo[] {
     const component = from.components.get(member.member);
     if (!component) throw new Error('TODO: import component not found');
     const alias = member.alias || member.member;
     
+    const functions: SymbolInfo[] = [];
     const importer = new ExpressionImporter(offsets);
 
     const traceDimensions = component.transitionFunction.result.dimensions;
@@ -59,9 +60,11 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     });
     let result = importer.visit(component.traceInitializer.result, ctx);
     to.addFunction(ctx, statements, result);
+    // TODO: add to functions?
 
     // import transition function
-    ctx = to.createFunctionContext(traceDimensions, `$${alias}_transition`);
+    let handle = `$${alias}${TRANSITION_FN_POSTFIX}`;
+    ctx = to.createFunctionContext(traceDimensions, handle);
     ctx.addParam(traceDimensions, ProcedureParams.thisTraceRow);
     ctx.addParam(staticDimensions, ProcedureParams.staticRow);
     component.transitionFunction.locals.forEach(local => ctx.addLocal(local.dimensions, local.handle));
@@ -71,9 +74,11 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     });
     result = importer.visit(component.transitionFunction.result, ctx);
     to.addFunction(ctx, statements, result);
+    functions.push({ type: 'func', handle, dimensions: traceDimensions, subset: false });
 
     // import constraint evaluator
-    ctx = to.createFunctionContext(constraintDimensions, `$${alias}_evaluation`);
+    handle = `$${alias}${EVALUATION_FN_POSTFIX}`;
+    ctx = to.createFunctionContext(constraintDimensions, handle);
     ctx.addParam(traceDimensions, ProcedureParams.thisTraceRow);
     ctx.addParam(traceDimensions, ProcedureParams.nextTraceRow);
     ctx.addParam(staticDimensions, ProcedureParams.staticRow);
@@ -84,6 +89,9 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     });
     result = importer.visit(component.constraintEvaluator.result, ctx);
     to.addFunction(ctx, statements, result);
+    functions.push({ type: 'func', handle, dimensions: constraintDimensions, subset: false });
+
+    return functions;
 }
 
 // EXPRESSION IMPORTER

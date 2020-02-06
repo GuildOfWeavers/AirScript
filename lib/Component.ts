@@ -53,15 +53,13 @@ export class Component {
 
     private readonly procedures : ProcedureSpecs;
     private readonly symbols    : Map<string, SymbolInfo>;
-    private readonly functions  : Map<string, FunctionInfo>;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(schema: AirSchema, procedures: ProcedureSpecs, symbols: Map<string, SymbolInfo>, functions: Map<string, FunctionInfo>) {
+    constructor(schema: AirSchema, procedures: ProcedureSpecs, symbols: Map<string, SymbolInfo>) {
         this.schema = schema;
         this.procedures = procedures;
         this.symbols = symbols;
-        this.functions = functions;
 
         this.maskRegisters = [];
         procedures.inputRegisters.forEach((r, i) => {
@@ -75,14 +73,6 @@ export class Component {
     // --------------------------------------------------------------------------------------------
     get field(): FiniteField {
         return this.schema.field;
-    }
-
-    get transitionFunctionHandle(): string {
-        return this.procedures.transition.handle;
-    }
-
-    get constraintEvaluatorHandle(): string {
-        return this.procedures.evaluation.handle;
     }
 
     get inputRegisters(): InputRegister[] {
@@ -118,7 +108,7 @@ export class Component {
 
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext(context, this.symbols, this.functions, staticRegisters);
+        return new ExecutionContext(context, this.symbols, staticRegisters);
     }
 
     setTransitionFunction(context: ExecutionContext): void {
