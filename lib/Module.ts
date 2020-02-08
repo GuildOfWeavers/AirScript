@@ -2,7 +2,7 @@
 // ================================================================================================
 import {
     compile, AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, InputRegisterMaster,
-    PrngSequence
+    CyclicRegister, PrngSequence
 } from "@guildofweavers/air-assembly";
 import * as path from 'path';
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
@@ -28,10 +28,8 @@ export interface SymbolInfo {
 }
 
 export interface FunctionInfo {
-    readonly handle     : string;
-    readonly inputs?    : any;
-    readonly loops?     : any;
-    readonly statics?   : any;
+    readonly sOffset    : number;
+    readonly sLength    : number;
 }
 
 export interface ImportMember {
@@ -58,7 +56,7 @@ export class Module {
     readonly schema             : AirSchema;
     readonly traceWidth         : number;
     readonly constraintCount    : number;
-    readonly staticRegisters    : StaticRegister[];
+    readonly auxRegisters       : StaticRegister[];
 
     private readonly symbols    : Map<string, SymbolInfo>;
     private inputRegisterCount  : number;
@@ -72,7 +70,7 @@ export class Module {
         this.schema = new AirSchema('prime', modulus);
         this.traceWidth = traceWidth;
         this.constraintCount = constraintCount;
-        this.staticRegisters = [];
+        this.auxRegisters = [];
         this.symbols = new Map();
         this.inputRegisterCount = 0;
     }
@@ -86,33 +84,37 @@ export class Module {
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     addImport(filePath: string, members: ImportMember[]): void {
-        if (!path.isAbsolute(filePath)) {
-            filePath = path.resolve(this.basedir, filePath);
-        }
 
-        let schema: AirSchema;
-        try {
-            schema = compile(filePath);
-        }
-        catch(error) {
-            throw new Error(`cannot not import from '${filePath}': ${error.message}`)
-        }
-
-        const offsets: ImportOffsets = {
-            constants   : this.schema.constants.length,
-            functions   : this.schema.functions.length,
-            statics     : 0 // TODO
-        };
-
+        // try to load the AirAssembly module specified by the file path
+        const schema = loadSchema(this.basedir, filePath);
+        
         // copy constants and functions
-        importConstants(schema, this.schema);
-        importFunctions(schema, this.schema, offsets);
+        const constOffset = importConstants(schema, this.schema);
+        const funcOffset = importFunctions(schema, this.schema, constOffset);
 
         // extract members
         members.forEach(member => {
+
+            const component = schema.components.get(member.member);
+            if (!component) throw new Error('TODO: import component not found');
+
+            let auxRegisterCount = 0;
+            component.staticRegisters.forEach(register => {
+                if ((register as CyclicRegister).cycleLength) {
+                    this.auxRegisters.push({ values: (register as CyclicRegister).values }); // TODO
+                    auxRegisterCount++;
+                }
+            });
+
+            const offsets: ImportOffsets = {
+                constants       : constOffset,
+                functions       : funcOffset,
+                auxRegisters    : this.auxRegisters.length,
+                auxRegisterCount: auxRegisterCount
+            };
+
             const symbols = importComponent(schema, this.schema, member, offsets);
             symbols.forEach(s => this.symbols.set(s.handle.substr(1), s));
-            // TODO: build function info
         });
     }
 
@@ -138,8 +140,8 @@ export class Module {
 
     addStatic(name: string, values: (bigint[] | PrngSequence)[]): void {
         validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
-        const index = this.staticRegisters.length;
-        values.forEach((v => this.staticRegisters.push({ values: v })));
+        const index = this.auxRegisters.length;
+        values.forEach((v => this.auxRegisters.push({ values: v })));
         const dimensions: Dimensions = values.length === 1 ? [0, 0] : [values.length, 0];
         this.symbols.set(name, { type: 'static', handle: name, offset: index, dimensions, subset: true });
     }
@@ -152,7 +154,7 @@ export class Module {
         }
 
         const procedureSpecs = this.buildProcedureSpecs(template);
-        const symbols = this.transformSymbols(procedureSpecs.staticRegisterOffset);
+        const symbols = this.transformSymbols(procedureSpecs.auxRegisterOffset);
 
         return new Component(this.schema, procedureSpecs, symbols);
     }
@@ -170,7 +172,7 @@ export class Module {
             m.push(m.shift()!);
             c.addCyclicRegister(m);
         });
-        this.staticRegisters.forEach(r => c.addCyclicRegister(r.values));
+        this.auxRegisters.forEach(r => c.addCyclicRegister(r.values));
 
         // set trace initializer to return a result of applying transition function to a vector of all zeros
         const initContext = c.createProcedureContext('init');
@@ -199,8 +201,8 @@ export class Module {
     private buildProcedureSpecs(template: ExecutionTemplate): ProcedureSpecs {
         const inputRegisters = this.buildInputRegisters(template);
         const segmentMasks = template.segments.map(s => s.mask);
-        const staticRegisterOffset = inputRegisters.length + segmentMasks.length + template.loops.length;
-        const staticRegisterCount = staticRegisterOffset + this.staticRegisters.length;
+        const auxRegisterOffset = inputRegisters.length + segmentMasks.length + template.loops.length;
+        const staticRegisterCount = auxRegisterOffset + this.auxRegisters.length;
 
         return {
             transition: {
@@ -220,7 +222,7 @@ export class Module {
                     { name: ProcedureParams.staticRow,    dimensions: [staticRegisterCount, 0] }
                 ]
             },
-            inputRegisters, segmentMasks, staticRegisterOffset
+            inputRegisters, segmentMasks, auxRegisterOffset
         };
     }
 
@@ -321,6 +323,21 @@ export class Module {
         }
 
         return symbols;
+    }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+function loadSchema(basedir: string, filePath: string): AirSchema {
+    if (!path.isAbsolute(filePath)) {
+        filePath = path.resolve(basedir, filePath);
+    }
+
+    try {
+        return compile(filePath);
+    }
+    catch(error) {
+        throw new Error(`cannot not import from '${filePath}': ${error.message}`)
     }
 }
 

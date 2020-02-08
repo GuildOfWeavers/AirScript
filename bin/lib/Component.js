@@ -46,7 +46,7 @@ class Component {
             inputs: this.inputRegisters.length,
             loops: this.maskRegisters.length,
             segments: this.segmentMasks.length,
-            statics: this.staticRegisterCount - this.procedures.staticRegisterOffset
+            aux: this.staticRegisterCount - this.procedures.auxRegisterOffset
         };
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));

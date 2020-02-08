@@ -32,16 +32,16 @@ export interface ProcedureSpecs {
         readonly result : Dimensions;
         readonly params : { name: string, dimensions: Dimensions }[];
     };
-    readonly inputRegisters         : InputRegister[];
-    readonly segmentMasks           : bigint[][];
-    readonly staticRegisterOffset   : number;
+    readonly inputRegisters     : InputRegister[];
+    readonly segmentMasks       : bigint[][];
+    readonly auxRegisterOffset  : number;
 }
 
 export interface StaticRegisterCounts {
     readonly inputs     : number;
     readonly loops      : number;
     readonly segments   : number;
-    readonly statics    : number;
+    readonly aux        : number;
 }
 
 // CLASS DEFINITION
@@ -103,7 +103,7 @@ export class Component {
             inputs  : this.inputRegisters.length,
             loops   : this.maskRegisters.length,
             segments: this.segmentMasks.length,
-            statics : this.staticRegisterCount - this.procedures.staticRegisterOffset
+            aux : this.staticRegisterCount - this.procedures.auxRegisterOffset
         };
 
         const context = this.schema.createFunctionContext(specs.result, specs.handle);

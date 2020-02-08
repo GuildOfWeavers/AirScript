@@ -18,7 +18,7 @@ class Module {
         this.schema = new air_assembly_1.AirSchema('prime', modulus);
         this.traceWidth = traceWidth;
         this.constraintCount = constraintCount;
-        this.staticRegisters = [];
+        this.auxRegisters = [];
         this.symbols = new Map();
         this.inputRegisterCount = 0;
     }
@@ -30,29 +30,31 @@ class Module {
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     addImport(filePath, members) {
-        if (!path.isAbsolute(filePath)) {
-            filePath = path.resolve(this.basedir, filePath);
-        }
-        let schema;
-        try {
-            schema = air_assembly_1.compile(filePath);
-        }
-        catch (error) {
-            throw new Error(`cannot not import from '${filePath}': ${error.message}`);
-        }
-        const offsets = {
-            constants: this.schema.constants.length,
-            functions: this.schema.functions.length,
-            statics: 0 // TODO
-        };
+        // try to load the AirAssembly module specified by the file path
+        const schema = loadSchema(this.basedir, filePath);
         // copy constants and functions
-        importer_1.importConstants(schema, this.schema);
-        importer_1.importFunctions(schema, this.schema, offsets);
+        const constOffset = importer_1.importConstants(schema, this.schema);
+        const funcOffset = importer_1.importFunctions(schema, this.schema, constOffset);
         // extract members
         members.forEach(member => {
+            const component = schema.components.get(member.member);
+            if (!component)
+                throw new Error('TODO: import component not found');
+            let auxRegisterCount = 0;
+            component.staticRegisters.forEach(register => {
+                if (register.cycleLength) {
+                    this.auxRegisters.push({ values: register.values }); // TODO
+                    auxRegisterCount++;
+                }
+            });
+            const offsets = {
+                constants: constOffset,
+                functions: funcOffset,
+                auxRegisters: this.auxRegisters.length,
+                auxRegisterCount: auxRegisterCount
+            };
             const symbols = importer_1.importComponent(schema, this.schema, member, offsets);
             symbols.forEach(s => this.symbols.set(s.handle.substr(1), s));
-            // TODO: build function info
         });
     }
     addConstant(name, value) {
@@ -75,8 +77,8 @@ class Module {
     }
     addStatic(name, values) {
         utils_1.validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
-        const index = this.staticRegisters.length;
-        values.forEach((v => this.staticRegisters.push({ values: v })));
+        const index = this.auxRegisters.length;
+        values.forEach((v => this.auxRegisters.push({ values: v })));
         const dimensions = values.length === 1 ? [0, 0] : [values.length, 0];
         this.symbols.set(name, { type: 'static', handle: name, offset: index, dimensions, subset: true });
     }
@@ -87,7 +89,7 @@ class Module {
             utils_1.validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
         }
         const procedureSpecs = this.buildProcedureSpecs(template);
-        const symbols = this.transformSymbols(procedureSpecs.staticRegisterOffset);
+        const symbols = this.transformSymbols(procedureSpecs.auxRegisterOffset);
         return new Component_1.Component(this.schema, procedureSpecs, symbols);
     }
     setComponent(component, componentName) {
@@ -102,7 +104,7 @@ class Module {
             m.push(m.shift());
             c.addCyclicRegister(m);
         });
-        this.staticRegisters.forEach(r => c.addCyclicRegister(r.values));
+        this.auxRegisters.forEach(r => c.addCyclicRegister(r.values));
         // set trace initializer to return a result of applying transition function to a vector of all zeros
         const initContext = c.createProcedureContext('init');
         const initParams = this.buildProcedureParams(initContext);
@@ -126,8 +128,8 @@ class Module {
     buildProcedureSpecs(template) {
         const inputRegisters = this.buildInputRegisters(template);
         const segmentMasks = template.segments.map(s => s.mask);
-        const staticRegisterOffset = inputRegisters.length + segmentMasks.length + template.loops.length;
-        const staticRegisterCount = staticRegisterOffset + this.staticRegisters.length;
+        const auxRegisterOffset = inputRegisters.length + segmentMasks.length + template.loops.length;
+        const staticRegisterCount = auxRegisterOffset + this.auxRegisters.length;
         return {
             transition: {
                 handle: utils_1.TRANSITION_FN_HANDLE,
@@ -146,7 +148,7 @@ class Module {
                     { name: utils_1.ProcedureParams.staticRow, dimensions: [staticRegisterCount, 0] }
                 ]
             },
-            inputRegisters, segmentMasks, staticRegisterOffset
+            inputRegisters, segmentMasks, auxRegisterOffset
         };
     }
     buildProcedureParams(context) {
@@ -233,6 +235,19 @@ class Module {
     }
 }
 exports.Module = Module;
+// HELPER FUNCTIONS
+// ================================================================================================
+function loadSchema(basedir, filePath) {
+    if (!path.isAbsolute(filePath)) {
+        filePath = path.resolve(basedir, filePath);
+    }
+    try {
+        return air_assembly_1.compile(filePath);
+    }
+    catch (error) {
+        throw new Error(`cannot not import from '${filePath}': ${error.message}`);
+    }
+}
 // ERRORS
 // ================================================================================================
 const errors = {

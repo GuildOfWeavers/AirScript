@@ -9,21 +9,25 @@ import { ProcedureParams, TRANSITION_FN_POSTFIX, EVALUATION_FN_POSTFIX } from ".
 // INTERFACES
 // ================================================================================================
 export interface ImportOffsets {
-    readonly constants  : number;
-    readonly functions  : number;
-    readonly statics    : number;
+    readonly constants          : number;
+    readonly functions          : number;
+    readonly auxRegisters       : number;
+    readonly auxRegisterCount   : number;
 }
 
 // PUBLIC FUNCTIONS
 // ================================================================================================
-export function importConstants(from: AirSchema, to: AirSchema): void {
+export function importConstants(from: AirSchema, to: AirSchema): number {
+    const constOffset = to.constants.length;
     for (let constant of from.constants) {
         to.addConstant(constant.value.value);
     }
+    return constOffset;
 }
 
-export function importFunctions(from: AirSchema, to: AirSchema, offsets: ImportOffsets): void {
-    const importer = new ExpressionImporter(offsets);
+export function importFunctions(from: AirSchema, to: AirSchema, constOffset: number): number {
+    const funcOffset = to.functions.length;
+    const importer = new ExpressionImporter(constOffset, funcOffset);
     for (let func of from.functions) {
         let ctx = to.createFunctionContext(func.result.dimensions);
         func.params.forEach(param => ctx.addParam(param.dimensions, param.handle));
@@ -35,6 +39,7 @@ export function importFunctions(from: AirSchema, to: AirSchema, offsets: ImportO
         const result = importer.visit(func.result, ctx);
         to.addFunction(ctx, statements, result);
     }
+    return funcOffset
 }
 
 export function importComponent(from: AirSchema, to: AirSchema, member: ImportMember, offsets: ImportOffsets): SymbolInfo[] {
@@ -43,7 +48,7 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     const alias = member.alias || member.member;
     
     const functions: SymbolInfo[] = [];
-    const importer = new ExpressionImporter(offsets);
+    const importer = new ExpressionImporter(offsets.constants, offsets.functions);
 
     const traceDimensions = component.transitionFunction.result.dimensions;
     const staticDimensions: Dimensions = [component.staticRegisters.length, 0];
@@ -74,7 +79,10 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     });
     result = importer.visit(component.transitionFunction.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push({ type: 'func', handle, dimensions: traceDimensions, subset: false });
+    functions.push({ type: 'func', handle, dimensions: traceDimensions, subset: false, func: {
+        sOffset: offsets.auxRegisters,
+        sLength: offsets.auxRegisterCount
+    }});
 
     // import constraint evaluator
     handle = `$${alias}${EVALUATION_FN_POSTFIX}`;
@@ -89,7 +97,10 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     });
     result = importer.visit(component.constraintEvaluator.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push({ type: 'func', handle, dimensions: constraintDimensions, subset: false });
+    functions.push({ type: 'func', handle, dimensions: constraintDimensions, subset: false, func: {
+        sOffset: offsets.auxRegisters,
+        sLength: offsets.auxRegisterCount
+    }});
 
     return functions;
 }
@@ -103,10 +114,10 @@ class ExpressionImporter extends ExpressionVisitor<Expression> {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(offsets: ImportOffsets) {
+    constructor(constOffset: number, funcOffset: number) {
         super();
-        this.constOffset = offsets.constants;
-        this.funcOffset = offsets.functions;
+        this.constOffset = constOffset;
+        this.funcOffset = funcOffset;
     }
 
     // LITERALS

@@ -7,13 +7,16 @@ const utils_1 = require("./utils");
 // PUBLIC FUNCTIONS
 // ================================================================================================
 function importConstants(from, to) {
+    const constOffset = to.constants.length;
     for (let constant of from.constants) {
         to.addConstant(constant.value.value);
     }
+    return constOffset;
 }
 exports.importConstants = importConstants;
-function importFunctions(from, to, offsets) {
-    const importer = new ExpressionImporter(offsets);
+function importFunctions(from, to, constOffset) {
+    const funcOffset = to.functions.length;
+    const importer = new ExpressionImporter(constOffset, funcOffset);
     for (let func of from.functions) {
         let ctx = to.createFunctionContext(func.result.dimensions);
         func.params.forEach(param => ctx.addParam(param.dimensions, param.handle));
@@ -25,6 +28,7 @@ function importFunctions(from, to, offsets) {
         const result = importer.visit(func.result, ctx);
         to.addFunction(ctx, statements, result);
     }
+    return funcOffset;
 }
 exports.importFunctions = importFunctions;
 function importComponent(from, to, member, offsets) {
@@ -33,7 +37,7 @@ function importComponent(from, to, member, offsets) {
         throw new Error('TODO: import component not found');
     const alias = member.alias || member.member;
     const functions = [];
-    const importer = new ExpressionImporter(offsets);
+    const importer = new ExpressionImporter(offsets.constants, offsets.functions);
     const traceDimensions = component.transitionFunction.result.dimensions;
     const staticDimensions = [component.staticRegisters.length, 0];
     const constraintDimensions = component.constraintEvaluator.result.dimensions;
@@ -61,7 +65,10 @@ function importComponent(from, to, member, offsets) {
     });
     result = importer.visit(component.transitionFunction.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push({ type: 'func', handle, dimensions: traceDimensions, subset: false });
+    functions.push({ type: 'func', handle, dimensions: traceDimensions, subset: false, func: {
+            sOffset: offsets.auxRegisters,
+            sLength: offsets.auxRegisterCount
+        } });
     // import constraint evaluator
     handle = `$${alias}${utils_1.EVALUATION_FN_POSTFIX}`;
     ctx = to.createFunctionContext(constraintDimensions, handle);
@@ -75,7 +82,10 @@ function importComponent(from, to, member, offsets) {
     });
     result = importer.visit(component.constraintEvaluator.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push({ type: 'func', handle, dimensions: constraintDimensions, subset: false });
+    functions.push({ type: 'func', handle, dimensions: constraintDimensions, subset: false, func: {
+            sOffset: offsets.auxRegisters,
+            sLength: offsets.auxRegisterCount
+        } });
     return functions;
 }
 exports.importComponent = importComponent;
@@ -84,10 +94,10 @@ exports.importComponent = importComponent;
 class ExpressionImporter extends air_assembly_1.ExpressionVisitor {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(offsets) {
+    constructor(constOffset, funcOffset) {
         super();
-        this.constOffset = offsets.constants;
-        this.funcOffset = offsets.functions;
+        this.constOffset = constOffset;
+        this.funcOffset = funcOffset;
     }
     // LITERALS
     // --------------------------------------------------------------------------------------------
