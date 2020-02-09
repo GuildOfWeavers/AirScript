@@ -24,6 +24,8 @@ export class ExecutionContext {
 
     private readonly symbols    : Map<string, SymbolInfo>;
 
+    readonly delegates          : Expression[];
+
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(base: FunctionContext, symbols: Map<string, SymbolInfo>, staticRegisters: StaticRegisterCounts) {
@@ -35,6 +37,7 @@ export class ExecutionContext {
         this.initializers = [];
         this.segments = [];
         this.lastBlockId = 0;
+        this.delegates = [];
     }
 
     // ACCESSORS
@@ -49,6 +52,10 @@ export class ExecutionContext {
 
     get segmentOffset(): number {
         return this.staticRegisters.inputs + this.staticRegisters.loops;
+    }
+
+    get auxRegisterOffset(): number {
+        return this.staticRegisters.inputs + this.staticRegisters.loops + this.staticRegisters.segments;
     }
 
     get procedureName(): ProcedureName {
@@ -189,10 +196,11 @@ export class ExecutionContext {
         // TODO: validate domain
 
         const fName = funcName + (this.procedureName === 'transition' ? TRANSITION_FN_POSTFIX : EVALUATION_FN_POSTFIX);
-        const info = this.symbols.get(fName);
+        const info = this.symbols.get(fName) as FunctionInfo;
         validate(info !== undefined, errors.undefinedFuncReference(funcName));
-        // TODO: make sure the symbol is a function
-        
+        validate(info.type === 'func', errors.invalidFuncReference(funcName));
+        // TODO: validate rank
+
         let traceRow: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow);
         if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
             traceRow = this.base.buildSliceVectorExpression(traceRow, domain[0], domain[1]);
@@ -200,19 +208,25 @@ export class ExecutionContext {
 
         // TODO: if we are in evaluator, add next state as parameter as well
         
+        const statics = inputs.slice();
+
         let masks: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
-        // TODO: get offsets from function info object
-        masks = this.base.buildSliceVectorExpression(masks, this.loopOffset + 1, this.loopOffset + 1);
+        const maskOffset = this.loopOffset + info.rank;
+        const maskCount = this.staticRegisters.loops - info.rank;
+        masks = this.base.buildSliceVectorExpression(masks, maskOffset, maskOffset + maskCount - 1);
+        statics.push(masks);
 
-        let statics2: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
-        // TODO: get offsets from function info object
-        const offset = this.segmentOffset;
-        statics2 = this.base.buildSliceVectorExpression(statics2, offset, offset + 3);
+        if (info.auxLength > 0) {
+            const auxOffset = this.auxRegisterOffset + info.auxOffset;
+            let aux: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
+            aux = this.base.buildSliceVectorExpression(aux, auxOffset, auxOffset + info.auxLength - 1);
+            statics.push(aux);
+        }
 
-        const statics = this.base.buildMakeVectorExpression([...inputs, masks, statics2]);
-        const callExpression = this.base.buildCallExpression(info.handle, [traceRow, statics]);
+        const staticRow = this.base.buildMakeVectorExpression(statics);
+        const callExpression = this.base.buildCallExpression(info.handle, [traceRow, staticRow]);
 
-        // TODO: store function call
+        this.delegates.push(callExpression);
     }
 
     // PASS-THROUGH METHODS
@@ -289,6 +303,7 @@ class ExpressionBlock {
 const errors = {
     undeclaredVarReference  : (s: any) => `variable ${s} is referenced before declaration`,
     undefinedFuncReference  : (f: any) => `function ${f} has not been defined`,
+    invalidFuncReference    : (f: any) => `symbol ${f} is not a function`,
     cannotAssignToConst     : (c: any) => `cannot assign a value to a constant ${c}`,
     cannotAssignToOuterScope: (v: any) => `cannot assign a value to an outer scope variable ${v}`,
     tooManyLoops            : (e: any) => `number of input loops cannot exceed ${e}`,

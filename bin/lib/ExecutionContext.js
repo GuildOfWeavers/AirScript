@@ -15,6 +15,7 @@ class ExecutionContext {
         this.initializers = [];
         this.segments = [];
         this.lastBlockId = 0;
+        this.delegates = [];
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -26,6 +27,9 @@ class ExecutionContext {
     }
     get segmentOffset() {
         return this.staticRegisters.inputs + this.staticRegisters.loops;
+    }
+    get auxRegisterOffset() {
+        return this.staticRegisters.inputs + this.staticRegisters.loops + this.staticRegisters.segments;
     }
     get procedureName() {
         if (this.base.handle === utils_1.TRANSITION_FN_HANDLE) {
@@ -148,22 +152,28 @@ class ExecutionContext {
         const fName = funcName + (this.procedureName === 'transition' ? utils_1.TRANSITION_FN_POSTFIX : utils_1.EVALUATION_FN_POSTFIX);
         const info = this.symbols.get(fName);
         utils_1.validate(info !== undefined, errors.undefinedFuncReference(funcName));
-        // TODO: make sure the symbol is a function
+        utils_1.validate(info.type === 'func', errors.invalidFuncReference(funcName));
+        // TODO: validate rank
         let traceRow = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.thisTraceRow);
         if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
             traceRow = this.base.buildSliceVectorExpression(traceRow, domain[0], domain[1]);
         }
         // TODO: if we are in evaluator, add next state as parameter as well
+        const statics = inputs.slice();
         let masks = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-        // TODO: get offsets from function info object
-        masks = this.base.buildSliceVectorExpression(masks, this.loopOffset + 1, this.loopOffset + 1);
-        let statics2 = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-        // TODO: get offsets from function info object
-        const offset = this.segmentOffset;
-        statics2 = this.base.buildSliceVectorExpression(statics2, offset, offset + 3);
-        const statics = this.base.buildMakeVectorExpression([...inputs, masks, statics2]);
-        const callExpression = this.base.buildCallExpression(info.handle, [traceRow, statics]);
-        // TODO: store function call
+        const maskOffset = this.loopOffset + info.rank;
+        const maskCount = this.staticRegisters.loops - info.rank;
+        masks = this.base.buildSliceVectorExpression(masks, maskOffset, maskOffset + maskCount - 1);
+        statics.push(masks);
+        if (info.auxLength > 0) {
+            const auxOffset = this.auxRegisterOffset + info.auxOffset;
+            let aux = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+            aux = this.base.buildSliceVectorExpression(aux, auxOffset, auxOffset + info.auxLength - 1);
+            statics.push(aux);
+        }
+        const staticRow = this.base.buildMakeVectorExpression(statics);
+        const callExpression = this.base.buildCallExpression(info.handle, [traceRow, staticRow]);
+        this.delegates.push(callExpression);
     }
     // PASS-THROUGH METHODS
     // --------------------------------------------------------------------------------------------
@@ -223,6 +233,7 @@ class ExpressionBlock {
 const errors = {
     undeclaredVarReference: (s) => `variable ${s} is referenced before declaration`,
     undefinedFuncReference: (f) => `function ${f} has not been defined`,
+    invalidFuncReference: (f) => `symbol ${f} is not a function`,
     cannotAssignToConst: (c) => `cannot assign a value to a constant ${c}`,
     cannotAssignToOuterScope: (v) => `cannot assign a value to an outer scope variable ${v}`,
     tooManyLoops: (e) => `number of input loops cannot exceed ${e}`,

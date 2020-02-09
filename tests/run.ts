@@ -5,13 +5,6 @@ import { Poseidon as Hash } from './assembly/poseidon.aa';
 
 define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
 
-    const alpha: 5;
-    const MDS: [
-        [214709430312099715322788202694750992687,  54066244720673262921467176400601950806, 122144641489288436529811410313120680228],
-        [ 83122512782280758906222839313578703456, 163244785834732434882219275190570945140,  65865044136286518938950810559808473518],
-        [ 12333142678723890553278650076570367543, 308304933036173868454178201249080175007,  76915505462549994902479959396659996669]
-    ];
-
     secret input leaf       : element[1];      // leaf of the merkle branch
     secret input node       : element[1][1];   // nodes in the merkle branch
     public input indexBit   : boolean[1][1];   // binary representation of leaf position
@@ -28,33 +21,13 @@ define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
             }
 
             for each (node, indexBit) {
-
                 h <- indexBit ? $r3 : $r0;
-
                 with $r[0..2] yield Hash(h, node);
-			    with $r[3..5] yield Hash(node, h);
-
-                // based on node's index, figure out whether hash(p, v) or hash(v, p)
-                // should advance to the next iteration of the loop
-                init {
-                    s1 <- [h, node, 0];
-                    s2 <- [node, h, 0];
-                    yield [...s1, ...s2];
-                }
-
-                // run Poseidon hash function
-                for steps [1..4, 60..63] {
-                    // full round
-                    s1 <- MDS # ($r[0..2] + roundConstants)^alpha;
-                    s2 <- MDS # ($r[3..5] + roundConstants)^alpha;
-                    yield  [...s1, ...s2];
-                }
-
-                for steps [5..59] {
-                    // partial round
-                    s1 <- MDS # [...($r[0..1] + roundConstants[0..1]), ($r2 + roundConstants[2])^alpha];
-                    s2 <- MDS # [...($r[3..4] + roundConstants[0..1]), ($r5 + roundConstants[2])^alpha];
-                    yield [...s1, ...s2];
+                with $r[3..5] yield Hash(node, h);
+                
+                init { yield [0, 0, 0, 0, 0, 0]; }
+                for steps [0..63] {
+                    yield [0, 0, 0, 0, 0, 0];
                 }
             }
         }
@@ -65,12 +38,6 @@ define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
             enforce transition($r) = $n;
         }
     }
-
-    static roundConstants: [
-        cycle prng(sha256, 0x01, 64),
-        cycle prng(sha256, 0x02, 64),
-        cycle prng(sha256, 0x03, 64)
-    ];
 }`);
 
 const air = compile(script);

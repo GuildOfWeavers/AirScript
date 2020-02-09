@@ -65,10 +65,7 @@ function importComponent(from, to, member, offsets) {
     });
     result = importer.visit(component.transitionFunction.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push({ type: 'func', handle, dimensions: traceDimensions, subset: false, func: {
-            sOffset: offsets.auxRegisters,
-            sLength: offsets.auxRegisterCount
-        } });
+    functions.push(buildFunctionInfo(handle, traceDimensions, offsets));
     // import constraint evaluator
     handle = `$${alias}${utils_1.EVALUATION_FN_POSTFIX}`;
     ctx = to.createFunctionContext(constraintDimensions, handle);
@@ -82,10 +79,7 @@ function importComponent(from, to, member, offsets) {
     });
     result = importer.visit(component.constraintEvaluator.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push({ type: 'func', handle, dimensions: constraintDimensions, subset: false, func: {
-            sOffset: offsets.auxRegisters,
-            sLength: offsets.auxRegisterCount
-        } });
+    functions.push(buildFunctionInfo(handle, traceDimensions, offsets));
     return functions;
 }
 exports.importComponent = importComponent;
@@ -161,5 +155,18 @@ class ExpressionImporter extends air_assembly_1.ExpressionVisitor {
         const params = e.params.map(p => this.visit(p, ctx));
         return ctx.buildCallExpression(this.funcOffset + e.index, params);
     }
+}
+// HELPER FUNCTIONS
+// ================================================================================================
+function buildFunctionInfo(handle, dimensions, offsets) {
+    return {
+        type: 'func',
+        handle: handle,
+        dimensions: dimensions,
+        subset: false,
+        auxOffset: offsets.auxRegisters,
+        auxLength: offsets.auxRegisterCount,
+        rank: 1 // TODO
+    };
 }
 //# sourceMappingURL=importer.js.map

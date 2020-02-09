@@ -40,18 +40,17 @@ class Module {
             const component = schema.components.get(member.member);
             if (!component)
                 throw new Error('TODO: import component not found');
-            let auxRegisterCount = 0;
+            let auxRegisterOffset = this.auxRegisters.length;
             component.staticRegisters.forEach(register => {
                 if (register.cycleLength) {
                     this.auxRegisters.push({ values: register.values }); // TODO
-                    auxRegisterCount++;
                 }
             });
             const offsets = {
                 constants: constOffset,
                 functions: funcOffset,
-                auxRegisters: this.auxRegisters.length,
-                auxRegisterCount: auxRegisterCount
+                auxRegisters: auxRegisterOffset,
+                auxRegisterCount: this.auxRegisters.length
             };
             const symbols = importer_1.importComponent(schema, this.schema, member, offsets);
             symbols.forEach(s => this.symbols.set(s.handle.substr(1), s));
@@ -72,8 +71,7 @@ class Module {
         const offset = this.inputRegisterCount;
         this.inputRegisterCount = offset + width;
         const dimensions = width === 1 ? [0, 0] : [width, 0];
-        const input = { scope, binary, rank };
-        this.symbols.set(name, { type: 'input', handle: name, offset, dimensions, subset: true, input });
+        this.symbols.set(name, { type: 'input', handle: name, offset, dimensions, subset: true, scope, binary, rank });
     }
     addStatic(name, values) {
         utils_1.validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
@@ -181,13 +179,13 @@ class Module {
                 const symbol = this.symbols.get(inputName);
                 utils_1.validate(symbol !== undefined, errors.undeclaredInput(inputName));
                 utils_1.validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
-                utils_1.validate(symbol.input.rank === i, errors.inputRankMismatch(inputName));
+                utils_1.validate(symbol.rank === i, errors.inputRankMismatch(inputName));
                 for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
                     const isAnchor = (j === 0);
                     const isLeaf = (i === template.loops.length - 1);
                     registers.push({
-                        scope: symbol.input.scope,
-                        binary: symbol.input.binary,
+                        scope: symbol.scope,
+                        binary: symbol.binary,
                         master: isAnchor || isLeaf ? masterParent : masterPeer,
                         steps: isLeaf ? template.cycleLength : undefined,
                         loopAnchor: isAnchor

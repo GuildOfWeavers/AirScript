@@ -23,24 +23,25 @@ export interface SymbolInfo {
     readonly dimensions : Dimensions;
     readonly subset     : boolean;
     readonly offset?    : number;
-    readonly input?     : Input;
-    readonly func?      : FunctionInfo;
 }
 
-export interface FunctionInfo {
-    readonly sOffset    : number;
-    readonly sLength    : number;
+export interface FunctionInfo extends SymbolInfo {
+    readonly type       : 'func';
+    readonly auxOffset  : number;
+    readonly auxLength  : number;
+    readonly rank       : number;
+}
+
+export interface InputInfo extends SymbolInfo {
+    readonly type       : 'input';
+    readonly scope      : string;
+    readonly binary     : boolean;
+    readonly rank       : number;
 }
 
 export interface ImportMember {
     readonly member : string;
     readonly alias? : string;
-}
-
-interface Input {
-    readonly scope  : string;
-    readonly binary : boolean;
-    readonly rank   : number;
 }
 
 interface StaticRegister {
@@ -98,19 +99,18 @@ export class Module {
             const component = schema.components.get(member.member);
             if (!component) throw new Error('TODO: import component not found');
 
-            let auxRegisterCount = 0;
+            let auxRegisterOffset = this.auxRegisters.length;
             component.staticRegisters.forEach(register => {
                 if ((register as CyclicRegister).cycleLength) {
                     this.auxRegisters.push({ values: (register as CyclicRegister).values }); // TODO
-                    auxRegisterCount++;
                 }
             });
 
             const offsets: ImportOffsets = {
                 constants       : constOffset,
                 functions       : funcOffset,
-                auxRegisters    : this.auxRegisters.length,
-                auxRegisterCount: auxRegisterCount
+                auxRegisters    : auxRegisterOffset,
+                auxRegisterCount: this.auxRegisters.length
             };
 
             const symbols = importComponent(schema, this.schema, member, offsets);
@@ -134,8 +134,7 @@ export class Module {
         const offset = this.inputRegisterCount;
         this.inputRegisterCount = offset + width;
         const dimensions: Dimensions = width === 1 ? [0, 0] : [width, 0];
-        const input = { scope, binary, rank };
-        this.symbols.set(name, { type: 'input', handle: name, offset, dimensions, subset: true, input });
+        this.symbols.set(name, { type: 'input', handle: name, offset, dimensions, subset: true, scope, binary, rank } as InputInfo);
     }
 
     addStatic(name: string, values: (bigint[] | PrngSequence)[]): void {
@@ -259,18 +258,18 @@ export class Module {
             const masterPeer: InputRegisterMaster = { relation: 'peerof', index: registers.length };
             loop.inputs.forEach(inputName => {
                 validate(!registerSet.has(inputName), errors.overusedInput(inputName));
-                const symbol = this.symbols.get(inputName)!;
+                const symbol = this.symbols.get(inputName) as InputInfo;
                 validate(symbol !== undefined, errors.undeclaredInput(inputName));
                 validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
-                validate(symbol.input!.rank === i, errors.inputRankMismatch(inputName));
+                validate(symbol.rank === i, errors.inputRankMismatch(inputName));
                 
                 for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
                     const isAnchor = (j === 0);
                     const isLeaf = (i === template.loops.length - 1);
     
                     registers.push({
-                        scope       : symbol.input!.scope,
-                        binary      : symbol.input!.binary,
+                        scope       : symbol.scope,
+                        binary      : symbol.binary,
                         master      : isAnchor || isLeaf ? masterParent : masterPeer,
                         steps       : isLeaf ? template.cycleLength : undefined,
                         loopAnchor  : isAnchor

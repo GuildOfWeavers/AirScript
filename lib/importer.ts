@@ -3,7 +3,7 @@
 import { AirSchema, ExpressionVisitor, ExecutionContext, Expression, LiteralValue, BinaryOperation,
     UnaryOperation, MakeVector, GetVectorElement, SliceVector, MakeMatrix, LoadExpression, CallExpression, Dimensions
 } from "@guildofweavers/air-assembly";
-import { ImportMember, SymbolInfo } from "./Module";
+import { ImportMember, SymbolInfo, FunctionInfo } from "./Module";
 import { ProcedureParams, TRANSITION_FN_POSTFIX, EVALUATION_FN_POSTFIX } from "./utils";
 
 // INTERFACES
@@ -79,10 +79,7 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     });
     result = importer.visit(component.transitionFunction.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push({ type: 'func', handle, dimensions: traceDimensions, subset: false, func: {
-        sOffset: offsets.auxRegisters,
-        sLength: offsets.auxRegisterCount
-    }});
+    functions.push(buildFunctionInfo(handle, traceDimensions, offsets));
 
     // import constraint evaluator
     handle = `$${alias}${EVALUATION_FN_POSTFIX}`;
@@ -97,10 +94,7 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     });
     result = importer.visit(component.constraintEvaluator.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push({ type: 'func', handle, dimensions: constraintDimensions, subset: false, func: {
-        sOffset: offsets.auxRegisters,
-        sLength: offsets.auxRegisterCount
-    }});
+    functions.push(buildFunctionInfo(handle, traceDimensions, offsets));
 
     return functions;
 }
@@ -190,4 +184,18 @@ class ExpressionImporter extends ExpressionVisitor<Expression> {
         const params = e.params.map(p => this.visit(p, ctx))
         return ctx.buildCallExpression(this.funcOffset + e.index, params);
     }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+function buildFunctionInfo(handle: string, dimensions: Dimensions, offsets: ImportOffsets): FunctionInfo {
+    return {
+        type        : 'func',
+        handle      : handle,
+        dimensions  : dimensions,
+        subset      : false,
+        auxOffset   : offsets.auxRegisters,
+        auxLength   : offsets.auxRegisterCount,
+        rank        : 1   // TODO
+    };
 }
