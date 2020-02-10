@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
+const Context_1 = require("./contexts/Context");
 // CLASS DEFINITION
 // ================================================================================================
 class ExecutionContext {
@@ -126,7 +127,10 @@ class ExecutionContext {
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------
     enterBlock() {
-        this.blocks.push(new ExpressionBlock(this.lastBlockId, this.base));
+        const id = `${utils_1.BLOCK_ID_PREFIX}${this.lastBlockId}`;
+        const domain = { start: 0, end: 0 };
+        const inputs = new Set();
+        this.blocks.push(new Context_1.Context(id, domain, inputs, this.base));
         this.lastBlockId++;
     }
     exitBlock() {
@@ -200,34 +204,6 @@ class ExecutionContext {
     }
 }
 exports.ExecutionContext = ExecutionContext;
-// EXPRESSION BLOCK CLASS
-// ================================================================================================
-class ExpressionBlock {
-    constructor(id, context) {
-        this.id = `${utils_1.BLOCK_ID_PREFIX}${id}`;
-        this.locals = new Map();
-        this.context = context;
-    }
-    hasLocal(variable) {
-        return this.locals.has(`${this.id}_${variable}`);
-    }
-    setLocal(variable, value) {
-        const handle = `${this.id}_${variable}`;
-        if (!this.locals.has(handle)) {
-            this.locals.set(handle, this.locals.size);
-            this.context.addLocal(value.dimensions, handle);
-        }
-        return this.context.buildStoreOperation(handle, value);
-    }
-    loadLocal(variable) {
-        const handle = `${this.id}_${variable}`;
-        utils_1.validate(this.locals.has(handle), errors.undeclaredVarReference(variable));
-        return this.context.buildLoadExpression(`load.local`, handle);
-    }
-    getLocalIndex(variable) {
-        return this.locals.get(`${this.id}_${variable}`);
-    }
-}
 // ERRORS
 // ================================================================================================
 const errors = {

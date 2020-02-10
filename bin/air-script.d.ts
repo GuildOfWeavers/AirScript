@@ -25,4 +25,11 @@ declare module '@guildofweavers/air-script' {
      * @param componentName Optional component name to be assigned to the parsed module.
      */
     export function compile(source: Buffer, componentName?: string): AirSchema;
+
+    // INTERNAL INTERFACES
+    // --------------------------------------------------------------------------------------------
+    export interface TraceDomain {
+        readonly start  : number;
+        readonly end    : number;
+    }
 }

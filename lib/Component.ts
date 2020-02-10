@@ -134,11 +134,13 @@ export class Component {
         let result: Expression | undefined;
         let statements: StoreOperation[] = context.statements;
 
+        /*
         if (context.delegates.length > 0) {
             // TODO: move to execution context?
             result = context.buildMakeVectorExpression(context.delegates);
             return { statements, result: result };
         }
+        */
 
         context.initializers.forEach((expression, i) => {
             if (expression.isScalar) {

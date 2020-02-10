@@ -2,11 +2,13 @@
 // ================================================================================================
 import {
     FunctionContext, Expression, LiteralValue, BinaryOperation, UnaryOperation, MakeVector,
-    GetVectorElement, SliceVector, MakeMatrix, StoreOperation, LoadExpression, ProcedureName
+    GetVectorElement, SliceVector, MakeMatrix, StoreOperation, ProcedureName
 } from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo } from './Module';
 import { StaticRegisterCounts } from "./Component";
 import { validate, BLOCK_ID_PREFIX, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, TRANSITION_FN_POSTFIX, EVALUATION_FN_POSTFIX } from './utils';
+import { Context } from "./contexts/Context";
+import { TraceDomain } from "@guildofweavers/air-script";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -14,7 +16,7 @@ export class ExecutionContext {
 
     readonly base               : FunctionContext;
 
-    readonly blocks             : ExpressionBlock[];
+    readonly blocks             : Context[];
     readonly statements         : StoreOperation[];
     readonly initializers       : Expression[];
     readonly segments           : Expression[];
@@ -42,7 +44,7 @@ export class ExecutionContext {
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    get currentBlock(): ExpressionBlock {
+    get currentBlock(): Context {
         return this.blocks[this.blocks.length - 1];
     }
 
@@ -168,7 +170,10 @@ export class ExecutionContext {
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------
     enterBlock() {
-        this.blocks.push(new ExpressionBlock(this.lastBlockId, this.base));
+        const id = `${BLOCK_ID_PREFIX}${this.lastBlockId}`;
+        const domain: TraceDomain = { start: 0, end: 0 };
+        const inputs = new Set<string>();
+        this.blocks.push(new Context(id, domain, inputs, this.base));
         this.lastBlockId++;
     }
 
@@ -176,7 +181,7 @@ export class ExecutionContext {
         this.blocks.pop()!;
     }
 
-    private findLocalVariableBlock(variable: string): ExpressionBlock | undefined {
+    private findLocalVariableBlock(variable: string): Context | undefined {
         for (let i = this.blocks.length - 1; i >= 0; i--) {
             if (this.blocks[i].hasLocal(variable)) return this.blocks[i];
         }
@@ -257,44 +262,6 @@ export class ExecutionContext {
 
     buildMakeMatrixExpression(elements: Expression[][]): MakeMatrix {
         return this.base.buildMakeMatrixExpression(elements);
-    }
-}
-
-// EXPRESSION BLOCK CLASS
-// ================================================================================================
-class ExpressionBlock {
-
-    readonly id     : string;
-    readonly locals : Map<string, number>;
-    readonly context: FunctionContext;
-
-    constructor (id: number, context: FunctionContext) {
-        this.id = `${BLOCK_ID_PREFIX}${id}`;
-        this.locals = new Map();
-        this.context = context;
-    }
-
-    hasLocal(variable: string): boolean {
-        return this.locals.has(`${this.id}_${variable}`);
-    }
-
-    setLocal(variable: string, value: Expression): StoreOperation {
-        const handle = `${this.id}_${variable}`;
-        if (!this.locals.has(handle)) {
-            this.locals.set(handle, this.locals.size);
-            this.context.addLocal(value.dimensions, handle);
-        }
-        return this.context.buildStoreOperation(handle, value);
-    }
-
-    loadLocal(variable: string): LoadExpression {
-        const handle = `${this.id}_${variable}`;
-        validate(this.locals.has(handle), errors.undeclaredVarReference(variable));
-        return this.context.buildLoadExpression(`load.local`, handle);
-    }
-
-    getLocalIndex(variable: string): number | undefined {
-        return this.locals.get(`${this.id}_${variable}`);
     }
 }
 
