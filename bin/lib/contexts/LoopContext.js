@@ -1,16 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const Context2_1 = require("./Context2");
+const Context_1 = require("./Context");
 const utils_1 = require("../utils");
 // CLASS DEFINITION
 // ================================================================================================
-class LoopContext extends Context2_1.ExecutionContext {
+class LoopContext extends Context_1.ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(id, parent) {
         super(id, parent);
         this.blockResults = [];
-        this.rank = (parent instanceof Context2_1.ExecutionContext ? parent.rank + 1 : 0);
+        this.rank = (parent instanceof Context_1.ExecutionContext ? parent.rank + 1 : 0);
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------

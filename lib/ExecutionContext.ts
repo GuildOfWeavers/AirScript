@@ -75,45 +75,11 @@ export class ExecutionContext {
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
     getSymbolReference(symbol: string): Expression {
-        let result: Expression;
-        const info = this.symbols.get(symbol);    
-        if (info !== undefined) {
-            result = this.base.buildLoadExpression(`load.${info.type}`, info.handle);
-            if (info.subset) {
-                const symbolLength = info.dimensions[0];
-                if (symbolLength === 0) {
-                    result = this.base.buildGetVectorElementExpression(result, info.offset!);
-                }
-                else {
-                    const startIdx = info.offset!;
-                    const endIdx = startIdx + symbolLength - 1;
-                    result = this.base.buildSliceVectorExpression(result, startIdx, endIdx);
-                }
-            }
-        }
-        else {
-            const block = this.findLocalVariableBlock(symbol);
-            validate(block !== undefined, errors.undeclaredVarReference(symbol));
-            result = block.loadLocal(symbol);
-        }
-
-        return result;
+        return this.currentBlock.getSymbolReference(symbol);
     }
 
     setVariableAssignment(symbol: string, value: Expression): void {
-        let block = this.findLocalVariableBlock(symbol);
-        if (!block) {
-            const info = this.symbols.get(symbol);
-            if (info) {
-                validate(info.type !== 'const', errors.cannotAssignToConst(symbol));
-                throw new Error(`cannot assign to non-variable symbol '${symbol}'`);
-            }
-            block = this.currentBlock;
-        }
-        
-        validate(block === this.currentBlock, errors.cannotAssignToOuterScope(symbol));
-        const statement = block.setLocal(symbol, value);
-        this.statements.push(statement);
+        this.currentBlock.setVariableAssignment(symbol, value);
     }
 
     // FLOW CONTROLS
@@ -179,7 +145,7 @@ export class ExecutionContext {
         let context: Context;
         if (this.blocks.length === 0) {
             const domain: TraceDomain = { start: 0, end: 0 };
-            const root = new RootContext(domain, this.base, this.staticRegisters);
+            const root = new RootContext(domain, this.base, this.symbols, this.staticRegisters);
             context = createContext(type, id, root);
         }
         else {

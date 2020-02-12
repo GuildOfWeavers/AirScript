@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { Expression } from "@guildofweavers/air-assembly";
-import { Context, ExecutionContext } from "./Context2";
+import { Context, ExecutionContext } from "./Context";
 import { validate } from "../utils";
 
 // CLASS DECLARATION

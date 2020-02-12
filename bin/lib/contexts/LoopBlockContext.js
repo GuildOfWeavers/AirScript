@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const Context2_1 = require("./Context2");
+const Context_1 = require("./Context");
 const utils_1 = require("../utils");
 // CLASS DEFINITION
 // ================================================================================================
-class LoopBlockContext extends Context2_1.ExecutionContext {
+class LoopBlockContext extends Context_1.ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(id, parent, domain) {

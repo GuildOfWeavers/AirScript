@@ -1,30 +1,39 @@
 // IMPORTS
 // ================================================================================================
-import { Context } from "./Context2";
+import { Context } from "./Context";
 import { TraceDomain } from "@guildofweavers/air-script";
 import { StoreOperation, FunctionContext } from "@guildofweavers/air-assembly";
 import { StaticRegisterCounts } from "../Component";
+import { SymbolInfo } from "../Module";
 
 // CLASS DEFINITION
 // ================================================================================================
 export class RootContext implements Context {
 
     readonly domain             : TraceDomain;
-    readonly locals             : Map<string, number>;
+    readonly locals             : Set<string>;
     readonly inputs             : Set<string>;
     readonly statements         : StoreOperation[];
-    readonly base               : FunctionContext;
+    readonly symbols            : Map<string, SymbolInfo>;
     readonly staticRegisters    : StaticRegisterCounts;
+    readonly base               : FunctionContext;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain: TraceDomain, base: FunctionContext, staticRegisters: StaticRegisterCounts) {
+    constructor(domain: TraceDomain, base: FunctionContext, symbols: Map<string, SymbolInfo>, staticRegisters: StaticRegisterCounts) {
         this.domain = domain;
         this.base = base;
         this.staticRegisters = staticRegisters;
 
-        this.locals = new Map();
         this.inputs = new Set();
+        this.locals = new Set();
         this.statements = [];
+        this.symbols = symbols;
+    }
+
+    // PUBLIC METHODS
+    // --------------------------------------------------------------------------------------------
+    hasLocal(variable: string): boolean {
+        return false;
     }
 }

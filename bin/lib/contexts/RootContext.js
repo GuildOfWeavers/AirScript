@@ -5,13 +5,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 class RootContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain, base, staticRegisters) {
+    constructor(domain, base, symbols, staticRegisters) {
         this.domain = domain;
         this.base = base;
         this.staticRegisters = staticRegisters;
-        this.locals = new Map();
         this.inputs = new Set();
+        this.locals = new Set();
         this.statements = [];
+        this.symbols = symbols;
+    }
+    // PUBLIC METHODS
+    // --------------------------------------------------------------------------------------------
+    hasLocal(variable) {
+        return false;
     }
 }
 exports.RootContext = RootContext;

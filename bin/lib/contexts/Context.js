@@ -1,48 +1,50 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("../utils");
-// CLASS DEFINITION
+// EXECUTION CONTEXT CLASS
 // ================================================================================================
-class Context {
+class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(id, domain, inputs, statements, staticRegisters, base) {
+    constructor(id, parent, domain, inputs) {
         this.id = id;
-        this.domain = domain;
-        this.inputs = inputs;
-        this.base = base;
-        this.statements = statements;
-        this.staticRegisters = staticRegisters;
-        this.locals = new Map();
+        this.parent = parent;
+        this.rank = (parent instanceof ExecutionContext ? parent.rank : 0);
+        if (domain) {
+            // TODO: narrow domain
+            this.domain = parent.domain;
+        }
+        else {
+            this.domain = parent.domain;
+        }
+        if (inputs) {
+            // TODO: narrow inputs
+            this.inputs = parent.inputs;
+        }
+        else {
+            this.inputs = parent.inputs;
+        }
+        this.locals = new Set();
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
+    get base() {
+        return this.parent.base;
+    }
+    get symbols() {
+        return this.parent.symbols;
+    }
+    get statements() {
+        return this.parent.statements;
+    }
+    get staticRegisters() {
+        return this.parent.staticRegisters;
+    }
     get loopOffset() {
         return this.staticRegisters.inputs;
     }
     get segmentOffset() {
         return this.staticRegisters.inputs + this.staticRegisters.loops;
-    }
-    // PUBLIC METHODS
-    // --------------------------------------------------------------------------------------------
-    hasLocal(variable) {
-        return this.locals.has(`${this.id}_${variable}`);
-    }
-    setLocal(variable, value) {
-        const handle = `${this.id}_${variable}`;
-        if (!this.locals.has(handle)) {
-            this.locals.set(handle, this.locals.size);
-            this.base.addLocal(value.dimensions, handle);
-        }
-        return this.base.buildStoreOperation(handle, value);
-    }
-    loadLocal(variable) {
-        const handle = `${this.id}_${variable}`;
-        utils_1.validate(this.locals.has(handle), errors.undeclaredVarReference(variable));
-        return this.base.buildLoadExpression(`load.local`, handle);
-    }
-    getLocalIndex(variable) {
-        return this.locals.get(`${this.id}_${variable}`);
     }
     // CONTROLLERS
     // --------------------------------------------------------------------------------------------
@@ -50,13 +52,6 @@ class Context {
         loopIdx = this.loopOffset + loopIdx;
         let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, loopIdx);
-        const one = this.base.buildLiteralValue(this.base.field.one);
-        for (let i = loopIdx - 1; i >= this.loopOffset; i--) {
-            let parent = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-            parent = this.base.buildGetVectorElementExpression(parent, i);
-            parent = this.base.buildBinaryOperation('sub', one, parent);
-            result = this.base.buildBinaryOperation('mul', result, parent);
-        }
         return result;
     }
     getSegmentController(segmentIdx) {
@@ -65,11 +60,108 @@ class Context {
         result = this.base.buildGetVectorElementExpression(result, segmentIdx);
         return result;
     }
+    // SYMBOLIC REFERENCES
+    // --------------------------------------------------------------------------------------------
+    getSymbolReference(symbol) {
+        let result;
+        const info = this.symbols.get(symbol);
+        if (info !== undefined) {
+            result = this.base.buildLoadExpression(`load.${info.type}`, info.handle);
+            if (info.subset) {
+                const symbolLength = info.dimensions[0];
+                if (symbolLength === 0) {
+                    result = this.base.buildGetVectorElementExpression(result, info.offset);
+                }
+                else {
+                    const startIdx = info.offset;
+                    const endIdx = startIdx + symbolLength - 1;
+                    result = this.base.buildSliceVectorExpression(result, startIdx, endIdx);
+                }
+            }
+        }
+        else {
+            utils_1.validate(this.hasLocal(symbol), errors.undeclaredVarReference(symbol));
+            result = this.base.buildLoadExpression(`load.local`, this.buildLocalHandle(symbol));
+        }
+        return result;
+    }
+    setVariableAssignment(symbol, value) {
+        if (!this.hasLocal(symbol)) {
+            const info = this.symbols.get(symbol);
+            if (info) {
+                utils_1.validate(info.type !== 'const', errors.cannotAssignToConst(symbol));
+                throw new Error(`cannot assign to non-variable symbol '${symbol}'`);
+            }
+        }
+        else {
+            utils_1.validate(this.isOwnLocal(symbol), errors.cannotAssignToOuterScope(symbol));
+        }
+        const handle = this.buildLocalHandle(symbol);
+        if (!this.locals.has(handle)) {
+            this.locals.add(handle);
+            this.base.addLocal(value.dimensions, handle);
+        }
+        const statement = this.base.buildStoreOperation(handle, value);
+        this.statements.push(statement);
+    }
+    // CONTROL FLOW
+    // --------------------------------------------------------------------------------------------
+    buildConditionalExpression(condition, tBlock, fBlock) {
+        /* TODO
+        if (registerRef.isBinary) {
+            throw new Error(`conditional expression must be based on a binary value`);
+        }
+        */
+        tBlock = this.base.buildBinaryOperation('mul', tBlock, condition);
+        const one = this.base.buildLiteralValue(this.base.field.one);
+        condition = this.base.buildBinaryOperation('sub', one, condition);
+        fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
+        return this.base.buildBinaryOperation('add', tBlock, fBlock);
+    }
+    // LOCAL VARIABLES
+    // --------------------------------------------------------------------------------------------
+    hasLocal(variable) {
+        if (this.locals.has(this.buildLocalHandle(variable)))
+            return true;
+        else
+            return (this.parent.hasLocal(variable));
+    }
+    isOwnLocal(variable) {
+        return this.locals.has(this.buildLocalHandle(variable));
+    }
+    buildLocalHandle(variable) {
+        return `${this.id}_${variable}`;
+    }
+    // PASS-THROUGH METHODS
+    // --------------------------------------------------------------------------------------------
+    buildLiteralValue(value) {
+        return this.base.buildLiteralValue(value);
+    }
+    buildBinaryOperation(operation, lhs, rhs) {
+        return this.base.buildBinaryOperation(operation, lhs, rhs);
+    }
+    buildUnaryOperation(operation, operand) {
+        return this.base.buildUnaryOperation(operation, operand);
+    }
+    buildMakeVectorExpression(elements) {
+        return this.base.buildMakeVectorExpression(elements);
+    }
+    buildGetVectorElementExpression(source, index) {
+        return this.base.buildGetVectorElementExpression(source, index);
+    }
+    buildSliceVectorExpression(source, start, end) {
+        return this.base.buildSliceVectorExpression(source, start, end);
+    }
+    buildMakeMatrixExpression(elements) {
+        return this.base.buildMakeMatrixExpression(elements);
+    }
 }
-exports.Context = Context;
+exports.ExecutionContext = ExecutionContext;
 // ERRORS
 // ================================================================================================
 const errors = {
-    undeclaredVarReference: (s) => `variable ${s} is referenced before declaration`
+    undeclaredVarReference: (s) => `variable ${s} is referenced before declaration`,
+    cannotAssignToConst: (c) => `cannot assign a value to a constant ${c}`,
+    cannotAssignToOuterScope: (v) => `cannot assign a value to an outer scope variable ${v}`,
 };
 //# sourceMappingURL=Context.js.map
