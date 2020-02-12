@@ -7,7 +7,7 @@ import {
 import { SymbolInfo, FunctionInfo } from './Module';
 import { StaticRegisterCounts } from "./Component";
 import { validate, BLOCK_ID_PREFIX, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, TRANSITION_FN_POSTFIX, EVALUATION_FN_POSTFIX } from './utils';
-import { Context } from "./contexts/Context";
+import { ExecutionContext as Context, RootContext, ExprBlockContext, LoopContext, LoopBlockContext, LoopBaseContext } from "./contexts";
 import { TraceDomain } from "@guildofweavers/air-script";
 
 // CLASS DEFINITION
@@ -122,12 +122,16 @@ export class ExecutionContext {
         validate(this.initializers.length < this.staticRegisters.loops,
             errors.tooManyLoops(this.staticRegisters.loops));
         this.initializers.push(initResult);
+
+        (this.currentBlock as LoopBlockContext | LoopBaseContext).setInitializer(initResult);
     }
 
     addSegment(segmentResult: Expression): void {
         validate(this.segments.length < this.staticRegisters.segments,
             errors.tooManySegments(this.staticRegisters.segments));
         this.segments.push(segmentResult);
+
+        (this.currentBlock as LoopBaseContext).addSegment(segmentResult);
     }
 
     getLoopController(loopIdx: number): Expression {
@@ -169,16 +173,30 @@ export class ExecutionContext {
 
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------
-    enterBlock() {
+    enterBlock(type?: string) {
+
         const id = `${BLOCK_ID_PREFIX}${this.lastBlockId}`;
-        const domain: TraceDomain = { start: 0, end: 0 };
-        const inputs = new Set<string>();
-        this.blocks.push(new Context(id, domain, inputs, this.base));
+        let context: Context;
+        if (this.blocks.length === 0) {
+            const domain: TraceDomain = { start: 0, end: 0 };
+            const root = new RootContext(domain, this.base, this.staticRegisters);
+            context = createContext(type, id, root);
+        }
+        else {
+            context = createContext(type, id, this.blocks[this.blocks.length - 1]);
+        }
+        this.blocks.push(context);
         this.lastBlockId++;
     }
 
     exitBlock(): void {
-        this.blocks.pop()!;
+        const context = this.blocks.pop()!;
+        if (context instanceof LoopBaseContext || context instanceof LoopBlockContext) {
+            (this.currentBlock as LoopContext).addBlock(context.result);
+        }
+        else if (context instanceof LoopContext && this.currentBlock !== undefined) {
+            (this.currentBlock as LoopBlockContext).setLoopResult(context.result);
+        }
     }
 
     private findLocalVariableBlock(variable: string): Context | undefined {
@@ -262,6 +280,23 @@ export class ExecutionContext {
 
     buildMakeMatrixExpression(elements: Expression[][]): MakeMatrix {
         return this.base.buildMakeMatrixExpression(elements);
+    }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+function createContext(type: string | undefined, id: string, parent: any) {
+    if (type === 'loop') {
+        return new LoopContext(id, parent);
+    }
+    else if (type === 'loopBlock') {
+        return new LoopBlockContext(id, parent);
+    }
+    else if (type === 'loopBase') {
+        return new LoopBaseContext(id, parent);
+    }
+    else {
+        return new ExprBlockContext(id, parent);
     }
 }
 

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
-const Context_1 = require("./contexts/Context");
+const contexts_1 = require("./contexts");
 // CLASS DEFINITION
 // ================================================================================================
 class ExecutionContext {
@@ -88,10 +88,12 @@ class ExecutionContext {
     addInitializer(initResult) {
         utils_1.validate(this.initializers.length < this.staticRegisters.loops, errors.tooManyLoops(this.staticRegisters.loops));
         this.initializers.push(initResult);
+        this.currentBlock.setInitializer(initResult);
     }
     addSegment(segmentResult) {
         utils_1.validate(this.segments.length < this.staticRegisters.segments, errors.tooManySegments(this.staticRegisters.segments));
         this.segments.push(segmentResult);
+        this.currentBlock.addSegment(segmentResult);
     }
     getLoopController(loopIdx) {
         loopIdx = this.loopOffset + loopIdx;
@@ -126,15 +128,28 @@ class ExecutionContext {
     }
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------
-    enterBlock() {
+    enterBlock(type) {
         const id = `${utils_1.BLOCK_ID_PREFIX}${this.lastBlockId}`;
-        const domain = { start: 0, end: 0 };
-        const inputs = new Set();
-        this.blocks.push(new Context_1.Context(id, domain, inputs, this.base));
+        let context;
+        if (this.blocks.length === 0) {
+            const domain = { start: 0, end: 0 };
+            const root = new contexts_1.RootContext(domain, this.base, this.staticRegisters);
+            context = createContext(type, id, root);
+        }
+        else {
+            context = createContext(type, id, this.blocks[this.blocks.length - 1]);
+        }
+        this.blocks.push(context);
         this.lastBlockId++;
     }
     exitBlock() {
-        this.blocks.pop();
+        const context = this.blocks.pop();
+        if (context instanceof contexts_1.LoopBaseContext || context instanceof contexts_1.LoopBlockContext) {
+            this.currentBlock.addBlock(context.result);
+        }
+        else if (context instanceof contexts_1.LoopContext && this.currentBlock !== undefined) {
+            this.currentBlock.setLoopResult(context.result);
+        }
     }
     findLocalVariableBlock(variable) {
         for (let i = this.blocks.length - 1; i >= 0; i--) {
@@ -204,6 +219,22 @@ class ExecutionContext {
     }
 }
 exports.ExecutionContext = ExecutionContext;
+// HELPER FUNCTIONS
+// ================================================================================================
+function createContext(type, id, parent) {
+    if (type === 'loop') {
+        return new contexts_1.LoopContext(id, parent);
+    }
+    else if (type === 'loopBlock') {
+        return new contexts_1.LoopBlockContext(id, parent);
+    }
+    else if (type === 'loopBase') {
+        return new contexts_1.LoopBaseContext(id, parent);
+    }
+    else {
+        return new contexts_1.ExprBlockContext(id, parent);
+    }
+}
 // ERRORS
 // ================================================================================================
 const errors = {

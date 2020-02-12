@@ -1,18 +1,31 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("../utils");
-// CLASS DEFINITION
+// EXECUTION CONTEXT CLASS
 // ================================================================================================
-class Context {
+class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(id, domain, inputs, statements, staticRegisters, base) {
+    constructor(id, parent, domain, inputs) {
         this.id = id;
-        this.domain = domain;
-        this.inputs = inputs;
-        this.base = base;
-        this.statements = statements;
-        this.staticRegisters = staticRegisters;
+        this.base = parent.base;
+        this.statements = parent.statements;
+        this.staticRegisters = parent.staticRegisters;
+        this.rank = (parent instanceof ExecutionContext ? parent.rank : 0);
+        if (domain) {
+            // TODO: narrow domain
+            this.domain = parent.domain;
+        }
+        else {
+            this.domain = parent.domain;
+        }
+        if (inputs) {
+            // TODO: narrow inputs
+            this.inputs = parent.inputs;
+        }
+        else {
+            this.inputs = parent.inputs;
+        }
         this.locals = new Map();
     }
     // ACCESSORS
@@ -23,7 +36,21 @@ class Context {
     get segmentOffset() {
         return this.staticRegisters.inputs + this.staticRegisters.loops;
     }
-    // PUBLIC METHODS
+    // CONTROLLERS
+    // --------------------------------------------------------------------------------------------
+    getLoopController(loopIdx) {
+        loopIdx = this.loopOffset + loopIdx;
+        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+        result = this.base.buildGetVectorElementExpression(result, loopIdx);
+        return result;
+    }
+    getSegmentController(segmentIdx) {
+        segmentIdx = this.segmentOffset + segmentIdx;
+        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
+        return result;
+    }
+    // LOCAL VARIABLES
     // --------------------------------------------------------------------------------------------
     hasLocal(variable) {
         return this.locals.has(`${this.id}_${variable}`);
@@ -44,32 +71,11 @@ class Context {
     getLocalIndex(variable) {
         return this.locals.get(`${this.id}_${variable}`);
     }
-    // CONTROLLERS
-    // --------------------------------------------------------------------------------------------
-    getLoopController(loopIdx) {
-        loopIdx = this.loopOffset + loopIdx;
-        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-        result = this.base.buildGetVectorElementExpression(result, loopIdx);
-        const one = this.base.buildLiteralValue(this.base.field.one);
-        for (let i = loopIdx - 1; i >= this.loopOffset; i--) {
-            let parent = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-            parent = this.base.buildGetVectorElementExpression(parent, i);
-            parent = this.base.buildBinaryOperation('sub', one, parent);
-            result = this.base.buildBinaryOperation('mul', result, parent);
-        }
-        return result;
-    }
-    getSegmentController(segmentIdx) {
-        segmentIdx = this.segmentOffset + segmentIdx;
-        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
-        return result;
-    }
 }
-exports.Context = Context;
+exports.ExecutionContext = ExecutionContext;
 // ERRORS
 // ================================================================================================
 const errors = {
     undeclaredVarReference: (s) => `variable ${s} is referenced before declaration`
 };
-//# sourceMappingURL=Context.js.map
+//# sourceMappingURL=Context2.js.map

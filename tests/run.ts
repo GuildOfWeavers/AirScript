@@ -1,7 +1,7 @@
 import { compile } from '../index';
 
 const script = Buffer.from(`
-import { Poseidon as Hash } from './assembly/poseidon.aa';
+//import { Poseidon as Hash } from './assembly/poseidon.aa';
 
 define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
 
@@ -22,8 +22,8 @@ define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
 
             for each (node, indexBit) {
                 h <- indexBit ? $r3 : $r0;
-                with $r[0..2] yield Hash(h, node);
-                with $r[3..5] yield Hash(node, h);
+                //with $r[0..2] yield Hash(h, node);
+                //with $r[3..5] yield Hash(node, h);
                 
                 init { yield [0, 0, 0, 0, 0, 0]; }
                 for steps [0..63] {

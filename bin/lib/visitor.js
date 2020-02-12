@@ -167,7 +167,7 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
         else {
-            tOrC.enterBlock();
+            tOrC.enterBlock('loop');
             // parse outer statements
             if (ctx.statements) {
                 ctx.statements.forEach((s) => this.visit(s, tOrC));
@@ -176,14 +176,17 @@ class AirVisitor extends BaseCstVisitor {
             if (ctx.functionCalls) {
                 ctx.functionCalls.forEach((c) => this.visit(c, tOrC));
             }
-            // parse initializer
-            this.visit(ctx.initExpression, tOrC);
-            // parse body
             if (ctx.inputLoop) {
+                tOrC.enterBlock('loopBlock');
+                this.visit(ctx.initExpression, tOrC);
                 this.visit(ctx.inputLoop, tOrC);
+                tOrC.exitBlock();
             }
             else {
+                tOrC.enterBlock('loopBase');
+                this.visit(ctx.initExpression, tOrC);
                 ctx.segmentLoops.forEach((loop) => this.visit(loop, tOrC));
+                tOrC.exitBlock();
             }
             tOrC.exitBlock();
         }
