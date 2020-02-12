@@ -12,8 +12,8 @@ export class ExprBlockContext extends ExecutionContext {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(id: string, parent: Context) {
-        super(id, parent);
+    constructor(parent: Context) {
+        super(parent);
     }
 
     // ACCESSORS

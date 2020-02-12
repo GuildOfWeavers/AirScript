@@ -6,8 +6,8 @@ const utils_1 = require("../utils");
 class ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(id, parent, domain, inputs) {
-        this.id = id;
+    constructor(parent, domain, inputs) {
+        this.id = parent.getNextId();
         this.parent = parent;
         this.rank = (parent instanceof ExecutionContext ? parent.rank : 0);
         if (domain) {
@@ -118,6 +118,18 @@ class ExecutionContext {
         fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
     }
+    // FUNCTION CALLS
+    // --------------------------------------------------------------------------------------------
+    buildTransitionCall() {
+        const params = [
+            this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.thisTraceRow),
+            this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow)
+        ];
+        return this.base.buildCallExpression(utils_1.TRANSITION_FN_HANDLE, params);
+    }
+    addFunctionCall(funcName, inputs, domain) {
+        // TODO
+    }
     // LOCAL VARIABLES
     // --------------------------------------------------------------------------------------------
     hasLocal(variable) {
@@ -154,6 +166,11 @@ class ExecutionContext {
     }
     buildMakeMatrixExpression(elements) {
         return this.base.buildMakeMatrixExpression(elements);
+    }
+    // OTHER PUBLIC METHODS
+    // --------------------------------------------------------------------------------------------
+    getNextId() {
+        return this.parent.getNextId();
     }
 }
 exports.ExecutionContext = ExecutionContext;

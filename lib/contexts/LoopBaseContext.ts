@@ -14,8 +14,8 @@ export class LoopBaseContext extends ExecutionContext {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(id: string, parent: Context) {
-        super(id, parent);
+    constructor(parent: Context) {
+        super(parent);
         this._segmentResults = [];
     }
 

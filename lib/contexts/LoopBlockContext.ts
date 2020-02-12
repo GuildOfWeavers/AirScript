@@ -15,8 +15,8 @@ export class LoopBlockContext extends ExecutionContext {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(id: string, parent: Context, domain?: TraceDomain) {
-        super(id, parent, domain);
+    constructor(parent: Context, domain?: TraceDomain) {
+        super(parent, domain);
     }
 
     // ACCESSORS

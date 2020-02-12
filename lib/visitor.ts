@@ -7,7 +7,10 @@ import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { Module, ImportMember, ModuleOptions } from './Module';
 import { Component } from './Component';
-import { ExecutionContext } from './ExecutionContext';
+import { 
+    ExecutionContext, LoopBaseContext, LoopBlockContext, RootContext,
+    createExecutionContext, closeExecutionContext
+} from './contexts';
 import { ExecutionTemplate } from './ExecutionTemplate';
 import { ProcedureParams } from './utils';
 
@@ -196,61 +199,64 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
         else {
-            tOrC.enterBlock('loop');
+            const loopContext = createExecutionContext('loop', tOrC);
+
             // parse outer statements
             if (ctx.statements) {
-                ctx.statements.forEach((s: any) => this.visit(s, tOrC));
+                ctx.statements.forEach((s: any) => this.visit(s, loopContext));
             }
 
             // parse function calls
             if (ctx.functionCalls) {
-                ctx.functionCalls.forEach((c: any) => this.visit(c, tOrC));
+                ctx.functionCalls.forEach((c: any) => this.visit(c, loopContext));
             }
 
             if (ctx.inputLoop) {
-                tOrC.enterBlock('loopBlock');
-                this.visit(ctx.initExpression, tOrC);
-                this.visit(ctx.inputLoop, tOrC);
-                tOrC.exitBlock();
+                const blockContext = createExecutionContext('loopBlock', loopContext);
+                this.visit(ctx.initExpression, blockContext);
+                this.visit(ctx.inputLoop, blockContext);
+                closeExecutionContext(blockContext);
             }
             else {
-                tOrC.enterBlock('loopBase');
+                const blockContext = createExecutionContext('loopBase', loopContext);
                 this.visit(ctx.initExpression, tOrC);
                 ctx.segmentLoops.forEach((loop: any) => this.visit(loop, tOrC));
-                tOrC.exitBlock();
+                closeExecutionContext(blockContext);
             }
-            tOrC.exitBlock();
+            closeExecutionContext(loopContext);
         }
     }
 
-    inputLoopInit(ctx: any, exc: ExecutionContext): void {
-        exc.addInitializer(this.visit(ctx.expression, exc));
+    inputLoopInit(ctx: any, exc: LoopBlockContext | LoopBaseContext): void {
+        const initResult = this.visit(ctx.expression, exc);
+        exc.setInitializer(initResult);
     }
 
-    segmentLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void {
+    segmentLoop(ctx: any, tOrC: ExecutionTemplate | LoopBaseContext): void {
         if (tOrC instanceof ExecutionTemplate) {
             tOrC.addSegment(ctx.ranges.map((range: any) => this.visit(range)));
         }
         else {
-            tOrC.addSegment(this.visit(ctx.body, tOrC));
+            const segmentResult = this.visit(ctx.body, tOrC);
+            tOrC.addSegment(segmentResult);
         }
     }
 
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx: any, exc: ExecutionContext): Expression {
-        exc.enterBlock();
+        const blockContext = createExecutionContext('expressionBlock', exc);
         if (ctx.statements) {
-            ctx.statements.forEach((stmt: any) => this.visit(stmt, exc));
+            ctx.statements.forEach((stmt: any) => this.visit(stmt, blockContext));
         }
 
-        let result: Expression = this.visit(ctx.expression, exc);
+        let result: Expression = this.visit(ctx.expression, blockContext);
         if (ctx.constraint) {
-            const constraint: Expression = this.visit(ctx.constraint, exc);
-            result = exc.buildBinaryOperation('sub', result, constraint);
+            const constraint: Expression = this.visit(ctx.constraint, blockContext);
+            result = blockContext.buildBinaryOperation('sub', result, constraint);
         }
 
-        exc.exitBlock();
+        closeExecutionContext(blockContext);
         return result;
     }
 

@@ -13,8 +13,8 @@ export class LoopContext extends ExecutionContext {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(id: string, parent: Context) {
-        super(id, parent);
+    constructor(parent: Context) {
+        super(parent);
         this.blockResults = [];
         this.rank = (parent instanceof ExecutionContext ? parent.rank + 1: 0);
     }

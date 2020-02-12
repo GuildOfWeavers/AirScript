@@ -165,12 +165,6 @@ export class ExecutionContext {
         }
     }
 
-    private findLocalVariableBlock(variable: string): Context | undefined {
-        for (let i = this.blocks.length - 1; i >= 0; i--) {
-            if (this.blocks[i].hasLocal(variable)) return this.blocks[i];
-        }
-    }
-
     // FUNCTION CALLS
     // --------------------------------------------------------------------------------------------
     buildTransitionCall(): Expression {
@@ -253,16 +247,16 @@ export class ExecutionContext {
 // ================================================================================================
 function createContext(type: string | undefined, id: string, parent: any) {
     if (type === 'loop') {
-        return new LoopContext(id, parent);
+        return new LoopContext(parent);
     }
     else if (type === 'loopBlock') {
-        return new LoopBlockContext(id, parent);
+        return new LoopBlockContext(parent);
     }
     else if (type === 'loopBase') {
-        return new LoopBaseContext(id, parent);
+        return new LoopBaseContext(parent);
     }
     else {
-        return new ExprBlockContext(id, parent);
+        return new ExprBlockContext(parent);
     }
 }
 

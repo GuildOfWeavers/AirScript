@@ -119,12 +119,6 @@ class ExecutionContext {
             this.currentBlock.setLoopResult(context.result);
         }
     }
-    findLocalVariableBlock(variable) {
-        for (let i = this.blocks.length - 1; i >= 0; i--) {
-            if (this.blocks[i].hasLocal(variable))
-                return this.blocks[i];
-        }
-    }
     // FUNCTION CALLS
     // --------------------------------------------------------------------------------------------
     buildTransitionCall() {
@@ -191,16 +185,16 @@ exports.ExecutionContext = ExecutionContext;
 // ================================================================================================
 function createContext(type, id, parent) {
     if (type === 'loop') {
-        return new contexts_1.LoopContext(id, parent);
+        return new contexts_1.LoopContext(parent);
     }
     else if (type === 'loopBlock') {
-        return new contexts_1.LoopBlockContext(id, parent);
+        return new contexts_1.LoopBlockContext(parent);
     }
     else if (type === 'loopBase') {
-        return new contexts_1.LoopBaseContext(id, parent);
+        return new contexts_1.LoopBaseContext(parent);
     }
     else {
-        return new contexts_1.ExprBlockContext(id, parent);
+        return new contexts_1.ExprBlockContext(parent);
     }
 }
 // ERRORS

@@ -7,8 +7,8 @@ const utils_1 = require("../utils");
 class LoopBaseContext extends Context_1.ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(id, parent) {
-        super(id, parent);
+    constructor(parent) {
+        super(parent);
         this._segmentResults = [];
     }
     // ACCESSORS

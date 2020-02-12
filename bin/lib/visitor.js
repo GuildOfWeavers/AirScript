@@ -7,6 +7,7 @@ const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
 const Module_1 = require("./Module");
+const contexts_1 = require("./contexts");
 const ExecutionTemplate_1 = require("./ExecutionTemplate");
 // MODULE VARIABLES
 // ================================================================================================
@@ -167,54 +168,56 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
         else {
-            tOrC.enterBlock('loop');
+            const loopContext = contexts_1.createExecutionContext('loop', tOrC);
             // parse outer statements
             if (ctx.statements) {
-                ctx.statements.forEach((s) => this.visit(s, tOrC));
+                ctx.statements.forEach((s) => this.visit(s, loopContext));
             }
             // parse function calls
             if (ctx.functionCalls) {
-                ctx.functionCalls.forEach((c) => this.visit(c, tOrC));
+                ctx.functionCalls.forEach((c) => this.visit(c, loopContext));
             }
             if (ctx.inputLoop) {
-                tOrC.enterBlock('loopBlock');
-                this.visit(ctx.initExpression, tOrC);
-                this.visit(ctx.inputLoop, tOrC);
-                tOrC.exitBlock();
+                const blockContext = contexts_1.createExecutionContext('loopBlock', loopContext);
+                this.visit(ctx.initExpression, blockContext);
+                this.visit(ctx.inputLoop, blockContext);
+                contexts_1.closeExecutionContext(blockContext);
             }
             else {
-                tOrC.enterBlock('loopBase');
+                const blockContext = contexts_1.createExecutionContext('loopBase', loopContext);
                 this.visit(ctx.initExpression, tOrC);
                 ctx.segmentLoops.forEach((loop) => this.visit(loop, tOrC));
-                tOrC.exitBlock();
+                contexts_1.closeExecutionContext(blockContext);
             }
-            tOrC.exitBlock();
+            contexts_1.closeExecutionContext(loopContext);
         }
     }
     inputLoopInit(ctx, exc) {
-        exc.addInitializer(this.visit(ctx.expression, exc));
+        const initResult = this.visit(ctx.expression, exc);
+        exc.setInitializer(initResult);
     }
     segmentLoop(ctx, tOrC) {
         if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
             tOrC.addSegment(ctx.ranges.map((range) => this.visit(range)));
         }
         else {
-            tOrC.addSegment(this.visit(ctx.body, tOrC));
+            const segmentResult = this.visit(ctx.body, tOrC);
+            tOrC.addSegment(segmentResult);
         }
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx, exc) {
-        exc.enterBlock();
+        const blockContext = contexts_1.createExecutionContext('expressionBlock', exc);
         if (ctx.statements) {
-            ctx.statements.forEach((stmt) => this.visit(stmt, exc));
+            ctx.statements.forEach((stmt) => this.visit(stmt, blockContext));
         }
-        let result = this.visit(ctx.expression, exc);
+        let result = this.visit(ctx.expression, blockContext);
         if (ctx.constraint) {
-            const constraint = this.visit(ctx.constraint, exc);
-            result = exc.buildBinaryOperation('sub', result, constraint);
+            const constraint = this.visit(ctx.constraint, blockContext);
+            result = blockContext.buildBinaryOperation('sub', result, constraint);
         }
-        exc.exitBlock();
+        contexts_1.closeExecutionContext(blockContext);
         return result;
     }
     statement(ctx, exc) {

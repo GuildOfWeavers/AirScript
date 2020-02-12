@@ -5,9 +5,9 @@ import {
     Expression, StoreOperation, FunctionContext, LiteralValue, BinaryOperation, UnaryOperation,
     MakeVector, GetVectorElement, SliceVector, MakeMatrix
 } from "@guildofweavers/air-assembly";
-import { StaticRegisterCounts } from "../Component";
-import { validate, ProcedureParams } from "../utils";
 import { SymbolInfo } from "../Module";
+import { StaticRegisterCounts } from "../Component";
+import { validate, ProcedureParams, TRANSITION_FN_HANDLE } from "../utils";
 
 // INTERFACES
 // ================================================================================================
@@ -21,6 +21,7 @@ export interface Context {
     readonly base               : FunctionContext;
 
     hasLocal(variable: string)  : boolean;
+    getNextId()                 : string;
 }
 
 // EXECUTION CONTEXT CLASS
@@ -36,8 +37,8 @@ export abstract class ExecutionContext implements Context {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(id: string, parent: Context, domain?: TraceDomain, inputs?: string[]) {
-        this.id = id;
+    constructor(parent: Context, domain?: TraceDomain, inputs?: string[]) {
+        this.id = parent.getNextId();
         this.parent = parent;
         this.rank = (parent instanceof ExecutionContext ? parent.rank : 0);
 
@@ -171,6 +172,20 @@ export abstract class ExecutionContext implements Context {
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
     }
 
+    // FUNCTION CALLS
+    // --------------------------------------------------------------------------------------------
+    buildTransitionCall(): Expression {
+        const params = [
+            this.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow),
+            this.base.buildLoadExpression('load.param', ProcedureParams.staticRow)
+        ];
+        return this.base.buildCallExpression(TRANSITION_FN_HANDLE, params);
+    }
+
+    addFunctionCall(funcName: string, inputs: Expression[], domain: [number, number]): void {
+        // TODO
+    }
+
     // LOCAL VARIABLES
     // --------------------------------------------------------------------------------------------
     hasLocal(variable: string): boolean {
@@ -214,6 +229,12 @@ export abstract class ExecutionContext implements Context {
 
     buildMakeMatrixExpression(elements: Expression[][]): MakeMatrix {
         return this.base.buildMakeMatrixExpression(elements);
+    }
+
+    // OTHER PUBLIC METHODS
+    // --------------------------------------------------------------------------------------------
+    getNextId(): string {
+        return this.parent.getNextId();
     }
 }
 

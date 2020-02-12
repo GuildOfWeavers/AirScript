@@ -7,8 +7,8 @@ const utils_1 = require("../utils");
 class LoopBlockContext extends Context_1.ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(id, parent, domain) {
-        super(id, parent, domain);
+    constructor(parent, domain) {
+        super(parent, domain);
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------

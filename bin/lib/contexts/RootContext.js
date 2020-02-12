@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const utils_1 = require("../utils");
 // CLASS DEFINITION
 // ================================================================================================
 class RootContext {
@@ -13,11 +14,17 @@ class RootContext {
         this.locals = new Set();
         this.statements = [];
         this.symbols = symbols;
+        this.lastBlockId = 0;
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     hasLocal(variable) {
         return false;
+    }
+    getNextId() {
+        const id = `${utils_1.BLOCK_ID_PREFIX}${this.lastBlockId}`;
+        this.lastBlockId++;
+        return id;
     }
 }
 exports.RootContext = RootContext;
