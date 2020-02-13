@@ -1,8 +1,8 @@
 // IMPORTS
 // ================================================================================================
-import { Context } from "./Context";
 import { TraceDomain } from "@guildofweavers/air-script";
-import { StoreOperation, FunctionContext } from "@guildofweavers/air-assembly";
+import { StoreOperation, FunctionContext, Expression } from "@guildofweavers/air-assembly";
+import { Context } from "./Context";
 import { StaticRegisterCounts } from "../Component";
 import { SymbolInfo } from "../Module";
 import { BLOCK_ID_PREFIX } from "../utils";

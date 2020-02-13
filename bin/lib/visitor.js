@@ -137,8 +137,8 @@ class AirVisitor extends BaseCstVisitor {
         }
         else {
             const exc = mOrC.createExecutionContext('transition');
-            this.visit(ctx.inputLoop, exc);
-            mOrC.setTransitionFunction(exc);
+            const result = this.visit(ctx.inputLoop, exc);
+            mOrC.setTransitionFunction(exc, result);
         }
     }
     transitionConstraints(ctx, component) {
@@ -149,8 +149,8 @@ class AirVisitor extends BaseCstVisitor {
             component.setConstraintEvaluator(exc, result);
         }
         else {
-            this.visit(ctx.inputLoop, exc);
-            component.setConstraintEvaluator(exc);
+            const result = this.visit(ctx.inputLoop, exc);
+            component.setConstraintEvaluator(exc, result);
         }
     }
     // LOOPS
@@ -168,7 +168,7 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
         else {
-            const loopContext = contexts_1.createExecutionContext('loop', tOrC);
+            const loopContext = new contexts_1.LoopContext(tOrC);
             // parse outer statements
             if (ctx.statements) {
                 ctx.statements.forEach((s) => this.visit(s, loopContext));
@@ -178,37 +178,37 @@ class AirVisitor extends BaseCstVisitor {
                 ctx.functionCalls.forEach((c) => this.visit(c, loopContext));
             }
             if (ctx.inputLoop) {
-                const blockContext = contexts_1.createExecutionContext('loopBlock', loopContext);
-                this.visit(ctx.initExpression, blockContext);
-                this.visit(ctx.inputLoop, blockContext);
-                contexts_1.closeExecutionContext(blockContext);
+                const blockContext = new contexts_1.LoopBlockContext(loopContext);
+                const initResult = this.visit(ctx.initExpression, blockContext);
+                const loopResult = this.visit(ctx.inputLoop, blockContext);
+                const result = blockContext.buildResult(initResult, loopResult);
+                loopContext.addBlock(result);
             }
             else {
-                const blockContext = contexts_1.createExecutionContext('loopBase', loopContext);
-                this.visit(ctx.initExpression, tOrC);
-                ctx.segmentLoops.forEach((loop) => this.visit(loop, tOrC));
-                contexts_1.closeExecutionContext(blockContext);
+                const blockContext = new contexts_1.LoopBaseContext(loopContext);
+                const initResult = this.visit(ctx.initExpression, blockContext);
+                const segmentResults = ctx.segmentLoops.map((loop) => this.visit(loop, blockContext));
+                const result = blockContext.buildResult(initResult, segmentResults);
+                loopContext.addBlock(result);
             }
-            contexts_1.closeExecutionContext(loopContext);
+            return loopContext.result;
         }
     }
     inputLoopInit(ctx, exc) {
-        const initResult = this.visit(ctx.expression, exc);
-        exc.setInitializer(initResult);
+        return this.visit(ctx.expression, exc);
     }
     segmentLoop(ctx, tOrC) {
         if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
             tOrC.addSegment(ctx.ranges.map((range) => this.visit(range)));
         }
         else {
-            const segmentResult = this.visit(ctx.body, tOrC);
-            tOrC.addSegment(segmentResult);
+            return this.visit(ctx.body, tOrC);
         }
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx, exc) {
-        const blockContext = contexts_1.createExecutionContext('expressionBlock', exc);
+        const blockContext = new contexts_1.ExecutionContext(exc);
         if (ctx.statements) {
             ctx.statements.forEach((stmt) => this.visit(stmt, blockContext));
         }
@@ -217,7 +217,6 @@ class AirVisitor extends BaseCstVisitor {
             const constraint = this.visit(ctx.constraint, blockContext);
             result = blockContext.buildBinaryOperation('sub', result, constraint);
         }
-        contexts_1.closeExecutionContext(blockContext);
         return result;
     }
     statement(ctx, exc) {

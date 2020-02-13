@@ -56,12 +56,12 @@ class ExecutionContext {
     addInitializer(initResult) {
         utils_1.validate(this.initializers.length < this.staticRegisters.loops, errors.tooManyLoops(this.staticRegisters.loops));
         this.initializers.push(initResult);
-        this.currentBlock.setInitializer(initResult);
+        //(this.currentBlock as LoopBlockContext | LoopBaseContext).setInitializer(initResult);
     }
     addSegment(segmentResult) {
         utils_1.validate(this.segments.length < this.staticRegisters.segments, errors.tooManySegments(this.staticRegisters.segments));
         this.segments.push(segmentResult);
-        this.currentBlock.addSegment(segmentResult);
+        //(this.currentBlock as LoopBaseContext).addSegment(segmentResult);
     }
     getLoopController(loopIdx) {
         loopIdx = this.loopOffset + loopIdx;
@@ -113,10 +113,10 @@ class ExecutionContext {
     exitBlock() {
         const context = this.blocks.pop();
         if (context instanceof contexts_1.LoopBaseContext || context instanceof contexts_1.LoopBlockContext) {
-            this.currentBlock.addBlock(context.result);
+            //(this.currentBlock as LoopContext).addBlock(context.result);
         }
         else if (context instanceof contexts_1.LoopContext && this.currentBlock !== undefined) {
-            this.currentBlock.setLoopResult(context.result);
+            //(this.currentBlock as LoopBlockContext).setLoopResult(context.result);
         }
     }
     // FUNCTION CALLS
@@ -194,7 +194,7 @@ function createContext(type, id, parent) {
         return new contexts_1.LoopBaseContext(parent);
     }
     else {
-        return new contexts_1.ExprBlockContext(parent);
+        throw new Error('TODO: nothing');
     }
 }
 // ERRORS

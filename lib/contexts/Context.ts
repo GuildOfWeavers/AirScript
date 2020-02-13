@@ -26,7 +26,7 @@ export interface Context {
 
 // EXECUTION CONTEXT CLASS
 // ================================================================================================
-export abstract class ExecutionContext implements Context {
+export class ExecutionContext implements Context {
 
     readonly id                 : string;
     readonly parent             : Context;
@@ -86,8 +86,6 @@ export abstract class ExecutionContext implements Context {
     get segmentOffset(): number {
         return this.staticRegisters.inputs + this.staticRegisters.loops;
     }
-
-    abstract get result(): Expression;
 
     // CONTROLLERS
     // --------------------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const ExecutionContext_1 = require("./ExecutionContext");
+const contexts_1 = require("./contexts");
 const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
@@ -48,57 +48,16 @@ class Component {
             segments: this.segmentMasks.length,
             aux: this.staticRegisterCount - this.procedures.auxRegisterOffset
         };
+        const domain = { start: 0, end: 0 }; // TODO
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext_1.ExecutionContext(context, this.symbols, staticRegisters);
+        return new contexts_1.RootContext(domain, context, this.symbols, staticRegisters);
     }
-    setTransitionFunction(context) {
-        const { statements, result } = this.buildFunction(context);
-        this.schema.addFunction(context.base, statements, result);
+    setTransitionFunction(context, result) {
+        this.schema.addFunction(context.base, context.statements, result);
     }
     setConstraintEvaluator(context, result) {
-        if (result) {
-            this.schema.addFunction(context.base, context.statements, result);
-        }
-        else {
-            const { statements, result } = this.buildFunction(context);
-            this.schema.addFunction(context.base, statements, result);
-        }
-    }
-    // PRIVATE METHODS
-    // --------------------------------------------------------------------------------------------
-    buildFunction(context) {
-        let result;
-        let statements = context.statements;
-        /*
-        if (context.delegates.length > 0) {
-            // TODO: move to execution context?
-            result = context.buildMakeVectorExpression(context.delegates);
-            return { statements, result: result };
-        }
-        */
-        context.initializers.forEach((expression, i) => {
-            if (expression.isScalar) {
-                expression = context.buildMakeVectorExpression([expression]);
-            }
-            const resultHandle = `$_init_${i}`;
-            context.base.addLocal(expression.dimensions, resultHandle);
-            const resultControl = context.getLoopController(i);
-            expression = context.buildBinaryOperation('mul', expression, resultControl);
-            statements.push(context.base.buildStoreOperation(resultHandle, expression));
-            expression = context.base.buildLoadExpression(`load.local`, resultHandle);
-            result = result ? context.buildBinaryOperation('add', result, expression) : expression;
-        });
-        context.segments.forEach((expression, i) => {
-            const resultHandle = `$_seg_${i}`;
-            context.base.addLocal(expression.dimensions, resultHandle);
-            const resultControl = context.getSegmentController(i);
-            expression = context.buildBinaryOperation('mul', expression, resultControl);
-            statements.push(context.base.buildStoreOperation(resultHandle, expression));
-            expression = context.base.buildLoadExpression(`load.local`, resultHandle);
-            result = result ? context.buildBinaryOperation('add', result, expression) : expression;
-        });
-        return { statements, result: result };
+        this.schema.addFunction(context.base, context.statements, result);
     }
 }
 exports.Component = Component;

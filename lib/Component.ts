@@ -4,8 +4,9 @@ import {
     FiniteField, AirSchema, ProcedureName, Expression, StoreOperation, Dimensions, InputRegisterMaster
 } from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo } from './Module';
-import { ExecutionContext } from "./ExecutionContext";
+import { RootContext } from "./contexts";
 import { ProcedureParams } from "./utils";
+import { TraceDomain } from "@guildofweavers/air-script";
 
 // INTERFACES
 // ================================================================================================
@@ -94,7 +95,7 @@ export class Component {
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    createExecutionContext(procedure: ProcedureName): ExecutionContext {
+    createExecutionContext(procedure: ProcedureName): RootContext {
         const specs = (procedure === 'transition')
             ? this.procedures.transition
             : this.procedures.evaluation;
@@ -106,69 +107,18 @@ export class Component {
             aux : this.staticRegisterCount - this.procedures.auxRegisterOffset
         };
 
+        const domain: TraceDomain = { start: 0, end: 0 }; // TODO
+
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext(context, this.symbols, staticRegisters);
+        return new RootContext(domain, context, this.symbols, staticRegisters);
     }
 
-    setTransitionFunction(context: ExecutionContext): void {
-        const { statements, result } = this.buildFunction(context);
-        this.schema.addFunction(context.base, statements, result);
+    setTransitionFunction(context: RootContext, result: Expression): void {
+        this.schema.addFunction(context.base, context.statements, result);
     }
 
-    setConstraintEvaluator(context: ExecutionContext): void
-    setConstraintEvaluator(context: ExecutionContext, result: Expression): void;
-    setConstraintEvaluator(context: ExecutionContext, result?: Expression): void {
-        if (result) {
-            this.schema.addFunction(context.base, context.statements, result);
-        }
-        else {
-            const { statements, result } = this.buildFunction(context);
-            this.schema.addFunction(context.base, statements, result);
-        }
-    }
-
-    // PRIVATE METHODS
-    // --------------------------------------------------------------------------------------------
-    private buildFunction(context: ExecutionContext) {
-        let result: Expression | undefined;
-        let statements: StoreOperation[] = context.statements;
-
-        /*
-        if (context.delegates.length > 0) {
-            // TODO: move to execution context?
-            result = context.buildMakeVectorExpression(context.delegates);
-            return { statements, result: result };
-        }
-        */
-
-        context.initializers.forEach((expression, i) => {
-            if (expression.isScalar) {
-                expression = context.buildMakeVectorExpression([expression]);
-            }
-            const resultHandle = `$_init_${i}`;
-            context.base.addLocal(expression.dimensions, resultHandle);
-
-            const resultControl = context.getLoopController(i);
-            expression = context.buildBinaryOperation('mul', expression, resultControl);
-            statements.push(context.base.buildStoreOperation(resultHandle, expression));
-            expression = context.base.buildLoadExpression(`load.local`, resultHandle);
-            
-            result = result ? context.buildBinaryOperation('add', result, expression) : expression;
-        });
-
-        context.segments.forEach((expression, i) => {
-            const resultHandle = `$_seg_${i}`;
-            context.base.addLocal(expression.dimensions, resultHandle);
-
-            const resultControl = context.getSegmentController(i);
-            expression = context.buildBinaryOperation('mul', expression, resultControl);
-            statements.push(context.base.buildStoreOperation(resultHandle, expression));
-            expression = context.base.buildLoadExpression(`load.local`, resultHandle);
-
-            result = result ? context.buildBinaryOperation('add', result, expression) : expression;
-        });
-
-        return { statements, result: result! };
+    setConstraintEvaluator(context: RootContext, result: Expression): void {
+        this.schema.addFunction(context.base, context.statements, result);
     }
 }

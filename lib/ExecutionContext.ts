@@ -7,7 +7,7 @@ import {
 import { SymbolInfo, FunctionInfo } from './Module';
 import { StaticRegisterCounts } from "./Component";
 import { validate, BLOCK_ID_PREFIX, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, TRANSITION_FN_POSTFIX, EVALUATION_FN_POSTFIX } from './utils';
-import { ExecutionContext as Context, RootContext, ExprBlockContext, LoopContext, LoopBlockContext, LoopBaseContext } from "./contexts";
+import { ExecutionContext as Context, RootContext, LoopContext, LoopBlockContext, LoopBaseContext } from "./contexts";
 import { TraceDomain } from "@guildofweavers/air-script";
 
 // CLASS DEFINITION
@@ -89,7 +89,7 @@ export class ExecutionContext {
             errors.tooManyLoops(this.staticRegisters.loops));
         this.initializers.push(initResult);
 
-        (this.currentBlock as LoopBlockContext | LoopBaseContext).setInitializer(initResult);
+        //(this.currentBlock as LoopBlockContext | LoopBaseContext).setInitializer(initResult);
     }
 
     addSegment(segmentResult: Expression): void {
@@ -97,7 +97,7 @@ export class ExecutionContext {
             errors.tooManySegments(this.staticRegisters.segments));
         this.segments.push(segmentResult);
 
-        (this.currentBlock as LoopBaseContext).addSegment(segmentResult);
+        //(this.currentBlock as LoopBaseContext).addSegment(segmentResult);
     }
 
     getLoopController(loopIdx: number): Expression {
@@ -158,10 +158,10 @@ export class ExecutionContext {
     exitBlock(): void {
         const context = this.blocks.pop()!;
         if (context instanceof LoopBaseContext || context instanceof LoopBlockContext) {
-            (this.currentBlock as LoopContext).addBlock(context.result);
+            //(this.currentBlock as LoopContext).addBlock(context.result);
         }
         else if (context instanceof LoopContext && this.currentBlock !== undefined) {
-            (this.currentBlock as LoopBlockContext).setLoopResult(context.result);
+            //(this.currentBlock as LoopBlockContext).setLoopResult(context.result);
         }
     }
 
@@ -256,7 +256,7 @@ function createContext(type: string | undefined, id: string, parent: any) {
         return new LoopBaseContext(parent);
     }
     else {
-        return new ExprBlockContext(parent);
+        throw new Error('TODO: nothing');
     }
 }
 

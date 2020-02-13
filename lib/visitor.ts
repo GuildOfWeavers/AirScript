@@ -7,12 +7,8 @@ import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { Module, ImportMember, ModuleOptions } from './Module';
 import { Component } from './Component';
-import { 
-    ExecutionContext, LoopBaseContext, LoopBlockContext, RootContext,
-    createExecutionContext, closeExecutionContext
-} from './contexts';
+import { ExecutionContext, LoopBaseContext, LoopBlockContext, LoopContext } from './contexts';
 import { ExecutionTemplate } from './ExecutionTemplate';
-import { ProcedureParams } from './utils';
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -165,8 +161,8 @@ class AirVisitor extends BaseCstVisitor {
         }
         else {
             const exc = mOrC.createExecutionContext('transition');
-            this.visit(ctx.inputLoop, exc);
-            mOrC.setTransitionFunction(exc);
+            const result = this.visit(ctx.inputLoop, exc);
+            mOrC.setTransitionFunction(exc, result);
         }
     }
 
@@ -178,14 +174,14 @@ class AirVisitor extends BaseCstVisitor {
             component.setConstraintEvaluator(exc, result);
         }
         else {
-            this.visit(ctx.inputLoop, exc);
-            component.setConstraintEvaluator(exc);
+            const result = this.visit(ctx.inputLoop, exc);
+            component.setConstraintEvaluator(exc, result);
         }
     }
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void {
+    inputLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void | Expression {
         if (tOrC instanceof ExecutionTemplate) {
             // parse input names
             tOrC.addLoop(ctx.inputs.map((input: any) => input.image));
@@ -199,7 +195,7 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
         else {
-            const loopContext = createExecutionContext('loop', tOrC);
+            const loopContext = new LoopContext(tOrC);
 
             // parse outer statements
             if (ctx.statements) {
@@ -212,40 +208,41 @@ class AirVisitor extends BaseCstVisitor {
             }
 
             if (ctx.inputLoop) {
-                const blockContext = createExecutionContext('loopBlock', loopContext);
-                this.visit(ctx.initExpression, blockContext);
-                this.visit(ctx.inputLoop, blockContext);
-                closeExecutionContext(blockContext);
+                const blockContext = new LoopBlockContext(loopContext);
+                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
+                const loopResult: Expression = this.visit(ctx.inputLoop, blockContext);
+                const result = blockContext.buildResult(initResult, loopResult);
+                loopContext.addBlock(result);
             }
             else {
-                const blockContext = createExecutionContext('loopBase', loopContext);
-                this.visit(ctx.initExpression, tOrC);
-                ctx.segmentLoops.forEach((loop: any) => this.visit(loop, tOrC));
-                closeExecutionContext(blockContext);
+                const blockContext = new LoopBaseContext(loopContext);
+                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
+                const segmentResults: Expression[] = ctx.segmentLoops.map((loop: any) => this.visit(loop, blockContext));
+                const result = blockContext.buildResult(initResult, segmentResults);
+                loopContext.addBlock(result);
             }
-            closeExecutionContext(loopContext);
+
+            return loopContext.result;
         }
     }
 
-    inputLoopInit(ctx: any, exc: LoopBlockContext | LoopBaseContext): void {
-        const initResult = this.visit(ctx.expression, exc);
-        exc.setInitializer(initResult);
+    inputLoopInit(ctx: any, exc: LoopBlockContext | LoopBaseContext): Expression {
+        return this.visit(ctx.expression, exc);
     }
 
-    segmentLoop(ctx: any, tOrC: ExecutionTemplate | LoopBaseContext): void {
+    segmentLoop(ctx: any, tOrC: ExecutionTemplate | LoopBaseContext): void | Expression {
         if (tOrC instanceof ExecutionTemplate) {
             tOrC.addSegment(ctx.ranges.map((range: any) => this.visit(range)));
         }
         else {
-            const segmentResult = this.visit(ctx.body, tOrC);
-            tOrC.addSegment(segmentResult);
+            return this.visit(ctx.body, tOrC);
         }
     }
 
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx: any, exc: ExecutionContext): Expression {
-        const blockContext = createExecutionContext('expressionBlock', exc);
+        const blockContext = new ExecutionContext(exc);
         if (ctx.statements) {
             ctx.statements.forEach((stmt: any) => this.visit(stmt, blockContext));
         }
@@ -256,7 +253,6 @@ class AirVisitor extends BaseCstVisitor {
             result = blockContext.buildBinaryOperation('sub', result, constraint);
         }
 
-        closeExecutionContext(blockContext);
         return result;
     }
 
