@@ -9,6 +9,7 @@ import { Module, ImportMember, ModuleOptions } from './Module';
 import { Component } from './Component';
 import { ExecutionContext, LoopBaseContext, LoopBlockContext, LoopContext } from './contexts';
 import { ExecutionTemplate } from './ExecutionTemplate';
+import { LoopTemplate, LoopBaseTemplate } from './blocks';
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -156,7 +157,7 @@ class AirVisitor extends BaseCstVisitor {
     transitionFunction(ctx: any, mOrC: Module | Component): ExecutionTemplate | void {
         if (mOrC instanceof Module) {
             const template = new ExecutionTemplate(mOrC.field);
-            this.visit(ctx.inputLoop, template);
+            const t = this.visit(ctx.inputLoop, template);
             return template;
         }
         else {
@@ -181,12 +182,16 @@ class AirVisitor extends BaseCstVisitor {
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void | Expression {
+    inputLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): LoopTemplate | Expression {
         const inputs: string[] = ctx.inputs.map((input: any) => input.image);
         
         if (tOrC instanceof ExecutionTemplate) {
             tOrC.addLoop(inputs);
-            this.visit(ctx.block, tOrC);
+            const block = this.visit(ctx.block, tOrC);
+
+            const template = new LoopTemplate({ start: 0, end: 0 }, inputs);
+            template.addBlock(block);
+            return template;
         }
         else {    
             const loopContext = new LoopContext(tOrC, inputs);
@@ -208,14 +213,20 @@ class AirVisitor extends BaseCstVisitor {
         }
     }
 
-    traceBlock(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void | Expression {
+    traceBlock(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): Expression | LoopTemplate | LoopBaseTemplate {
         if (tOrC instanceof ExecutionTemplate) {
             // parse body expression
             if (ctx.inputLoop) {
-                this.visit(ctx.inputLoop, tOrC);
+                return this.visit(ctx.inputLoop, tOrC);
             }
             else {
-                ctx.traceSegments.forEach((loop: any) => this.visit(loop, tOrC));
+                const template = new LoopBaseTemplate({ start: 0, end: 0 }); // TODO
+                ctx.traceSegments.forEach((segment: any) => {
+                    const intervals = this.visit(segment);
+                    tOrC.addSegment(intervals);
+                    template.addSegment(intervals);
+                });
+                return template;
             }
         }
         else {
@@ -234,12 +245,12 @@ class AirVisitor extends BaseCstVisitor {
         }
     }
 
-    traceSegment(ctx: any, tOrC: ExecutionTemplate | LoopBaseContext): void | Expression {
-        if (tOrC instanceof ExecutionTemplate) {
-            tOrC.addSegment(ctx.ranges.map((range: any) => this.visit(range)));
+    traceSegment(ctx: any, exc?: LoopBaseContext): Expression | [number, number][] {
+        if (exc) {
+            return this.visit(ctx.body, exc);
         }
         else {
-            return this.visit(ctx.body, tOrC);
+            return ctx.ranges.map((range: any) => this.visit(range));
         }
     }
 

@@ -9,6 +9,7 @@ const lexer_1 = require("./lexer");
 const Module_1 = require("./Module");
 const contexts_1 = require("./contexts");
 const ExecutionTemplate_1 = require("./ExecutionTemplate");
+const blocks_1 = require("./blocks");
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser_1.parser.getBaseCstVisitorConstructor();
@@ -132,7 +133,7 @@ class AirVisitor extends BaseCstVisitor {
     transitionFunction(ctx, mOrC) {
         if (mOrC instanceof Module_1.Module) {
             const template = new ExecutionTemplate_1.ExecutionTemplate(mOrC.field);
-            this.visit(ctx.inputLoop, template);
+            const t = this.visit(ctx.inputLoop, template);
             return template;
         }
         else {
@@ -159,7 +160,10 @@ class AirVisitor extends BaseCstVisitor {
         const inputs = ctx.inputs.map((input) => input.image);
         if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
             tOrC.addLoop(inputs);
-            this.visit(ctx.block, tOrC);
+            const block = this.visit(ctx.block, tOrC);
+            const template = new blocks_1.LoopTemplate({ start: 0, end: 0 }, inputs);
+            template.addBlock(block);
+            return template;
         }
         else {
             const loopContext = new contexts_1.LoopContext(tOrC, inputs);
@@ -180,10 +184,16 @@ class AirVisitor extends BaseCstVisitor {
         if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
             // parse body expression
             if (ctx.inputLoop) {
-                this.visit(ctx.inputLoop, tOrC);
+                return this.visit(ctx.inputLoop, tOrC);
             }
             else {
-                ctx.traceSegments.forEach((loop) => this.visit(loop, tOrC));
+                const template = new blocks_1.LoopBaseTemplate({ start: 0, end: 0 }); // TODO
+                ctx.traceSegments.forEach((segment) => {
+                    const intervals = this.visit(segment);
+                    tOrC.addSegment(intervals);
+                    template.addSegment(intervals);
+                });
+                return template;
             }
         }
         else {
@@ -201,12 +211,12 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
     }
-    traceSegment(ctx, tOrC) {
-        if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
-            tOrC.addSegment(ctx.ranges.map((range) => this.visit(range)));
+    traceSegment(ctx, exc) {
+        if (exc) {
+            return this.visit(ctx.body, exc);
         }
         else {
-            return this.visit(ctx.body, tOrC);
+            return ctx.ranges.map((range) => this.visit(range));
         }
     }
     // STATEMENTS

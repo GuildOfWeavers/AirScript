@@ -183,12 +183,21 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP: Comma,
-            DEF: () => this.CONSUME(Identifier,         { LABEL: 'inputs' })
+            DEF: () => this.CONSUME(Identifier,           { LABEL: 'inputs' })
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
-        this.MANY(() => this.SUBRULE(this.statement,    { LABEL: 'statements' }));
-        this.SUBRULE(this.traceBlock,                   { LABEL: 'block', ARGS: [ context] });
+        this.MANY(() => this.SUBRULE(this.statement,      { LABEL: 'statements' }));
+        this.OR([
+            { ALT: () => this.SUBRULE1(this.traceBlock,   { LABEL: 'block', ARGS: [ context] })},
+            { ALT: () => this.AT_LEAST_ONE(() => {
+                this.CONSUME(With);
+                this.CONSUME(RegisterBank,                { LABEL: 'registers' });
+                this.CONSUME(LSquare);
+                this.SUBRULE(this.literalRangeExpression, { LABEL: 'domains'    });
+                this.SUBRULE2(this.traceBlock,            { LABEL: 'blocks', ARGS: [ context ] });
+            })}
+        ]);
         this.CONSUME(RCurly);
     });
 

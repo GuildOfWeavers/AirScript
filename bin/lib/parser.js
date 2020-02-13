@@ -169,7 +169,16 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.RParen);
             this.CONSUME(lexer_1.LCurly);
             this.MANY(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
-            this.SUBRULE(this.traceBlock, { LABEL: 'block', ARGS: [context] });
+            this.OR([
+                { ALT: () => this.SUBRULE1(this.traceBlock, { LABEL: 'block', ARGS: [context] }) },
+                { ALT: () => this.AT_LEAST_ONE(() => {
+                        this.CONSUME(lexer_1.With);
+                        this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
+                        this.CONSUME(lexer_1.LSquare);
+                        this.SUBRULE(this.literalRangeExpression, { LABEL: 'domains' });
+                        this.SUBRULE2(this.traceBlock, { LABEL: 'blocks', ARGS: [context] });
+                    }) }
+            ]);
             this.CONSUME(lexer_1.RCurly);
         });
         this.traceBlock = this.RULE('traceBlock', (context) => {
