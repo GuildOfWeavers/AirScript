@@ -18,8 +18,8 @@ class ExecutionContext {
             this.domain = parent.domain;
         }
         if (inputs) {
-            // TODO: narrow inputs
-            this.inputs = parent.inputs;
+            // TODO: make sure the inputs were narrowed correctly
+            this.inputs = new Set(inputs);
         }
         else {
             this.inputs = parent.inputs;

@@ -48,7 +48,8 @@ class Component {
             segments: this.segmentMasks.length,
             aux: this.staticRegisterCount - this.procedures.auxRegisterOffset
         };
-        const domain = { start: 0, end: 0 }; // TODO
+        const traceWidth = this.procedures.transition.result[0];
+        const domain = { start: 0, end: traceWidth };
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
         return new contexts_1.RootContext(domain, context, this.symbols, staticRegisters);

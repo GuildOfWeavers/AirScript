@@ -168,7 +168,8 @@ class AirVisitor extends BaseCstVisitor {
             }
         }
         else {
-            const loopContext = new contexts_1.LoopContext(tOrC);
+            const inputs = ctx.inputs.map((input) => input.image);
+            const loopContext = new contexts_1.LoopContext(tOrC, inputs);
             // parse outer statements
             if (ctx.statements) {
                 ctx.statements.forEach((s) => this.visit(s, loopContext));

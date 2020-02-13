@@ -7,8 +7,8 @@ const utils_1 = require("../utils");
 class LoopContext extends Context_1.ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(parent) {
-        super(parent);
+    constructor(parent, inputs) {
+        super(parent, undefined, inputs);
         this.blockResults = [];
         this.rank = (parent instanceof Context_1.ExecutionContext ? parent.rank + 1 : 0);
     }

@@ -107,7 +107,8 @@ export class Component {
             aux : this.staticRegisterCount - this.procedures.auxRegisterOffset
         };
 
-        const domain: TraceDomain = { start: 0, end: 0 }; // TODO
+        const traceWidth = this.procedures.transition.result[0];
+        const domain: TraceDomain = { start: 0, end: traceWidth };
 
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));

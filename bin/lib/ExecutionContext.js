@@ -97,18 +97,6 @@ class ExecutionContext {
     // STATEMENT BLOCKS
     // --------------------------------------------------------------------------------------------
     enterBlock(type) {
-        const id = `${utils_1.BLOCK_ID_PREFIX}${this.lastBlockId}`;
-        let context;
-        if (this.blocks.length === 0) {
-            const domain = { start: 0, end: 0 };
-            const root = new contexts_1.RootContext(domain, this.base, this.symbols, this.staticRegisters);
-            context = createContext(type, id, root);
-        }
-        else {
-            context = createContext(type, id, this.blocks[this.blocks.length - 1]);
-        }
-        this.blocks.push(context);
-        this.lastBlockId++;
     }
     exitBlock() {
         const context = this.blocks.pop();
@@ -181,22 +169,6 @@ class ExecutionContext {
     }
 }
 exports.ExecutionContext = ExecutionContext;
-// HELPER FUNCTIONS
-// ================================================================================================
-function createContext(type, id, parent) {
-    if (type === 'loop') {
-        return new contexts_1.LoopContext(parent);
-    }
-    else if (type === 'loopBlock') {
-        return new contexts_1.LoopBlockContext(parent);
-    }
-    else if (type === 'loopBase') {
-        return new contexts_1.LoopBaseContext(parent);
-    }
-    else {
-        throw new Error('TODO: nothing');
-    }
-}
 // ERRORS
 // ================================================================================================
 const errors = {

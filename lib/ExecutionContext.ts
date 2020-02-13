@@ -141,18 +141,6 @@ export class ExecutionContext {
     // --------------------------------------------------------------------------------------------
     enterBlock(type?: string) {
 
-        const id = `${BLOCK_ID_PREFIX}${this.lastBlockId}`;
-        let context: Context;
-        if (this.blocks.length === 0) {
-            const domain: TraceDomain = { start: 0, end: 0 };
-            const root = new RootContext(domain, this.base, this.symbols, this.staticRegisters);
-            context = createContext(type, id, root);
-        }
-        else {
-            context = createContext(type, id, this.blocks[this.blocks.length - 1]);
-        }
-        this.blocks.push(context);
-        this.lastBlockId++;
     }
 
     exitBlock(): void {
@@ -240,23 +228,6 @@ export class ExecutionContext {
 
     buildMakeMatrixExpression(elements: Expression[][]): MakeMatrix {
         return this.base.buildMakeMatrixExpression(elements);
-    }
-}
-
-// HELPER FUNCTIONS
-// ================================================================================================
-function createContext(type: string | undefined, id: string, parent: any) {
-    if (type === 'loop') {
-        return new LoopContext(parent);
-    }
-    else if (type === 'loopBlock') {
-        return new LoopBlockContext(parent);
-    }
-    else if (type === 'loopBase') {
-        return new LoopBaseContext(parent);
-    }
-    else {
-        throw new Error('TODO: nothing');
     }
 }
 
