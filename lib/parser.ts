@@ -183,30 +183,29 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP: Comma,
-            DEF: () => this.CONSUME(Identifier,          { LABEL: 'inputs' })
+            DEF: () => this.CONSUME(Identifier,         { LABEL: 'inputs' })
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
-        this.MANY1(() => this.SUBRULE(this.statement,    { LABEL: 'statements' }));
-        this.MANY2(() => this.SUBRULE(this.functionCall, { LABEL: 'functionCalls',  ARGS: [ context ] }))
-        this.SUBRULE(this.inputLoopInit,                 { LABEL: 'initExpression', ARGS: [ context ] });
-        this.OR([
-            { ALT: () => this.SUBRULE(this.inputLoop,    { LABEL: 'inputLoop',      ARGS: [ context ] })},
-            { ALT: () => {
-                this.AT_LEAST_ONE(() => {
-                    this.SUBRULE(this.segmentLoop,       { LABEL: 'segmentLoops',   ARGS: [ context ] });
-                });
-            }}
-        ]);
+        this.MANY(() => this.SUBRULE(this.statement,    { LABEL: 'statements' }));
+        this.SUBRULE(this.traceBlock,                   { LABEL: 'block', ARGS: [ context] });
         this.CONSUME(RCurly);
     });
 
-    private inputLoopInit = this.RULE('inputLoopInit', (context: 'yield' | 'enforce') => {
+    public traceBlock = this.RULE('traceBlock', (context?: 'yield' | 'enforce') => {
         this.CONSUME(Init);
-        this.SUBRULE(this.statementBlock, { LABEL: 'expression', ARGS: [ context ] });
+        this.SUBRULE(this.statementBlock,       { LABEL: 'initExpression', ARGS: [ context ] });
+        this.OR([
+            { ALT: () => {
+                this.SUBRULE(this.inputLoop,    { LABEL: 'inputLoop',      ARGS: [ context ] });
+            }},
+            { ALT: () => this.AT_LEAST_ONE(() => {
+                this.SUBRULE(this.traceSegment, { LABEL: 'traceSegments',  ARGS: [ context ] });
+            })}
+        ]);
     });
 
-    private segmentLoop = this.RULE('segmentLoop', (context: 'yield' | 'enforce') => {
+    private traceSegment = this.RULE('traceSegment', (context: 'yield' | 'enforce') => {
         this.CONSUME(For);
         this.CONSUME(Steps);
         this.CONSUME(LSquare);

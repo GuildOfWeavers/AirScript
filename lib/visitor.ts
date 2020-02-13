@@ -182,20 +182,13 @@ class AirVisitor extends BaseCstVisitor {
     // LOOPS
     // --------------------------------------------------------------------------------------------
     inputLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void | Expression {
-        if (tOrC instanceof ExecutionTemplate) {
-            // parse input names
-            tOrC.addLoop(ctx.inputs.map((input: any) => input.image));
+        const inputs: string[] = ctx.inputs.map((input: any) => input.image);
         
-            // parse body expression
-            if (ctx.inputLoop) {
-                this.visit(ctx.inputLoop, tOrC);
-            }
-            else {
-                ctx.segmentLoops.forEach((loop: any) => this.visit(loop, tOrC));
-            }
+        if (tOrC instanceof ExecutionTemplate) {
+            tOrC.addLoop(inputs);
+            this.visit(ctx.block, tOrC);
         }
-        else {
-            const inputs: string[] = ctx.inputs.map((input: any) => input.image);
+        else {    
             const loopContext = new LoopContext(tOrC, inputs);
 
             // parse outer statements
@@ -208,30 +201,40 @@ class AirVisitor extends BaseCstVisitor {
                 ctx.functionCalls.forEach((c: any) => this.visit(c, loopContext));
             }
 
-            if (ctx.inputLoop) {
-                const blockContext = new LoopBlockContext(loopContext);
-                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
-                const loopResult: Expression = this.visit(ctx.inputLoop, blockContext);
-                const result = blockContext.buildResult(initResult, loopResult);
-                loopContext.addBlock(result);
-            }
-            else {
-                const blockContext = new LoopBaseContext(loopContext);
-                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
-                const segmentResults: Expression[] = ctx.segmentLoops.map((loop: any) => this.visit(loop, blockContext));
-                const result = blockContext.buildResult(initResult, segmentResults);
-                loopContext.addBlock(result);
-            }
+            const result = this.visit(ctx.block, loopContext);
+            loopContext.addBlock(result);
 
             return loopContext.result;
         }
     }
 
-    inputLoopInit(ctx: any, exc: LoopBlockContext | LoopBaseContext): Expression {
-        return this.visit(ctx.expression, exc);
+    traceBlock(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void | Expression {
+        if (tOrC instanceof ExecutionTemplate) {
+            // parse body expression
+            if (ctx.inputLoop) {
+                this.visit(ctx.inputLoop, tOrC);
+            }
+            else {
+                ctx.traceSegments.forEach((loop: any) => this.visit(loop, tOrC));
+            }
+        }
+        else {
+            if (ctx.inputLoop) {
+                const blockContext = new LoopBlockContext(tOrC);
+                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
+                const loopResult: Expression = this.visit(ctx.inputLoop, blockContext);
+                return blockContext.buildResult(initResult, loopResult);
+            }
+            else {
+                const blockContext = new LoopBaseContext(tOrC);
+                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
+                const segmentResults: Expression[] = ctx.traceSegments.map((loop: any) => this.visit(loop, blockContext));
+                return blockContext.buildResult(initResult, segmentResults);
+            }
+        }
     }
 
-    segmentLoop(ctx: any, tOrC: ExecutionTemplate | LoopBaseContext): void | Expression {
+    traceSegment(ctx: any, tOrC: ExecutionTemplate | LoopBaseContext): void | Expression {
         if (tOrC instanceof ExecutionTemplate) {
             tOrC.addSegment(ctx.ranges.map((range: any) => this.visit(range)));
         }

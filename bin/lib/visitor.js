@@ -156,19 +156,12 @@ class AirVisitor extends BaseCstVisitor {
     // LOOPS
     // --------------------------------------------------------------------------------------------
     inputLoop(ctx, tOrC) {
+        const inputs = ctx.inputs.map((input) => input.image);
         if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
-            // parse input names
-            tOrC.addLoop(ctx.inputs.map((input) => input.image));
-            // parse body expression
-            if (ctx.inputLoop) {
-                this.visit(ctx.inputLoop, tOrC);
-            }
-            else {
-                ctx.segmentLoops.forEach((loop) => this.visit(loop, tOrC));
-            }
+            tOrC.addLoop(inputs);
+            this.visit(ctx.block, tOrC);
         }
         else {
-            const inputs = ctx.inputs.map((input) => input.image);
             const loopContext = new contexts_1.LoopContext(tOrC, inputs);
             // parse outer statements
             if (ctx.statements) {
@@ -178,27 +171,37 @@ class AirVisitor extends BaseCstVisitor {
             if (ctx.functionCalls) {
                 ctx.functionCalls.forEach((c) => this.visit(c, loopContext));
             }
-            if (ctx.inputLoop) {
-                const blockContext = new contexts_1.LoopBlockContext(loopContext);
-                const initResult = this.visit(ctx.initExpression, blockContext);
-                const loopResult = this.visit(ctx.inputLoop, blockContext);
-                const result = blockContext.buildResult(initResult, loopResult);
-                loopContext.addBlock(result);
-            }
-            else {
-                const blockContext = new contexts_1.LoopBaseContext(loopContext);
-                const initResult = this.visit(ctx.initExpression, blockContext);
-                const segmentResults = ctx.segmentLoops.map((loop) => this.visit(loop, blockContext));
-                const result = blockContext.buildResult(initResult, segmentResults);
-                loopContext.addBlock(result);
-            }
+            const result = this.visit(ctx.block, loopContext);
+            loopContext.addBlock(result);
             return loopContext.result;
         }
     }
-    inputLoopInit(ctx, exc) {
-        return this.visit(ctx.expression, exc);
+    traceBlock(ctx, tOrC) {
+        if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
+            // parse body expression
+            if (ctx.inputLoop) {
+                this.visit(ctx.inputLoop, tOrC);
+            }
+            else {
+                ctx.traceSegments.forEach((loop) => this.visit(loop, tOrC));
+            }
+        }
+        else {
+            if (ctx.inputLoop) {
+                const blockContext = new contexts_1.LoopBlockContext(tOrC);
+                const initResult = this.visit(ctx.initExpression, blockContext);
+                const loopResult = this.visit(ctx.inputLoop, blockContext);
+                return blockContext.buildResult(initResult, loopResult);
+            }
+            else {
+                const blockContext = new contexts_1.LoopBaseContext(tOrC);
+                const initResult = this.visit(ctx.initExpression, blockContext);
+                const segmentResults = ctx.traceSegments.map((loop) => this.visit(loop, blockContext));
+                return blockContext.buildResult(initResult, segmentResults);
+            }
+        }
     }
-    segmentLoop(ctx, tOrC) {
+    traceSegment(ctx, tOrC) {
         if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
             tOrC.addSegment(ctx.ranges.map((range) => this.visit(range)));
         }

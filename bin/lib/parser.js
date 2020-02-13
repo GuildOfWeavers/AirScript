@@ -168,24 +168,23 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.CONSUME(lexer_1.RParen);
             this.CONSUME(lexer_1.LCurly);
-            this.MANY1(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
-            this.MANY2(() => this.SUBRULE(this.functionCall, { LABEL: 'functionCalls', ARGS: [context] }));
-            this.SUBRULE(this.inputLoopInit, { LABEL: 'initExpression', ARGS: [context] });
-            this.OR([
-                { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: [context] }) },
-                { ALT: () => {
-                        this.AT_LEAST_ONE(() => {
-                            this.SUBRULE(this.segmentLoop, { LABEL: 'segmentLoops', ARGS: [context] });
-                        });
-                    } }
-            ]);
+            this.MANY(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
+            this.SUBRULE(this.traceBlock, { LABEL: 'block', ARGS: [context] });
             this.CONSUME(lexer_1.RCurly);
         });
-        this.inputLoopInit = this.RULE('inputLoopInit', (context) => {
+        this.traceBlock = this.RULE('traceBlock', (context) => {
             this.CONSUME(lexer_1.Init);
-            this.SUBRULE(this.statementBlock, { LABEL: 'expression', ARGS: [context] });
+            this.SUBRULE(this.statementBlock, { LABEL: 'initExpression', ARGS: [context] });
+            this.OR([
+                { ALT: () => {
+                        this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: [context] });
+                    } },
+                { ALT: () => this.AT_LEAST_ONE(() => {
+                        this.SUBRULE(this.traceSegment, { LABEL: 'traceSegments', ARGS: [context] });
+                    }) }
+            ]);
         });
-        this.segmentLoop = this.RULE('segmentLoop', (context) => {
+        this.traceSegment = this.RULE('traceSegment', (context) => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Steps);
             this.CONSUME(lexer_1.LSquare);
