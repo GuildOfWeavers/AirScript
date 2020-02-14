@@ -134,6 +134,8 @@ class AirVisitor extends BaseCstVisitor {
         if (mOrC instanceof Module_1.Module) {
             const template = new ExecutionTemplate_1.ExecutionTemplate(mOrC.field);
             const t = this.visit(ctx.inputLoop, template);
+            const registers = { inputs: [], masks: [], segments: [] };
+            t.buildRegisterSpecs(registers, mOrC.symbols, [0]);
             return template;
         }
         else {
@@ -159,9 +161,10 @@ class AirVisitor extends BaseCstVisitor {
     inputLoop(ctx, tOrC) {
         const inputs = ctx.inputs.map((input) => input.image);
         if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
+            const rank = (tOrC.loops.length === 0 ? undefined : tOrC.loops.length - 1); // TODO
             tOrC.addLoop(inputs);
             const block = this.visit(ctx.block, tOrC);
-            const template = new blocks_1.LoopTemplate({ start: 0, end: 0 }, inputs);
+            const template = new blocks_1.LoopTemplate({ start: 0, end: 0 }, inputs, rank);
             template.addBlock(block);
             return template;
         }

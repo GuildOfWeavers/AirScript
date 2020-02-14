@@ -19,6 +19,10 @@ class LoopBaseTemplate extends TraceTemplate_1.TraceTemplate {
         // TODO
         return true;
     }
+    get cycleLength() {
+        // TODO: check if masks exist?
+        return this.masks[0].length;
+    }
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
     addSegment(intervals) {
@@ -56,6 +60,11 @@ class LoopBaseTemplate extends TraceTemplate_1.TraceTemplate {
         }
         // build and add the new segment to the list
         this.masks.push(mask);
+    }
+    buildRegisterSpecs(registers, symbols, path) {
+        this.masks.forEach((mask, i) => {
+            registers.segments.push({ values: mask, path: path.concat([i]) });
+        });
     }
 }
 exports.LoopBaseTemplate = LoopBaseTemplate;

@@ -1,6 +1,17 @@
 // IMPORTS
 // ================================================================================================
 import { TraceDomain } from "@guildofweavers/air-script";
+import { InputRegisterMaster } from "@guildofweavers/air-assembly";
+import { SymbolInfo } from "../Module";
+import { InputRegister, MaskRegister, SegmentRegister } from "../Component";
+
+// CLASS DEFINITION
+// ================================================================================================
+export interface RegisterSpecs {
+    readonly inputs     : InputRegister[];
+    readonly masks      : MaskRegister[];
+    readonly segments   : SegmentRegister[]
+}
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -22,6 +33,8 @@ export abstract class TraceTemplate {
     }
 
     abstract get isComplete(): boolean;
+
+    abstract buildRegisterSpecs(registers: RegisterSpecs, symbols: Map<string, SymbolInfo>, path: number[], masterParent?: InputRegisterMaster): void;
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------

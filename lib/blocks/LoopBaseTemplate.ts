@@ -1,8 +1,9 @@
 // IMPORTS
 // ================================================================================================
 import { TraceDomain } from "@guildofweavers/air-script";
-import { TraceTemplate } from "./TraceTemplate";
+import { TraceTemplate, RegisterSpecs } from "./TraceTemplate";
 import { validate } from "../utils";
+import { SymbolInfo } from "../Module";
 
 // INTERFACES
 // ================================================================================================
@@ -31,6 +32,11 @@ export class LoopBaseTemplate extends TraceTemplate {
     get isComplete(): boolean {
         // TODO
         return true;
+    }
+
+    get cycleLength(): number {
+        // TODO: check if masks exist?
+        return this.masks[0].length;
     }
 
     // PUBLIC FUNCTIONS
@@ -76,6 +82,12 @@ export class LoopBaseTemplate extends TraceTemplate {
 
         // build and add the new segment to the list
         this.masks.push(mask);
+    }
+
+    buildRegisterSpecs(registers: RegisterSpecs, symbols: Map<string, SymbolInfo>, path: number[]): void {
+        this.masks.forEach((mask, i) => {
+            registers.segments.push({ values: mask, path: path.concat([i])});
+        });
     }
 }
 

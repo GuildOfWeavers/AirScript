@@ -15,11 +15,17 @@ export interface InputRegister {
     readonly binary     : boolean;
     readonly master?    : InputRegisterMaster;
     readonly steps?     : number;
-    readonly loopAnchor : boolean;
+    readonly loopAnchor?: boolean;
 }
 
 export interface MaskRegister {
     readonly input  : number;
+    readonly path?  : number[];
+}
+
+export interface SegmentRegister {
+    readonly values : bigint[];
+    readonly path   : number[];
 }
 
 export interface ProcedureSpecs {

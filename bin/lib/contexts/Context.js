@@ -60,6 +60,21 @@ class ExecutionContext {
         result = this.base.buildGetVectorElementExpression(result, segmentIdx);
         return result;
     }
+    getLoopControllerId() {
+        const id = [];
+        let parent = this.parent;
+        let child = this;
+        while (parent instanceof ExecutionContext) {
+            const blocks = parent.blocks;
+            if (blocks) {
+                const index = blocks.indexOf(child);
+                id.push(index);
+            }
+            child = parent;
+            parent = parent.parent;
+        }
+        return id;
+    }
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
     getSymbolReference(symbol) {

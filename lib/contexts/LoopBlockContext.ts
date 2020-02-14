@@ -3,7 +3,7 @@
 import { TraceDomain } from "@guildofweavers/air-script";
 import { Expression } from "@guildofweavers/air-assembly";
 import { Context, ExecutionContext } from "./Context";
-import { validate } from "../utils";
+import { LoopContext } from "./LoopContext";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -19,6 +19,8 @@ export class LoopBlockContext extends ExecutionContext {
     // --------------------------------------------------------------------------------------------
     buildResult(initResult: Expression, loopResult: Expression): Expression {
         // TODO: validate dimensions
+
+        const id = this.getLoopControllerId();
 
         // initializer result
         const controller = this.getLoopController(this.rank);

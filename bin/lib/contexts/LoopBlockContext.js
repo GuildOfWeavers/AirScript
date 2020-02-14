@@ -13,6 +13,7 @@ class LoopBlockContext extends Context_1.ExecutionContext {
     // --------------------------------------------------------------------------------------------
     buildResult(initResult, loopResult) {
         // TODO: validate dimensions
+        const id = this.getLoopControllerId();
         // initializer result
         const controller = this.getLoopController(this.rank);
         initResult = this.base.buildBinaryOperation('mul', initResult, controller);
