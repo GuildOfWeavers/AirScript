@@ -8,7 +8,6 @@ import { SymbolInfo, FunctionInfo } from './Module';
 import { StaticRegisterCounts } from "./Component";
 import { validate, BLOCK_ID_PREFIX, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, TRANSITION_FN_POSTFIX, EVALUATION_FN_POSTFIX } from './utils';
 import { ExecutionContext as Context, RootContext, LoopContext, LoopBlockContext, LoopBaseContext } from "./contexts";
-import { TraceDomain } from "@guildofweavers/air-script";
 
 // CLASS DEFINITION
 // ================================================================================================

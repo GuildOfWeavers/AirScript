@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { TraceDomain, Interval } from "@guildofweavers/air-script";
+import { Interval } from "@guildofweavers/air-script";
 import { TraceTemplate, RegisterSpecs } from "./TraceTemplate";
 import { validate } from "../utils";
 import { SymbolInfo } from "../Module";
@@ -16,7 +16,7 @@ export class LoopBaseTemplate extends TraceTemplate {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain: TraceDomain) {
+    constructor(domain: Interval) {
         super(domain);
         this.masks = [];
         this._stepsToIntervals = new Map();

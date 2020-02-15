@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { FiniteField, AirSchema, ProcedureName, Expression, Dimensions } from "@guildofweavers/air-assembly";
-import { TraceDomain, InputRegister, MaskRegister } from "@guildofweavers/air-script";
+import { Interval, InputRegister, MaskRegister } from "@guildofweavers/air-script";
 import { SymbolInfo, FunctionInfo } from './Module';
 import { RootContext } from "./contexts";
 import { ProcedureParams } from "./utils";
@@ -90,7 +90,7 @@ export class Component {
         };
 
         const traceWidth = this.procedures.transition.result[0];
-        const domain: TraceDomain = { start: 0, end: traceWidth };
+        const domain: Interval = [0, traceWidth];
 
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));

@@ -1,8 +1,9 @@
 // IMPORTS
 // ================================================================================================
-import { TraceDomain, InputRegister, MaskRegister, SegmentRegister } from "@guildofweavers/air-script";
+import { Interval, InputRegister, MaskRegister, SegmentRegister } from "@guildofweavers/air-script";
 import { InputRegisterMaster } from "@guildofweavers/air-assembly";
 import { SymbolInfo } from "../Module";
+import { validate } from "../utils";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -13,26 +14,27 @@ export interface RegisterSpecs {
 }
 
 export interface TemplateContainer {
-    readonly domain     : TraceDomain;
+    readonly domain     : Interval;
 }
 
 // CLASS DEFINITION
 // ================================================================================================
 export abstract class TraceTemplate {
 
-    readonly domain : TraceDomain;
+    readonly domain : Interval;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain: TraceDomain) {
-        // TODO: validate start/end
+    constructor(domain: Interval) {
+        validate(domain[1] - domain[0] !== 0, errors.zeroLengthDomain(domain));
+        validate(domain[1] > domain[0], errors.domainEndBeforeStart(domain));
         this.domain = domain;
     }
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
     get domainWidth(): number {
-        return this.domain.end - this.domain.start + 1;
+        return this.domain[1] - this.domain[0] + 1;
     }
 
     abstract get isComplete(): boolean;
@@ -41,11 +43,18 @@ export abstract class TraceTemplate {
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
-    isSubdomainOf(domain: TraceDomain): boolean {
-        return (domain.start <= this.domain.start && domain.end >= this.domain.end);
+    isSubdomainOf(domain: Interval): boolean {
+        return (domain[0] <= this.domain[0] && domain[1] >= this.domain[1]);
     }
 
     isInDomain(index: number): boolean {
-        return (this.domain.start <= index || this.domain.end >= index);
+        return (this.domain[0] <= index || this.domain[1] >= index);
     }
 }
+
+// ERRORS
+// ================================================================================================
+const errors = {
+    zeroLengthDomain        : (v: any) => `invalid domain ${v}: domain cannot be a zero-length interval`,
+    domainEndBeforeStart    : (v: any) => `invalid domain ${v}: domain end is before domain start`
+};

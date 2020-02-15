@@ -129,7 +129,7 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx, mOrC) {
         if (mOrC instanceof Module_1.Module) {
-            const rootTemplate = new templates_1.LoopTemplate({ start: 0, end: mOrC.traceWidth - 1 });
+            const rootTemplate = new templates_1.LoopTemplate([0, mOrC.traceWidth - 1]);
             this.visit(ctx.traceLoop, rootTemplate);
             const template = new templates_1.ExecutionTemplate(rootTemplate, mOrC.symbols); // TODO
             return template;
@@ -175,14 +175,8 @@ class AirVisitor extends BaseCstVisitor {
     }
     traceBlock(ctx, parent) {
         // parse domain
-        let domain;
-        if (ctx.domain) {
-            const domainInterval = this.visit(ctx.domain);
-            domain = { start: domainInterval[0], end: domainInterval[1] };
-        }
-        else {
-            domain = parent.domain;
-        }
+        const domain = (ctx.domain ? this.visit(ctx.domain) : parent.domain);
+        // parse content
         if (parent instanceof templates_1.LoopTemplate) {
             if (ctx.traceLoop) {
                 const template = new templates_1.LoopTemplate(domain, parent);

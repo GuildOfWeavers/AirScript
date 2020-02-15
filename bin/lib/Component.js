@@ -44,7 +44,7 @@ class Component {
             aux: this.staticRegisterCount - this.procedures.auxRegisterOffset
         };
         const traceWidth = this.procedures.transition.result[0];
-        const domain = { start: 0, end: traceWidth };
+        const domain = [0, traceWidth];
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
         return new contexts_1.RootContext(domain, context, this.symbols, staticRegisters);

@@ -41,7 +41,7 @@ class LoopTemplate extends TraceTemplate_1.TraceTemplate {
         }
         // TODO: validate cycle length
         this.blocks.push(block);
-        this.registerMap.fill(block, block.domain.start, block.domain.end + 1);
+        this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
     }
     buildRegisterSpecs(registers, symbols, path, masterParent) {
         const inputOffset = registers.inputs.length;

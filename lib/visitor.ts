@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Interval, TraceDomain } from '@guildofweavers/air-script';
+import { Interval } from '@guildofweavers/air-script';
 import { AirSchema, Expression, PrngSequence } from '@guildofweavers/air-assembly';
 import { FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
@@ -156,7 +156,7 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx: any, mOrC: Module | Component): ExecutionTemplate | void {
         if (mOrC instanceof Module) {
-            const rootTemplate = new LoopTemplate({ start: 0, end: mOrC.traceWidth - 1 });
+            const rootTemplate = new LoopTemplate([0, mOrC.traceWidth - 1]);
             this.visit(ctx.traceLoop, rootTemplate);
             const template = new ExecutionTemplate(rootTemplate, (mOrC as any).symbols); // TODO
             return template;
@@ -210,15 +210,9 @@ class AirVisitor extends BaseCstVisitor {
     traceBlock(ctx: any, parent: LoopTemplate | LoopContext): TraceTemplate | Expression {
 
         // parse domain
-        let domain: TraceDomain;
-        if (ctx.domain) {
-            const domainInterval: Interval = this.visit(ctx.domain);
-            domain = { start: domainInterval[0], end: domainInterval[1] };
-        }
-        else {
-            domain = parent.domain;
-        }
+        const domain: Interval = (ctx.domain ? this.visit(ctx.domain) : parent.domain);
 
+        // parse content
         if (parent instanceof LoopTemplate) {
             if (ctx.traceLoop) {
                 const template = new LoopTemplate(domain, parent);

@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
-import { TraceDomain } from "@guildofweavers/air-script";
-import { StoreOperation, FunctionContext, Expression } from "@guildofweavers/air-assembly";
+import { Interval } from "@guildofweavers/air-script";
+import { StoreOperation, FunctionContext } from "@guildofweavers/air-assembly";
 import { Context } from "./Context";
 import { StaticRegisterCounts } from "../Component";
 import { SymbolInfo } from "../Module";
@@ -11,7 +11,7 @@ import { BLOCK_ID_PREFIX } from "../utils";
 // ================================================================================================
 export class RootContext implements Context {
 
-    readonly domain             : TraceDomain;
+    readonly domain             : Interval;
     readonly locals             : Set<string>;
     readonly inputs             : Set<string>;
     readonly statements         : StoreOperation[];
@@ -23,7 +23,7 @@ export class RootContext implements Context {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain: TraceDomain, base: FunctionContext, symbols: Map<string, SymbolInfo>, staticRegisters: StaticRegisterCounts) {
+    constructor(domain: Interval, base: FunctionContext, symbols: Map<string, SymbolInfo>, staticRegisters: StaticRegisterCounts) {
         this.domain = domain;
         this.base = base;
         this.staticRegisters = staticRegisters;

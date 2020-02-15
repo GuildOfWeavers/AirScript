@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { TraceDomain } from "@guildofweavers/air-script";
+import { Interval } from "@guildofweavers/air-script";
 import {
     Expression, StoreOperation, FunctionContext, LiteralValue, BinaryOperation, UnaryOperation,
     MakeVector, GetVectorElement, SliceVector, MakeMatrix
@@ -12,7 +12,7 @@ import { validate, ProcedureParams, TRANSITION_FN_HANDLE } from "../utils";
 // INTERFACES
 // ================================================================================================
 export interface Context {
-    readonly domain             : TraceDomain;
+    readonly domain             : Interval;
     readonly inputs             : Set<string>;
     readonly locals             : Set<string>;
     readonly statements         : StoreOperation[];
@@ -31,13 +31,13 @@ export class ExecutionContext implements Context {
     readonly id                 : string;
     readonly parent             : Context;
     readonly rank               : number;
-    readonly domain             : TraceDomain;
+    readonly domain             : Interval;
     readonly inputs             : Set<string>;
     readonly locals             : Set<string>;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(parent: Context, domain?: TraceDomain, inputs?: string[]) {
+    constructor(parent: Context, domain?: Interval, inputs?: string[]) {
         this.id = parent.getNextId();
         this.parent = parent;
         this.rank = (parent instanceof ExecutionContext ? parent.rank : 0);

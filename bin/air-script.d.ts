@@ -30,11 +30,6 @@ declare module '@guildofweavers/air-script' {
     // --------------------------------------------------------------------------------------------
     export type Interval = [number, number];
 
-    export interface TraceDomain {
-        readonly start  : number;
-        readonly end    : number;
-    }
-
     export interface InputRegister {
         readonly scope      : string;
         readonly binary     : boolean;

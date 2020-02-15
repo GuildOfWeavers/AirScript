@@ -1,8 +1,8 @@
 // IMPORTS
 // ================================================================================================
-import { TraceDomain } from "@guildofweavers/air-script";
+import { Interval } from "@guildofweavers/air-script";
 import { InputRegisterMaster } from "@guildofweavers/air-assembly";
-import { TraceTemplate, RegisterSpecs, TemplateContainer } from "./TraceTemplate";
+import { TraceTemplate, RegisterSpecs } from "./TraceTemplate";
 import { LoopBaseTemplate } from "./LoopBaseTemplate";
 import { SymbolInfo, InputInfo } from "../Module";
 import { validate } from "../utils";
@@ -24,7 +24,7 @@ export class LoopTemplate extends TraceTemplate {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain: TraceDomain, parent?: LoopTemplate) {
+    constructor(domain: Interval, parent?: LoopTemplate) {
         super(domain);
         this.inputs = new Set();
         this.rank = (parent ? parent.rank + 1 : 0);
@@ -64,7 +64,7 @@ export class LoopTemplate extends TraceTemplate {
         // TODO: validate cycle length
 
         this.blocks.push(block);
-        this.registerMap.fill(block, block.domain.start, block.domain.end + 1);
+        this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
     }
 
     buildRegisterSpecs(registers: RegisterSpecs, symbols: Map<string, SymbolInfo>, path: number[], masterParent?: InputRegisterMaster): void {
