@@ -12,7 +12,7 @@ class ExecutionContext {
         this.rank = (parent instanceof ExecutionContext ? parent.rank : 0);
         if (domain) {
             // TODO: narrow domain
-            this.domain = parent.domain;
+            this.domain = domain;
         }
         else {
             this.domain = parent.domain;
@@ -63,14 +63,11 @@ class ExecutionContext {
     getLoopControllerId() {
         const id = [];
         let parent = this.parent;
-        let child = this;
         while (parent instanceof ExecutionContext) {
-            const blocks = parent.blocks;
+            const blocks = parent.blockResults;
             if (blocks) {
-                const index = blocks.indexOf(child);
-                id.push(index);
+                id.push(blocks.length);
             }
-            child = parent;
             parent = parent.parent;
         }
         return id;

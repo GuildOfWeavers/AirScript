@@ -154,15 +154,17 @@ class AirVisitor extends BaseCstVisitor {
     }
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    traceLoop(ctx, contextOrParent) {
+    traceLoop(ctx, templateOrParent) {
         // parse inputs
         const inputs = ctx.inputs.map((input) => input.image);
-        contextOrParent.setInputs(inputs);
-        if (contextOrParent instanceof blocks_1.LoopTemplate) {
-            ctx.blocks.forEach((b) => contextOrParent.addBlock(this.visit(b, contextOrParent)));
+        // parse loop body
+        if (templateOrParent instanceof blocks_1.LoopTemplate) {
+            templateOrParent.setInputs(inputs);
+            ctx.blocks.forEach((b) => templateOrParent.addBlock(this.visit(b, templateOrParent)));
         }
         else {
-            const loopContext = new contexts_1.LoopContext(contextOrParent, inputs);
+            // create a new context for the loop
+            const loopContext = new contexts_1.LoopContext(templateOrParent, inputs);
             // parse outer statements
             if (ctx.statements) {
                 ctx.statements.forEach((s) => this.visit(s, loopContext));
@@ -171,7 +173,7 @@ class AirVisitor extends BaseCstVisitor {
             return loopContext.result;
         }
     }
-    traceBlock(ctx, contextOrParent) {
+    traceBlock(ctx, parent) {
         // parse domain
         let domain;
         if (ctx.domain) {
@@ -179,25 +181,11 @@ class AirVisitor extends BaseCstVisitor {
             domain = { start: domainInterval[0], end: domainInterval[1] };
         }
         else {
-            domain = contextOrParent.domain;
+            domain = parent.domain;
         }
-        if (contextOrParent instanceof contexts_1.ExecutionContext) {
+        if (parent instanceof blocks_1.LoopTemplate) {
             if (ctx.traceLoop) {
-                const blockContext = new contexts_1.LoopBlockContext(contextOrParent);
-                const initResult = this.visit(ctx.initExpression, blockContext);
-                const loopResult = this.visit(ctx.traceLoop, blockContext);
-                return blockContext.buildResult(initResult, loopResult);
-            }
-            else {
-                const blockContext = new contexts_1.LoopBaseContext(contextOrParent);
-                const initResult = this.visit(ctx.initExpression, blockContext);
-                const segmentResults = ctx.traceSegments.map((loop) => this.visit(loop, blockContext));
-                return blockContext.buildResult(initResult, segmentResults);
-            }
-        }
-        else {
-            if (ctx.traceLoop) {
-                const template = new blocks_1.LoopTemplate(domain, contextOrParent);
+                const template = new blocks_1.LoopTemplate(domain, parent);
                 this.visit(ctx.traceLoop, template);
                 return template;
             }
@@ -205,6 +193,20 @@ class AirVisitor extends BaseCstVisitor {
                 const template = new blocks_1.LoopBaseTemplate(domain);
                 ctx.traceSegments.forEach((segment) => template.addSegment(this.visit(segment)));
                 return template;
+            }
+        }
+        else {
+            if (ctx.traceLoop) {
+                const blockContext = new contexts_1.LoopBlockContext(parent, domain);
+                const initResult = this.visit(ctx.initExpression, blockContext);
+                const loopResult = this.visit(ctx.traceLoop, blockContext);
+                return blockContext.buildResult(initResult, loopResult);
+            }
+            else {
+                const blockContext = new contexts_1.LoopBaseContext(parent, domain);
+                const initResult = this.visit(ctx.initExpression, blockContext);
+                const segmentResults = ctx.traceSegments.map((loop) => this.visit(loop, blockContext));
+                return blockContext.buildResult(initResult, segmentResults);
             }
         }
     }

@@ -44,7 +44,7 @@ export class ExecutionContext implements Context {
 
         if (domain) {
             // TODO: narrow domain
-            this.domain = parent.domain;
+            this.domain = domain;
         }
         else {
             this.domain = parent.domain;
@@ -106,14 +106,11 @@ export class ExecutionContext implements Context {
     getLoopControllerId(): number[] {
         const id: number[] = [];
         let parent = this.parent;
-        let child: Context = this;
         while (parent instanceof ExecutionContext) {
-            const blocks: any[] = (parent as any).blocks;
+            const blocks: any[] = (parent as any).blockResults;
             if (blocks) {
-                const index = blocks.indexOf(child);
-                id.push(index);
+                id.push(blocks.length);
             }
-            child = parent;
             parent = parent.parent;
         }
         return id;

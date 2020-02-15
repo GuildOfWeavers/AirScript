@@ -183,17 +183,19 @@ class AirVisitor extends BaseCstVisitor {
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    traceLoop(ctx: any, contextOrParent: LoopTemplate | LoopContext): Expression | void {
+    traceLoop(ctx: any, templateOrParent: LoopTemplate | ExecutionContext): void | Expression {
 
         // parse inputs
         const inputs: string[] = ctx.inputs.map((input: any) => input.image);
-        contextOrParent.setInputs(inputs);
 
-        if (contextOrParent instanceof LoopTemplate) {
-            ctx.blocks.forEach((b: any) => contextOrParent.addBlock(this.visit(b, contextOrParent)));
+        // parse loop body
+        if (templateOrParent instanceof LoopTemplate) {
+            templateOrParent.setInputs(inputs);
+            ctx.blocks.forEach((b: any) => templateOrParent.addBlock(this.visit(b, templateOrParent)));
         }
         else {
-            const loopContext = new LoopContext(contextOrParent, inputs);
+            // create a new context for the loop
+            const loopContext = new LoopContext(templateOrParent, inputs);
 
             // parse outer statements
             if (ctx.statements) {
@@ -205,7 +207,7 @@ class AirVisitor extends BaseCstVisitor {
         }
     }
 
-    traceBlock(ctx: any, contextOrParent: ExecutionContext | LoopTemplate): Expression | TraceTemplate {
+    traceBlock(ctx: any, parent: LoopTemplate | LoopContext): TraceTemplate | Expression {
 
         // parse domain
         let domain: TraceDomain;
@@ -214,26 +216,12 @@ class AirVisitor extends BaseCstVisitor {
             domain = { start: domainInterval[0], end: domainInterval[1] };
         }
         else {
-            domain = contextOrParent.domain;
+            domain = parent.domain;
         }
 
-        if (contextOrParent instanceof ExecutionContext) {
+        if (parent instanceof LoopTemplate) {
             if (ctx.traceLoop) {
-                const blockContext = new LoopBlockContext(contextOrParent);
-                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
-                const loopResult: Expression = this.visit(ctx.traceLoop, blockContext);
-                return blockContext.buildResult(initResult, loopResult);
-            }
-            else {
-                const blockContext = new LoopBaseContext(contextOrParent);
-                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
-                const segmentResults: Expression[] = ctx.traceSegments.map((loop: any) => this.visit(loop, blockContext));
-                return blockContext.buildResult(initResult, segmentResults);
-            }
-        }
-        else {
-            if (ctx.traceLoop) {
-                const template = new LoopTemplate(domain, contextOrParent);
+                const template = new LoopTemplate(domain, parent);
                 this.visit(ctx.traceLoop, template);
                 return template;
             }
@@ -241,6 +229,20 @@ class AirVisitor extends BaseCstVisitor {
                 const template = new LoopBaseTemplate(domain);
                 ctx.traceSegments.forEach((segment: any) => template.addSegment(this.visit(segment)));
                 return template;
+            }
+        }
+        else {
+            if (ctx.traceLoop) {
+                const blockContext = new LoopBlockContext(parent, domain);
+                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
+                const loopResult: Expression = this.visit(ctx.traceLoop, blockContext);
+                return blockContext.buildResult(initResult, loopResult);
+            }
+            else {
+                const blockContext = new LoopBaseContext(parent, domain);
+                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
+                const segmentResults: Expression[] = ctx.traceSegments.map((loop: any) => this.visit(loop, blockContext));
+                return blockContext.buildResult(initResult, segmentResults);
             }
         }
     }

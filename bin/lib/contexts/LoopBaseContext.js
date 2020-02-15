@@ -6,8 +6,8 @@ const Context_1 = require("./Context");
 class LoopBaseContext extends Context_1.ExecutionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(parent) {
-        super(parent);
+    constructor(parent, domain) {
+        super(parent, domain);
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------

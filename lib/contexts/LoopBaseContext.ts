@@ -1,8 +1,8 @@
 // IMPORTS
 // ================================================================================================
+import { TraceDomain } from "@guildofweavers/air-script";
 import { Expression } from "@guildofweavers/air-assembly";
 import { Context, ExecutionContext } from "./Context";
-import { validate } from "../utils";
 
 // CLASS DECLARATION
 // ================================================================================================
@@ -10,8 +10,8 @@ export class LoopBaseContext extends ExecutionContext {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(parent: Context) {
-        super(parent);
+    constructor(parent: Context, domain?: TraceDomain) {
+        super(parent, domain);
     }
 
     // ACCESSORS
