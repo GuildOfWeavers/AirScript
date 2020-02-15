@@ -1,14 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-// IMPORTS
-// ================================================================================================
 const air_assembly_1 = require("@guildofweavers/air-assembly");
 const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
 const Module_1 = require("./Module");
 const contexts_1 = require("./contexts");
-const ExecutionTemplate_1 = require("./ExecutionTemplate");
 const blocks_1 = require("./blocks");
 // MODULE VARIABLES
 // ================================================================================================
@@ -132,15 +129,13 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx, mOrC) {
         if (mOrC instanceof Module_1.Module) {
-            const template = new ExecutionTemplate_1.ExecutionTemplate(mOrC.field);
-            const t = this.visit(ctx.inputLoop, template);
-            const registers = { inputs: [], masks: [], segments: [] };
-            t.buildRegisterSpecs(registers, mOrC.symbols, [0]);
+            const rootTemplate = this.visit(ctx.traceLoop, { domain: { start: 0, end: 0 } }); // TODO
+            const template = new blocks_1.ExecutionTemplate(rootTemplate, mOrC.symbols); // TODO
             return template;
         }
         else {
             const exc = mOrC.createExecutionContext('transition');
-            const result = this.visit(ctx.inputLoop, exc);
+            const result = this.visit(ctx.traceLoop, exc);
             mOrC.setTransitionFunction(exc, result);
         }
     }
@@ -152,75 +147,69 @@ class AirVisitor extends BaseCstVisitor {
             component.setConstraintEvaluator(exc, result);
         }
         else {
-            const result = this.visit(ctx.inputLoop, exc);
+            const result = this.visit(ctx.traceLoop, exc);
             component.setConstraintEvaluator(exc, result);
         }
     }
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputLoop(ctx, tOrC) {
+    traceLoop(ctx, contextOrParent) {
         const inputs = ctx.inputs.map((input) => input.image);
-        if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
-            const rank = (tOrC.loops.length === 0 ? undefined : tOrC.loops.length - 1); // TODO
-            tOrC.addLoop(inputs);
-            const block = this.visit(ctx.block, tOrC);
-            const template = new blocks_1.LoopTemplate({ start: 0, end: 0 }, inputs, rank);
-            template.addBlock(block);
-            return template;
-        }
-        else {
-            const loopContext = new contexts_1.LoopContext(tOrC, inputs);
+        if (contextOrParent instanceof contexts_1.ExecutionContext || contextOrParent instanceof contexts_1.RootContext) {
+            const loopContext = new contexts_1.LoopContext(contextOrParent, inputs);
             // parse outer statements
             if (ctx.statements) {
                 ctx.statements.forEach((s) => this.visit(s, loopContext));
             }
-            // parse function calls
-            if (ctx.functionCalls) {
-                ctx.functionCalls.forEach((c) => this.visit(c, loopContext));
-            }
-            const result = this.visit(ctx.block, loopContext);
-            loopContext.addBlock(result);
-            return loopContext.result;
-        }
-    }
-    traceBlock(ctx, tOrC) {
-        if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
-            // parse body expression
-            if (ctx.inputLoop) {
-                return this.visit(ctx.inputLoop, tOrC);
+            if (ctx.block) {
+                const result = this.visit(ctx.block, loopContext);
+                loopContext.addBlock(result);
             }
             else {
-                const template = new blocks_1.LoopBaseTemplate({ start: 0, end: 0 }); // TODO
-                ctx.traceSegments.forEach((segment) => {
-                    const intervals = this.visit(segment);
-                    tOrC.addSegment(intervals);
-                    template.addSegment(intervals);
-                });
-                return template;
+                const domains = ctx.domains.map((d) => this.visit(d));
+                ctx.blocks.forEach((b) => this.visit(b, loopContext));
+                // TODO
             }
+            return loopContext.result;
         }
         else {
-            if (ctx.inputLoop) {
-                const blockContext = new contexts_1.LoopBlockContext(tOrC);
+            const template = new blocks_1.LoopTemplate(contextOrParent, inputs);
+            const block = this.visit(ctx.block, template);
+            template.addBlock(block);
+            return template;
+        }
+    }
+    traceBlock(ctx, contextOrParent) {
+        if (contextOrParent instanceof contexts_1.ExecutionContext) {
+            if (ctx.traceLoop) {
+                const blockContext = new contexts_1.LoopBlockContext(contextOrParent);
                 const initResult = this.visit(ctx.initExpression, blockContext);
-                const loopResult = this.visit(ctx.inputLoop, blockContext);
+                const loopResult = this.visit(ctx.traceLoop, blockContext);
                 return blockContext.buildResult(initResult, loopResult);
             }
             else {
-                const blockContext = new contexts_1.LoopBaseContext(tOrC);
+                const blockContext = new contexts_1.LoopBaseContext(contextOrParent);
                 const initResult = this.visit(ctx.initExpression, blockContext);
                 const segmentResults = ctx.traceSegments.map((loop) => this.visit(loop, blockContext));
                 return blockContext.buildResult(initResult, segmentResults);
             }
         }
+        else {
+            if (ctx.traceLoop) {
+                return this.visit(ctx.traceLoop, contextOrParent);
+            }
+            else {
+                const template = new blocks_1.LoopBaseTemplate(contextOrParent);
+                ctx.traceSegments.forEach((segment) => template.addSegment(this.visit(segment)));
+                return template;
+            }
+        }
     }
     traceSegment(ctx, exc) {
-        if (exc) {
+        if (exc)
             return this.visit(ctx.body, exc);
-        }
-        else {
+        else
             return ctx.ranges.map((range) => this.visit(range));
-        }
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------

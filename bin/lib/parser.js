@@ -140,13 +140,13 @@ class AirParser extends chevrotain_1.CstParser {
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: ['yield'] });
+            this.SUBRULE(this.traceLoop, { LABEL: 'traceLoop', ARGS: ['yield'] });
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
             this.OR([
-                { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: ['enforce'] }) },
+                { ALT: () => this.SUBRULE(this.traceLoop, { LABEL: 'traceLoop', ARGS: ['enforce'] }) },
                 { ALT: () => {
                         this.CONSUME(lexer_1.For);
                         this.CONSUME(lexer_1.All);
@@ -158,7 +158,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         // LOOPS
         // --------------------------------------------------------------------------------------------
-        this.inputLoop = this.RULE('inputLoop', (context) => {
+        this.traceLoop = this.RULE('traceLoop', (context) => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Each);
             this.CONSUME(lexer_1.LParen);
@@ -186,7 +186,7 @@ class AirParser extends chevrotain_1.CstParser {
             this.SUBRULE(this.statementBlock, { LABEL: 'initExpression', ARGS: [context] });
             this.OR([
                 { ALT: () => {
-                        this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: [context] });
+                        this.SUBRULE(this.traceLoop, { LABEL: 'traceLoop', ARGS: [context] });
                     } },
                 { ALT: () => this.AT_LEAST_ONE(() => {
                         this.SUBRULE(this.traceSegment, { LABEL: 'traceSegments', ARGS: [context] });

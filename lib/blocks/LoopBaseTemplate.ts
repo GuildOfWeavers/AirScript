@@ -1,13 +1,10 @@
 // IMPORTS
 // ================================================================================================
-import { TraceDomain } from "@guildofweavers/air-script";
+import { TraceDomain, Interval } from "@guildofweavers/air-script";
 import { TraceTemplate, RegisterSpecs } from "./TraceTemplate";
 import { validate } from "../utils";
 import { SymbolInfo } from "../Module";
-
-// INTERFACES
-// ================================================================================================
-type Interval = [number, number];
+import { LoopTemplate } from "./LoopTemplate";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -20,8 +17,8 @@ export class LoopBaseTemplate extends TraceTemplate {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain: TraceDomain) {
-        super(domain);
+    constructor(parent: LoopTemplate, domain?: TraceDomain) {
+        super(parent, domain);
         this.masks = [];
         this._stepsToIntervals = new Map();
         this._cycleLength = 0;
@@ -86,7 +83,7 @@ export class LoopBaseTemplate extends TraceTemplate {
 
     buildRegisterSpecs(registers: RegisterSpecs, symbols: Map<string, SymbolInfo>, path: number[]): void {
         this.masks.forEach((mask, i) => {
-            registers.segments.push({ values: mask, path: path.concat([i])});
+            registers.segments.push({ mask, path: path.concat([i])});
         });
     }
 }

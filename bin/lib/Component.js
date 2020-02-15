@@ -11,12 +11,7 @@ class Component {
         this.schema = schema;
         this.procedures = procedures;
         this.symbols = symbols;
-        this.maskRegisters = [];
-        procedures.inputRegisters.forEach((r, i) => {
-            if (r.loopAnchor) {
-                this.maskRegisters.push({ input: i });
-            }
-        });
+        this.maskRegisters = procedures.maskRegisters;
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------

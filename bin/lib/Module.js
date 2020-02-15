@@ -82,10 +82,10 @@ class Module {
     }
     createComponent(template) {
         // make sure the template is valid
-        utils_1.validate(utils_1.isPowerOf2(template.cycleLength), errors.cycleLengthNotPowerOf2(template.cycleLength));
-        for (let i = 1; i < template.cycleLength; i++) {
-            utils_1.validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
-        }
+        //validate(isPowerOf2(template.cycleLength), errors.cycleLengthNotPowerOf2(template.cycleLength));
+        //for (let i = 1; i < template.cycleLength; i++) {
+        //validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
+        //}
         const procedureSpecs = this.buildProcedureSpecs(template);
         const symbols = this.transformSymbols(procedureSpecs.auxRegisterOffset);
         return new Component_1.Component(this.schema, procedureSpecs, symbols);
@@ -124,10 +124,9 @@ class Module {
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
     buildProcedureSpecs(template) {
-        const inputRegisters = this.buildInputRegisters(template);
-        const segmentMasks = template.segments.map(s => s.mask);
-        const auxRegisterOffset = inputRegisters.length + segmentMasks.length + template.loops.length;
-        const staticRegisterCount = auxRegisterOffset + this.auxRegisters.length;
+        const inputRegisters = template.registers.inputs;
+        const segmentMasks = template.registers.segments.map(s => s.mask);
+        const staticRegisterCount = template.auxRegisterOffset + this.auxRegisters.length;
         return {
             transition: {
                 handle: utils_1.TRANSITION_FN_HANDLE,
@@ -146,7 +145,7 @@ class Module {
                     { name: utils_1.ProcedureParams.staticRow, dimensions: [staticRegisterCount, 0] }
                 ]
             },
-            inputRegisters, segmentMasks, auxRegisterOffset
+            inputRegisters, segmentMasks, auxRegisterOffset: template.auxRegisterOffset, maskRegisters: template.registers.masks // TODO
         };
     }
     buildProcedureParams(context) {
@@ -164,39 +163,6 @@ class Module {
         }
         params.push(context.buildLoadExpression('load.static', 0));
         return params;
-    }
-    buildInputRegisters(template) {
-        const registers = [];
-        const registerSet = new Set();
-        const anchors = [];
-        let masterParent = undefined;
-        template.loops.forEach((loop, i) => {
-            anchors.push(registers.length);
-            let j = 0;
-            const masterPeer = { relation: 'peerof', index: registers.length };
-            loop.inputs.forEach(inputName => {
-                utils_1.validate(!registerSet.has(inputName), errors.overusedInput(inputName));
-                const symbol = this.symbols.get(inputName);
-                utils_1.validate(symbol !== undefined, errors.undeclaredInput(inputName));
-                utils_1.validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
-                utils_1.validate(symbol.rank === i, errors.inputRankMismatch(inputName));
-                for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
-                    const isAnchor = (j === 0);
-                    const isLeaf = (i === template.loops.length - 1);
-                    registers.push({
-                        scope: symbol.scope,
-                        binary: symbol.binary,
-                        master: isAnchor || isLeaf ? masterParent : masterPeer,
-                        steps: isLeaf ? template.cycleLength : undefined,
-                        loopAnchor: isAnchor
-                    });
-                    j++;
-                }
-                registerSet.add(inputName);
-            });
-            masterParent = { relation: 'childof', index: anchors[anchors.length - 1] };
-        });
-        return registers;
     }
     transformSymbols(staticOffset) {
         const symbols = new Map();

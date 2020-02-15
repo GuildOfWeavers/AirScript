@@ -6,7 +6,7 @@ import {
 } from "@guildofweavers/air-assembly";
 import * as path from 'path';
 import { Component, ProcedureSpecs, InputRegister } from "./Component";
-import { ExecutionTemplate } from "./ExecutionTemplate";
+import { ExecutionTemplate } from "./blocks";
 import { validate, validateSymbolName, isPowerOf2, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE } from "./utils";
 import { importConstants, importFunctions, ImportOffsets, importComponent } from "./importer";
 
@@ -147,10 +147,10 @@ export class Module {
 
     createComponent(template: ExecutionTemplate): Component {
         // make sure the template is valid
-        validate(isPowerOf2(template.cycleLength), errors.cycleLengthNotPowerOf2(template.cycleLength));
-        for (let i = 1; i < template.cycleLength; i++) {
-            validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
-        }
+        //validate(isPowerOf2(template.cycleLength), errors.cycleLengthNotPowerOf2(template.cycleLength));
+        //for (let i = 1; i < template.cycleLength; i++) {
+            //validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
+        //}
 
         const procedureSpecs = this.buildProcedureSpecs(template);
         const symbols = this.transformSymbols(procedureSpecs.auxRegisterOffset);
@@ -198,10 +198,9 @@ export class Module {
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
     private buildProcedureSpecs(template: ExecutionTemplate): ProcedureSpecs {
-        const inputRegisters = this.buildInputRegisters(template);
-        const segmentMasks = template.segments.map(s => s.mask);
-        const auxRegisterOffset = inputRegisters.length + segmentMasks.length + template.loops.length;
-        const staticRegisterCount = auxRegisterOffset + this.auxRegisters.length;
+        const inputRegisters = template.registers.inputs;
+        const segmentMasks = template.registers.segments.map(s => s.mask);
+        const staticRegisterCount = template.auxRegisterOffset + this.auxRegisters.length;
 
         return {
             transition: {
@@ -221,7 +220,7 @@ export class Module {
                     { name: ProcedureParams.staticRow,    dimensions: [staticRegisterCount, 0] }
                 ]
             },
-            inputRegisters, segmentMasks, auxRegisterOffset
+            inputRegisters, segmentMasks, auxRegisterOffset: template.auxRegisterOffset, maskRegisters: template.registers.masks // TODO
         };
     }
 
@@ -243,47 +242,6 @@ export class Module {
         params.push(context.buildLoadExpression('load.static', 0));
 
         return params;
-    }
-
-    private buildInputRegisters(template: ExecutionTemplate): InputRegister[] {
-        const registers: InputRegister[] = [];
-        const registerSet = new Set<string>();
-        const anchors: number[] = [];
-        
-        let masterParent : InputRegisterMaster | undefined = undefined;
-        template.loops.forEach((loop, i) => {
-            anchors.push(registers.length);
-            
-            let j = 0;
-            const masterPeer: InputRegisterMaster = { relation: 'peerof', index: registers.length };
-            loop.inputs.forEach(inputName => {
-                validate(!registerSet.has(inputName), errors.overusedInput(inputName));
-                const symbol = this.symbols.get(inputName) as InputInfo;
-                validate(symbol !== undefined, errors.undeclaredInput(inputName));
-                validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
-                validate(symbol.rank === i, errors.inputRankMismatch(inputName));
-                
-                for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
-                    const isAnchor = (j === 0);
-                    const isLeaf = (i === template.loops.length - 1);
-    
-                    registers.push({
-                        scope       : symbol.scope,
-                        binary      : symbol.binary,
-                        master      : isAnchor || isLeaf ? masterParent : masterPeer,
-                        steps       : isLeaf ? template.cycleLength : undefined,
-                        loopAnchor  : isAnchor
-                    });
-                    j++;
-                }
-
-                registerSet.add(inputName);
-            });
-
-            masterParent = { relation: 'childof', index: anchors[anchors.length - 1] };
-        });
-
-        return registers;
     }
 
     private transformSymbols(staticOffset: number): Map<string, SymbolInfo> {

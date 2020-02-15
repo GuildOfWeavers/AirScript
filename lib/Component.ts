@@ -24,7 +24,7 @@ export interface MaskRegister {
 }
 
 export interface SegmentRegister {
-    readonly values : bigint[];
+    readonly mask   : bigint[];
     readonly path   : number[];
 }
 
@@ -40,6 +40,7 @@ export interface ProcedureSpecs {
         readonly params : { name: string, dimensions: Dimensions }[];
     };
     readonly inputRegisters     : InputRegister[];
+    readonly maskRegisters      : MaskRegister[];
     readonly segmentMasks       : bigint[][];
     readonly auxRegisterOffset  : number;
 }
@@ -68,12 +69,7 @@ export class Component {
         this.procedures = procedures;
         this.symbols = symbols;
 
-        this.maskRegisters = [];
-        procedures.inputRegisters.forEach((r, i) => {
-            if (r.loopAnchor) {
-                this.maskRegisters.push({ input: i });
-            }
-        });
+        this.maskRegisters = procedures.maskRegisters;
     }
 
     // ACCESSORS

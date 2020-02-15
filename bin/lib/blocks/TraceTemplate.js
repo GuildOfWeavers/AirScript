@@ -5,9 +5,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 class TraceTemplate {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain) {
+    constructor(parent, domain) {
         // TODO: validate start/end
-        this.domain = domain;
+        this.domain = domain ? domain : parent.domain;
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------

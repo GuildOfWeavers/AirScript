@@ -7,8 +7,8 @@ const utils_1 = require("../utils");
 class LoopBaseTemplate extends TraceTemplate_1.TraceTemplate {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain) {
-        super(domain);
+    constructor(parent, domain) {
+        super(parent, domain);
         this.masks = [];
         this._stepsToIntervals = new Map();
         this._cycleLength = 0;
@@ -63,7 +63,7 @@ class LoopBaseTemplate extends TraceTemplate_1.TraceTemplate {
     }
     buildRegisterSpecs(registers, symbols, path) {
         this.masks.forEach((mask, i) => {
-            registers.segments.push({ values: mask, path: path.concat([i]) });
+            registers.segments.push({ mask, path: path.concat([i]) });
         });
     }
 }

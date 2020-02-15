@@ -2,7 +2,7 @@
 // ================================================================================================
 import { TraceDomain } from "@guildofweavers/air-script";
 import { InputRegisterMaster } from "@guildofweavers/air-assembly";
-import { TraceTemplate, RegisterSpecs } from "./TraceTemplate";
+import { TraceTemplate, RegisterSpecs, TemplateContainer } from "./TraceTemplate";
 import { LoopBaseTemplate } from "./LoopBaseTemplate";
 import { SymbolInfo, InputInfo } from "../Module";
 import { validate } from "../utils";
@@ -16,7 +16,6 @@ type BlockType = typeof LoopTemplate | typeof LoopBaseTemplate;
 export class LoopTemplate extends TraceTemplate {
 
     readonly rank   : number;
-    readonly domain : TraceDomain;
     readonly inputs : Set<string>;
     readonly blocks : TraceTemplate[];
 
@@ -25,11 +24,10 @@ export class LoopTemplate extends TraceTemplate {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain: TraceDomain, inputs: string[], parentRank?: number) {
-        super(domain);
-        this.domain = domain;
+    constructor(parent: TemplateContainer, inputs: string[], domain?: TraceDomain) {
+        super(parent, domain);
         this.inputs = new Set(inputs);
-        this.rank = parentRank === undefined ? 0 : parentRank + 1;
+        this.rank = (parent instanceof LoopTemplate ? parent.rank + 1 : 0);
         this.blocks = [];
         this.registerMap = new Array(this.domainWidth);
     }

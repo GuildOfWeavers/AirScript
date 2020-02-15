@@ -8,11 +8,10 @@ const utils_1 = require("../utils");
 class LoopTemplate extends TraceTemplate_1.TraceTemplate {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain, inputs, parentRank) {
-        super(domain);
-        this.domain = domain;
+    constructor(parent, inputs, domain) {
+        super(parent, domain);
         this.inputs = new Set(inputs);
-        this.rank = parentRank === undefined ? 0 : parentRank + 1;
+        this.rank = (parent instanceof LoopTemplate ? parent.rank + 1 : 0);
         this.blocks = [];
         this.registerMap = new Array(this.domainWidth);
     }

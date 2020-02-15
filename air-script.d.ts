@@ -28,6 +28,7 @@ declare module '@guildofweavers/air-script' {
 
     // INTERNAL INTERFACES
     // --------------------------------------------------------------------------------------------
+    export type Interval = [number, number];
     export interface TraceDomain {
         readonly start  : number;
         readonly end    : number;

@@ -157,14 +157,14 @@ class AirParser extends CstParser {
     // --------------------------------------------------------------------------------------------
     private transitionFunction = this.RULE('transitionFunction', () => {
         this.CONSUME(LCurly);
-        this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: [ 'yield' ] });
+        this.SUBRULE(this.traceLoop, { LABEL: 'traceLoop', ARGS: [ 'yield' ] });
         this.CONSUME(RCurly);
     });
 
     private transitionConstraints = this.RULE('transitionConstraints', () => {
         this.CONSUME(LCurly);
         this.OR([
-            { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: [ 'enforce' ] })},
+            { ALT: () => this.SUBRULE(this.traceLoop, { LABEL: 'traceLoop', ARGS: [ 'enforce' ] })},
             { ALT: () => {
                 this.CONSUME(For);
                 this.CONSUME(All);
@@ -177,7 +177,7 @@ class AirParser extends CstParser {
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    private inputLoop = this.RULE('inputLoop', (context: 'yield' | 'enforce') => {
+    private traceLoop = this.RULE('traceLoop', (context: 'yield' | 'enforce') => {
         this.CONSUME(For);
         this.CONSUME(Each);
         this.CONSUME(LParen);
@@ -206,7 +206,7 @@ class AirParser extends CstParser {
         this.SUBRULE(this.statementBlock,       { LABEL: 'initExpression', ARGS: [ context ] });
         this.OR([
             { ALT: () => {
-                this.SUBRULE(this.inputLoop,    { LABEL: 'inputLoop',      ARGS: [ context ] });
+                this.SUBRULE(this.traceLoop,    { LABEL: 'traceLoop',      ARGS: [ context ] });
             }},
             { ALT: () => this.AT_LEAST_ONE(() => {
                 this.SUBRULE(this.traceSegment, { LABEL: 'traceSegments',  ARGS: [ context ] });

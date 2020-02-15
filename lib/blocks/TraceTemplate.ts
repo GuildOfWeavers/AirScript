@@ -13,6 +13,10 @@ export interface RegisterSpecs {
     readonly segments   : SegmentRegister[]
 }
 
+export interface TemplateContainer {
+    readonly domain     : TraceDomain;
+}
+
 // CLASS DEFINITION
 // ================================================================================================
 export abstract class TraceTemplate {
@@ -21,9 +25,9 @@ export abstract class TraceTemplate {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain: TraceDomain) {
+    constructor(parent: TemplateContainer, domain?: TraceDomain) {
         // TODO: validate start/end
-        this.domain = domain;
+        this.domain = domain ? domain : parent.domain;
     }
 
     // ACCESSORS
@@ -34,7 +38,7 @@ export abstract class TraceTemplate {
 
     abstract get isComplete(): boolean;
 
-    abstract buildRegisterSpecs(registers: RegisterSpecs, symbols: Map<string, SymbolInfo>, path: number[], masterParent?: InputRegisterMaster): void;
+    abstract buildRegisterSpecs(registers: RegisterSpecs, symbols: Map<string, SymbolInfo>, path: number[], parent?: InputRegisterMaster): void;
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
