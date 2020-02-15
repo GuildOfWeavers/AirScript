@@ -183,19 +183,15 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP: Comma,
-            DEF: () => this.CONSUME(Identifier,           { LABEL: 'inputs' })
+            DEF: () => this.CONSUME(Identifier,         { LABEL: 'inputs' })
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
-        this.MANY(() => this.SUBRULE(this.statement,      { LABEL: 'statements' }));
+        this.MANY(() => this.SUBRULE(this.statement,    { LABEL: 'statements' }));
         this.OR([
-            { ALT: () => this.SUBRULE1(this.traceBlock,   { LABEL: 'block', ARGS: [ context] })},
+            { ALT: () => this.SUBRULE(this.traceBlock,  { LABEL: 'blocks', ARGS: [ context] })},
             { ALT: () => this.AT_LEAST_ONE(() => {
-                this.CONSUME(With);
-                this.CONSUME(RegisterBank,                { LABEL: 'registers' });
-                this.CONSUME(LSquare);
-                this.SUBRULE(this.literalRangeExpression, { LABEL: 'domains'    });
-                this.SUBRULE2(this.traceBlock,            { LABEL: 'blocks', ARGS: [ context ] });
+                this.SUBRULE(this.traceBlockWithDomain, { LABEL: 'blocks', ARGS: [ context ] });
             })}
         ]);
         this.CONSUME(RCurly);
@@ -203,15 +199,35 @@ class AirParser extends CstParser {
 
     public traceBlock = this.RULE('traceBlock', (context?: 'yield' | 'enforce') => {
         this.CONSUME(Init);
-        this.SUBRULE(this.statementBlock,       { LABEL: 'initExpression', ARGS: [ context ] });
+        this.SUBRULE(this.statementBlock,         { LABEL: 'initExpression', ARGS: [ context ] });
         this.OR([
             { ALT: () => {
-                this.SUBRULE(this.traceLoop,    { LABEL: 'traceLoop',      ARGS: [ context ] });
+                this.SUBRULE(this.traceLoop,      { LABEL: 'traceLoop',      ARGS: [ context ] });
             }},
             { ALT: () => this.AT_LEAST_ONE(() => {
-                this.SUBRULE(this.traceSegment, { LABEL: 'traceSegments',  ARGS: [ context ] });
+                this.SUBRULE(this.traceSegment,   { LABEL: 'traceSegments',  ARGS: [ context ] });
             })}
         ]);
+    });
+
+    public traceBlockWithDomain = this.RULE('traceBlockWithDomain', (context?: 'yield' | 'enforce') => {
+        this.CONSUME(With);
+        this.CONSUME(RegisterBank,                { LABEL: 'registers' });
+        this.CONSUME(LSquare);
+        this.SUBRULE(this.literalRangeExpression, { LABEL: 'domain'    });
+        this.CONSUME(RSquare);
+        this.CONSUME(LCurly);
+        this.CONSUME(Init);
+        this.SUBRULE(this.statementBlock,         { LABEL: 'initExpression', ARGS: [ context ] });
+        this.OR([
+            { ALT: () => {
+                this.SUBRULE(this.traceLoop,      { LABEL: 'traceLoop',      ARGS: [ context ] });
+            }},
+            { ALT: () => this.AT_LEAST_ONE(() => {
+                this.SUBRULE(this.traceSegment,   { LABEL: 'traceSegments',  ARGS: [ context ] });
+            })}
+        ]);
+        this.CONSUME(RCurly);
     });
 
     private traceSegment = this.RULE('traceSegment', (context: 'yield' | 'enforce') => {

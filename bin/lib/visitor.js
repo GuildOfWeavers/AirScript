@@ -161,25 +161,42 @@ class AirVisitor extends BaseCstVisitor {
             if (ctx.statements) {
                 ctx.statements.forEach((s) => this.visit(s, loopContext));
             }
-            if (ctx.block) {
-                const result = this.visit(ctx.block, loopContext);
-                loopContext.addBlock(result);
-            }
-            else {
-                const domains = ctx.domains.map((d) => this.visit(d));
-                ctx.blocks.forEach((b) => this.visit(b, loopContext));
-                // TODO
-            }
+            ctx.blocks.forEach((b) => loopContext.addBlock(this.visit(b, loopContext)));
             return loopContext.result;
         }
         else {
             const template = new blocks_1.LoopTemplate(contextOrParent, inputs);
-            const block = this.visit(ctx.block, template);
-            template.addBlock(block);
+            ctx.blocks.forEach((b) => template.addBlock(this.visit(b, template)));
             return template;
         }
     }
     traceBlock(ctx, contextOrParent) {
+        if (contextOrParent instanceof contexts_1.ExecutionContext) {
+            if (ctx.traceLoop) {
+                const blockContext = new contexts_1.LoopBlockContext(contextOrParent);
+                const initResult = this.visit(ctx.initExpression, blockContext);
+                const loopResult = this.visit(ctx.traceLoop, blockContext);
+                return blockContext.buildResult(initResult, loopResult);
+            }
+            else {
+                const blockContext = new contexts_1.LoopBaseContext(contextOrParent);
+                const initResult = this.visit(ctx.initExpression, blockContext);
+                const segmentResults = ctx.traceSegments.map((loop) => this.visit(loop, blockContext));
+                return blockContext.buildResult(initResult, segmentResults);
+            }
+        }
+        else {
+            if (ctx.traceLoop) {
+                return this.visit(ctx.traceLoop, contextOrParent);
+            }
+            else {
+                const template = new blocks_1.LoopBaseTemplate(contextOrParent);
+                ctx.traceSegments.forEach((segment) => template.addSegment(this.visit(segment)));
+                return template;
+            }
+        }
+    }
+    traceBlockWithDomain(ctx, contextOrParent) {
         if (contextOrParent instanceof contexts_1.ExecutionContext) {
             if (ctx.traceLoop) {
                 const blockContext = new contexts_1.LoopBlockContext(contextOrParent);

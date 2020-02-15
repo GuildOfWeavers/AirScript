@@ -25,9 +25,11 @@ define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
                 //with $r[0..2] yield Hash(h, node);
                 //with $r[3..5] yield Hash(node, h);
                 
-                init { yield [0, 0, 0, 0, 0, 0]; }
-                for steps [0..63] {
-                    yield [0, 0, 0, 0, 0, 0];
+                with $r[0..5] {
+                    init { yield [0, 0, 0, 0, 0, 0]; }
+                    for steps [0..63] {
+                        yield [0, 0, 0, 0, 0, 0];
+                    }
                 }
             }
         }

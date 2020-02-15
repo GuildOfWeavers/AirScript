@@ -170,13 +170,9 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.LCurly);
             this.MANY(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
             this.OR([
-                { ALT: () => this.SUBRULE1(this.traceBlock, { LABEL: 'block', ARGS: [context] }) },
+                { ALT: () => this.SUBRULE(this.traceBlock, { LABEL: 'blocks', ARGS: [context] }) },
                 { ALT: () => this.AT_LEAST_ONE(() => {
-                        this.CONSUME(lexer_1.With);
-                        this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
-                        this.CONSUME(lexer_1.LSquare);
-                        this.SUBRULE(this.literalRangeExpression, { LABEL: 'domains' });
-                        this.SUBRULE2(this.traceBlock, { LABEL: 'blocks', ARGS: [context] });
+                        this.SUBRULE(this.traceBlockWithDomain, { LABEL: 'blocks', ARGS: [context] });
                     }) }
             ]);
             this.CONSUME(lexer_1.RCurly);
@@ -192,6 +188,25 @@ class AirParser extends chevrotain_1.CstParser {
                         this.SUBRULE(this.traceSegment, { LABEL: 'traceSegments', ARGS: [context] });
                     }) }
             ]);
+        });
+        this.traceBlockWithDomain = this.RULE('traceBlockWithDomain', (context) => {
+            this.CONSUME(lexer_1.With);
+            this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
+            this.CONSUME(lexer_1.LSquare);
+            this.SUBRULE(this.literalRangeExpression, { LABEL: 'domain' });
+            this.CONSUME(lexer_1.RSquare);
+            this.CONSUME(lexer_1.LCurly);
+            this.CONSUME(lexer_1.Init);
+            this.SUBRULE(this.statementBlock, { LABEL: 'initExpression', ARGS: [context] });
+            this.OR([
+                { ALT: () => {
+                        this.SUBRULE(this.traceLoop, { LABEL: 'traceLoop', ARGS: [context] });
+                    } },
+                { ALT: () => this.AT_LEAST_ONE(() => {
+                        this.SUBRULE(this.traceSegment, { LABEL: 'traceSegments', ARGS: [context] });
+                    }) }
+            ]);
+            this.CONSUME(lexer_1.RCurly);
         });
         this.traceSegment = this.RULE('traceSegment', (context) => {
             this.CONSUME(lexer_1.For);
