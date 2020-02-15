@@ -124,8 +124,8 @@ class Module {
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
     buildProcedureSpecs(template) {
-        const inputRegisters = template.registers.inputs;
-        const segmentMasks = template.registers.segments.map(s => s.mask);
+        const inputRegisters = template.inputRegisters;
+        const segmentMasks = template.segmentRegisters.map(s => s.mask);
         const staticRegisterCount = template.auxRegisterOffset + this.auxRegisters.length;
         return {
             transition: {
@@ -145,7 +145,7 @@ class Module {
                     { name: utils_1.ProcedureParams.staticRow, dimensions: [staticRegisterCount, 0] }
                 ]
             },
-            inputRegisters, segmentMasks, auxRegisterOffset: template.auxRegisterOffset, maskRegisters: template.registers.masks // TODO
+            inputRegisters, segmentMasks, auxRegisterOffset: template.auxRegisterOffset, maskRegisters: template.maskRegisters // TODO
         };
     }
     buildProcedureParams(context) {

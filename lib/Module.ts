@@ -5,9 +5,9 @@ import {
     CyclicRegister, PrngSequence
 } from "@guildofweavers/air-assembly";
 import * as path from 'path';
-import { Component, ProcedureSpecs, InputRegister } from "./Component";
+import { Component, ProcedureSpecs } from "./Component";
 import { ExecutionTemplate } from "./blocks";
-import { validate, validateSymbolName, isPowerOf2, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE } from "./utils";
+import { validate, validateSymbolName, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE } from "./utils";
 import { importConstants, importFunctions, ImportOffsets, importComponent } from "./importer";
 
 // INTERFACES
@@ -198,8 +198,8 @@ export class Module {
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
     private buildProcedureSpecs(template: ExecutionTemplate): ProcedureSpecs {
-        const inputRegisters = template.registers.inputs;
-        const segmentMasks = template.registers.segments.map(s => s.mask);
+        const inputRegisters = template.inputRegisters
+        const segmentMasks = template.segmentRegisters.map(s => s.mask);
         const staticRegisterCount = template.auxRegisterOffset + this.auxRegisters.length;
 
         return {
@@ -220,7 +220,7 @@ export class Module {
                     { name: ProcedureParams.staticRow,    dimensions: [staticRegisterCount, 0] }
                 ]
             },
-            inputRegisters, segmentMasks, auxRegisterOffset: template.auxRegisterOffset, maskRegisters: template.registers.masks // TODO
+            inputRegisters, segmentMasks, auxRegisterOffset: template.auxRegisterOffset, maskRegisters: template.maskRegisters // TODO
         };
     }
 

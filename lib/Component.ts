@@ -1,33 +1,13 @@
 // IMPORTS
 // ================================================================================================
-import {
-    FiniteField, AirSchema, ProcedureName, Expression, StoreOperation, Dimensions, InputRegisterMaster
-} from "@guildofweavers/air-assembly";
+import { FiniteField, AirSchema, ProcedureName, Expression, Dimensions } from "@guildofweavers/air-assembly";
+import { TraceDomain, InputRegister, MaskRegister } from "@guildofweavers/air-script";
 import { SymbolInfo, FunctionInfo } from './Module';
 import { RootContext } from "./contexts";
 import { ProcedureParams } from "./utils";
-import { TraceDomain } from "@guildofweavers/air-script";
 
 // INTERFACES
 // ================================================================================================
-export interface InputRegister {
-    readonly scope      : string;
-    readonly binary     : boolean;
-    readonly master?    : InputRegisterMaster;
-    readonly steps?     : number;
-    readonly loopAnchor?: boolean;
-}
-
-export interface MaskRegister {
-    readonly input  : number;
-    readonly path?  : number[];
-}
-
-export interface SegmentRegister {
-    readonly mask   : bigint[];
-    readonly path   : number[];
-}
-
 export interface ProcedureSpecs {
     readonly transition: {
         readonly handle : string,

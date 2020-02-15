@@ -1,9 +1,8 @@
 // IMPORTS
 // ================================================================================================
-import { TraceDomain } from "@guildofweavers/air-script";
+import { TraceDomain, InputRegister, MaskRegister, SegmentRegister } from "@guildofweavers/air-script";
 import { InputRegisterMaster } from "@guildofweavers/air-assembly";
 import { SymbolInfo } from "../Module";
-import { InputRegister, MaskRegister, SegmentRegister } from "../Component";
 
 // CLASS DEFINITION
 // ================================================================================================

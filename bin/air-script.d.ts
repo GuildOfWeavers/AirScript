@@ -2,7 +2,7 @@ declare module '@guildofweavers/air-script' {
 
     // IMPORTS AND RE-EXPORTS
     // --------------------------------------------------------------------------------------------
-    import { AirSchema } from '@guildofweavers/air-assembly';
+    import { AirSchema, InputRegisterMaster } from '@guildofweavers/air-assembly';
     export { AirSchema } from '@guildofweavers/air-assembly';
 
     // PUBLIC INTERFACES
@@ -29,8 +29,27 @@ declare module '@guildofweavers/air-script' {
     // INTERNAL INTERFACES
     // --------------------------------------------------------------------------------------------
     export type Interval = [number, number];
+
     export interface TraceDomain {
         readonly start  : number;
         readonly end    : number;
+    }
+
+    export interface InputRegister {
+        readonly scope      : string;
+        readonly binary     : boolean;
+        readonly master?    : InputRegisterMaster;
+        readonly steps?     : number;
+        readonly loopAnchor?: boolean;
+    }
+    
+    export interface MaskRegister {
+        readonly input  : number;
+        readonly path?  : number[];
+    }
+    
+    export interface SegmentRegister {
+        readonly mask   : bigint[];
+        readonly path   : number[];
     }
 }
