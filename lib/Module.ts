@@ -6,7 +6,7 @@ import {
 } from "@guildofweavers/air-assembly";
 import * as path from 'path';
 import { Component, ProcedureSpecs } from "./Component";
-import { ExecutionTemplate } from "./blocks";
+import { ExecutionTemplate } from "./templates";
 import { validate, validateSymbolName, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE } from "./utils";
 import { importConstants, importFunctions, ImportOffsets, importComponent } from "./importer";
 

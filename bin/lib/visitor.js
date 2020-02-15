@@ -6,7 +6,7 @@ const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
 const Module_1 = require("./Module");
 const contexts_1 = require("./contexts");
-const blocks_1 = require("./blocks");
+const templates_1 = require("./templates");
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser_1.parser.getBaseCstVisitorConstructor();
@@ -129,9 +129,9 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx, mOrC) {
         if (mOrC instanceof Module_1.Module) {
-            const rootTemplate = new blocks_1.LoopTemplate({ start: 0, end: mOrC.traceWidth - 1 });
+            const rootTemplate = new templates_1.LoopTemplate({ start: 0, end: mOrC.traceWidth - 1 });
             this.visit(ctx.traceLoop, rootTemplate);
-            const template = new blocks_1.ExecutionTemplate(rootTemplate, mOrC.symbols); // TODO
+            const template = new templates_1.ExecutionTemplate(rootTemplate, mOrC.symbols); // TODO
             return template;
         }
         else {
@@ -158,7 +158,7 @@ class AirVisitor extends BaseCstVisitor {
         // parse inputs
         const inputs = ctx.inputs.map((input) => input.image);
         // parse loop body
-        if (templateOrParent instanceof blocks_1.LoopTemplate) {
+        if (templateOrParent instanceof templates_1.LoopTemplate) {
             templateOrParent.setInputs(inputs);
             ctx.blocks.forEach((b) => templateOrParent.addBlock(this.visit(b, templateOrParent)));
         }
@@ -183,14 +183,14 @@ class AirVisitor extends BaseCstVisitor {
         else {
             domain = parent.domain;
         }
-        if (parent instanceof blocks_1.LoopTemplate) {
+        if (parent instanceof templates_1.LoopTemplate) {
             if (ctx.traceLoop) {
-                const template = new blocks_1.LoopTemplate(domain, parent);
+                const template = new templates_1.LoopTemplate(domain, parent);
                 this.visit(ctx.traceLoop, template);
                 return template;
             }
             else {
-                const template = new blocks_1.LoopBaseTemplate(domain);
+                const template = new templates_1.LoopBaseTemplate(domain);
                 ctx.traceSegments.forEach((segment) => template.addSegment(this.visit(segment)));
                 return template;
             }

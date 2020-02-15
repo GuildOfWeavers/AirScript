@@ -8,8 +8,8 @@ import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { Module, ImportMember, ModuleOptions } from './Module';
 import { Component } from './Component';
-import { ExecutionContext, LoopBaseContext, LoopBlockContext, LoopContext, RootContext } from './contexts';
-import { ExecutionTemplate, LoopTemplate, LoopBaseTemplate, TraceTemplate } from './blocks';
+import { ExecutionContext, LoopBaseContext, LoopBlockContext, LoopContext } from './contexts';
+import { ExecutionTemplate, LoopTemplate, LoopBaseTemplate, TraceTemplate } from './templates';
 
 // MODULE VARIABLES
 // ================================================================================================
