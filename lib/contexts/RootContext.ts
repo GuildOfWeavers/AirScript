@@ -37,6 +37,10 @@ export class RootContext implements Context {
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
+    setInputs(inputs: string[]): void {
+        // TODO: remove
+    }
+
     hasLocal(variable: string): boolean {
         return false;
     }

@@ -7,8 +7,8 @@ const utils_1 = require("../utils");
 class LoopBaseTemplate extends TraceTemplate_1.TraceTemplate {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(parent, domain) {
-        super(parent, domain);
+    constructor(domain) {
+        super(domain);
         this.masks = [];
         this._stepsToIntervals = new Map();
         this._cycleLength = 0;

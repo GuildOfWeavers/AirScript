@@ -188,46 +188,47 @@ class AirParser extends CstParser {
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
         this.MANY(() => this.SUBRULE(this.statement,    { LABEL: 'statements' }));
-        this.OR([
-            { ALT: () => this.SUBRULE(this.traceBlock,  { LABEL: 'blocks', ARGS: [ context] })},
-            { ALT: () => this.AT_LEAST_ONE(() => {
-                this.SUBRULE(this.traceBlockWithDomain, { LABEL: 'blocks', ARGS: [ context ] });
-            })}
-        ]);
+        this.AT_LEAST_ONE(() => {
+            this.SUBRULE(this.traceBlock,               { LABEL: 'blocks', ARGS: [ context ] });
+        });
         this.CONSUME(RCurly);
     });
 
     public traceBlock = this.RULE('traceBlock', (context?: 'yield' | 'enforce') => {
-        this.CONSUME(Init);
-        this.SUBRULE(this.statementBlock,         { LABEL: 'initExpression', ARGS: [ context ] });
-        this.OR([
+        this.OR1([
             { ALT: () => {
-                this.SUBRULE(this.traceLoop,      { LABEL: 'traceLoop',      ARGS: [ context ] });
+                this.CONSUME1(Init);
+                this.SUBRULE1(this.statementBlock,        { LABEL: 'initExpression', ARGS: [ context ] });
+                this.OR2([
+                    { ALT: () => {
+                        this.SUBRULE1(this.traceLoop,     { LABEL: 'traceLoop',      ARGS: [ context ] });
+                    }},
+                    { ALT: () => this.AT_LEAST_ONE1(() => {
+                        this.SUBRULE1(this.traceSegment,  { LABEL: 'traceSegments',  ARGS: [ context ] });
+                    })}
+                ]);
             }},
-            { ALT: () => this.AT_LEAST_ONE(() => {
-                this.SUBRULE(this.traceSegment,   { LABEL: 'traceSegments',  ARGS: [ context ] });
-            })}
-        ]);
-    });
-
-    public traceBlockWithDomain = this.RULE('traceBlockWithDomain', (context?: 'yield' | 'enforce') => {
-        this.CONSUME(With);
-        this.CONSUME(RegisterBank,                { LABEL: 'registers' });
-        this.CONSUME(LSquare);
-        this.SUBRULE(this.literalRangeExpression, { LABEL: 'domain'    });
-        this.CONSUME(RSquare);
-        this.CONSUME(LCurly);
-        this.CONSUME(Init);
-        this.SUBRULE(this.statementBlock,         { LABEL: 'initExpression', ARGS: [ context ] });
-        this.OR([
             { ALT: () => {
-                this.SUBRULE(this.traceLoop,      { LABEL: 'traceLoop',      ARGS: [ context ] });
-            }},
-            { ALT: () => this.AT_LEAST_ONE(() => {
-                this.SUBRULE(this.traceSegment,   { LABEL: 'traceSegments',  ARGS: [ context ] });
-            })}
+                this.CONSUME(With);
+                this.CONSUME(RegisterBank,                { LABEL: 'registers' });
+                this.CONSUME(LSquare);
+                this.SUBRULE(this.literalRangeExpression, { LABEL: 'domain'    });
+                this.CONSUME(RSquare);
+                this.CONSUME(LCurly);
+                this.CONSUME2(Init);
+                this.SUBRULE2(this.statementBlock,        { LABEL: 'initExpression', ARGS: [ context ] });
+                this.OR3([
+                    { ALT: () => {
+                        this.SUBRULE2(this.traceLoop,     { LABEL: 'traceLoop',      ARGS: [ context ] });
+                    }},
+                    { ALT: () => this.AT_LEAST_ONE2(() => {
+                        this.SUBRULE2(this.traceSegment,  { LABEL: 'traceSegments',  ARGS: [ context ] });
+                    })}
+                ]);
+                this.CONSUME(RCurly);
+            }}
         ]);
-        this.CONSUME(RCurly);
+        
     });
 
     private traceSegment = this.RULE('traceSegment', (context: 'yield' | 'enforce') => {

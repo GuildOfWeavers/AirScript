@@ -11,6 +11,9 @@ class LoopBlockContext extends Context_1.ExecutionContext {
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
+    setInputs(inputs) {
+        // TODO: remove
+    }
     buildResult(initResult, loopResult) {
         // TODO: validate dimensions
         const id = this.getLoopControllerId();

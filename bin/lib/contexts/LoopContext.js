@@ -28,6 +28,9 @@ class LoopContext extends Context_1.ExecutionContext {
     }
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
+    setInputs(inputs) {
+        // TODO: implement
+    }
     addBlock(blockResult) {
         // TODO: validate blockResult expression
         this.blockResults.push(blockResult);

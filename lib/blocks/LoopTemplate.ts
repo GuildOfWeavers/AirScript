@@ -24,10 +24,10 @@ export class LoopTemplate extends TraceTemplate {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(parent: TemplateContainer, inputs: string[], domain?: TraceDomain) {
-        super(parent, domain);
-        this.inputs = new Set(inputs);
-        this.rank = (parent instanceof LoopTemplate ? parent.rank + 1 : 0);
+    constructor(domain: TraceDomain, parent?: LoopTemplate) {
+        super(domain);
+        this.inputs = new Set();
+        this.rank = (parent ? parent.rank + 1 : 0);
         this.blocks = [];
         this.registerMap = new Array(this.domainWidth);
     }
@@ -44,6 +44,10 @@ export class LoopTemplate extends TraceTemplate {
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
+    setInputs(inputs: string[]): void {
+        inputs.forEach(input => this.inputs.add(input));
+    }
+
     addBlock(block: TraceTemplate) {
         const blockType = block.constructor as BlockType;
         if (this.blockType === undefined) {

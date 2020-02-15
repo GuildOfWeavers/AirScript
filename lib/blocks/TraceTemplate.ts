@@ -24,9 +24,9 @@ export abstract class TraceTemplate {
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(parent: TemplateContainer, domain?: TraceDomain) {
+    constructor(domain: TraceDomain) {
         // TODO: validate start/end
-        this.domain = domain ? domain : parent.domain;
+        this.domain = domain;
     }
 
     // ACCESSORS

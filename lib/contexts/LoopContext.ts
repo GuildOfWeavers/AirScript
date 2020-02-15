@@ -39,6 +39,10 @@ export class LoopContext extends ExecutionContext {
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
+    setInputs(inputs: string[]): void {
+        // TODO: implement
+    }
+
     addBlock(blockResult: Expression): void {
         // TODO: validate blockResult expression
         this.blockResults.push(blockResult);

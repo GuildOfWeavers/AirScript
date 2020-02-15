@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Interval } from '@guildofweavers/air-script';
+import { Interval, TraceDomain } from '@guildofweavers/air-script';
 import { AirSchema, Expression, PrngSequence } from '@guildofweavers/air-assembly';
 import { FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
@@ -156,7 +156,8 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx: any, mOrC: Module | Component): ExecutionTemplate | void {
         if (mOrC instanceof Module) {
-            const rootTemplate = this.visit(ctx.traceLoop, { domain: { start: 0, end: 0 }}); // TODO
+            const rootTemplate = new LoopTemplate({ start: 0, end: mOrC.traceWidth - 1 });
+            this.visit(ctx.traceLoop, rootTemplate);
             const template = new ExecutionTemplate(rootTemplate, (mOrC as any).symbols); // TODO
             return template;
         }
@@ -182,10 +183,16 @@ class AirVisitor extends BaseCstVisitor {
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    traceLoop(ctx: any, contextOrParent: ExecutionContext | LoopTemplate): Expression | LoopTemplate {
-        const inputs: string[] = ctx.inputs.map((input: any) => input.image);
+    traceLoop(ctx: any, contextOrParent: LoopTemplate | LoopContext): Expression | void {
 
-        if (contextOrParent instanceof ExecutionContext || contextOrParent instanceof RootContext) {
+        // parse inputs
+        const inputs: string[] = ctx.inputs.map((input: any) => input.image);
+        contextOrParent.setInputs(inputs);
+
+        if (contextOrParent instanceof LoopTemplate) {
+            ctx.blocks.forEach((b: any) => contextOrParent.addBlock(this.visit(b, contextOrParent)));
+        }
+        else {
             const loopContext = new LoopContext(contextOrParent, inputs);
 
             // parse outer statements
@@ -196,15 +203,20 @@ class AirVisitor extends BaseCstVisitor {
             ctx.blocks.forEach((b: any) => loopContext.addBlock(this.visit(b, loopContext)));
             return loopContext.result;
         }
-        else {
-            const template = new LoopTemplate(contextOrParent, inputs);
-            ctx.blocks.forEach((b: any) => template.addBlock(this.visit(b, template)));
-            return template;
-        }
     }
 
     traceBlock(ctx: any, contextOrParent: ExecutionContext | LoopTemplate): Expression | TraceTemplate {
 
+        // parse domain
+        let domain: TraceDomain;
+        if (ctx.domain) {
+            const domainInterval: Interval = this.visit(ctx.domain);
+            domain = { start: domainInterval[0], end: domainInterval[1] };
+        }
+        else {
+            domain = contextOrParent.domain;
+        }
+
         if (contextOrParent instanceof ExecutionContext) {
             if (ctx.traceLoop) {
                 const blockContext = new LoopBlockContext(contextOrParent);
@@ -221,38 +233,12 @@ class AirVisitor extends BaseCstVisitor {
         }
         else {
             if (ctx.traceLoop) {
-                return this.visit(ctx.traceLoop, contextOrParent);
-            }
-            else {
-                const template = new LoopBaseTemplate(contextOrParent);
-                ctx.traceSegments.forEach((segment: any) => template.addSegment(this.visit(segment)));
+                const template = new LoopTemplate(domain, contextOrParent);
+                this.visit(ctx.traceLoop, template);
                 return template;
             }
-        }
-    }
-
-    traceBlockWithDomain(ctx: any, contextOrParent: ExecutionContext | LoopTemplate): Expression | TraceTemplate {
-
-        if (contextOrParent instanceof ExecutionContext) {
-            if (ctx.traceLoop) {
-                const blockContext = new LoopBlockContext(contextOrParent);
-                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
-                const loopResult: Expression = this.visit(ctx.traceLoop, blockContext);
-                return blockContext.buildResult(initResult, loopResult);
-            }
             else {
-                const blockContext = new LoopBaseContext(contextOrParent);
-                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
-                const segmentResults: Expression[] = ctx.traceSegments.map((loop: any) => this.visit(loop, blockContext));
-                return blockContext.buildResult(initResult, segmentResults);
-            }
-        }
-        else {
-            if (ctx.traceLoop) {
-                return this.visit(ctx.traceLoop, contextOrParent);
-            }
-            else {
-                const template = new LoopBaseTemplate(contextOrParent);
+                const template = new LoopBaseTemplate(domain);
                 ctx.traceSegments.forEach((segment: any) => template.addSegment(this.visit(segment)));
                 return template;
             }

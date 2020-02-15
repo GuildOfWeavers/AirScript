@@ -17,6 +17,10 @@ export class LoopBlockContext extends ExecutionContext {
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
+    setInputs(inputs: string[]): void {
+        // TODO: remove
+    }
+
     buildResult(initResult: Expression, loopResult: Expression): Expression {
         // TODO: validate dimensions
 

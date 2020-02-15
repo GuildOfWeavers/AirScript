@@ -18,6 +18,9 @@ class RootContext {
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
+    setInputs(inputs) {
+        // TODO: remove
+    }
     hasLocal(variable) {
         return false;
     }
