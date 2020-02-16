@@ -2,7 +2,7 @@
 // ================================================================================================
 import { Interval, SymbolInfo } from "@guildofweavers/air-script";
 import { StoreOperation, FunctionContext } from "@guildofweavers/air-assembly";
-import { Context } from "./Context";
+import { Context } from "./ExecutionContext";
 import { StaticRegisterCounts } from "../Component";
 import { BLOCK_ID_PREFIX } from "../utils";
 

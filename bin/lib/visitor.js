@@ -192,18 +192,16 @@ class AirVisitor extends BaseCstVisitor {
         }
         else if (parent instanceof contexts_1.LoopContext) {
             if (ctx.traceLoop) {
-                const blockContext = new contexts_1.LoopBlockContext(parent, domain);
+                const blockContext = new contexts_1.ExecutionContext(parent, domain);
                 const initResult = this.visit(ctx.initExpression, blockContext);
                 const loopResult = this.visit(ctx.traceLoop, blockContext);
-                const result = blockContext.buildResult(initResult, loopResult);
-                parent.addBlock(result);
+                parent.addLoopBlock(initResult, loopResult);
             }
             else if (ctx.traceSegments) {
-                const blockContext = new contexts_1.LoopBaseContext(parent, domain);
+                const blockContext = new contexts_1.ExecutionContext(parent, domain);
                 const initResult = this.visit(ctx.initExpression, blockContext);
                 const segmentResults = ctx.traceSegments.map((loop) => this.visit(loop, blockContext));
-                const result = blockContext.buildResult(initResult, segmentResults);
-                parent.addBlock(result);
+                parent.addBaseBlock(initResult, segmentResults);
             }
             else {
                 // TODO: process delegate call

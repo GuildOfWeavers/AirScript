@@ -1,16 +1,16 @@
 // IMPORTS
 // ================================================================================================
 import { Expression } from "@guildofweavers/air-assembly";
-import { Context, ExecutionContext } from "./Context";
+import { Context, ExecutionContext } from "./ExecutionContext";
 import { validate } from "../utils";
 
 // CLASS DEFINITION
 // ================================================================================================
 export class LoopContext extends ExecutionContext {
 
-    readonly blockResults   : Expression[];
     readonly rank           : number;
-
+    readonly blockResults   : Expression[];
+    
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(parent: Context, inputs: string[]) {
@@ -43,9 +43,47 @@ export class LoopContext extends ExecutionContext {
         // TODO: implement
     }
 
-    addBlock(blockResult: Expression): void {
-        // TODO: validate blockResult expression
-        this.blockResults.push(blockResult);
+    addBaseBlock(initResult: Expression, segmentResults: Expression[]): void {
+        // initializer result
+        const controller = this.getLoopController(this.rank);
+        let result: Expression = this.base.buildBinaryOperation('mul', initResult, controller);
+
+        // segment results
+        segmentResults.forEach((expression, i) => {
+            const resultControl = this.getSegmentController(i);
+            expression = this.base.buildBinaryOperation('mul', expression, resultControl);
+            result = this.base.buildBinaryOperation('add', result, expression);
+        });
+
+        // store result in a local variable
+        const resultHandle = `${this.id}t`; // TODO?
+        this.base.addLocal(initResult.dimensions, resultHandle);  // TODO: better way to get dimensions
+        this.statements.push(this.base.buildStoreOperation(resultHandle, result));
+
+        this.blockResults.push(this.base.buildLoadExpression(`load.local`, resultHandle));
+    }
+
+    addLoopBlock(initResult: Expression, loopResult: Expression): void {
+        // TODO: validate dimensions
+
+        const id = this.getLoopControllerId();
+
+        // initializer result
+        const controller = this.getLoopController(this.rank);
+        initResult = this.base.buildBinaryOperation('mul', initResult, controller);
+
+        // loop result
+        const one = this.base.buildLiteralValue(this.base.field.one);
+        const invController = this.base.buildBinaryOperation('sub', one, controller);
+        loopResult = this.base.buildBinaryOperation('mul', loopResult, invController);
+
+        // combine results and store them in a local variable
+        const resultHandle = `${this.id}t`; // TODO?
+        this.base.addLocal(initResult.dimensions, resultHandle);  // TODO: better way to get dimensions
+        const result = this.base.buildBinaryOperation('add', initResult, loopResult);
+        this.statements.push(this.base.buildStoreOperation(resultHandle, result));
+
+        this.blockResults.push(this.base.buildLoadExpression(`load.local`, resultHandle));
     }
 }
 

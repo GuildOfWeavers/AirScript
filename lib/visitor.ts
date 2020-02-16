@@ -8,7 +8,7 @@ import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { Module, ImportMember, ModuleOptions } from './Module';
 import { Component } from './Component';
-import { ExecutionContext, LoopBaseContext, LoopBlockContext, LoopContext } from './contexts';
+import { ExecutionContext, LoopContext } from './contexts';
 import { LoopTemplate, LoopBaseTemplate } from './templates';
 import { DelegateTemplate } from './templates/DelegateTemplate';
 
@@ -227,18 +227,16 @@ class AirVisitor extends BaseCstVisitor {
         }
         else if (parent instanceof LoopContext) {
             if (ctx.traceLoop) {
-                const blockContext = new LoopBlockContext(parent, domain);
+                const blockContext = new ExecutionContext(parent, domain);
                 const initResult: Expression = this.visit(ctx.initExpression, blockContext);
                 const loopResult: Expression = this.visit(ctx.traceLoop, blockContext);
-                const result = blockContext.buildResult(initResult, loopResult);
-                parent.addBlock(result);
+                parent.addLoopBlock(initResult, loopResult);
             }
             else if (ctx.traceSegments) {
-                const blockContext = new LoopBaseContext(parent, domain);
+                const blockContext = new ExecutionContext(parent, domain);
                 const initResult: Expression = this.visit(ctx.initExpression, blockContext);
                 const segmentResults: Expression[] = ctx.traceSegments.map((loop: any) => this.visit(loop, blockContext));
-                const result = blockContext.buildResult(initResult, segmentResults);
-                parent.addBlock(result);
+                parent.addBaseBlock(initResult, segmentResults);
             }
             else {
                 // TODO: process delegate call
@@ -250,7 +248,7 @@ class AirVisitor extends BaseCstVisitor {
         }
     }
 
-    traceSegment(ctx: any, exc?: LoopBaseContext): Expression | Interval[] {
+    traceSegment(ctx: any, exc?: ExecutionContext): Expression | Interval[] {
         if (exc) return this.visit(ctx.body, exc);
         else return ctx.ranges.map((range: any) => this.visit(range));
     }
@@ -310,7 +308,7 @@ class AirVisitor extends BaseCstVisitor {
         return exc.buildTransitionCall();
     }
 
-    delegateCall(ctx: any, exc?: LoopBaseContext): string | void {
+    delegateCall(ctx: any, exc?: ExecutionContext): string | void {
         if (!exc) {
             return ctx.delegate[0].image;
         }
