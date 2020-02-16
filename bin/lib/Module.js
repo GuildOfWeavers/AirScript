@@ -7,7 +7,6 @@ const path = require("path");
 const Component_1 = require("./Component");
 const utils_1 = require("./utils");
 const importer_1 = require("./importer");
-const Component2_1 = require("./Component2");
 // CLASS DEFINITION
 // ================================================================================================
 class Module {
@@ -82,17 +81,7 @@ class Module {
         this.symbols.set(name, { type: 'static', handle: name, offset: index, dimensions, subset: true });
     }
     createComponent(template) {
-        // make sure the template is valid
-        //validate(isPowerOf2(template.cycleLength), errors.cycleLengthNotPowerOf2(template.cycleLength));
-        //for (let i = 1; i < template.cycleLength; i++) {
-        //validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
-        //}
-        const procedureSpecs = this.buildProcedureSpecs(template);
-        const symbols = this.transformSymbols(procedureSpecs.auxRegisterOffset);
-        return new Component_1.Component(this.schema, procedureSpecs, symbols);
-    }
-    createComponent2(template) {
-        return new Component2_1.Component2(this.schema, this.traceWidth, this.constraintCount, template, this.symbols, this.auxRegisters);
+        return new Component_1.Component(this.schema, this.traceWidth, this.constraintCount, template, this.symbols, this.auxRegisters);
     }
     setComponent(component, componentName) {
         // create component object
@@ -100,11 +89,11 @@ class Module {
         // add static registers to the component
         component.inputRegisters.forEach(r => c.addInputRegister(r.scope, r.binary, r.master, r.steps, -1));
         component.maskRegisters.forEach(r => c.addMaskRegister(r.input, false));
-        component.segmentMasks.forEach(m => {
+        component.segmentRegisters.forEach(r => {
             // rotate the mask by one position to the left, to align it with input position
-            m = m.slice();
-            m.push(m.shift());
-            c.addCyclicRegister(m);
+            const mask = r.mask.slice();
+            mask.push(mask.shift());
+            c.addCyclicRegister(mask);
         });
         this.auxRegisters.forEach(r => c.addCyclicRegister(r.values));
         // set trace initializer to return a result of applying transition function to a vector of all zeros
@@ -127,31 +116,6 @@ class Module {
     }
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
-    buildProcedureSpecs(template) {
-        const inputRegisters = template.inputRegisters;
-        const segmentMasks = template.segmentRegisters.map(s => s.mask);
-        const staticRegisterCount = template.auxRegisterOffset + this.auxRegisters.length;
-        return {
-            transition: {
-                handle: utils_1.TRANSITION_FN_HANDLE,
-                result: [this.traceWidth, 0],
-                params: [
-                    { name: utils_1.ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
-                    { name: utils_1.ProcedureParams.staticRow, dimensions: [staticRegisterCount, 0] }
-                ]
-            },
-            evaluation: {
-                handle: utils_1.EVALUATION_FN_HANDLE,
-                result: [this.constraintCount, 0],
-                params: [
-                    { name: utils_1.ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
-                    { name: utils_1.ProcedureParams.nextTraceRow, dimensions: [this.traceWidth, 0] },
-                    { name: utils_1.ProcedureParams.staticRow, dimensions: [staticRegisterCount, 0] }
-                ]
-            },
-            inputRegisters, segmentMasks, auxRegisterOffset: template.auxRegisterOffset, maskRegisters: template.maskRegisters // TODO
-        };
-    }
     buildProcedureParams(context) {
         const params = [];
         if (context.name === 'init') {
@@ -167,39 +131,6 @@ class Module {
         }
         params.push(context.buildLoadExpression('load.static', 0));
         return params;
-    }
-    transformSymbols(staticOffset) {
-        const symbols = new Map();
-        const type = 'param';
-        // transform custom symbols
-        for (let [symbol, info] of this.symbols) {
-            if (info.type === 'const' || info.type === 'func') {
-                symbols.set(symbol, info);
-            }
-            else if (info.type === 'input') {
-                symbols.set(symbol, { ...info, type, handle: utils_1.ProcedureParams.staticRow });
-            }
-            else if (info.type === 'static') {
-                let offset = info.offset + staticOffset;
-                symbols.set(symbol, { ...info, type, handle: utils_1.ProcedureParams.staticRow, offset });
-            }
-            else {
-                throw new Error(`cannot transform ${info.type} symbol to component form`);
-            }
-        }
-        // create symbols for trace rows
-        let dimensions = [this.traceWidth, 0];
-        let subset = false;
-        symbols.set('$r', { type, handle: utils_1.ProcedureParams.thisTraceRow, dimensions, subset });
-        symbols.set('$n', { type, handle: utils_1.ProcedureParams.nextTraceRow, dimensions, subset });
-        // create symbols for trace registers
-        dimensions = [0, 0];
-        subset = true;
-        for (let i = 0; i < this.traceWidth; i++) {
-            symbols.set(`$r${i}`, { type, handle: utils_1.ProcedureParams.thisTraceRow, offset: i, dimensions, subset });
-            symbols.set(`$n${i}`, { type, handle: utils_1.ProcedureParams.nextTraceRow, offset: i, dimensions, subset });
-        }
-        return symbols;
     }
 }
 exports.Module = Module;

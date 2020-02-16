@@ -5,11 +5,10 @@ import {
 } from "@guildofweavers/air-assembly";
 import { SymbolInfo, InputInfo, StaticRegister } from '@guildofweavers/air-script'
 import * as path from 'path';
-import { Component, ProcedureSpecs } from "./Component";
-import { ExecutionTemplate, LoopTemplate } from "./templates";
-import { validate, validateSymbolName, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE } from "./utils";
+import { Component } from "./Component";
+import { LoopTemplate } from "./templates";
+import { validate, validateSymbolName, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE } from "./utils";
 import { importConstants, importFunctions, ImportOffsets, importComponent } from "./importer";
-import { Component2 } from "./Component2";
 
 // INTERFACES
 // ================================================================================================
@@ -36,7 +35,6 @@ export class Module {
 
     private readonly symbols    : Map<string, SymbolInfo>;
     private inputRegisterCount  : number;
-
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -120,21 +118,8 @@ export class Module {
         this.symbols.set(name, { type: 'static', handle: name, offset: index, dimensions, subset: true });
     }
 
-    createComponent(template: ExecutionTemplate): Component {
-        // make sure the template is valid
-        //validate(isPowerOf2(template.cycleLength), errors.cycleLengthNotPowerOf2(template.cycleLength));
-        //for (let i = 1; i < template.cycleLength; i++) {
-            //validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
-        //}
-
-        const procedureSpecs = this.buildProcedureSpecs(template);
-        const symbols = this.transformSymbols(procedureSpecs.auxRegisterOffset);
-
-        return new Component(this.schema, procedureSpecs, symbols);
-    }
-
-    createComponent2(template: LoopTemplate): Component2 {
-        return new Component2(this.schema, this.traceWidth, this.constraintCount, template, this.symbols, this.auxRegisters);
+    createComponent(template: LoopTemplate): Component {
+        return new Component(this.schema, this.traceWidth, this.constraintCount, template, this.symbols, this.auxRegisters);
     }
 
     setComponent(component: Component, componentName: string): void {
@@ -144,11 +129,11 @@ export class Module {
         // add static registers to the component
         component.inputRegisters.forEach(r => c.addInputRegister(r.scope, r.binary, r.master, r.steps, -1));
         component.maskRegisters.forEach(r => c.addMaskRegister(r.input, false));
-        component.segmentMasks.forEach(m => {
+        component.segmentRegisters.forEach(r => {
             // rotate the mask by one position to the left, to align it with input position
-            m = m.slice();
-            m.push(m.shift()!);
-            c.addCyclicRegister(m);
+            const mask = r.mask.slice();
+            mask.push(mask.shift()!);
+            c.addCyclicRegister(mask);
         });
         this.auxRegisters.forEach(r => c.addCyclicRegister(r.values));
 
@@ -176,33 +161,6 @@ export class Module {
 
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
-    private buildProcedureSpecs(template: ExecutionTemplate): ProcedureSpecs {
-        const inputRegisters = template.inputRegisters
-        const segmentMasks = template.segmentRegisters.map(s => s.mask);
-        const staticRegisterCount = template.auxRegisterOffset + this.auxRegisters.length;
-
-        return {
-            transition: {
-                handle  : TRANSITION_FN_HANDLE,
-                result  : [this.traceWidth, 0],
-                params  : [
-                    { name: ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
-                    { name: ProcedureParams.staticRow,    dimensions: [staticRegisterCount, 0] }
-                ]
-            },
-            evaluation: {
-                handle  : EVALUATION_FN_HANDLE,
-                result  : [this.constraintCount, 0],
-                params  : [
-                    { name: ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
-                    { name: ProcedureParams.nextTraceRow, dimensions: [this.traceWidth, 0] },
-                    { name: ProcedureParams.staticRow,    dimensions: [staticRegisterCount, 0] }
-                ]
-            },
-            inputRegisters, segmentMasks, auxRegisterOffset: template.auxRegisterOffset, maskRegisters: template.maskRegisters // TODO
-        };
-    }
-
     private buildProcedureParams(context: ProcedureContext): Expression[] {
         const params: Expression[] = [];
         
@@ -221,44 +179,6 @@ export class Module {
         params.push(context.buildLoadExpression('load.static', 0));
 
         return params;
-    }
-
-    private transformSymbols(staticOffset: number): Map<string, SymbolInfo> {
-        const symbols = new Map<string, SymbolInfo>();
-        const type = 'param' as 'param';
-
-        // transform custom symbols
-        for (let [symbol, info] of this.symbols) {
-            if (info.type === 'const' || info.type === 'func') {
-                symbols.set(symbol, info);
-            }
-            else if (info.type === 'input') {
-                symbols.set(symbol, { ...info, type, handle: ProcedureParams.staticRow });
-            }
-            else if (info.type === 'static') {
-                let offset = info.offset! + staticOffset;
-                symbols.set(symbol, { ...info, type, handle: ProcedureParams.staticRow, offset });
-            }
-            else {
-                throw new Error(`cannot transform ${info.type} symbol to component form`);
-            }
-        }
-
-        // create symbols for trace rows
-        let dimensions = [this.traceWidth, 0] as Dimensions;
-        let subset = false;
-        symbols.set('$r', { type, handle: ProcedureParams.thisTraceRow, dimensions, subset });
-        symbols.set('$n', { type, handle: ProcedureParams.nextTraceRow, dimensions, subset });
-
-        // create symbols for trace registers
-        dimensions = [0, 0];
-        subset = true;
-        for (let i = 0; i < this.traceWidth; i++) {
-            symbols.set(`$r${i}`, { type, handle: ProcedureParams.thisTraceRow, offset: i, dimensions, subset });
-            symbols.set(`$n${i}`, { type, handle: ProcedureParams.nextTraceRow, offset: i, dimensions, subset });
-        }
-
-        return symbols;
     }
 }
 

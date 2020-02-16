@@ -9,7 +9,7 @@ import { Plus, Star, Slash, Pound, Minus } from './lexer';
 import { Module, ImportMember, ModuleOptions } from './Module';
 import { Component } from './Component';
 import { ExecutionContext, LoopBaseContext, LoopBlockContext, LoopContext } from './contexts';
-import { ExecutionTemplate, LoopTemplate, LoopBaseTemplate, TraceTemplate } from './templates';
+import { LoopTemplate, LoopBaseTemplate } from './templates';
 import { DelegateTemplate } from './templates/DelegateTemplate';
 
 // MODULE VARIABLES
@@ -51,8 +51,7 @@ class AirVisitor extends BaseCstVisitor {
         ctx.inputRegisters.forEach((element: any) => this.visit(element, aModule));
 
         // determine transition function structure and use it to create a component object
-        const template: ExecutionTemplate = this.visit(ctx.transitionFunction, aModule);
-        const component = aModule.createComponent(template);
+        const component: Component = this.visit(ctx.transitionFunction, aModule);
 
         // parse transition function and constraint evaluator
         this.visit(ctx.transitionFunction, component);
@@ -155,13 +154,12 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, mOrC: Module | Component): ExecutionTemplate | void {
+    transitionFunction(ctx: any, mOrC: Module | Component): Component | void {
         if (mOrC instanceof Module) {
             const rootTemplate = new LoopTemplate([0, mOrC.traceWidth - 1]);
             this.visit(ctx.traceLoop, rootTemplate);
-            const t2 = mOrC.createComponent2(rootTemplate);
-            const template = new ExecutionTemplate(rootTemplate, (mOrC as any).symbols); // TODO
-            return template;
+            const component = mOrC.createComponent(rootTemplate);
+            return component;
         }
         else {
             const exc = mOrC.createExecutionContext('transition');

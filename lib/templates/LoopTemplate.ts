@@ -15,7 +15,7 @@ export class LoopTemplate extends TraceTemplate {
     readonly blocks : TraceTemplate[];
 
     private readonly registerMap: TraceTemplate[];
-    private isLeaf? : boolean;
+    isLeaf? : boolean;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -31,6 +31,24 @@ export class LoopTemplate extends TraceTemplate {
     // --------------------------------------------------------------------------------------------
     get isComplete(): boolean {
         return (this.registerMap.findIndex(b => b === undefined) === -1);
+    }
+
+    get ownInputs(): string[] {
+        const inputs = new Set(this.inputs);
+        for (let block of this.blocks) {
+            if (block instanceof LoopTemplate) {
+                for (let input of block.inputs) {
+                    inputs.delete(input);
+                }
+            }
+        }
+        return Array.from(inputs);
+    }
+
+    get cycleLength(): number | undefined {
+        if (this.isLeaf === true) {
+            return (this.blocks[0] as LoopBaseTemplate).cycleLength; // TODO
+        }
     }
 
     // PUBLIC FUNCTIONS

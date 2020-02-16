@@ -20,6 +20,22 @@ class LoopTemplate extends TraceTemplate_1.TraceTemplate {
     get isComplete() {
         return (this.registerMap.findIndex(b => b === undefined) === -1);
     }
+    get ownInputs() {
+        const inputs = new Set(this.inputs);
+        for (let block of this.blocks) {
+            if (block instanceof LoopTemplate) {
+                for (let input of block.inputs) {
+                    inputs.delete(input);
+                }
+            }
+        }
+        return Array.from(inputs);
+    }
+    get cycleLength() {
+        if (this.isLeaf === true) {
+            return this.blocks[0].cycleLength; // TODO
+        }
+    }
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
     setInputs(inputs) {

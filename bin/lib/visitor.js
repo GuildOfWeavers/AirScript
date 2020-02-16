@@ -39,8 +39,7 @@ class AirVisitor extends BaseCstVisitor {
         }
         ctx.inputRegisters.forEach((element) => this.visit(element, aModule));
         // determine transition function structure and use it to create a component object
-        const template = this.visit(ctx.transitionFunction, aModule);
-        const component = aModule.createComponent(template);
+        const component = this.visit(ctx.transitionFunction, aModule);
         // parse transition function and constraint evaluator
         this.visit(ctx.transitionFunction, component);
         this.visit(ctx.transitionConstraints, component);
@@ -132,9 +131,8 @@ class AirVisitor extends BaseCstVisitor {
         if (mOrC instanceof Module_1.Module) {
             const rootTemplate = new templates_1.LoopTemplate([0, mOrC.traceWidth - 1]);
             this.visit(ctx.traceLoop, rootTemplate);
-            const t2 = mOrC.createComponent2(rootTemplate);
-            const template = new templates_1.ExecutionTemplate(rootTemplate, mOrC.symbols); // TODO
-            return template;
+            const component = mOrC.createComponent(rootTemplate);
+            return component;
         }
         else {
             const exc = mOrC.createExecutionContext('transition');
