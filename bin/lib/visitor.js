@@ -131,8 +131,7 @@ class AirVisitor extends BaseCstVisitor {
         if (mOrC instanceof Module_1.Module) {
             const rootTemplate = new templates_1.LoopTemplate([0, mOrC.traceWidth - 1]);
             this.visit(ctx.traceLoop, rootTemplate);
-            const component = mOrC.createComponent(rootTemplate);
-            return component;
+            return mOrC.createComponent(rootTemplate);
         }
         else {
             const exc = mOrC.createExecutionContext('transition');
@@ -215,12 +214,6 @@ class AirVisitor extends BaseCstVisitor {
             throw new Error('invalid parent');
         }
     }
-    delegateCall(ctx, exc) {
-        if (exc)
-            return undefined;
-        else
-            return ctx.delegate[0].image;
-    }
     traceSegment(ctx, exc) {
         if (exc)
             return this.visit(ctx.body, exc);
@@ -273,12 +266,15 @@ class AirVisitor extends BaseCstVisitor {
         }
         return exc.buildTransitionCall();
     }
-    functionCall(ctx, exc) {
+    delegateCall(ctx, exc) {
+        if (!exc) {
+            return ctx.delegate[0].image;
+        }
         const registers = ctx.registers[0].image;
         if (registers !== '$r') {
             throw new Error(`functions must be invoked over $r domain, but ${registers} domain was specified`);
         }
-        const range = this.visit(ctx.range);
+        const range = this.visit(ctx.range); // TODO
         const funcName = ctx.funcName[0].image;
         const params = ctx.parameters.map((p) => this.visit(p, exc));
         exc.addFunctionCall(funcName, params, range);

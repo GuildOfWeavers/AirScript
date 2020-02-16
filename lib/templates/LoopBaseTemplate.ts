@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
-import { Interval, SymbolInfo } from "@guildofweavers/air-script";
-import { TraceTemplate, RegisterSpecs } from "./TraceTemplate";
+import { Interval } from "@guildofweavers/air-script";
+import { TraceTemplate } from "./TraceTemplate";
 import { validate } from "../utils";
 
 // CLASS DEFINITION
@@ -77,12 +77,6 @@ export class LoopBaseTemplate extends TraceTemplate {
 
         // build and add the new segment to the list
         this.masks.push(mask);
-    }
-
-    buildRegisterSpecs(registers: RegisterSpecs, symbols: Map<string, SymbolInfo>, path: number[]): void {
-        this.masks.forEach((mask, i) => {
-            registers.segments.push({ mask, path: path.concat([i])});
-        });
     }
 }
 

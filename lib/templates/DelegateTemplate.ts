@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
-import { Interval, SymbolInfo } from "@guildofweavers/air-script";
-import { TraceTemplate, RegisterSpecs } from "./TraceTemplate";
+import { Interval } from "@guildofweavers/air-script";
+import { TraceTemplate } from "./TraceTemplate";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -22,9 +22,4 @@ export class DelegateTemplate extends TraceTemplate {
         return true;
     }
 
-    // PUBLIC FUNCTIONS
-    // --------------------------------------------------------------------------------------------
-    buildRegisterSpecs(registers: RegisterSpecs, symbols: Map<string, SymbolInfo>, path: number[]): void {
-        // TODO
-    }
 }

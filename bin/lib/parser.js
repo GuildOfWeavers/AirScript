@@ -169,17 +169,8 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.RParen);
             this.CONSUME(lexer_1.LCurly);
             this.MANY(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
-            this.AT_LEAST_ONE(() => {
-                this.SUBRULE(this.loopBlock, { LABEL: 'blocks', ARGS: [context] });
-            });
+            this.AT_LEAST_ONE(() => this.SUBRULE(this.loopBlock, { LABEL: 'blocks', ARGS: [context] }));
             this.CONSUME(lexer_1.RCurly);
-        });
-        this.traceDomain = this.RULE('traceDomain', () => {
-            this.CONSUME(lexer_1.With);
-            this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
-            this.CONSUME(lexer_1.LSquare);
-            this.SUBRULE(this.literalRangeExpression, { LABEL: 'range' });
-            this.CONSUME(lexer_1.RSquare);
         });
         this.loopBlock = this.RULE('loopBlock', (context) => {
             this.OR1([
@@ -226,6 +217,13 @@ class AirParser extends chevrotain_1.CstParser {
                     } }
             ]);
         });
+        this.traceDomain = this.RULE('traceDomain', () => {
+            this.CONSUME(lexer_1.With);
+            this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
+            this.CONSUME(lexer_1.LSquare);
+            this.SUBRULE(this.literalRangeExpression, { LABEL: 'range' });
+            this.CONSUME(lexer_1.RSquare);
+        });
         this.traceSegment = this.RULE('traceSegment', (context) => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Steps);
@@ -236,26 +234,6 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.CONSUME(lexer_1.RSquare);
             this.SUBRULE(this.statementBlock, { LABEL: 'body', ARGS: [context] });
-        });
-        this.delegateCall = this.RULE('delegateCall', (context) => {
-            this.OR([
-                {
-                    GATE: () => context === 'yield',
-                    ALT: () => this.CONSUME(lexer_1.Yield)
-                },
-                {
-                    GATE: () => context === 'enforce',
-                    ALT: () => this.CONSUME(lexer_1.Enforce)
-                }
-            ]);
-            this.CONSUME(lexer_1.Identifier, { LABEL: 'delegate' });
-            this.CONSUME(lexer_1.LParen);
-            this.AT_LEAST_ONE_SEP({
-                SEP: lexer_1.Comma,
-                DEF: () => this.SUBRULE(this.expression, { LABEL: 'parameters' })
-            });
-            this.CONSUME(lexer_1.RParen);
-            this.CONSUME(lexer_1.Semicolon);
         });
         // STATEMENTS
         // --------------------------------------------------------------------------------------------
@@ -344,19 +322,12 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
             this.CONSUME(lexer_1.RParen);
         });
-        this.functionCall = this.RULE('functionCall', (context) => {
-            this.CONSUME(lexer_1.With);
-            this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
-            this.CONSUME(lexer_1.LSquare);
-            this.SUBRULE(this.literalRangeExpression, { LABEL: 'range' });
-            this.CONSUME(lexer_1.RSquare);
-            if (context === 'yield') {
-                this.CONSUME(lexer_1.Yield);
-            }
-            else {
-                this.CONSUME(lexer_1.Enforce);
-            }
-            this.CONSUME(lexer_1.Identifier, { LABEL: 'funcName' });
+        this.delegateCall = this.RULE('delegateCall', (context) => {
+            this.OR([
+                { GATE: () => context === 'yield', ALT: () => this.CONSUME(lexer_1.Yield) },
+                { GATE: () => context === 'enforce', ALT: () => this.CONSUME(lexer_1.Enforce) }
+            ]);
+            this.CONSUME(lexer_1.Identifier, { LABEL: 'delegate' });
             this.CONSUME(lexer_1.LParen);
             this.AT_LEAST_ONE_SEP({
                 SEP: lexer_1.Comma,

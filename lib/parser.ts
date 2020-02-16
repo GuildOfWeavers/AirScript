@@ -183,23 +183,13 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP: Comma,
-            DEF: () => this.CONSUME(Identifier,             { LABEL: 'inputs' })
+            DEF: () => this.CONSUME(Identifier,                 { LABEL: 'inputs' })
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
-        this.MANY(() => this.SUBRULE(this.statement,        { LABEL: 'statements' }));
-        this.AT_LEAST_ONE(() => {
-            this.SUBRULE(this.loopBlock,                    { LABEL: 'blocks', ARGS: [ context ] });
-        });
+        this.MANY(() => this.SUBRULE(this.statement,            { LABEL: 'statements' }));
+        this.AT_LEAST_ONE(() => this.SUBRULE(this.loopBlock,    { LABEL: 'blocks', ARGS: [ context ] }));
         this.CONSUME(RCurly);
-    });
-
-    public traceDomain = this.RULE('traceDomain', () => {
-        this.CONSUME(With);
-        this.CONSUME(RegisterBank,                  { LABEL: 'registers' });
-        this.CONSUME(LSquare);
-        this.SUBRULE(this.literalRangeExpression,   { LABEL: 'range'     });
-        this.CONSUME(RSquare);
     });
 
     public loopBlock = this.RULE('loopBlock', (context?: 'yield' | 'enforce') => {
@@ -248,6 +238,14 @@ class AirParser extends CstParser {
         ]);
     });
 
+    public traceDomain = this.RULE('traceDomain', () => {
+        this.CONSUME(With);
+        this.CONSUME(RegisterBank,                   { LABEL: 'registers' });
+        this.CONSUME(LSquare);
+        this.SUBRULE(this.literalRangeExpression,    { LABEL: 'range'     });
+        this.CONSUME(RSquare);
+    });
+
     private traceSegment = this.RULE('traceSegment', (context: 'yield' | 'enforce') => {
         this.CONSUME(For);
         this.CONSUME(Steps);
@@ -257,28 +255,7 @@ class AirParser extends CstParser {
             DEF: () => this.SUBRULE(this.literalRangeExpression, { LABEL: 'ranges' })
         });
         this.CONSUME(RSquare);
-        this.SUBRULE(this.statementBlock,   { LABEL: 'body', ARGS: [ context ] });
-    });
-
-    private delegateCall = this.RULE('delegateCall', (context?: 'yield' | 'enforce') => {
-        this.OR([
-            {   
-                GATE: () => context === 'yield',
-                ALT: () => this.CONSUME(Yield) 
-            },
-            {
-                GATE: () => context === 'enforce',
-                ALT: () => this.CONSUME(Enforce)
-            }
-        ]);
-        this.CONSUME(Identifier,                      { LABEL: 'delegate'   });
-        this.CONSUME(LParen);
-        this.AT_LEAST_ONE_SEP({
-            SEP : Comma,
-            DEF : () => this.SUBRULE(this.expression, { LABEL: 'parameters' })
-        });
-        this.CONSUME(RParen);
-        this.CONSUME(Semicolon);
+        this.SUBRULE(this.statementBlock, { LABEL: 'body', ARGS: [ context ] });
     });
 
     // STATEMENTS
@@ -375,19 +352,12 @@ class AirParser extends CstParser {
         this.CONSUME(RParen);
     });
 
-    private functionCall = this.RULE('functionCall', (context?: 'yield' | 'enforce') => {
-        this.CONSUME(With);
-        this.CONSUME(RegisterBank,                    { LABEL: 'registers' });
-        this.CONSUME(LSquare);
-        this.SUBRULE(this.literalRangeExpression,     { LABEL: 'range'     });
-        this.CONSUME(RSquare);
-        if (context === 'yield') {
-            this.CONSUME(Yield);
-        }
-        else {
-            this.CONSUME(Enforce);
-        }
-        this.CONSUME(Identifier,                      { LABEL: 'funcName'   });
+    private delegateCall = this.RULE('delegateCall', (context?: 'yield' | 'enforce') => {
+        this.OR([
+            { GATE: () => context === 'yield',   ALT: () => this.CONSUME(Yield)   },
+            { GATE: () => context === 'enforce', ALT: () => this.CONSUME(Enforce) }
+        ]);
+        this.CONSUME(Identifier,                      { LABEL: 'delegate'   });
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP : Comma,

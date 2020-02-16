@@ -15,11 +15,6 @@ class DelegateTemplate extends TraceTemplate_1.TraceTemplate {
     get isComplete() {
         return true;
     }
-    // PUBLIC FUNCTIONS
-    // --------------------------------------------------------------------------------------------
-    buildRegisterSpecs(registers, symbols, path) {
-        // TODO
-    }
 }
 exports.DelegateTemplate = DelegateTemplate;
 //# sourceMappingURL=DelegateTemplate.js.map

@@ -61,11 +61,6 @@ class LoopBaseTemplate extends TraceTemplate_1.TraceTemplate {
         // build and add the new segment to the list
         this.masks.push(mask);
     }
-    buildRegisterSpecs(registers, symbols, path) {
-        this.masks.forEach((mask, i) => {
-            registers.segments.push({ mask, path: path.concat([i]) });
-        });
-    }
 }
 exports.LoopBaseTemplate = LoopBaseTemplate;
 // ERRORS

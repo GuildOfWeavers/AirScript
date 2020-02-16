@@ -1,7 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Interval, InputRegister, MaskRegister, SegmentRegister, SymbolInfo } from "@guildofweavers/air-script";
-import { InputRegisterMaster } from "@guildofweavers/air-assembly";
+import { Interval, InputRegister, MaskRegister, SegmentRegister } from "@guildofweavers/air-script";
 import { validate } from "../utils";
 
 // CLASS DEFINITION
@@ -37,8 +36,6 @@ export abstract class TraceTemplate {
     }
 
     abstract get isComplete(): boolean;
-
-    abstract buildRegisterSpecs(registers: RegisterSpecs, symbols: Map<string, SymbolInfo>, path: number[], parent?: InputRegisterMaster): void;
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
