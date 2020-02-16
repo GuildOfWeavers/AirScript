@@ -15,12 +15,21 @@ class RootContext {
         this.statements = [];
         this.symbols = symbols;
         this.lastBlockId = 0;
+        this.loopControllerMap = new Map();
+        staticRegisters.loops.forEach((l, i) => this.loopControllerMap.set(pathToId(l.path), i));
+        this.segmentControllerMap = new Map();
+        staticRegisters.segments.forEach((s, i) => this.segmentControllerMap.set(pathToId(s.path), i));
+    }
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+    get loopOffset() {
+        return this.staticRegisters.inputs.length;
+    }
+    get segmentOffset() {
+        return this.staticRegisters.inputs.length + this.staticRegisters.loops.length;
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    setInputs(inputs) {
-        // TODO: remove
-    }
     hasLocal(variable) {
         return false;
     }
@@ -29,6 +38,19 @@ class RootContext {
         this.lastBlockId++;
         return id;
     }
+    getLoopControllerIndex(path) {
+        const id = pathToId(path);
+        return this.loopControllerMap.get(id); // TODO: check for undefined
+    }
+    getSegmentControllerIndex(path) {
+        const id = pathToId(path);
+        return this.segmentControllerMap.get(id); // TODO: check for undefined
+    }
 }
 exports.RootContext = RootContext;
+// HELPER FUNCTIONS
+// ================================================================================================
+function pathToId(path) {
+    return path.join('');
+}
 //# sourceMappingURL=RootContext.js.map

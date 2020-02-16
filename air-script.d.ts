@@ -40,7 +40,7 @@ declare module '@guildofweavers/air-script' {
     
     export interface MaskRegister {
         readonly input  : number;
-        readonly path?  : number[];
+        readonly path   : number[];
     }
     
     export interface SegmentRegister {

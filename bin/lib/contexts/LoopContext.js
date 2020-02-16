@@ -33,7 +33,7 @@ class LoopContext extends ExecutionContext_1.ExecutionContext {
     }
     addBaseBlock(initResult, segmentResults) {
         // initializer result
-        const controller = this.getLoopController(this.rank);
+        const controller = this.getLoopController();
         let result = this.base.buildBinaryOperation('mul', initResult, controller);
         // segment results
         segmentResults.forEach((expression, i) => {
@@ -49,9 +49,8 @@ class LoopContext extends ExecutionContext_1.ExecutionContext {
     }
     addLoopBlock(initResult, loopResult) {
         // TODO: validate dimensions
-        const id = this.getLoopControllerId();
         // initializer result
-        const controller = this.getLoopController(this.rank);
+        const controller = this.getLoopController();
         initResult = this.base.buildBinaryOperation('mul', initResult, controller);
         // loop result
         const one = this.base.buildLiteralValue(this.base.field.one);

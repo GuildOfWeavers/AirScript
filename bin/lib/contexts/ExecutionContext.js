@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("../utils");
+const RootContext_1 = require("./RootContext");
 // EXECUTION CONTEXT CLASS
 // ================================================================================================
 class ExecutionContext {
@@ -37,40 +38,46 @@ class ExecutionContext {
     get statements() {
         return this.parent.statements;
     }
-    get staticRegisters() {
-        return this.parent.staticRegisters;
-    }
     get loopOffset() {
-        return this.staticRegisters.inputs;
+        return this.parent.loopOffset;
     }
     get segmentOffset() {
-        return this.staticRegisters.inputs + this.staticRegisters.loops;
+        return this.parent.segmentOffset;
     }
     // CONTROLLERS
     // --------------------------------------------------------------------------------------------
-    getLoopController(loopIdx) {
-        loopIdx = this.loopOffset + loopIdx;
+    getLoopController() {
+        const path = this.getCurrentBlockPath();
+        const loopIdx = this.loopOffset + this.getLoopControllerIndex(path);
         let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, loopIdx);
         return result;
     }
     getSegmentController(segmentIdx) {
-        segmentIdx = this.segmentOffset + segmentIdx;
+        const path = this.getCurrentBlockPath();
+        path.push(segmentIdx);
+        segmentIdx = this.segmentOffset + this.getSegmentControllerIndex(path);
         let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, segmentIdx);
         return result;
     }
-    getLoopControllerId() {
-        const id = [];
+    getCurrentBlockPath() {
+        const path = [];
         let parent = this.parent;
-        while (parent instanceof ExecutionContext) {
-            const blocks = parent.blockResults;
-            if (blocks) {
-                id.push(blocks.length);
+        while (parent) {
+            if (parent instanceof ExecutionContext) {
+                const blocks = parent.blockResults;
+                if (blocks) {
+                    path.unshift(blocks.length);
+                }
+                parent = parent.parent;
             }
-            parent = parent.parent;
+            else if (parent instanceof RootContext_1.RootContext) {
+                path.unshift(0); // position withing root context
+                break;
+            }
         }
-        return id;
+        return path;
     }
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
@@ -179,10 +186,16 @@ class ExecutionContext {
     buildMakeMatrixExpression(elements) {
         return this.base.buildMakeMatrixExpression(elements);
     }
-    // OTHER PUBLIC METHODS
+    // PUBLIC METHODS DELEGATED TO ROOT CONTEXT
     // --------------------------------------------------------------------------------------------
     getNextId() {
         return this.parent.getNextId();
+    }
+    getLoopControllerIndex(path) {
+        return this.parent.getLoopControllerIndex(path);
+    }
+    getSegmentControllerIndex(path) {
+        return this.parent.getSegmentControllerIndex(path);
     }
 }
 exports.ExecutionContext = ExecutionContext;

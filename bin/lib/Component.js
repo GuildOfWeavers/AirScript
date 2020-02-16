@@ -59,10 +59,10 @@ class Component {
         const specs = this.getProcedureSpecs(procedure);
         const domain = [0, this.traceWidth];
         const staticRegisters = {
-            inputs: this.inputRegisters.length,
-            loops: this.maskRegisters.length,
-            segments: this.segmentRegisters.length,
-            aux: this.auxRegisters.length
+            inputs: this.inputRegisters,
+            loops: this.maskRegisters,
+            segments: this.segmentRegisters,
+            aux: this.auxRegisters
         };
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
         const symbols = transformSymbols(this.symbols, this.traceWidth, this.auxRegisterOffset);

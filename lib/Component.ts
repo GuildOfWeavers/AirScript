@@ -8,11 +8,11 @@ import { ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, validate }
 
 // CLASS DEFINITION
 // ================================================================================================
-export interface StaticRegisterCounts {
-    readonly inputs     : number;
-    readonly loops      : number;
-    readonly segments   : number;
-    readonly aux        : number;
+export interface StaticRegisters {
+    readonly inputs     : InputRegister[];
+    readonly loops      : MaskRegister[];
+    readonly segments   : SegmentRegister[];
+    readonly aux        : StaticRegister[];
 }
 
 interface ProcedureSpecs {
@@ -98,11 +98,11 @@ export class Component {
 
         const specs = this.getProcedureSpecs(procedure);
         const domain: Interval = [0, this.traceWidth];
-        const staticRegisters: StaticRegisterCounts = {
-            inputs  : this.inputRegisters.length,
-            loops   : this.maskRegisters.length,
-            segments: this.segmentRegisters.length,
-            aux     : this.auxRegisters.length
+        const staticRegisters: StaticRegisters = {
+            inputs  : this.inputRegisters,
+            loops   : this.maskRegisters,
+            segments: this.segmentRegisters,
+            aux     : this.auxRegisters
         };
 
         const context = this.schema.createFunctionContext(specs.result, specs.handle);

@@ -5,8 +5,8 @@ import {
     Expression, StoreOperation, FunctionContext, LiteralValue, BinaryOperation, UnaryOperation,
     MakeVector, GetVectorElement, SliceVector, MakeMatrix
 } from "@guildofweavers/air-assembly";
-import { StaticRegisterCounts } from "../Component";
 import { validate, ProcedureParams, TRANSITION_FN_HANDLE } from "../utils";
+import { RootContext } from "./RootContext";
 
 // INTERFACES
 // ================================================================================================
@@ -16,11 +16,15 @@ export interface Context {
     readonly locals             : Set<string>;
     readonly statements         : StoreOperation[];
     readonly symbols            : Map<string, SymbolInfo>;
-    readonly staticRegisters    : StaticRegisterCounts;
     readonly base               : FunctionContext;
 
-    hasLocal(variable: string)  : boolean;
-    getNextId()                 : string;
+    readonly loopOffset         : number;
+    readonly segmentOffset      : number;
+
+    hasLocal(variable: string): boolean;
+    getNextId(): string;
+    getLoopControllerIndex(path: number[]): number;
+    getSegmentControllerIndex(path: number[]): number;
 }
 
 // EXECUTION CONTEXT CLASS
@@ -74,45 +78,50 @@ export class ExecutionContext implements Context {
         return this.parent.statements;
     }
 
-    get staticRegisters(): StaticRegisterCounts {
-        return this.parent.staticRegisters;
-    }
-
     get loopOffset(): number {
-        return this.staticRegisters.inputs;
+        return this.parent.loopOffset;
     }
 
     get segmentOffset(): number {
-        return this.staticRegisters.inputs + this.staticRegisters.loops;
+        return this.parent.segmentOffset;
     }
 
     // CONTROLLERS
     // --------------------------------------------------------------------------------------------
-    getLoopController(loopIdx: number): Expression {
-        loopIdx = this.loopOffset + loopIdx;
+    getLoopController(): Expression {
+        const path = this.getCurrentBlockPath();
+        const loopIdx = this.loopOffset + this.getLoopControllerIndex(path);
         let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, loopIdx);
         return result;
     }
 
     getSegmentController(segmentIdx: number): Expression {
-        segmentIdx = this.segmentOffset + segmentIdx;
+        const path = this.getCurrentBlockPath();
+        path.push(segmentIdx);
+        segmentIdx = this.segmentOffset + this.getSegmentControllerIndex(path);
         let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
         result = this.base.buildGetVectorElementExpression(result, segmentIdx);
         return result;
     }
 
-    getLoopControllerId(): number[] {
-        const id: number[] = [];
+    getCurrentBlockPath(): number[] {
+        const path: number[] = [];
         let parent = this.parent;
-        while (parent instanceof ExecutionContext) {
-            const blocks: any[] = (parent as any).blockResults;
-            if (blocks) {
-                id.push(blocks.length);
+        while (parent) {
+            if (parent instanceof ExecutionContext) {
+                const blocks: any[] = (parent as any).blockResults;
+                if (blocks) {
+                    path.unshift(blocks.length);
+                }
+                parent = parent.parent;
             }
-            parent = parent.parent;
+            else if (parent instanceof RootContext) {
+                path.unshift(0); // position withing root context
+                break;
+            }
         }
-        return id;
+        return path;
     }
 
     // SYMBOLIC REFERENCES
@@ -241,10 +250,18 @@ export class ExecutionContext implements Context {
         return this.base.buildMakeMatrixExpression(elements);
     }
 
-    // OTHER PUBLIC METHODS
+    // PUBLIC METHODS DELEGATED TO ROOT CONTEXT
     // --------------------------------------------------------------------------------------------
     getNextId(): string {
         return this.parent.getNextId();
+    }
+
+    getLoopControllerIndex(path: number[]): number {
+        return this.parent.getLoopControllerIndex(path);
+    }
+
+    getSegmentControllerIndex(path: number[]): number {
+        return this.parent.getSegmentControllerIndex(path);
     }
 }
 
