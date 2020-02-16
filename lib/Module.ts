@@ -3,12 +3,13 @@
 import {
     compile, AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, CyclicRegister, PrngSequence
 } from "@guildofweavers/air-assembly";
-import { SymbolInfo, InputInfo } from '@guildofweavers/air-script'
+import { SymbolInfo, InputInfo, StaticRegister } from '@guildofweavers/air-script'
 import * as path from 'path';
 import { Component, ProcedureSpecs } from "./Component";
-import { ExecutionTemplate } from "./templates";
+import { ExecutionTemplate, LoopTemplate } from "./templates";
 import { validate, validateSymbolName, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE } from "./utils";
 import { importConstants, importFunctions, ImportOffsets, importComponent } from "./importer";
+import { Component2 } from "./Component2";
 
 // INTERFACES
 // ================================================================================================
@@ -20,10 +21,6 @@ export interface ModuleOptions {
 export interface ImportMember {
     readonly member : string;
     readonly alias? : string;
-}
-
-interface StaticRegister {
-    readonly values : bigint[] | PrngSequence;
 }
 
 // CLASS DEFINITION
@@ -134,6 +131,10 @@ export class Module {
         const symbols = this.transformSymbols(procedureSpecs.auxRegisterOffset);
 
         return new Component(this.schema, procedureSpecs, symbols);
+    }
+
+    createComponent2(template: LoopTemplate): Component2 {
+        return new Component2(this.schema, this.traceWidth, this.constraintCount, template, this.symbols, this.auxRegisters);
     }
 
     setComponent(component: Component, componentName: string): void {

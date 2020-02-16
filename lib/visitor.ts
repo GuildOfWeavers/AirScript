@@ -159,6 +159,7 @@ class AirVisitor extends BaseCstVisitor {
         if (mOrC instanceof Module) {
             const rootTemplate = new LoopTemplate([0, mOrC.traceWidth - 1]);
             this.visit(ctx.traceLoop, rootTemplate);
+            const t2 = mOrC.createComponent2(rootTemplate);
             const template = new ExecutionTemplate(rootTemplate, (mOrC as any).symbols); // TODO
             return template;
         }

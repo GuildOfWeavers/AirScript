@@ -7,6 +7,7 @@ const path = require("path");
 const Component_1 = require("./Component");
 const utils_1 = require("./utils");
 const importer_1 = require("./importer");
+const Component2_1 = require("./Component2");
 // CLASS DEFINITION
 // ================================================================================================
 class Module {
@@ -89,6 +90,9 @@ class Module {
         const procedureSpecs = this.buildProcedureSpecs(template);
         const symbols = this.transformSymbols(procedureSpecs.auxRegisterOffset);
         return new Component_1.Component(this.schema, procedureSpecs, symbols);
+    }
+    createComponent2(template) {
+        return new Component2_1.Component2(this.schema, this.traceWidth, this.constraintCount, template, this.symbols, this.auxRegisters);
     }
     setComponent(component, componentName) {
         // create component object

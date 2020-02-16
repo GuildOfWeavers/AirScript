@@ -1,4 +1,6 @@
 "use strict";
+// IMPORTS
+// ================================================================================================
 Object.defineProperty(exports, "__esModule", { value: true });
 // CONSTANTS
 // ================================================================================================
@@ -15,6 +17,8 @@ var ProcedureParams;
 })(ProcedureParams = exports.ProcedureParams || (exports.ProcedureParams = {}));
 const MAX_SYMBOL_LENGTH = 128;
 const SYMBOL_REGEXP = /[a-zA-Z]\w*/g;
+// SYMBOLS
+// ================================================================================================
 // MATH
 // ================================================================================================
 function isPowerOf2(value) {
