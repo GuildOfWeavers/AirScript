@@ -4,7 +4,7 @@ import {
     FunctionContext, Expression, LiteralValue, BinaryOperation, UnaryOperation, MakeVector,
     GetVectorElement, SliceVector, MakeMatrix, StoreOperation, ProcedureName
 } from "@guildofweavers/air-assembly";
-import { SymbolInfo, FunctionInfo } from './Module';
+import { SymbolInfo, FunctionInfo } from '@guildofweavers/air-script';
 import { StaticRegisterCounts } from "./Component";
 import { validate, BLOCK_ID_PREFIX, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, TRANSITION_FN_POSTFIX, EVALUATION_FN_POSTFIX } from './utils';
 import { ExecutionContext as Context, RootContext, LoopContext, LoopBlockContext, LoopBaseContext } from "./contexts";

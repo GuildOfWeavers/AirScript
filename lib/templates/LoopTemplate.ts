@@ -1,15 +1,10 @@
 // IMPORTS
 // ================================================================================================
-import { Interval } from "@guildofweavers/air-script";
+import { Interval, SymbolInfo, InputInfo } from "@guildofweavers/air-script";
 import { InputRegisterMaster } from "@guildofweavers/air-assembly";
 import { TraceTemplate, RegisterSpecs } from "./TraceTemplate";
 import { LoopBaseTemplate } from "./LoopBaseTemplate";
-import { SymbolInfo, InputInfo } from "../Module";
 import { validate } from "../utils";
-
-// INTERFACES
-// ================================================================================================
-type BlockType = typeof LoopTemplate | typeof LoopBaseTemplate;
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -19,8 +14,8 @@ export class LoopTemplate extends TraceTemplate {
     readonly inputs : Set<string>;
     readonly blocks : TraceTemplate[];
 
-    private blockType?          : BlockType;
     private readonly registerMap: TraceTemplate[];
+    private isLeaf? : boolean;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -38,10 +33,6 @@ export class LoopTemplate extends TraceTemplate {
         return (this.registerMap.findIndex(b => b === undefined) === -1);
     }
 
-    get isLeaf(): boolean {
-        return (this.blockType === LoopBaseTemplate);
-    }
-
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
     setInputs(inputs: string[]): void {
@@ -49,19 +40,21 @@ export class LoopTemplate extends TraceTemplate {
     }
 
     addBlock(block: TraceTemplate) {
-        const blockType = block.constructor as BlockType;
-        if (this.blockType === undefined) {
-            this.blockType = blockType;
+        if (this.isLeaf === undefined) {
+            this.isLeaf = (block instanceof LoopBaseTemplate);
+        }
+        else if (this.isLeaf === true) {
+            validate(!(block instanceof LoopTemplate), errors.blockTypeConflict('loop block'));
+            // TODO: validate cycle length
         }
         else {
-            validate(blockType === this.blockType, errors.blockTypeConflict(blockType));
+            validate(!(block instanceof LoopBaseTemplate), errors.blockTypeConflict('loop base'));
+            // TODO: validate inputs
         }
 
         if (!block.isSubdomainOf(this.domain)) {
             throw new Error('TODO: not subdomain')
         }
-
-        // TODO: validate cycle length
 
         this.blocks.push(block);
         this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);

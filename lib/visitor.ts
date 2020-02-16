@@ -10,6 +10,7 @@ import { Module, ImportMember, ModuleOptions } from './Module';
 import { Component } from './Component';
 import { ExecutionContext, LoopBaseContext, LoopBlockContext, LoopContext } from './contexts';
 import { ExecutionTemplate, LoopTemplate, LoopBaseTemplate, TraceTemplate } from './templates';
+import { DelegateTemplate } from './templates/DelegateTemplate';
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -191,7 +192,7 @@ class AirVisitor extends BaseCstVisitor {
         // parse loop body
         if (templateOrParent instanceof LoopTemplate) {
             templateOrParent.setInputs(inputs);
-            ctx.blocks.forEach((b: any) => templateOrParent.addBlock(this.visit(b, templateOrParent)));
+            ctx.blocks.forEach((b: any) => this.visit(b, templateOrParent));
         }
         else {
             // create a new context for the loop
@@ -202,48 +203,67 @@ class AirVisitor extends BaseCstVisitor {
                 ctx.statements.forEach((s: any) => this.visit(s, loopContext));
             }
 
-            ctx.blocks.forEach((b: any) => loopContext.addBlock(this.visit(b, loopContext)));
+            ctx.blocks.forEach((b: any) => this.visit(b, loopContext));
             return loopContext.result;
         }
     }
 
-    traceBlock(ctx: any, parent: LoopTemplate | LoopContext): TraceTemplate | Expression {
-
-        // parse domain
+    loopBlock(ctx: any, parent: LoopTemplate | LoopContext): void {
         const domain: Interval = (ctx.domain ? this.visit(ctx.domain) : parent.domain);
 
-        // parse content
         if (parent instanceof LoopTemplate) {
             if (ctx.traceLoop) {
                 const template = new LoopTemplate(domain, parent);
                 this.visit(ctx.traceLoop, template);
-                return template;
+                parent.addBlock(template);
             }
-            else {
+            else if (ctx.traceSegments) {
                 const template = new LoopBaseTemplate(domain);
                 ctx.traceSegments.forEach((segment: any) => template.addSegment(this.visit(segment)));
-                return template;
+                parent.addBlock(template);
+            }
+            else {
+                const template = new DelegateTemplate(domain, this.visit(ctx.delegateCall));
+                parent.addBlock(template);
             }
         }
-        else {
+        else if (parent instanceof LoopContext) {
             if (ctx.traceLoop) {
                 const blockContext = new LoopBlockContext(parent, domain);
                 const initResult: Expression = this.visit(ctx.initExpression, blockContext);
                 const loopResult: Expression = this.visit(ctx.traceLoop, blockContext);
-                return blockContext.buildResult(initResult, loopResult);
+                const result = blockContext.buildResult(initResult, loopResult);
+                parent.addBlock(result);
             }
-            else {
+            else if (ctx.traceSegments) {
                 const blockContext = new LoopBaseContext(parent, domain);
                 const initResult: Expression = this.visit(ctx.initExpression, blockContext);
                 const segmentResults: Expression[] = ctx.traceSegments.map((loop: any) => this.visit(loop, blockContext));
-                return blockContext.buildResult(initResult, segmentResults);
+                const result = blockContext.buildResult(initResult, segmentResults);
+                parent.addBlock(result);
+            }
+            else {
+                // TODO: process delegate call
+                throw new Error('delegate parsing not implemented');
             }
         }
+        else {
+            throw new Error('invalid parent');
+        }
+    }
+
+    delegateCall(ctx: any, exc?: LoopBaseContext): void {
+        if (exc) return undefined;
+        else return ctx.delegate[0].image;
     }
 
     traceSegment(ctx: any, exc?: LoopBaseContext): Expression | Interval[] {
         if (exc) return this.visit(ctx.body, exc);
         else return ctx.ranges.map((range: any) => this.visit(range));
+    }
+
+    traceDomain(ctx: any): Interval {
+        return this.visit(ctx.range);
     }
 
     // STATEMENTS

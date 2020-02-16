@@ -20,26 +20,26 @@ class LoopTemplate extends TraceTemplate_1.TraceTemplate {
     get isComplete() {
         return (this.registerMap.findIndex(b => b === undefined) === -1);
     }
-    get isLeaf() {
-        return (this.blockType === LoopBaseTemplate_1.LoopBaseTemplate);
-    }
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
     setInputs(inputs) {
         inputs.forEach(input => this.inputs.add(input));
     }
     addBlock(block) {
-        const blockType = block.constructor;
-        if (this.blockType === undefined) {
-            this.blockType = blockType;
+        if (this.isLeaf === undefined) {
+            this.isLeaf = (block instanceof LoopBaseTemplate_1.LoopBaseTemplate);
+        }
+        else if (this.isLeaf === true) {
+            utils_1.validate(!(block instanceof LoopTemplate), errors.blockTypeConflict('loop block'));
+            // TODO: validate cycle length
         }
         else {
-            utils_1.validate(blockType === this.blockType, errors.blockTypeConflict(blockType));
+            utils_1.validate(!(block instanceof LoopBaseTemplate_1.LoopBaseTemplate), errors.blockTypeConflict('loop base'));
+            // TODO: validate inputs
         }
         if (!block.isSubdomainOf(this.domain)) {
             throw new Error('TODO: not subdomain');
         }
-        // TODO: validate cycle length
         this.blocks.push(block);
         this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
     }

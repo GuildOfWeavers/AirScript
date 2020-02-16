@@ -7,6 +7,7 @@ const lexer_1 = require("./lexer");
 const Module_1 = require("./Module");
 const contexts_1 = require("./contexts");
 const templates_1 = require("./templates");
+const DelegateTemplate_1 = require("./templates/DelegateTemplate");
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser_1.parser.getBaseCstVisitorConstructor();
@@ -160,7 +161,7 @@ class AirVisitor extends BaseCstVisitor {
         // parse loop body
         if (templateOrParent instanceof templates_1.LoopTemplate) {
             templateOrParent.setInputs(inputs);
-            ctx.blocks.forEach((b) => templateOrParent.addBlock(this.visit(b, templateOrParent)));
+            ctx.blocks.forEach((b) => this.visit(b, templateOrParent));
         }
         else {
             // create a new context for the loop
@@ -169,46 +170,66 @@ class AirVisitor extends BaseCstVisitor {
             if (ctx.statements) {
                 ctx.statements.forEach((s) => this.visit(s, loopContext));
             }
-            ctx.blocks.forEach((b) => loopContext.addBlock(this.visit(b, loopContext)));
+            ctx.blocks.forEach((b) => this.visit(b, loopContext));
             return loopContext.result;
         }
     }
-    traceBlock(ctx, parent) {
-        // parse domain
+    loopBlock(ctx, parent) {
         const domain = (ctx.domain ? this.visit(ctx.domain) : parent.domain);
-        // parse content
         if (parent instanceof templates_1.LoopTemplate) {
             if (ctx.traceLoop) {
                 const template = new templates_1.LoopTemplate(domain, parent);
                 this.visit(ctx.traceLoop, template);
-                return template;
+                parent.addBlock(template);
             }
-            else {
+            else if (ctx.traceSegments) {
                 const template = new templates_1.LoopBaseTemplate(domain);
                 ctx.traceSegments.forEach((segment) => template.addSegment(this.visit(segment)));
-                return template;
+                parent.addBlock(template);
+            }
+            else {
+                const template = new DelegateTemplate_1.DelegateTemplate(domain, this.visit(ctx.delegateCall));
+                parent.addBlock(template);
             }
         }
-        else {
+        else if (parent instanceof contexts_1.LoopContext) {
             if (ctx.traceLoop) {
                 const blockContext = new contexts_1.LoopBlockContext(parent, domain);
                 const initResult = this.visit(ctx.initExpression, blockContext);
                 const loopResult = this.visit(ctx.traceLoop, blockContext);
-                return blockContext.buildResult(initResult, loopResult);
+                const result = blockContext.buildResult(initResult, loopResult);
+                parent.addBlock(result);
             }
-            else {
+            else if (ctx.traceSegments) {
                 const blockContext = new contexts_1.LoopBaseContext(parent, domain);
                 const initResult = this.visit(ctx.initExpression, blockContext);
                 const segmentResults = ctx.traceSegments.map((loop) => this.visit(loop, blockContext));
-                return blockContext.buildResult(initResult, segmentResults);
+                const result = blockContext.buildResult(initResult, segmentResults);
+                parent.addBlock(result);
+            }
+            else {
+                // TODO: process delegate call
+                throw new Error('delegate parsing not implemented');
             }
         }
+        else {
+            throw new Error('invalid parent');
+        }
+    }
+    delegateCall(ctx, exc) {
+        if (exc)
+            return undefined;
+        else
+            return ctx.delegate[0].image;
     }
     traceSegment(ctx, exc) {
         if (exc)
             return this.visit(ctx.body, exc);
         else
             return ctx.ranges.map((range) => this.visit(range));
+    }
+    traceDomain(ctx) {
+        return this.visit(ctx.range);
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------

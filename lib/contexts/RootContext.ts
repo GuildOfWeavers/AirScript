@@ -1,10 +1,9 @@
 // IMPORTS
 // ================================================================================================
-import { Interval } from "@guildofweavers/air-script";
+import { Interval, SymbolInfo } from "@guildofweavers/air-script";
 import { StoreOperation, FunctionContext } from "@guildofweavers/air-assembly";
 import { Context } from "./Context";
 import { StaticRegisterCounts } from "../Component";
-import { SymbolInfo } from "../Module";
 import { BLOCK_ID_PREFIX } from "../utils";
 
 // CLASS DEFINITION

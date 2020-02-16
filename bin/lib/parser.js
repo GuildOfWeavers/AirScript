@@ -170,42 +170,59 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.LCurly);
             this.MANY(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
             this.AT_LEAST_ONE(() => {
-                this.SUBRULE(this.traceBlock, { LABEL: 'blocks', ARGS: [context] });
+                this.SUBRULE(this.loopBlock, { LABEL: 'blocks', ARGS: [context] });
             });
             this.CONSUME(lexer_1.RCurly);
         });
-        this.traceBlock = this.RULE('traceBlock', (context) => {
+        this.traceDomain = this.RULE('traceDomain', () => {
+            this.CONSUME(lexer_1.With);
+            this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
+            this.CONSUME(lexer_1.LSquare);
+            this.SUBRULE(this.literalRangeExpression, { LABEL: 'range' });
+            this.CONSUME(lexer_1.RSquare);
+        });
+        this.loopBlock = this.RULE('loopBlock', (context) => {
             this.OR1([
                 { ALT: () => {
-                        this.CONSUME1(lexer_1.Init);
-                        this.SUBRULE1(this.statementBlock, { LABEL: 'initExpression', ARGS: [context] });
+                        this.SUBRULE(this.traceDomain, { LABEL: 'domain' });
                         this.OR2([
                             { ALT: () => {
-                                    this.SUBRULE1(this.traceLoop, { LABEL: 'traceLoop', ARGS: [context] });
+                                    this.CONSUME(lexer_1.LCurly);
+                                    this.CONSUME1(lexer_1.Init);
+                                    this.SUBRULE1(this.statementBlock, { LABEL: 'initExpression', ARGS: [context] });
+                                    this.OR3([
+                                        { ALT: () => {
+                                                this.SUBRULE1(this.traceLoop, { LABEL: 'traceLoop', ARGS: [context] });
+                                            } },
+                                        { ALT: () => this.AT_LEAST_ONE1(() => {
+                                                this.SUBRULE1(this.traceSegment, { LABEL: 'traceSegments', ARGS: [context] });
+                                            }) }
+                                    ]);
+                                    this.CONSUME(lexer_1.RCurly);
                                 } },
-                            { ALT: () => this.AT_LEAST_ONE1(() => {
-                                    this.SUBRULE1(this.traceSegment, { LABEL: 'traceSegments', ARGS: [context] });
-                                }) }
+                            { ALT: () => {
+                                    this.SUBRULE1(this.delegateCall, { LABEL: 'delegateCall', ARGS: [context] });
+                                } }
                         ]);
                     } },
                 { ALT: () => {
-                        this.CONSUME(lexer_1.With);
-                        this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
-                        this.CONSUME(lexer_1.LSquare);
-                        this.SUBRULE(this.literalRangeExpression, { LABEL: 'domain' });
-                        this.CONSUME(lexer_1.RSquare);
-                        this.CONSUME(lexer_1.LCurly);
-                        this.CONSUME2(lexer_1.Init);
-                        this.SUBRULE2(this.statementBlock, { LABEL: 'initExpression', ARGS: [context] });
-                        this.OR3([
+                        this.OR4([
                             { ALT: () => {
-                                    this.SUBRULE2(this.traceLoop, { LABEL: 'traceLoop', ARGS: [context] });
+                                    this.CONSUME2(lexer_1.Init);
+                                    this.SUBRULE2(this.statementBlock, { LABEL: 'initExpression', ARGS: [context] });
+                                    this.OR5([
+                                        { ALT: () => {
+                                                this.SUBRULE2(this.traceLoop, { LABEL: 'traceLoop', ARGS: [context] });
+                                            } },
+                                        { ALT: () => this.AT_LEAST_ONE2(() => {
+                                                this.SUBRULE2(this.traceSegment, { LABEL: 'traceSegments', ARGS: [context] });
+                                            }) }
+                                    ]);
                                 } },
-                            { ALT: () => this.AT_LEAST_ONE2(() => {
-                                    this.SUBRULE2(this.traceSegment, { LABEL: 'traceSegments', ARGS: [context] });
-                                }) }
+                            { ALT: () => {
+                                    this.SUBRULE2(this.delegateCall, { LABEL: 'delegateCall', ARGS: [context] });
+                                } }
                         ]);
-                        this.CONSUME(lexer_1.RCurly);
                     } }
             ]);
         });
@@ -219,6 +236,26 @@ class AirParser extends chevrotain_1.CstParser {
             });
             this.CONSUME(lexer_1.RSquare);
             this.SUBRULE(this.statementBlock, { LABEL: 'body', ARGS: [context] });
+        });
+        this.delegateCall = this.RULE('delegateCall', (context) => {
+            this.OR([
+                {
+                    GATE: () => context === 'yield',
+                    ALT: () => this.CONSUME(lexer_1.Yield)
+                },
+                {
+                    GATE: () => context === 'enforce',
+                    ALT: () => this.CONSUME(lexer_1.Enforce)
+                }
+            ]);
+            this.CONSUME(lexer_1.Identifier, { LABEL: 'delegate' });
+            this.CONSUME(lexer_1.LParen);
+            this.AT_LEAST_ONE_SEP({
+                SEP: lexer_1.Comma,
+                DEF: () => this.SUBRULE(this.expression, { LABEL: 'parameters' })
+            });
+            this.CONSUME(lexer_1.RParen);
+            this.CONSUME(lexer_1.Semicolon);
         });
         // STATEMENTS
         // --------------------------------------------------------------------------------------------

@@ -1,8 +1,7 @@
 // IMPORTS
 // ================================================================================================
-import { InputRegister, MaskRegister, SegmentRegister } from "@guildofweavers/air-script";
+import { InputRegister, MaskRegister, SegmentRegister, SymbolInfo, InputInfo } from "@guildofweavers/air-script";
 import { LoopTemplate } from "./LoopTemplate";
-import { SymbolInfo } from "../Module";
 import { validate, isPowerOf2 } from "../utils";
 
 // CLASS DEFINITION
@@ -18,6 +17,8 @@ export class ExecutionTemplate {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(root: LoopTemplate, symbols: Map<string, SymbolInfo>) {
+
+        const rankedInputs = rankInputs(symbols); // TODO
 
         // use root template to build register specs
         const registers = { inputs: [], masks: [], segments: [] };
@@ -63,7 +64,19 @@ export class ExecutionTemplate {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-
+function rankInputs(symbols: Map<string, SymbolInfo>): InputInfo[][] {
+    const rankMap: InputInfo[][] = [];
+    for (let symbol of symbols.values()) {
+        if (symbol.type === 'input') {
+            let inputInfo = symbol as InputInfo;
+            if (rankMap[inputInfo.rank] === undefined) {
+                rankMap[inputInfo.rank] = [];
+            }
+            rankMap[inputInfo.rank].push(inputInfo);
+        }
+    }
+    return rankMap;
+} 
 
 // ERRORS
 // ================================================================================================

@@ -1,11 +1,10 @@
 // IMPORTS
 // ================================================================================================
-import { Interval } from "@guildofweavers/air-script";
+import { Interval, SymbolInfo } from "@guildofweavers/air-script";
 import {
     Expression, StoreOperation, FunctionContext, LiteralValue, BinaryOperation, UnaryOperation,
     MakeVector, GetVectorElement, SliceVector, MakeMatrix
 } from "@guildofweavers/air-assembly";
-import { SymbolInfo } from "../Module";
 import { StaticRegisterCounts } from "../Component";
 import { validate, ProcedureParams, TRANSITION_FN_HANDLE } from "../utils";
 

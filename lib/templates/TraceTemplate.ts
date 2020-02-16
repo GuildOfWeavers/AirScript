@@ -1,8 +1,7 @@
 // IMPORTS
 // ================================================================================================
-import { Interval, InputRegister, MaskRegister, SegmentRegister } from "@guildofweavers/air-script";
+import { Interval, InputRegister, MaskRegister, SegmentRegister, SymbolInfo } from "@guildofweavers/air-script";
 import { InputRegisterMaster } from "@guildofweavers/air-assembly";
-import { SymbolInfo } from "../Module";
 import { validate } from "../utils";
 
 // CLASS DEFINITION

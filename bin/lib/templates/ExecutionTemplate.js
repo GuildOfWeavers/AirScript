@@ -7,6 +7,7 @@ class ExecutionTemplate {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(root, symbols) {
+        const rankedInputs = rankInputs(symbols); // TODO
         // use root template to build register specs
         const registers = { inputs: [], masks: [], segments: [] };
         root.buildRegisterSpecs(registers, symbols, [0]);
@@ -45,6 +46,19 @@ class ExecutionTemplate {
 exports.ExecutionTemplate = ExecutionTemplate;
 // HELPER FUNCTIONS
 // ================================================================================================
+function rankInputs(symbols) {
+    const rankMap = [];
+    for (let symbol of symbols.values()) {
+        if (symbol.type === 'input') {
+            let inputInfo = symbol;
+            if (rankMap[inputInfo.rank] === undefined) {
+                rankMap[inputInfo.rank] = [];
+            }
+            rankMap[inputInfo.rank].push(inputInfo);
+        }
+    }
+    return rankMap;
+}
 // ERRORS
 // ================================================================================================
 const errors = {

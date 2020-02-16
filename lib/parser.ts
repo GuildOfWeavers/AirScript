@@ -183,52 +183,69 @@ class AirParser extends CstParser {
         this.CONSUME(LParen);
         this.AT_LEAST_ONE_SEP({
             SEP: Comma,
-            DEF: () => this.CONSUME(Identifier,         { LABEL: 'inputs' })
+            DEF: () => this.CONSUME(Identifier,             { LABEL: 'inputs' })
         });
         this.CONSUME(RParen);
         this.CONSUME(LCurly);
-        this.MANY(() => this.SUBRULE(this.statement,    { LABEL: 'statements' }));
+        this.MANY(() => this.SUBRULE(this.statement,        { LABEL: 'statements' }));
         this.AT_LEAST_ONE(() => {
-            this.SUBRULE(this.traceBlock,               { LABEL: 'blocks', ARGS: [ context ] });
+            this.SUBRULE(this.loopBlock,                    { LABEL: 'blocks', ARGS: [ context ] });
         });
         this.CONSUME(RCurly);
     });
 
-    public traceBlock = this.RULE('traceBlock', (context?: 'yield' | 'enforce') => {
+    public traceDomain = this.RULE('traceDomain', () => {
+        this.CONSUME(With);
+        this.CONSUME(RegisterBank,                  { LABEL: 'registers' });
+        this.CONSUME(LSquare);
+        this.SUBRULE(this.literalRangeExpression,   { LABEL: 'range'     });
+        this.CONSUME(RSquare);
+    });
+
+    public loopBlock = this.RULE('loopBlock', (context?: 'yield' | 'enforce') => {
         this.OR1([
             { ALT: () => {
-                this.CONSUME1(Init);
-                this.SUBRULE1(this.statementBlock,        { LABEL: 'initExpression', ARGS: [ context ] });
+                this.SUBRULE(this.traceDomain,                      { LABEL: 'domain' });
                 this.OR2([
                     { ALT: () => {
-                        this.SUBRULE1(this.traceLoop,     { LABEL: 'traceLoop',      ARGS: [ context ] });
+                        this.CONSUME(LCurly);
+                        this.CONSUME1(Init);
+                        this.SUBRULE1(this.statementBlock,          { LABEL: 'initExpression',  ARGS: [ context ] });
+                        this.OR3([
+                            { ALT: () => {
+                                this.SUBRULE1(this.traceLoop,       { LABEL: 'traceLoop',      ARGS: [ context ] });
+                            }},
+                            { ALT: () => this.AT_LEAST_ONE1(() => {
+                                this.SUBRULE1(this.traceSegment,    { LABEL: 'traceSegments',  ARGS: [ context ] });
+                            })}
+                        ]);
+                        this.CONSUME(RCurly);
                     }},
-                    { ALT: () => this.AT_LEAST_ONE1(() => {
-                        this.SUBRULE1(this.traceSegment,  { LABEL: 'traceSegments',  ARGS: [ context ] });
-                    })}
+                    { ALT: () => {
+                        this.SUBRULE1(this.delegateCall,            { LABEL: 'delegateCall',   ARGS: [ context ] });
+                    }}
                 ]);
             }},
             { ALT: () => {
-                this.CONSUME(With);
-                this.CONSUME(RegisterBank,                { LABEL: 'registers' });
-                this.CONSUME(LSquare);
-                this.SUBRULE(this.literalRangeExpression, { LABEL: 'domain'    });
-                this.CONSUME(RSquare);
-                this.CONSUME(LCurly);
-                this.CONSUME2(Init);
-                this.SUBRULE2(this.statementBlock,        { LABEL: 'initExpression', ARGS: [ context ] });
-                this.OR3([
+                this.OR4([
                     { ALT: () => {
-                        this.SUBRULE2(this.traceLoop,     { LABEL: 'traceLoop',      ARGS: [ context ] });
+                        this.CONSUME2(Init);
+                        this.SUBRULE2(this.statementBlock,          { LABEL: 'initExpression',  ARGS: [ context ] });
+                        this.OR5([
+                            { ALT: () => {
+                                this.SUBRULE2(this.traceLoop,       { LABEL: 'traceLoop',      ARGS: [ context ] });
+                            }},
+                            { ALT: () => this.AT_LEAST_ONE2(() => {
+                                this.SUBRULE2(this.traceSegment,    { LABEL: 'traceSegments',  ARGS: [ context ] });
+                            })}
+                        ]);
                     }},
-                    { ALT: () => this.AT_LEAST_ONE2(() => {
-                        this.SUBRULE2(this.traceSegment,  { LABEL: 'traceSegments',  ARGS: [ context ] });
-                    })}
+                    { ALT: () => {
+                        this.SUBRULE2(this.delegateCall,            { LABEL: 'delegateCall',   ARGS: [ context ] });
+                    }}
                 ]);
-                this.CONSUME(RCurly);
             }}
         ]);
-        
     });
 
     private traceSegment = this.RULE('traceSegment', (context: 'yield' | 'enforce') => {
@@ -241,6 +258,27 @@ class AirParser extends CstParser {
         });
         this.CONSUME(RSquare);
         this.SUBRULE(this.statementBlock,   { LABEL: 'body', ARGS: [ context ] });
+    });
+
+    private delegateCall = this.RULE('delegateCall', (context?: 'yield' | 'enforce') => {
+        this.OR([
+            {   
+                GATE: () => context === 'yield',
+                ALT: () => this.CONSUME(Yield) 
+            },
+            {
+                GATE: () => context === 'enforce',
+                ALT: () => this.CONSUME(Enforce)
+            }
+        ]);
+        this.CONSUME(Identifier,                      { LABEL: 'delegate'   });
+        this.CONSUME(LParen);
+        this.AT_LEAST_ONE_SEP({
+            SEP : Comma,
+            DEF : () => this.SUBRULE(this.expression, { LABEL: 'parameters' })
+        });
+        this.CONSUME(RParen);
+        this.CONSUME(Semicolon);
     });
 
     // STATEMENTS

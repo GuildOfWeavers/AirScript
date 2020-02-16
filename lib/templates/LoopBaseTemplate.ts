@@ -1,9 +1,8 @@
 // IMPORTS
 // ================================================================================================
-import { Interval } from "@guildofweavers/air-script";
+import { Interval, SymbolInfo } from "@guildofweavers/air-script";
 import { TraceTemplate, RegisterSpecs } from "./TraceTemplate";
 import { validate } from "../utils";
-import { SymbolInfo } from "../Module";
 
 // CLASS DEFINITION
 // ================================================================================================

@@ -3,7 +3,8 @@
 import { AirSchema, ExpressionVisitor, ExecutionContext, Expression, LiteralValue, BinaryOperation,
     UnaryOperation, MakeVector, GetVectorElement, SliceVector, MakeMatrix, LoadExpression, CallExpression, Dimensions
 } from "@guildofweavers/air-assembly";
-import { ImportMember, SymbolInfo, FunctionInfo } from "./Module";
+import { SymbolInfo, FunctionInfo } from '@guildofweavers/air-script';
+import { ImportMember } from "./Module";
 import { ProcedureParams, TRANSITION_FN_POSTFIX, EVALUATION_FN_POSTFIX } from "./utils";
 
 // INTERFACES

@@ -1,8 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { FiniteField, AirSchema, ProcedureName, Expression, Dimensions } from "@guildofweavers/air-assembly";
-import { Interval, InputRegister, MaskRegister } from "@guildofweavers/air-script";
-import { SymbolInfo, FunctionInfo } from './Module';
+import { Interval, InputRegister, MaskRegister, SymbolInfo } from "@guildofweavers/air-script";
 import { RootContext } from "./contexts";
 import { ProcedureParams } from "./utils";
 

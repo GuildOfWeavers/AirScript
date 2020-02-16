@@ -1,9 +1,9 @@
 // IMPORTS
 // ================================================================================================
 import {
-    compile, AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, InputRegisterMaster,
-    CyclicRegister, PrngSequence
+    compile, AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, CyclicRegister, PrngSequence
 } from "@guildofweavers/air-assembly";
+import { SymbolInfo, InputInfo } from '@guildofweavers/air-script'
 import * as path from 'path';
 import { Component, ProcedureSpecs } from "./Component";
 import { ExecutionTemplate } from "./templates";
@@ -15,28 +15,6 @@ import { importConstants, importFunctions, ImportOffsets, importComponent } from
 export interface ModuleOptions {
     readonly name   : string;
     readonly basedir: string;
-}
-
-export interface SymbolInfo {
-    readonly type       : 'const' | 'input' | 'static' | 'param' | 'func';
-    readonly handle     : string;
-    readonly dimensions : Dimensions;
-    readonly subset     : boolean;
-    readonly offset?    : number;
-}
-
-export interface FunctionInfo extends SymbolInfo {
-    readonly type       : 'func';
-    readonly auxOffset  : number;
-    readonly auxLength  : number;
-    readonly rank       : number;
-}
-
-export interface InputInfo extends SymbolInfo {
-    readonly type       : 'input';
-    readonly scope      : string;
-    readonly binary     : boolean;
-    readonly rank       : number;
 }
 
 export interface ImportMember {
