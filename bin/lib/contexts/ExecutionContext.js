@@ -32,39 +32,20 @@ class ExecutionContext {
     get segmentOffset() {
         return this.parent.segmentOffset;
     }
-    // CONTROLLERS
-    // --------------------------------------------------------------------------------------------
-    getLoopController() {
-        const path = this.getCurrentBlockPath();
-        const loopIdx = this.loopOffset + this.getLoopControllerIndex(path);
-        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-        result = this.base.buildGetVectorElementExpression(result, loopIdx);
-        return result;
+    get auxRegistersOffset() {
+        return this.parent.auxRegistersOffset;
     }
-    getSegmentController(segmentIdx) {
-        const path = this.getCurrentBlockPath();
-        path.push(segmentIdx);
-        segmentIdx = this.segmentOffset + this.getSegmentControllerIndex(path);
-        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
-        return result;
-    }
-    getCurrentBlockPath() {
-        const path = [];
-        let parent = this.parent;
-        while (parent) {
-            if (parent instanceof ExecutionContext) {
-                if (isBlockContainer(parent)) {
-                    path.unshift(parent.blocks.length);
-                }
-                parent = parent.parent;
-            }
-            else if (parent instanceof RootContext_1.RootContext) {
-                path.unshift(0); // position within root context
-                break;
-            }
+    get procedureName() {
+        const handle = this.base.handle;
+        if (handle === utils_1.TRANSITION_FN_HANDLE) {
+            return 'transition';
         }
-        return path;
+        else if (handle === utils_1.EVALUATION_FN_HANDLE) {
+            return 'evaluation';
+        }
+        else {
+            throw new Error(`execution context has an invalid procedure handle '${handle}'`);
+        }
     }
     // SYMBOLIC REFERENCES
     // --------------------------------------------------------------------------------------------
@@ -125,6 +106,23 @@ class ExecutionContext {
         fBlock = this.base.buildBinaryOperation('mul', fBlock, condition);
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
     }
+    getCurrentBlockPath() {
+        const path = [];
+        let parent = this.parent;
+        while (parent) {
+            if (parent instanceof ExecutionContext) {
+                if (isBlockContainer(parent)) {
+                    path.unshift(parent.blocks.length);
+                }
+                parent = parent.parent;
+            }
+            else if (parent instanceof RootContext_1.RootContext) {
+                path.unshift(0); // position within root context
+                break;
+            }
+        }
+        return path;
+    }
     // FUNCTION CALLS
     // --------------------------------------------------------------------------------------------
     buildTransitionCall() {
@@ -133,39 +131,6 @@ class ExecutionContext {
             this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow)
         ];
         return this.base.buildCallExpression(utils_1.TRANSITION_FN_HANDLE, params);
-    }
-    buildDelegateCall(funcName, inputs, domain) {
-        // TODO: validate domain
-        //const fName = funcName + (this.procedureName === 'transition' ? TRANSITION_FN_POSTFIX : EVALUATION_FN_POSTFIX);
-        const fName = funcName + utils_1.TRANSITION_FN_POSTFIX; // TODO: determine based on procedure context
-        const info = this.symbols.get(fName);
-        utils_1.validate(info !== undefined, errors.undefinedFuncReference(funcName));
-        utils_1.validate(info.type === 'func', errors.invalidFuncReference(funcName));
-        // TODO: validate rank
-        let traceRow = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.thisTraceRow);
-        if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
-            traceRow = this.base.buildSliceVectorExpression(traceRow, domain[0], domain[1]);
-        }
-        // TODO: if we are in evaluator, add next state as parameter as well
-        // make sure inputs are adjusted by the loop controller
-        // TODO: find a better way to get loop controller
-        const controller = this.parent.getLoopController();
-        let inputsVector = this.base.buildMakeVectorExpression(inputs);
-        inputsVector = this.base.buildBinaryOperation('mul', inputsVector, controller);
-        const statics = [inputsVector];
-        let masks = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-        const maskOffset = this.loopOffset + info.rank;
-        const maskCount = 2 - info.rank; // TODO
-        masks = this.base.buildSliceVectorExpression(masks, maskOffset, maskOffset + maskCount - 1);
-        statics.push(masks);
-        if (info.auxLength > 0) {
-            const auxOffset = 5 + info.auxOffset; // TODO
-            let aux = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-            aux = this.base.buildSliceVectorExpression(aux, auxOffset, auxOffset + info.auxLength - 1);
-            statics.push(aux);
-        }
-        const staticRow = this.base.buildMakeVectorExpression(statics);
-        return this.base.buildCallExpression(info.handle, [traceRow, staticRow]);
     }
     // LOCAL VARIABLES
     // --------------------------------------------------------------------------------------------
@@ -247,8 +212,6 @@ function validateInputs(parent, own) {
 // ================================================================================================
 const errors = {
     undeclaredVarReference: (s) => `variable ${s} is referenced before declaration`,
-    undefinedFuncReference: (f) => `function ${f} has not been defined`,
-    invalidFuncReference: (f) => `symbol ${f} is not a function`,
     cannotAssignToConst: (c) => `cannot assign a value to a constant ${c}`,
     cannotAssignToOuterScope: (v) => `cannot assign a value to an outer scope variable ${v}`,
     inputMissingFromParent: (i) => `input '${i}' does not appear in parent context`,

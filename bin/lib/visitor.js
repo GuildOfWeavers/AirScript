@@ -204,9 +204,8 @@ class AirVisitor extends BaseCstVisitor {
                 parent.addBaseBlock(initResult, segmentResults);
             }
             else {
-                const blockContext = new contexts_1.ExecutionContext(parent, domain);
-                const callExpression = this.visit(ctx.delegateCall, blockContext);
-                parent.addDelegateBlock(callExpression);
+                const { delegateName, inputs } = this.visit(ctx.delegateCall, parent);
+                parent.addDelegateBlock(delegateName, inputs, domain);
             }
         }
         else {
@@ -266,11 +265,11 @@ class AirVisitor extends BaseCstVisitor {
         return exc.buildTransitionCall();
     }
     delegateCall(ctx, exc) {
-        const funcName = ctx.delegate[0].image;
+        const delegateName = ctx.delegate[0].image;
         if (!exc)
-            return funcName;
-        const params = ctx.parameters.map((p) => this.visit(p, exc));
-        return exc.buildDelegateCall(funcName, params, exc.domain);
+            return delegateName;
+        const inputs = ctx.parameters.map((p) => this.visit(p, exc));
+        return { delegateName, inputs };
     }
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------

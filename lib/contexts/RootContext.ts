@@ -56,6 +56,12 @@ export class RootContext implements Context {
         return this.staticRegisters.inputs.length + this.staticRegisters.loops.length;
     }
 
+    get auxRegistersOffset(): number {
+        return this.staticRegisters.inputs.length
+            + this.staticRegisters.loops.length
+            + this.staticRegisters.segments.length;
+    }
+
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     hasLocal(variable: string): boolean {

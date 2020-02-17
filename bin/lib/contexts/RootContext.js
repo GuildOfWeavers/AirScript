@@ -31,6 +31,11 @@ class RootContext {
     get segmentOffset() {
         return this.staticRegisters.inputs.length + this.staticRegisters.loops.length;
     }
+    get auxRegistersOffset() {
+        return this.staticRegisters.inputs.length
+            + this.staticRegisters.loops.length
+            + this.staticRegisters.segments.length;
+    }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     hasLocal(variable) {

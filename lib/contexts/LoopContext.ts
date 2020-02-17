@@ -1,8 +1,9 @@
 // IMPORTS
 // ================================================================================================
+import { Interval, FunctionInfo } from "@guildofweavers/air-script";
 import { Expression } from "@guildofweavers/air-assembly";
 import { Context, ExecutionContext } from "./ExecutionContext";
-import { validate, areSameDimensions } from "../utils";
+import { validate, areSameDimensions, ProcedureParams, TRANSITION_FN_POSTFIX } from "../utils";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -31,6 +32,23 @@ export class LoopContext extends ExecutionContext {
 
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
+    getLoopController(): Expression {
+        const path = this.getCurrentBlockPath();
+        const loopIdx = this.loopOffset + this.getLoopControllerIndex(path);
+        let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
+        result = this.base.buildGetVectorElementExpression(result, loopIdx);
+        return result;
+    }
+
+    getSegmentController(segmentIdx: number): Expression {
+        const path = this.getCurrentBlockPath();
+        path.push(segmentIdx);
+        segmentIdx = this.segmentOffset + this.getSegmentControllerIndex(path);
+        let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
+        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
+        return result;
+    }
+
     addBaseBlock(initResult: Expression, segmentResults: Expression[]): void {
 
         const dimensions = initResult.dimensions;
@@ -76,16 +94,63 @@ export class LoopContext extends ExecutionContext {
         this.blocks.push(this.base.buildLoadExpression(`load.local`, this.id));
     }
 
-    addDelegateBlock(result: Expression): void {
-        // TODO: apply controllers?
-        this.blocks.push(result);
+    addDelegateBlock(delegateName: string, inputs: Expression[], domain: Interval): void {
+        // TODO: validate domain
+
+        const procedureName = this.procedureName;
+
+        const funcName = `${delegateName}_${procedureName}`
+        const info = this.symbols.get(funcName) as FunctionInfo;
+        validate(info !== undefined, errors.undefinedFuncReference(delegateName));
+        validate(info.type === 'func', errors.invalidFuncReference(delegateName));
+        // TODO: validate rank
+
+        // build function parameters
+        const params: Expression[] = [];
+
+        // add parameter for current state
+        params.push(this.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow));
+        if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
+            params[0] = this.base.buildSliceVectorExpression(params[0], domain[0], domain[1]);
+        }
+
+        // if we are in an evaluator, add next state as parameter as well
+        if (procedureName === 'evaluation') {
+            params.push(this.base.buildLoadExpression('load.param', ProcedureParams.nextTraceRow));
+            if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
+                params[1] = this.base.buildSliceVectorExpression(params[1], domain[0], domain[1]);
+            }
+        }
+        
+        // build parameter for static registers
+        const statics: Expression[] = [];
+        const controller = this.getLoopController();
+        const inputsVector: Expression = this.base.buildMakeVectorExpression(inputs);
+        statics.push(this.base.buildBinaryOperation('mul', inputsVector, controller));
+
+        let masks: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
+        const maskOffset = this.loopOffset + info.rank;
+        const maskCount = 2 - info.rank; // TODO
+        masks = this.base.buildSliceVectorExpression(masks, maskOffset, maskOffset + maskCount - 1);
+        statics.push(masks);
+
+        if (info.auxLength > 0) {
+            const auxOffset = this.auxRegistersOffset + info.auxOffset;
+            const aux = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
+            statics.push(this.base.buildSliceVectorExpression(aux, auxOffset, auxOffset + info.auxLength - 1));
+        }
+
+        params.push(this.base.buildMakeVectorExpression(statics));
+        this.blocks.push(this.base.buildCallExpression(info.handle, params));
     }
 }
 
 // ERRORS
 // ================================================================================================
 const errors = {
-    resultsNotYetSet    : () => `loop results haven't been set yet`,
-    baseResultMismatch  : () => `init block dimensions conflict with segment block dimensions`,
-    loopResultMismatch  : () => `init block dimensions conflict with inner loop dimensions`
+    resultsNotYetSet        : () => `loop results haven't been set yet`,
+    baseResultMismatch      : () => `init block dimensions conflict with segment block dimensions`,
+    loopResultMismatch      : () => `init block dimensions conflict with inner loop dimensions`,
+    invalidFuncReference    : (f: any) => `symbol ${f} is not a function`,
+    undefinedFuncReference  : (f: any) => `function ${f} has not been defined`,
 };

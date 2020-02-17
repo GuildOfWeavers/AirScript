@@ -1,11 +1,11 @@
 // IMPORTS
 // ================================================================================================
-import { Interval, SymbolInfo, FunctionInfo } from "@guildofweavers/air-script";
+import { Interval, SymbolInfo } from "@guildofweavers/air-script";
 import {
     Expression, StoreOperation, FunctionContext, LiteralValue, BinaryOperation, UnaryOperation,
     MakeVector, GetVectorElement, SliceVector, MakeMatrix
 } from "@guildofweavers/air-assembly";
-import { validate, ProcedureParams, TRANSITION_FN_HANDLE, TRANSITION_FN_POSTFIX } from "../utils";
+import { validate, ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE } from "../utils";
 import { RootContext } from "./RootContext";
 
 // INTERFACES
@@ -20,6 +20,7 @@ export interface Context {
 
     readonly loopOffset         : number;
     readonly segmentOffset      : number;
+    readonly auxRegistersOffset : number;
 
     hasLocal(variable: string): boolean;
     getLocalHandle(variable: string): string | undefined;
@@ -73,41 +74,21 @@ export class ExecutionContext implements Context {
         return this.parent.segmentOffset;
     }
 
-    // CONTROLLERS
-    // --------------------------------------------------------------------------------------------
-    getLoopController(): Expression {
-        const path = this.getCurrentBlockPath();
-        const loopIdx = this.loopOffset + this.getLoopControllerIndex(path);
-        let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
-        result = this.base.buildGetVectorElementExpression(result, loopIdx);
-        return result;
+    get auxRegistersOffset(): number {
+        return this.parent.auxRegistersOffset;
     }
 
-    getSegmentController(segmentIdx: number): Expression {
-        const path = this.getCurrentBlockPath();
-        path.push(segmentIdx);
-        segmentIdx = this.segmentOffset + this.getSegmentControllerIndex(path);
-        let result: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
-        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
-        return result;
-    }
-
-    getCurrentBlockPath(): number[] {
-        const path: number[] = [];
-        let parent = this.parent;
-        while (parent) {
-            if (parent instanceof ExecutionContext) {
-                if (isBlockContainer(parent)) {
-                    path.unshift(parent.blocks.length);
-                }
-                parent = parent.parent;
-            }
-            else if (parent instanceof RootContext) {
-                path.unshift(0); // position within root context
-                break;
-            }
+    get procedureName(): 'transition' | 'evaluation' {
+        const handle = this.base.handle;
+        if (handle === TRANSITION_FN_HANDLE) {
+            return 'transition';
         }
-        return path;
+        else if (handle === EVALUATION_FN_HANDLE) {
+            return 'evaluation';
+        }
+        else {
+            throw new Error(`execution context has an invalid procedure handle '${handle}'`);
+        }
     }
 
     // SYMBOLIC REFERENCES
@@ -178,6 +159,24 @@ export class ExecutionContext implements Context {
         return this.base.buildBinaryOperation('add', tBlock, fBlock);
     }
 
+    getCurrentBlockPath(): number[] {
+        const path: number[] = [];
+        let parent = this.parent;
+        while (parent) {
+            if (parent instanceof ExecutionContext) {
+                if (isBlockContainer(parent)) {
+                    path.unshift(parent.blocks.length);
+                }
+                parent = parent.parent;
+            }
+            else if (parent instanceof RootContext) {
+                path.unshift(0); // position within root context
+                break;
+            }
+        }
+        return path;
+    }
+
     // FUNCTION CALLS
     // --------------------------------------------------------------------------------------------
     buildTransitionCall(): Expression {
@@ -186,48 +185,6 @@ export class ExecutionContext implements Context {
             this.base.buildLoadExpression('load.param', ProcedureParams.staticRow)
         ];
         return this.base.buildCallExpression(TRANSITION_FN_HANDLE, params);
-    }
-
-    buildDelegateCall(funcName: string, inputs: Expression[], domain: Interval): Expression {
-        // TODO: validate domain
-
-        //const fName = funcName + (this.procedureName === 'transition' ? TRANSITION_FN_POSTFIX : EVALUATION_FN_POSTFIX);
-        const fName = funcName + TRANSITION_FN_POSTFIX; // TODO: determine based on procedure context
-        const info = this.symbols.get(fName) as FunctionInfo;
-        validate(info !== undefined, errors.undefinedFuncReference(funcName));
-        validate(info.type === 'func', errors.invalidFuncReference(funcName));
-        // TODO: validate rank
-
-        let traceRow: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow);
-        if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
-            traceRow = this.base.buildSliceVectorExpression(traceRow, domain[0], domain[1]);
-        }
-
-        // TODO: if we are in evaluator, add next state as parameter as well
-        
-        // make sure inputs are adjusted by the loop controller
-        // TODO: find a better way to get loop controller
-        const controller = (this.parent as any).getLoopController();
-        let inputsVector: Expression = this.base.buildMakeVectorExpression(inputs);
-        inputsVector = this.base.buildBinaryOperation('mul', inputsVector, controller);
-
-        const statics: Expression[] = [inputsVector];
-
-        let masks: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
-        const maskOffset = this.loopOffset + info.rank;
-        const maskCount = 2 - info.rank; // TODO
-        masks = this.base.buildSliceVectorExpression(masks, maskOffset, maskOffset + maskCount - 1);
-        statics.push(masks);
-
-        if (info.auxLength > 0) {
-            const auxOffset = 5 + info.auxOffset; // TODO
-            let aux: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
-            aux = this.base.buildSliceVectorExpression(aux, auxOffset, auxOffset + info.auxLength - 1);
-            statics.push(aux);
-        }
-
-        const staticRow = this.base.buildMakeVectorExpression(statics);
-        return this.base.buildCallExpression(info.handle, [traceRow, staticRow]);
     }
 
     // LOCAL VARIABLES
@@ -320,8 +277,6 @@ function validateInputs(parent: Set<string>, own?: string[]): Set<string> {
 // ================================================================================================
 const errors = {
     undeclaredVarReference  : (s: any) => `variable ${s} is referenced before declaration`,
-    undefinedFuncReference  : (f: any) => `function ${f} has not been defined`,
-    invalidFuncReference    : (f: any) => `symbol ${f} is not a function`,
     cannotAssignToConst     : (c: any) => `cannot assign a value to a constant ${c}`,
     cannotAssignToOuterScope: (v: any) => `cannot assign a value to an outer scope variable ${v}`,
     inputMissingFromParent  : (i: any) => `input '${i}' does not appear in parent context`,
