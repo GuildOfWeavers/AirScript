@@ -44,23 +44,8 @@ export class ExecutionContext implements Context {
         this.id = parent.getNextId();
         this.parent = parent;
         this.rank = (parent instanceof ExecutionContext ? parent.rank : 0);
-
-        if (domain) {
-            // TODO: narrow domain
-            this.domain = domain;
-        }
-        else {
-            this.domain = parent.domain;
-        }
-
-        if (inputs) {
-            // TODO: make sure the inputs were narrowed correctly
-            this.inputs = new Set(inputs);
-        }
-        else {
-            this.inputs = parent.inputs;
-        }
-
+        this.domain = validateDomain(parent.domain, domain);
+        this.inputs = validateInputs(parent.inputs, inputs);
         this.locals = new Set();
     }
 
@@ -110,14 +95,13 @@ export class ExecutionContext implements Context {
         let parent = this.parent;
         while (parent) {
             if (parent instanceof ExecutionContext) {
-                const blocks: any[] = (parent as any).blockResults;
-                if (blocks) {
-                    path.unshift(blocks.length);
+                if (isBlockContainer(parent)) {
+                    path.unshift(parent.blocks.length);
                 }
                 parent = parent.parent;
             }
             else if (parent instanceof RootContext) {
-                path.unshift(0); // position withing root context
+                path.unshift(0); // position within root context
                 break;
             }
         }
@@ -265,10 +249,32 @@ export class ExecutionContext implements Context {
     }
 }
 
+// HELPER FUNCTIONS
+// ================================================================================================
+function isBlockContainer(context: any): context is { blocks: any[]; } {
+    return (context.blocks !== undefined);
+}
+
+function validateDomain(parent: Interval, own?: Interval): Interval {
+    if (!own) return parent;
+    validate(own[0] >= parent[0] && own[1] <= parent[1], errors.notSubdomainOfParent(own, parent));
+    return own;
+}
+
+function validateInputs(parent: Set<string>, own?: string[]): Set<string> {
+    if (!own) return parent;
+    for (let value of own) {
+        validate(parent.has(value), errors.inputMissingFromParent(value));
+    }
+    return new Set(own);
+}
+
 // ERRORS
 // ================================================================================================
 const errors = {
     undeclaredVarReference  : (s: any) => `variable ${s} is referenced before declaration`,
     cannotAssignToConst     : (c: any) => `cannot assign a value to a constant ${c}`,
     cannotAssignToOuterScope: (v: any) => `cannot assign a value to an outer scope variable ${v}`,
+    inputMissingFromParent  : (i: any) => `input '${i}' does not appear in parent context`,
+    notSubdomainOfParent    : (d: any, p: any) => `domain ${d} is not a subdomain of parent domain ${p}`
 };

@@ -65,9 +65,10 @@ class Component {
             aux: this.auxRegisters
         };
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
+        const inputs = extractInputs(this.symbols);
         const symbols = transformSymbols(this.symbols, this.traceWidth, this.auxRegisterOffset);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new contexts_1.RootContext(domain, context, symbols, staticRegisters);
+        return new contexts_1.RootContext(domain, context, symbols, inputs, staticRegisters);
     }
     setTransitionFunction(context, result) {
         this.schema.addFunction(context.base, context.statements, result);
@@ -149,6 +150,15 @@ class Component {
 exports.Component = Component;
 // HELPER FUNCTIONS
 // ================================================================================================
+function extractInputs(symbols) {
+    const inputs = new Set();
+    for (let [key, symbol] of symbols) {
+        if (symbol.type === 'input') {
+            inputs.add(key);
+        }
+    }
+    return inputs;
+}
 function transformSymbols(symbols, traceWidth, staticOffset) {
     const result = new Map();
     const type = 'param';

@@ -1,6 +1,4 @@
 "use strict";
-// IMPORTS
-// ================================================================================================
 Object.defineProperty(exports, "__esModule", { value: true });
 // CONSTANTS
 // ================================================================================================
@@ -17,8 +15,12 @@ var ProcedureParams;
 })(ProcedureParams = exports.ProcedureParams || (exports.ProcedureParams = {}));
 const MAX_SYMBOL_LENGTH = 128;
 const SYMBOL_REGEXP = /[a-zA-Z]\w*/g;
-// SYMBOLS
+// DIMENSIONS
 // ================================================================================================
+function areSameDimensions(d1, d2) {
+    return (d1[0] === d2[0]) && (d1[1] === d2[1]);
+}
+exports.areSameDimensions = areSameDimensions;
 // MATH
 // ================================================================================================
 function isPowerOf2(value) {

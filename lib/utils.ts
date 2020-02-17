@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-
+import { Dimensions } from "@guildofweavers/air-assembly";
 
 // CONSTANTS
 // ================================================================================================
@@ -21,9 +21,11 @@ export enum ProcedureParams {
 const MAX_SYMBOL_LENGTH = 128;
 const SYMBOL_REGEXP = /[a-zA-Z]\w*/g;
 
-// SYMBOLS
+// DIMENSIONS
 // ================================================================================================
-
+export function areSameDimensions(d1: Dimensions, d2: Dimensions): boolean {
+    return (d1[0] === d2[0]) && (d1[1] === d2[1]);
+}
 
 // MATH
 // ================================================================================================

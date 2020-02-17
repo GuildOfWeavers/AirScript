@@ -1,16 +1,19 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("../utils");
+// MODULE VARIABLES
+// ================================================================================================
+const MAX_PATH_LEG = 255;
 // CLASS DEFINITION
 // ================================================================================================
 class RootContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain, base, symbols, staticRegisters) {
+    constructor(domain, base, symbols, inputs, staticRegisters) {
         this.domain = domain;
         this.base = base;
         this.staticRegisters = staticRegisters;
-        this.inputs = new Set();
+        this.inputs = inputs;
         this.locals = new Set();
         this.statements = [];
         this.symbols = symbols;
@@ -40,17 +43,34 @@ class RootContext {
     }
     getLoopControllerIndex(path) {
         const id = pathToId(path);
-        return this.loopControllerMap.get(id); // TODO: check for undefined
+        const index = this.loopControllerMap.get(id);
+        if (index === undefined) {
+            throw new Error(`path ${path} did not resolve to a loop controller index`);
+        }
+        return index;
     }
     getSegmentControllerIndex(path) {
         const id = pathToId(path);
-        return this.segmentControllerMap.get(id); // TODO: check for undefined
+        const index = this.segmentControllerMap.get(id);
+        if (index === undefined) {
+            throw new Error(`path ${path} did not resolve to a segment controller index`);
+        }
+        return index;
     }
 }
 exports.RootContext = RootContext;
 // HELPER FUNCTIONS
 // ================================================================================================
 function pathToId(path) {
-    return path.join('');
+    const buffer = Buffer.allocUnsafe(path.length);
+    let offset = 0;
+    for (let leg of path) {
+        if (leg > MAX_PATH_LEG || leg < 0) {
+            throw new Error(`invalid path leg in path ${path}: all path legs must be integers between 0 and ${MAX_PATH_LEG}`);
+        }
+        offset = buffer.writeUInt8(leg, offset);
+    }
+    return buffer.toString('hex');
+    ;
 }
 //# sourceMappingURL=RootContext.js.map

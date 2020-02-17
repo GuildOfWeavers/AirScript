@@ -106,9 +106,10 @@ export class Component {
         };
 
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
+        const inputs = extractInputs(this.symbols);
         const symbols = transformSymbols(this.symbols, this.traceWidth, this.auxRegisterOffset);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new RootContext(domain, context, symbols, staticRegisters);
+        return new RootContext(domain, context, symbols, inputs, staticRegisters);
     }
 
     setTransitionFunction(context: RootContext, result: Expression): void {
@@ -198,6 +199,16 @@ export class Component {
 
 // HELPER FUNCTIONS
 // ================================================================================================
+function extractInputs(symbols: Map<string, SymbolInfo>): Set<string> {
+    const inputs = new Set<string>();
+    for (let [key, symbol] of symbols) {
+        if (symbol.type === 'input') {
+            inputs.add(key);
+        }
+    }
+    return inputs;
+}
+
 function transformSymbols(symbols: Map<string, SymbolInfo>, traceWidth: number, staticOffset: number): Map<string, SymbolInfo> {
     const result = new Map<string, SymbolInfo>();
     const type = 'param' as 'param';
