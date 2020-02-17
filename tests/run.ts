@@ -2,9 +2,9 @@ import { compile } from '../index';
 import { instantiate, Matrix } from '@guildofweavers/air-assembly';
 
 const script = Buffer.from(`
-import { Poseidon as Hash } from './assembly/poseidon.aa';
+import { Poseidon as Hash } from './assembly/poseidon32.aa';
 
-define MerkleBranch over prime field (2^128 - 9 * 2^32 + 1) {
+define MerkleBranch over prime field (2^32 - 3 * 2^25 + 1) {
 
     secret input leaf       : element[1];      // leaf of the merkle branch
     secret input node       : element[1][1];   // nodes in the merkle branch

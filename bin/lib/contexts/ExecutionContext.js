@@ -147,7 +147,12 @@ class ExecutionContext {
             traceRow = this.base.buildSliceVectorExpression(traceRow, domain[0], domain[1]);
         }
         // TODO: if we are in evaluator, add next state as parameter as well
-        const statics = inputs.slice();
+        // make sure inputs are adjusted by the loop controller
+        // TODO: find a better way to get loop controller
+        const controller = this.parent.getLoopController();
+        let inputsVector = this.base.buildMakeVectorExpression(inputs);
+        inputsVector = this.base.buildBinaryOperation('mul', inputsVector, controller);
+        const statics = [inputsVector];
         let masks = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
         const maskOffset = this.loopOffset + info.rank;
         const maskCount = 2 - info.rank; // TODO
@@ -160,8 +165,7 @@ class ExecutionContext {
             statics.push(aux);
         }
         const staticRow = this.base.buildMakeVectorExpression(statics);
-        const callExpression = this.base.buildCallExpression(info.handle, [traceRow, staticRow]);
-        return callExpression;
+        return this.base.buildCallExpression(info.handle, [traceRow, staticRow]);
     }
     // LOCAL VARIABLES
     // --------------------------------------------------------------------------------------------

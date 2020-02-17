@@ -205,7 +205,13 @@ export class ExecutionContext implements Context {
 
         // TODO: if we are in evaluator, add next state as parameter as well
         
-        const statics = inputs.slice();
+        // make sure inputs are adjusted by the loop controller
+        // TODO: find a better way to get loop controller
+        const controller = (this.parent as any).getLoopController();
+        let inputsVector: Expression = this.base.buildMakeVectorExpression(inputs);
+        inputsVector = this.base.buildBinaryOperation('mul', inputsVector, controller);
+
+        const statics: Expression[] = [inputsVector];
 
         let masks: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
         const maskOffset = this.loopOffset + info.rank;
@@ -221,9 +227,7 @@ export class ExecutionContext implements Context {
         }
 
         const staticRow = this.base.buildMakeVectorExpression(statics);
-        const callExpression = this.base.buildCallExpression(info.handle, [traceRow, staticRow]);
-
-        return callExpression;
+        return this.base.buildCallExpression(info.handle, [traceRow, staticRow]);
     }
 
     // LOCAL VARIABLES
