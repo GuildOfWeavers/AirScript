@@ -204,12 +204,13 @@ class AirVisitor extends BaseCstVisitor {
                 parent.addBaseBlock(initResult, segmentResults);
             }
             else {
-                // TODO: process delegate call
-                throw new Error('delegate parsing not implemented');
+                const blockContext = new contexts_1.ExecutionContext(parent, domain);
+                const callExpression = this.visit(ctx.delegateCall, blockContext);
+                parent.addDelegateBlock(callExpression);
             }
         }
         else {
-            throw new Error('invalid parent');
+            throw new Error(`invalid parent ${parent} for loop block context`);
         }
     }
     traceSegment(ctx, exc) {
@@ -265,17 +266,11 @@ class AirVisitor extends BaseCstVisitor {
         return exc.buildTransitionCall();
     }
     delegateCall(ctx, exc) {
-        if (!exc) {
-            return ctx.delegate[0].image;
-        }
-        const registers = ctx.registers[0].image;
-        if (registers !== '$r') {
-            throw new Error(`functions must be invoked over $r domain, but ${registers} domain was specified`);
-        }
-        const range = this.visit(ctx.range); // TODO
-        const funcName = ctx.funcName[0].image;
+        const funcName = ctx.delegate[0].image;
+        if (!exc)
+            return funcName;
         const params = ctx.parameters.map((p) => this.visit(p, exc));
-        exc.addFunctionCall(funcName, params, range);
+        return exc.buildDelegateCall(funcName, params, exc.domain);
     }
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------

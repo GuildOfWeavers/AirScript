@@ -21,6 +21,12 @@ function areSameDimensions(d1, d2) {
     return (d1[0] === d2[0]) && (d1[1] === d2[1]);
 }
 exports.areSameDimensions = areSameDimensions;
+// SYMBOLS
+// ================================================================================================
+function isFunctionInfoSymbol(symbol) {
+    return (symbol.type === 'func');
+}
+exports.isFunctionInfoSymbol = isFunctionInfoSymbol;
 // MATH
 // ================================================================================================
 function isPowerOf2(value) {

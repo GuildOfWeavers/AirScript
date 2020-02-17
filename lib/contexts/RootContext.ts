@@ -62,6 +62,10 @@ export class RootContext implements Context {
         return false;
     }
 
+    getLocalHandle(variable: string): string | undefined {
+        return undefined;
+    }
+
     getNextId(): string {
         const id = `${BLOCK_ID_PREFIX}${this.lastBlockId}`;
         this.lastBlockId++;

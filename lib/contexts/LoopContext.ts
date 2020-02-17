@@ -75,6 +75,11 @@ export class LoopContext extends ExecutionContext {
 
         this.blocks.push(this.base.buildLoadExpression(`load.local`, this.id));
     }
+
+    addDelegateBlock(result: Expression): void {
+        // TODO: apply controllers?
+        this.blocks.push(result);
+    }
 }
 
 // ERRORS

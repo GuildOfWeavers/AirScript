@@ -1,6 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { Dimensions } from "@guildofweavers/air-assembly";
+import { SymbolInfo, FunctionInfo } from "@guildofweavers/air-script";
 
 // CONSTANTS
 // ================================================================================================
@@ -25,6 +26,12 @@ const SYMBOL_REGEXP = /[a-zA-Z]\w*/g;
 // ================================================================================================
 export function areSameDimensions(d1: Dimensions, d2: Dimensions): boolean {
     return (d1[0] === d2[0]) && (d1[1] === d2[1]);
+}
+
+// SYMBOLS
+// ================================================================================================
+export function isFunctionInfoSymbol(symbol: SymbolInfo): symbol is FunctionInfo {
+    return (symbol.type === 'func');
 }
 
 // MATH

@@ -4,6 +4,7 @@ import { Interval } from "@guildofweavers/air-script";
 import { TraceTemplate } from "./TraceTemplate";
 import { LoopBaseTemplate } from "./LoopBaseTemplate";
 import { validate } from "../utils";
+import { DelegateTemplate } from "./DelegateTemplate";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -44,12 +45,6 @@ export class LoopTemplate extends TraceTemplate {
         return Array.from(inputs);
     }
 
-    get cycleLength(): number | undefined {
-        if (this.isLeaf === true) {
-            return (this.blocks[0] as LoopBaseTemplate).cycleLength; // TODO
-        }
-    }
-
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
     setInputs(inputs: string[]): void {
@@ -58,7 +53,7 @@ export class LoopTemplate extends TraceTemplate {
 
     addBlock(block: TraceTemplate) {
         if (this.isLeaf === undefined) {
-            this.isLeaf = (block instanceof LoopBaseTemplate);
+            this.isLeaf = (block instanceof LoopBaseTemplate || block instanceof DelegateTemplate);
         }
         else if (this.isLeaf === true) {
             validate(!(block instanceof LoopTemplate), errors.blockTypeConflict('loop block'));

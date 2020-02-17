@@ -54,6 +54,7 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     const traceDimensions = component.transitionFunction.result.dimensions;
     const staticDimensions: Dimensions = [component.staticRegisters.length, 0];
     const constraintDimensions = component.constraintEvaluator.result.dimensions;
+    const cycleLength = component.cycleLength;
 
     // import trace initializer
     let ctx = to.createFunctionContext(traceDimensions, `$${alias}_init`);
@@ -80,7 +81,7 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     });
     result = importer.visit(component.transitionFunction.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push(buildFunctionInfo(handle, traceDimensions, offsets));
+    functions.push(buildFunctionInfo(handle, traceDimensions, cycleLength, offsets));
 
     // import constraint evaluator
     handle = `$${alias}${EVALUATION_FN_POSTFIX}`;
@@ -95,7 +96,7 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     });
     result = importer.visit(component.constraintEvaluator.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push(buildFunctionInfo(handle, traceDimensions, offsets));
+    functions.push(buildFunctionInfo(handle, constraintDimensions, cycleLength, offsets));
 
     return functions;
 }
@@ -189,7 +190,7 @@ class ExpressionImporter extends ExpressionVisitor<Expression> {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function buildFunctionInfo(handle: string, dimensions: Dimensions, offsets: ImportOffsets): FunctionInfo {
+function buildFunctionInfo(handle: string, dimensions: Dimensions, cycleLength: number, offsets: ImportOffsets): FunctionInfo {
     return {
         type        : 'func',
         handle      : handle,
@@ -197,6 +198,7 @@ function buildFunctionInfo(handle: string, dimensions: Dimensions, offsets: Impo
         subset      : false,
         auxOffset   : offsets.auxRegisters,
         auxLength   : offsets.auxRegisterCount,
+        cycleLength : cycleLength,
         rank        : 1   // TODO
     };
 }

@@ -1,11 +1,11 @@
 // IMPORTS
 // ================================================================================================
-import { Interval, SymbolInfo } from "@guildofweavers/air-script";
+import { Interval, SymbolInfo, FunctionInfo } from "@guildofweavers/air-script";
 import {
     Expression, StoreOperation, FunctionContext, LiteralValue, BinaryOperation, UnaryOperation,
     MakeVector, GetVectorElement, SliceVector, MakeMatrix
 } from "@guildofweavers/air-assembly";
-import { validate, ProcedureParams, TRANSITION_FN_HANDLE } from "../utils";
+import { validate, ProcedureParams, TRANSITION_FN_HANDLE, TRANSITION_FN_POSTFIX } from "../utils";
 import { RootContext } from "./RootContext";
 
 // INTERFACES
@@ -22,6 +22,8 @@ export interface Context {
     readonly segmentOffset      : number;
 
     hasLocal(variable: string): boolean;
+    getLocalHandle(variable: string): string | undefined;
+
     getNextId(): string;
     getLoopControllerIndex(path: number[]): number;
     getSegmentControllerIndex(path: number[]): number;
@@ -128,8 +130,9 @@ export class ExecutionContext implements Context {
             }
         }
         else {
-            validate(this.hasLocal(symbol), errors.undeclaredVarReference(symbol));
-            result = this.base.buildLoadExpression(`load.local`, this.buildLocalHandle(symbol));
+            const handle = this.getLocalHandle(symbol);
+            validate(handle !== undefined, errors.undeclaredVarReference(symbol));
+            result = this.base.buildLoadExpression(`load.local`, handle);
         }
 
         return result;
@@ -185,8 +188,42 @@ export class ExecutionContext implements Context {
         return this.base.buildCallExpression(TRANSITION_FN_HANDLE, params);
     }
 
-    addFunctionCall(funcName: string, inputs: Expression[], domain: [number, number]): void {
-        // TODO
+    buildDelegateCall(funcName: string, inputs: Expression[], domain: Interval): Expression {
+        // TODO: validate domain
+
+        //const fName = funcName + (this.procedureName === 'transition' ? TRANSITION_FN_POSTFIX : EVALUATION_FN_POSTFIX);
+        const fName = funcName + TRANSITION_FN_POSTFIX; // TODO: determine based on procedure context
+        const info = this.symbols.get(fName) as FunctionInfo;
+        validate(info !== undefined, errors.undefinedFuncReference(funcName));
+        validate(info.type === 'func', errors.invalidFuncReference(funcName));
+        // TODO: validate rank
+
+        let traceRow: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow);
+        if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
+            traceRow = this.base.buildSliceVectorExpression(traceRow, domain[0], domain[1]);
+        }
+
+        // TODO: if we are in evaluator, add next state as parameter as well
+        
+        const statics = inputs.slice();
+
+        let masks: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
+        const maskOffset = this.loopOffset + info.rank;
+        const maskCount = 2 - info.rank; // TODO
+        masks = this.base.buildSliceVectorExpression(masks, maskOffset, maskOffset + maskCount - 1);
+        statics.push(masks);
+
+        if (info.auxLength > 0) {
+            const auxOffset = 5 + info.auxOffset; // TODO
+            let aux: Expression = this.base.buildLoadExpression('load.param', ProcedureParams.staticRow);
+            aux = this.base.buildSliceVectorExpression(aux, auxOffset, auxOffset + info.auxLength - 1);
+            statics.push(aux);
+        }
+
+        const staticRow = this.base.buildMakeVectorExpression(statics);
+        const callExpression = this.base.buildCallExpression(info.handle, [traceRow, staticRow]);
+
+        return callExpression;
     }
 
     // LOCAL VARIABLES
@@ -198,6 +235,12 @@ export class ExecutionContext implements Context {
 
     isOwnLocal(variable: string): boolean {
         return this.locals.has(this.buildLocalHandle(variable));
+    }
+
+    getLocalHandle(variable: string): string | undefined {
+        const handle = this.buildLocalHandle(variable);
+        if (this.locals.has(handle)) return handle;
+        else return (this.parent.getLocalHandle(variable));
     }
 
     private buildLocalHandle(variable: string): string {
@@ -273,6 +316,8 @@ function validateInputs(parent: Set<string>, own?: string[]): Set<string> {
 // ================================================================================================
 const errors = {
     undeclaredVarReference  : (s: any) => `variable ${s} is referenced before declaration`,
+    undefinedFuncReference  : (f: any) => `function ${f} has not been defined`,
+    invalidFuncReference    : (f: any) => `symbol ${f} is not a function`,
     cannotAssignToConst     : (c: any) => `cannot assign a value to a constant ${c}`,
     cannotAssignToOuterScope: (v: any) => `cannot assign a value to an outer scope variable ${v}`,
     inputMissingFromParent  : (i: any) => `input '${i}' does not appear in parent context`,

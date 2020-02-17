@@ -36,6 +36,9 @@ class RootContext {
     hasLocal(variable) {
         return false;
     }
+    getLocalHandle(variable) {
+        return undefined;
+    }
     getNextId() {
         const id = `${utils_1.BLOCK_ID_PREFIX}${this.lastBlockId}`;
         this.lastBlockId++;

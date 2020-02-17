@@ -2,9 +2,9 @@
 // ================================================================================================
 import { SymbolInfo, InputInfo, InputRegister, MaskRegister, SegmentRegister, StaticRegister, Interval } from "@guildofweavers/air-script";
 import { AirSchema, FiniteField, Dimensions, ProcedureName, Expression, InputRegisterMaster } from "@guildofweavers/air-assembly";
-import { LoopTemplate, LoopBaseTemplate } from "./templates";
+import { LoopTemplate, LoopBaseTemplate, DelegateTemplate } from "./templates";
 import { RootContext } from "./contexts";
-import { ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, validate } from "./utils";
+import { ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, validate, isFunctionInfoSymbol, TRANSITION_FN_POSTFIX } from "./utils";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -28,7 +28,7 @@ export class Component {
     readonly schema             : AirSchema;
     readonly symbols            : Map<string, SymbolInfo>;
 
-    readonly cycleLength        : number;
+    cycleLength        : number;    // TODO
 
     readonly inputRegisters     : InputRegister[];
     readonly maskRegisters      : MaskRegister[];
@@ -50,17 +50,8 @@ export class Component {
         this.segmentRegisters = [];
         this.auxRegisters = auxRegisters;
 
-        this.buildRegisterSpecs(template, [0]);
-        // TODO: include delegates in cycle length logic
         this.cycleLength = 0;
-        for (let segment of this.segmentRegisters) {
-            let steps = segment.mask.length;
-            //validate(isPowerOf2(steps), errors.cycleLengthNotPowerOf2(steps));
-            // TODO: make sure there are no gaps
-            if (steps > this.cycleLength) {
-                this.cycleLength = steps;
-            }
-        }
+        this.buildRegisterSpecs(template, [0]);
     }
 
     // ACCESSORS
@@ -152,7 +143,11 @@ export class Component {
     private buildRegisterSpecs(loop: LoopTemplate, path: number[], masterParent?: InputRegisterMaster): void {
         const inputOffset = this.inputRegisters.length;
         const masterPeer: InputRegisterMaster = { relation: 'peerof', index: inputOffset };
-        const cycleLength = loop.cycleLength;
+        const cycleLength = getCycleLength(loop, this.symbols);
+
+        if (cycleLength !== undefined && this.cycleLength < cycleLength) {
+            this.cycleLength = cycleLength;
+        }
 
         // build input registers for this loop
         let isAnchor = true;
@@ -245,6 +240,29 @@ function transformSymbols(symbols: Map<string, SymbolInfo>, traceWidth: number, 
     }
 
     return result;
+}
+
+function getCycleLength(loop: LoopTemplate, symbols: Map<string, SymbolInfo>): number | undefined {
+    if (!loop.isLeaf) return undefined;
+
+    let cycleLength = 0;
+    for (let block of loop.blocks) {
+        if (block instanceof LoopBaseTemplate) {
+            if (block.cycleLength > cycleLength) {
+                cycleLength = block.cycleLength;
+            }
+        }
+        else if (block instanceof DelegateTemplate) {
+            const handle = `${block.delegate}${TRANSITION_FN_POSTFIX}`;     // TODO: don't hardcode postfix
+            const info = symbols.get(handle)!;                              // TODO: check for undefined
+            if (isFunctionInfoSymbol(info)) {
+                if (info.cycleLength > cycleLength) {
+                    cycleLength = info.cycleLength;
+                }
+            }
+        }
+    }
+    return cycleLength;
 }
 
 // ERRORS

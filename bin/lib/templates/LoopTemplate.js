@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const TraceTemplate_1 = require("./TraceTemplate");
 const LoopBaseTemplate_1 = require("./LoopBaseTemplate");
 const utils_1 = require("../utils");
+const DelegateTemplate_1 = require("./DelegateTemplate");
 // CLASS DEFINITION
 // ================================================================================================
 class LoopTemplate extends TraceTemplate_1.TraceTemplate {
@@ -31,11 +32,6 @@ class LoopTemplate extends TraceTemplate_1.TraceTemplate {
         }
         return Array.from(inputs);
     }
-    get cycleLength() {
-        if (this.isLeaf === true) {
-            return this.blocks[0].cycleLength; // TODO
-        }
-    }
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
     setInputs(inputs) {
@@ -43,7 +39,7 @@ class LoopTemplate extends TraceTemplate_1.TraceTemplate {
     }
     addBlock(block) {
         if (this.isLeaf === undefined) {
-            this.isLeaf = (block instanceof LoopBaseTemplate_1.LoopBaseTemplate);
+            this.isLeaf = (block instanceof LoopBaseTemplate_1.LoopBaseTemplate || block instanceof DelegateTemplate_1.DelegateTemplate);
         }
         else if (this.isLeaf === true) {
             utils_1.validate(!(block instanceof LoopTemplate), errors.blockTypeConflict('loop block'));

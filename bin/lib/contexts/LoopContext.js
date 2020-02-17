@@ -56,6 +56,10 @@ class LoopContext extends ExecutionContext_1.ExecutionContext {
         this.statements.push(this.base.buildStoreOperation(this.id, result));
         this.blocks.push(this.base.buildLoadExpression(`load.local`, this.id));
     }
+    addDelegateBlock(result) {
+        // TODO: apply controllers?
+        this.blocks.push(result);
+    }
 }
 exports.LoopContext = LoopContext;
 // ERRORS

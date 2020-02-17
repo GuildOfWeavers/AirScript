@@ -65,6 +65,7 @@ declare module '@guildofweavers/air-script' {
         readonly auxOffset  : number;
         readonly auxLength  : number;
         readonly rank       : number;
+        readonly cycleLength: number;
     }
     
     export interface InputInfo extends SymbolInfo {

@@ -41,6 +41,7 @@ function importComponent(from, to, member, offsets) {
     const traceDimensions = component.transitionFunction.result.dimensions;
     const staticDimensions = [component.staticRegisters.length, 0];
     const constraintDimensions = component.constraintEvaluator.result.dimensions;
+    const cycleLength = component.cycleLength;
     // import trace initializer
     let ctx = to.createFunctionContext(traceDimensions, `$${alias}_init`);
     component.traceInitializer.params.forEach(param => ctx.addParam(param.dimensions, param.handle));
@@ -65,7 +66,7 @@ function importComponent(from, to, member, offsets) {
     });
     result = importer.visit(component.transitionFunction.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push(buildFunctionInfo(handle, traceDimensions, offsets));
+    functions.push(buildFunctionInfo(handle, traceDimensions, cycleLength, offsets));
     // import constraint evaluator
     handle = `$${alias}${utils_1.EVALUATION_FN_POSTFIX}`;
     ctx = to.createFunctionContext(constraintDimensions, handle);
@@ -79,7 +80,7 @@ function importComponent(from, to, member, offsets) {
     });
     result = importer.visit(component.constraintEvaluator.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push(buildFunctionInfo(handle, traceDimensions, offsets));
+    functions.push(buildFunctionInfo(handle, constraintDimensions, cycleLength, offsets));
     return functions;
 }
 exports.importComponent = importComponent;
@@ -158,7 +159,7 @@ class ExpressionImporter extends air_assembly_1.ExpressionVisitor {
 }
 // HELPER FUNCTIONS
 // ================================================================================================
-function buildFunctionInfo(handle, dimensions, offsets) {
+function buildFunctionInfo(handle, dimensions, cycleLength, offsets) {
     return {
         type: 'func',
         handle: handle,
@@ -166,6 +167,7 @@ function buildFunctionInfo(handle, dimensions, offsets) {
         subset: false,
         auxOffset: offsets.auxRegisters,
         auxLength: offsets.auxRegisterCount,
+        cycleLength: cycleLength,
         rank: 1 // TODO
     };
 }

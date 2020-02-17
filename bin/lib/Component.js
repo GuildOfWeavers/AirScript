@@ -17,17 +17,8 @@ class Component {
         this.maskRegisters = [];
         this.segmentRegisters = [];
         this.auxRegisters = auxRegisters;
-        this.buildRegisterSpecs(template, [0]);
-        // TODO: include delegates in cycle length logic
         this.cycleLength = 0;
-        for (let segment of this.segmentRegisters) {
-            let steps = segment.mask.length;
-            //validate(isPowerOf2(steps), errors.cycleLengthNotPowerOf2(steps));
-            // TODO: make sure there are no gaps
-            if (steps > this.cycleLength) {
-                this.cycleLength = steps;
-            }
-        }
+        this.buildRegisterSpecs(template, [0]);
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -107,7 +98,10 @@ class Component {
     buildRegisterSpecs(loop, path, masterParent) {
         const inputOffset = this.inputRegisters.length;
         const masterPeer = { relation: 'peerof', index: inputOffset };
-        const cycleLength = loop.cycleLength;
+        const cycleLength = getCycleLength(loop, this.symbols);
+        if (cycleLength !== undefined && this.cycleLength < cycleLength) {
+            this.cycleLength = cycleLength;
+        }
         // build input registers for this loop
         let isAnchor = true;
         for (let inputName of loop.ownInputs) {
@@ -191,6 +185,28 @@ function transformSymbols(symbols, traceWidth, staticOffset) {
         result.set(`$n${i}`, { type, handle: utils_1.ProcedureParams.nextTraceRow, offset: i, dimensions, subset });
     }
     return result;
+}
+function getCycleLength(loop, symbols) {
+    if (!loop.isLeaf)
+        return undefined;
+    let cycleLength = 0;
+    for (let block of loop.blocks) {
+        if (block instanceof templates_1.LoopBaseTemplate) {
+            if (block.cycleLength > cycleLength) {
+                cycleLength = block.cycleLength;
+            }
+        }
+        else if (block instanceof templates_1.DelegateTemplate) {
+            const handle = `${block.delegate}${utils_1.TRANSITION_FN_POSTFIX}`; // TODO: don't hardcode postfix
+            const info = symbols.get(handle); // TODO: check for undefined
+            if (utils_1.isFunctionInfoSymbol(info)) {
+                if (info.cycleLength > cycleLength) {
+                    cycleLength = info.cycleLength;
+                }
+            }
+        }
+    }
+    return cycleLength;
 }
 // ERRORS
 // ================================================================================================
