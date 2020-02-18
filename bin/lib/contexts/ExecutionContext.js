@@ -190,6 +190,9 @@ class ExecutionContext {
     getSegmentControllerIndex(path) {
         return this.parent.getSegmentControllerIndex(path);
     }
+    getInputRank(input) {
+        return this.parent.getInputRank(input);
+    }
 }
 exports.ExecutionContext = ExecutionContext;
 // HELPER FUNCTIONS

@@ -4,7 +4,7 @@ import { SymbolInfo, InputInfo, InputRegister, MaskRegister, SegmentRegister, St
 import { AirSchema, FiniteField, Dimensions, ProcedureName, Expression, InputRegisterMaster } from "@guildofweavers/air-assembly";
 import { LoopTemplate, LoopBaseTemplate, DelegateTemplate } from "./templates";
 import { RootContext } from "./contexts";
-import { ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, validate, isFunctionInfoSymbol } from "./utils";
+import { ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, validate, isFunctionInfoSymbol, isInputInfoSymbol } from "./utils";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -194,11 +194,11 @@ export class Component {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function extractInputs(symbols: Map<string, SymbolInfo>): Set<string> {
-    const inputs = new Set<string>();
-    for (let [key, symbol] of symbols) {
-        if (symbol.type === 'input') {
-            inputs.add(key);
+function extractInputs(symbols: Map<string, SymbolInfo>): Map<string, number> {
+    const inputs = new Map<string, number>();
+    for (let [symbol, info] of symbols) {
+        if (isInputInfoSymbol(info)) {
+            inputs.set(symbol, info.rank);
         }
     }
     return inputs;

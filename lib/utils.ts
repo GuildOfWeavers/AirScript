@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
-import { Dimensions } from "@guildofweavers/air-assembly";
-import { SymbolInfo, FunctionInfo, Interval } from "@guildofweavers/air-script";
+import { Dimensions, StaticRegister, MaskRegister } from "@guildofweavers/air-assembly";
+import { SymbolInfo, FunctionInfo, Interval, InputInfo } from "@guildofweavers/air-script";
 
 // CONSTANTS
 // ================================================================================================
@@ -35,6 +35,17 @@ export function isSubdomain(parent: Interval, child: Interval): boolean {
 // ================================================================================================
 export function isFunctionInfoSymbol(symbol: SymbolInfo): symbol is FunctionInfo {
     return (symbol.type === 'func');
+}
+
+export function isInputInfoSymbol(symbol: SymbolInfo): symbol is InputInfo {
+    return (symbol.type === 'input');
+}
+
+// REGISTERS
+// ================================================================================================
+export function isMaskRegister(register: StaticRegister): register is MaskRegister {
+    // TODO: move to AirAssembly
+    return ((register as any).source !== undefined);
 }
 
 // MATH

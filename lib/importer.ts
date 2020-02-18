@@ -1,11 +1,13 @@
 // IMPORTS
 // ================================================================================================
-import { AirSchema, ExpressionVisitor, ExecutionContext, Expression, LiteralValue, BinaryOperation,
-    UnaryOperation, MakeVector, GetVectorElement, SliceVector, MakeMatrix, LoadExpression, CallExpression, Dimensions
+import {
+    AirSchema, ExpressionVisitor, ExecutionContext, Expression, LiteralValue, BinaryOperation,
+    UnaryOperation, MakeVector, GetVectorElement, SliceVector, MakeMatrix, LoadExpression, CallExpression,
+    Dimensions, AirComponent, ProcedureName
 } from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo } from '@guildofweavers/air-script';
 import { ImportMember } from "./Module";
-import { ProcedureParams } from "./utils";
+import { ProcedureParams, isMaskRegister } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -54,7 +56,6 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     const traceDimensions = component.transitionFunction.result.dimensions;
     const staticDimensions: Dimensions = [component.staticRegisters.length, 0];
     const constraintDimensions = component.constraintEvaluator.result.dimensions;
-    const cycleLength = component.cycleLength;
 
     // import trace initializer
     let ctx = to.createFunctionContext(traceDimensions, `$${alias}_init`);
@@ -70,8 +71,8 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     // TODO: add to functions?
 
     // import transition function
-    let handle = `$${alias}_transition`;
-    ctx = to.createFunctionContext(traceDimensions, handle);
+    let funcInfo = buildFunctionInfo(component, 'transition', alias, offsets);
+    ctx = to.createFunctionContext(traceDimensions, funcInfo.handle);
     ctx.addParam(traceDimensions, ProcedureParams.thisTraceRow);
     ctx.addParam(staticDimensions, ProcedureParams.staticRow);
     component.transitionFunction.locals.forEach(local => ctx.addLocal(local.dimensions, local.handle));
@@ -81,11 +82,11 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     });
     result = importer.visit(component.transitionFunction.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push(buildFunctionInfo(handle, traceDimensions, cycleLength, offsets));
+    functions.push(funcInfo);
 
     // import constraint evaluator
-    handle = `$${alias}_evaluation`;
-    ctx = to.createFunctionContext(constraintDimensions, handle);
+    funcInfo = buildFunctionInfo(component, 'evaluation', alias, offsets);
+    ctx = to.createFunctionContext(constraintDimensions, funcInfo.handle);
     ctx.addParam(traceDimensions, ProcedureParams.thisTraceRow);
     ctx.addParam(traceDimensions, ProcedureParams.nextTraceRow);
     ctx.addParam(staticDimensions, ProcedureParams.staticRow);
@@ -96,7 +97,7 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     });
     result = importer.visit(component.constraintEvaluator.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push(buildFunctionInfo(handle, constraintDimensions, cycleLength, offsets));
+    functions.push(funcInfo);
 
     return functions;
 }
@@ -190,15 +191,27 @@ class ExpressionImporter extends ExpressionVisitor<Expression> {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-function buildFunctionInfo(handle: string, dimensions: Dimensions, cycleLength: number, offsets: ImportOffsets): FunctionInfo {
+function buildFunctionInfo(component: AirComponent, procedure: ProcedureName, alias: string, offsets: ImportOffsets): FunctionInfo {
+    const dimensions = (procedure === 'evaluation')
+        ? component.constraintEvaluator.result.dimensions
+        : component.transitionFunction.result.dimensions;
+    
+    let maskCount = 0;
+    for (let register of component.staticRegisters) {
+        if (isMaskRegister(register)) {
+            maskCount++;
+        }
+    }
+
     return {
         type        : 'func',
-        handle      : handle,
+        handle      : `$${alias}_${procedure}`,
         dimensions  : dimensions,
         subset      : false,
         auxOffset   : offsets.auxRegisters,
-        auxLength   : offsets.auxRegisterCount,
-        cycleLength : cycleLength,
-        rank        : 1   // TODO
+        auxCount    : offsets.auxRegisterCount,
+        maskCount   : maskCount,
+        cycleLength : component.cycleLength,
+        rank        : maskCount - 1
     };
 }

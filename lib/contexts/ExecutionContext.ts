@@ -29,6 +29,7 @@ export interface Context {
     getNextId(): string;
     getLoopControllerIndex(path: number[]): number;
     getSegmentControllerIndex(path: number[]): number;
+    getInputRank(input: string): number;
 }
 
 // EXECUTION CONTEXT CLASS
@@ -255,6 +256,10 @@ export class ExecutionContext implements Context {
 
     getSegmentControllerIndex(path: number[]): number {
         return this.parent.getSegmentControllerIndex(path);
+    }
+
+    getInputRank(input: string): number {
+        return this.parent.getInputRank(input);
     }
 }
 

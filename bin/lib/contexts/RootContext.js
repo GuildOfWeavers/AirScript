@@ -13,11 +13,13 @@ class RootContext {
         this.domain = domain;
         this.base = base;
         this.staticRegisters = staticRegisters;
-        this.inputs = inputs;
         this.locals = new Set();
         this.statements = [];
         this.symbols = symbols;
         this.lastBlockId = 0;
+        this.inputs = new Set();
+        this.inputRankMap = inputs;
+        this.inputRankMap.forEach((rank, input) => this.inputs.add(input));
         this.loopControllerMap = new Map();
         staticRegisters.loops.forEach((l, i) => this.loopControllerMap.set(pathToId(l.path), i));
         this.segmentControllerMap = new Map();
@@ -67,6 +69,13 @@ class RootContext {
             throw new Error(`path ${path} did not resolve to a segment controller index`);
         }
         return index;
+    }
+    getInputRank(input) {
+        const rank = this.inputRankMap.get(input);
+        if (rank === undefined) {
+            throw new Error(`rank for input '${input}' could not be found`);
+        }
+        return rank;
     }
 }
 exports.RootContext = RootContext;

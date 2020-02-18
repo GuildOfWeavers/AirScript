@@ -31,6 +31,17 @@ function isFunctionInfoSymbol(symbol) {
     return (symbol.type === 'func');
 }
 exports.isFunctionInfoSymbol = isFunctionInfoSymbol;
+function isInputInfoSymbol(symbol) {
+    return (symbol.type === 'input');
+}
+exports.isInputInfoSymbol = isInputInfoSymbol;
+// REGISTERS
+// ================================================================================================
+function isMaskRegister(register) {
+    // TODO: move to AirAssembly
+    return (register.source !== undefined);
+}
+exports.isMaskRegister = isMaskRegister;
 // MATH
 // ================================================================================================
 function isPowerOf2(value) {

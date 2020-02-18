@@ -41,7 +41,6 @@ function importComponent(from, to, member, offsets) {
     const traceDimensions = component.transitionFunction.result.dimensions;
     const staticDimensions = [component.staticRegisters.length, 0];
     const constraintDimensions = component.constraintEvaluator.result.dimensions;
-    const cycleLength = component.cycleLength;
     // import trace initializer
     let ctx = to.createFunctionContext(traceDimensions, `$${alias}_init`);
     component.traceInitializer.params.forEach(param => ctx.addParam(param.dimensions, param.handle));
@@ -55,8 +54,8 @@ function importComponent(from, to, member, offsets) {
     to.addFunction(ctx, statements, result);
     // TODO: add to functions?
     // import transition function
-    let handle = `$${alias}_transition`;
-    ctx = to.createFunctionContext(traceDimensions, handle);
+    let funcInfo = buildFunctionInfo(component, 'transition', alias, offsets);
+    ctx = to.createFunctionContext(traceDimensions, funcInfo.handle);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.thisTraceRow);
     ctx.addParam(staticDimensions, utils_1.ProcedureParams.staticRow);
     component.transitionFunction.locals.forEach(local => ctx.addLocal(local.dimensions, local.handle));
@@ -66,10 +65,10 @@ function importComponent(from, to, member, offsets) {
     });
     result = importer.visit(component.transitionFunction.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push(buildFunctionInfo(handle, traceDimensions, cycleLength, offsets));
+    functions.push(funcInfo);
     // import constraint evaluator
-    handle = `$${alias}_evaluation`;
-    ctx = to.createFunctionContext(constraintDimensions, handle);
+    funcInfo = buildFunctionInfo(component, 'evaluation', alias, offsets);
+    ctx = to.createFunctionContext(constraintDimensions, funcInfo.handle);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.thisTraceRow);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.nextTraceRow);
     ctx.addParam(staticDimensions, utils_1.ProcedureParams.staticRow);
@@ -80,7 +79,7 @@ function importComponent(from, to, member, offsets) {
     });
     result = importer.visit(component.constraintEvaluator.result, ctx);
     to.addFunction(ctx, statements, result);
-    functions.push(buildFunctionInfo(handle, constraintDimensions, cycleLength, offsets));
+    functions.push(funcInfo);
     return functions;
 }
 exports.importComponent = importComponent;
@@ -159,16 +158,26 @@ class ExpressionImporter extends air_assembly_1.ExpressionVisitor {
 }
 // HELPER FUNCTIONS
 // ================================================================================================
-function buildFunctionInfo(handle, dimensions, cycleLength, offsets) {
+function buildFunctionInfo(component, procedure, alias, offsets) {
+    const dimensions = (procedure === 'evaluation')
+        ? component.constraintEvaluator.result.dimensions
+        : component.transitionFunction.result.dimensions;
+    let maskCount = 0;
+    for (let register of component.staticRegisters) {
+        if (utils_1.isMaskRegister(register)) {
+            maskCount++;
+        }
+    }
     return {
         type: 'func',
-        handle: handle,
+        handle: `$${alias}_${procedure}`,
         dimensions: dimensions,
         subset: false,
         auxOffset: offsets.auxRegisters,
-        auxLength: offsets.auxRegisterCount,
-        cycleLength: cycleLength,
-        rank: 1 // TODO
+        auxCount: offsets.auxRegisterCount,
+        maskCount: maskCount,
+        cycleLength: component.cycleLength,
+        rank: maskCount - 1
     };
 }
 //# sourceMappingURL=importer.js.map

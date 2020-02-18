@@ -145,10 +145,10 @@ exports.Component = Component;
 // HELPER FUNCTIONS
 // ================================================================================================
 function extractInputs(symbols) {
-    const inputs = new Set();
-    for (let [key, symbol] of symbols) {
-        if (symbol.type === 'input') {
-            inputs.add(key);
+    const inputs = new Map();
+    for (let [symbol, info] of symbols) {
+        if (utils_1.isInputInfoSymbol(info)) {
+            inputs.set(symbol, info.rank);
         }
     }
     return inputs;

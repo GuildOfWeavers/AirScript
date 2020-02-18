@@ -4,7 +4,7 @@ import { Interval, SymbolInfo } from "@guildofweavers/air-script";
 import { StoreOperation, FunctionContext } from "@guildofweavers/air-assembly";
 import { Context } from "./ExecutionContext";
 import { StaticRegisters } from "../Component";
-import { BLOCK_ID_PREFIX } from "../utils";
+import { BLOCK_ID_PREFIX, isInputInfoSymbol } from "../utils";
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -23,21 +23,25 @@ export class RootContext implements Context {
     readonly base               : FunctionContext;
 
     private lastBlockId         : number;
+    private inputRankMap        : Map<string, number>;
     private loopControllerMap   : Map<string, number>;
     private segmentControllerMap: Map<string, number>;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(domain: Interval, base: FunctionContext, symbols: Map<string, SymbolInfo>, inputs: Set<string>, staticRegisters: StaticRegisters) {
+    constructor(domain: Interval, base: FunctionContext, symbols: Map<string, SymbolInfo>, inputs: Map<string, number>, staticRegisters: StaticRegisters) {
         this.domain = domain;
         this.base = base;
         this.staticRegisters = staticRegisters;
-        this.inputs = inputs;
         
         this.locals = new Set();
         this.statements = [];
         this.symbols = symbols;
         this.lastBlockId = 0;
+
+        this.inputs = new Set();
+        this.inputRankMap = inputs;
+        this.inputRankMap.forEach((rank, input) => this.inputs.add(input));
 
         this.loopControllerMap = new Map();
         staticRegisters.loops.forEach((l, i) => this.loopControllerMap.set(pathToId(l.path), i));
@@ -98,6 +102,14 @@ export class RootContext implements Context {
             throw new Error(`path ${path} did not resolve to a segment controller index`);
         }
         return index;
+    }
+
+    getInputRank(input: string): number {
+        const rank = this.inputRankMap.get(input);
+        if (rank === undefined) {
+            throw new Error(`rank for input '${input}' could not be found`);
+        }
+        return rank;
     }
 }
 

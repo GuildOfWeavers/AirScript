@@ -21,23 +21,8 @@ class LoopContext extends ExecutionContext_1.ExecutionContext {
             : this.base.buildMakeVectorExpression(this.blocks);
         return result;
     }
-    // PUBLIC FUNCTIONS
+    // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    getLoopController() {
-        const path = this.getCurrentBlockPath();
-        const loopIdx = this.loopOffset + this.getLoopControllerIndex(path);
-        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-        result = this.base.buildGetVectorElementExpression(result, loopIdx);
-        return result;
-    }
-    getSegmentController(segmentIdx) {
-        const path = this.getCurrentBlockPath();
-        path.push(segmentIdx);
-        segmentIdx = this.segmentOffset + this.getSegmentControllerIndex(path);
-        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
-        return result;
-    }
     addBaseBlock(initResult, segmentResults) {
         const dimensions = initResult.dimensions;
         // initializer result
@@ -77,8 +62,9 @@ class LoopContext extends ExecutionContext_1.ExecutionContext {
         const info = this.symbols.get(funcName);
         utils_1.validate(info !== undefined, errors.undefinedFuncReference(delegateName));
         utils_1.validate(info.type === 'func', errors.invalidFuncReference(delegateName));
-        // TODO: validate rank
         utils_1.validate(utils_1.isSubdomain(this.domain, domain), errors.invalidFuncDomain(delegateName, this.domain));
+        const depth = this.getMaxInputRank() - this.rank;
+        utils_1.validate(depth === info.rank, errors.invalidFuncRank(funcName));
         // build function parameters
         const params = [];
         // add parameter for current state
@@ -98,18 +84,43 @@ class LoopContext extends ExecutionContext_1.ExecutionContext {
         const controller = this.getLoopController();
         const inputsVector = this.base.buildMakeVectorExpression(inputs);
         statics.push(this.base.buildBinaryOperation('mul', inputsVector, controller));
-        let masks = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-        const maskOffset = this.loopOffset + info.rank;
-        const maskCount = 2 - info.rank; // TODO
-        masks = this.base.buildSliceVectorExpression(masks, maskOffset, maskOffset + maskCount - 1);
-        statics.push(masks);
-        if (info.auxLength > 0) {
+        const masks = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+        const maskOffset = this.loopOffset + this.getLoopControllerIndex(this.getCurrentBlockPath());
+        statics.push(this.base.buildSliceVectorExpression(masks, maskOffset, maskOffset + info.maskCount - 1));
+        if (info.auxCount > 0) {
             const auxOffset = this.auxRegistersOffset + info.auxOffset;
             const aux = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
-            statics.push(this.base.buildSliceVectorExpression(aux, auxOffset, auxOffset + info.auxLength - 1));
+            statics.push(this.base.buildSliceVectorExpression(aux, auxOffset, auxOffset + info.auxCount - 1));
         }
         params.push(this.base.buildMakeVectorExpression(statics));
         this.blocks.push(this.base.buildCallExpression(info.handle, params));
+    }
+    // PRIVATE METHODS
+    // --------------------------------------------------------------------------------------------
+    getLoopController() {
+        const path = this.getCurrentBlockPath();
+        const loopIdx = this.loopOffset + this.getLoopControllerIndex(path);
+        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+        result = this.base.buildGetVectorElementExpression(result, loopIdx);
+        return result;
+    }
+    getSegmentController(segmentIdx) {
+        const path = this.getCurrentBlockPath();
+        path.push(segmentIdx);
+        segmentIdx = this.segmentOffset + this.getSegmentControllerIndex(path);
+        let result = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
+        result = this.base.buildGetVectorElementExpression(result, segmentIdx);
+        return result;
+    }
+    getMaxInputRank() {
+        let rank = 0;
+        for (let input of this.inputs) {
+            let inputRank = this.getInputRank(input);
+            if (inputRank > rank) {
+                rank = inputRank;
+            }
+        }
+        return rank;
     }
 }
 exports.LoopContext = LoopContext;
@@ -119,8 +130,9 @@ const errors = {
     resultsNotYetSet: () => `loop results haven't been set yet`,
     baseResultMismatch: () => `init block dimensions conflict with segment block dimensions`,
     loopResultMismatch: () => `init block dimensions conflict with inner loop dimensions`,
+    undefinedFuncReference: (f) => `function ${f} has not been defined`,
     invalidFuncReference: (f) => `symbol ${f} is not a function`,
     invalidFuncDomain: (f, p) => `domain of function ${f} is outside of parent domain ${p}`,
-    undefinedFuncReference: (f) => `function ${f} has not been defined`
+    invalidFuncRank: (f) => `function ${f} cannot be called from the specified context: rank mismatch`
 };
 //# sourceMappingURL=LoopContext.js.map
