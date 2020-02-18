@@ -5,7 +5,7 @@ import { AirSchema, ExpressionVisitor, ExecutionContext, Expression, LiteralValu
 } from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo } from '@guildofweavers/air-script';
 import { ImportMember } from "./Module";
-import { ProcedureParams, TRANSITION_FN_POSTFIX, EVALUATION_FN_POSTFIX } from "./utils";
+import { ProcedureParams } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -70,7 +70,7 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     // TODO: add to functions?
 
     // import transition function
-    let handle = `$${alias}${TRANSITION_FN_POSTFIX}`;
+    let handle = `$${alias}_transition`;
     ctx = to.createFunctionContext(traceDimensions, handle);
     ctx.addParam(traceDimensions, ProcedureParams.thisTraceRow);
     ctx.addParam(staticDimensions, ProcedureParams.staticRow);
@@ -84,7 +84,7 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     functions.push(buildFunctionInfo(handle, traceDimensions, cycleLength, offsets));
 
     // import constraint evaluator
-    handle = `$${alias}${EVALUATION_FN_POSTFIX}`;
+    handle = `$${alias}_evaluation`;
     ctx = to.createFunctionContext(constraintDimensions, handle);
     ctx.addParam(traceDimensions, ProcedureParams.thisTraceRow);
     ctx.addParam(traceDimensions, ProcedureParams.nextTraceRow);

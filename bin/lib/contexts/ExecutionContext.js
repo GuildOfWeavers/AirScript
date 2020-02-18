@@ -20,6 +20,9 @@ class ExecutionContext {
     get base() {
         return this.parent.base;
     }
+    get traceWidth() {
+        return this.parent.traceWidth;
+    }
     get symbols() {
         return this.parent.symbols;
     }

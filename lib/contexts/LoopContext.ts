@@ -3,7 +3,7 @@
 import { Interval, FunctionInfo } from "@guildofweavers/air-script";
 import { Expression } from "@guildofweavers/air-assembly";
 import { Context, ExecutionContext } from "./ExecutionContext";
-import { validate, areSameDimensions, ProcedureParams, TRANSITION_FN_POSTFIX } from "../utils";
+import { validate, areSameDimensions, ProcedureParams, isSubdomain } from "../utils";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -95,29 +95,28 @@ export class LoopContext extends ExecutionContext {
     }
 
     addDelegateBlock(delegateName: string, inputs: Expression[], domain: Interval): void {
-        // TODO: validate domain
-
+        
         const procedureName = this.procedureName;
-
         const funcName = `${delegateName}_${procedureName}`
         const info = this.symbols.get(funcName) as FunctionInfo;
         validate(info !== undefined, errors.undefinedFuncReference(delegateName));
         validate(info.type === 'func', errors.invalidFuncReference(delegateName));
         // TODO: validate rank
+        validate(isSubdomain(this.domain, domain), errors.invalidFuncDomain(delegateName, this.domain));
 
         // build function parameters
         const params: Expression[] = [];
 
         // add parameter for current state
         params.push(this.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow));
-        if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
+        if (domain[0] > 0 || domain[1] < this.traceWidth) {
             params[0] = this.base.buildSliceVectorExpression(params[0], domain[0], domain[1]);
         }
 
         // if we are in an evaluator, add next state as parameter as well
         if (procedureName === 'evaluation') {
             params.push(this.base.buildLoadExpression('load.param', ProcedureParams.nextTraceRow));
-            if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
+            if (domain[0] > 0 || domain[1] < this.traceWidth) {
                 params[1] = this.base.buildSliceVectorExpression(params[1], domain[0], domain[1]);
             }
         }
@@ -152,5 +151,6 @@ const errors = {
     baseResultMismatch      : () => `init block dimensions conflict with segment block dimensions`,
     loopResultMismatch      : () => `init block dimensions conflict with inner loop dimensions`,
     invalidFuncReference    : (f: any) => `symbol ${f} is not a function`,
-    undefinedFuncReference  : (f: any) => `function ${f} has not been defined`,
+    invalidFuncDomain       : (f: any, p: any) => `domain of function ${f} is outside of parent domain ${p}`,
+    undefinedFuncReference  : (f: any) => `function ${f} has not been defined`
 };

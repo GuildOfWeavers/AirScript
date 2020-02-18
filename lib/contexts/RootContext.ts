@@ -48,6 +48,10 @@ export class RootContext implements Context {
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
+    get traceWidth(): number {
+        return this.domain[1];
+    }
+
     get loopOffset(): number {
         return this.staticRegisters.inputs.length;
     }

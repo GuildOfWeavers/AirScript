@@ -4,7 +4,7 @@ import { SymbolInfo, InputInfo, InputRegister, MaskRegister, SegmentRegister, St
 import { AirSchema, FiniteField, Dimensions, ProcedureName, Expression, InputRegisterMaster } from "@guildofweavers/air-assembly";
 import { LoopTemplate, LoopBaseTemplate, DelegateTemplate } from "./templates";
 import { RootContext } from "./contexts";
-import { ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, validate, isFunctionInfoSymbol, TRANSITION_FN_POSTFIX } from "./utils";
+import { ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, validate, isFunctionInfoSymbol } from "./utils";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -253,8 +253,8 @@ function getCycleLength(loop: LoopTemplate, symbols: Map<string, SymbolInfo>): n
             }
         }
         else if (block instanceof DelegateTemplate) {
-            const handle = `${block.delegate}${TRANSITION_FN_POSTFIX}`;     // TODO: don't hardcode postfix
-            const info = symbols.get(handle)!;                              // TODO: check for undefined
+            const handle = `${block.delegate}_transition`;  // TODO: don't hardcode postfix
+            const info = symbols.get(handle)!;              // TODO: check for undefined
             if (isFunctionInfoSymbol(info)) {
                 if (info.cycleLength > cycleLength) {
                     cycleLength = info.cycleLength;

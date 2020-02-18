@@ -1,14 +1,11 @@
 // IMPORTS
 // ================================================================================================
 import { Dimensions } from "@guildofweavers/air-assembly";
-import { SymbolInfo, FunctionInfo } from "@guildofweavers/air-script";
+import { SymbolInfo, FunctionInfo, Interval } from "@guildofweavers/air-script";
 
 // CONSTANTS
 // ================================================================================================
 export const BLOCK_ID_PREFIX = '$_b';
-
-export const TRANSITION_FN_POSTFIX = '_transition';
-export const EVALUATION_FN_POSTFIX = '_evaluation';
 
 export const TRANSITION_FN_HANDLE = '$_transition';
 export const EVALUATION_FN_HANDLE = '$_evaluation';
@@ -26,6 +23,12 @@ const SYMBOL_REGEXP = /[a-zA-Z]\w*/g;
 // ================================================================================================
 export function areSameDimensions(d1: Dimensions, d2: Dimensions): boolean {
     return (d1[0] === d2[0]) && (d1[1] === d2[1]);
+}
+
+// DOMAINS
+// ================================================================================================
+export function isSubdomain(parent: Interval, child: Interval): boolean {
+    return (parent[0] <= child[0] && parent[1] >= child[1]);
 }
 
 // SYMBOLS

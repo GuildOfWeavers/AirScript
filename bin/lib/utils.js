@@ -3,8 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // CONSTANTS
 // ================================================================================================
 exports.BLOCK_ID_PREFIX = '$_b';
-exports.TRANSITION_FN_POSTFIX = '_transition';
-exports.EVALUATION_FN_POSTFIX = '_evaluation';
 exports.TRANSITION_FN_HANDLE = '$_transition';
 exports.EVALUATION_FN_HANDLE = '$_evaluation';
 var ProcedureParams;
@@ -21,6 +19,12 @@ function areSameDimensions(d1, d2) {
     return (d1[0] === d2[0]) && (d1[1] === d2[1]);
 }
 exports.areSameDimensions = areSameDimensions;
+// DOMAINS
+// ================================================================================================
+function isSubdomain(parent, child) {
+    return (parent[0] <= child[0] && parent[1] >= child[1]);
+}
+exports.isSubdomain = isSubdomain;
 // SYMBOLS
 // ================================================================================================
 function isFunctionInfoSymbol(symbol) {

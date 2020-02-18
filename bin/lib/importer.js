@@ -55,7 +55,7 @@ function importComponent(from, to, member, offsets) {
     to.addFunction(ctx, statements, result);
     // TODO: add to functions?
     // import transition function
-    let handle = `$${alias}${utils_1.TRANSITION_FN_POSTFIX}`;
+    let handle = `$${alias}_transition`;
     ctx = to.createFunctionContext(traceDimensions, handle);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.thisTraceRow);
     ctx.addParam(staticDimensions, utils_1.ProcedureParams.staticRow);
@@ -68,7 +68,7 @@ function importComponent(from, to, member, offsets) {
     to.addFunction(ctx, statements, result);
     functions.push(buildFunctionInfo(handle, traceDimensions, cycleLength, offsets));
     // import constraint evaluator
-    handle = `$${alias}${utils_1.EVALUATION_FN_POSTFIX}`;
+    handle = `$${alias}_evaluation`;
     ctx = to.createFunctionContext(constraintDimensions, handle);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.thisTraceRow);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.nextTraceRow);

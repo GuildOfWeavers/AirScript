@@ -25,6 +25,9 @@ class RootContext {
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
+    get traceWidth() {
+        return this.domain[1];
+    }
     get loopOffset() {
         return this.staticRegisters.inputs.length;
     }

@@ -197,7 +197,7 @@ function getCycleLength(loop, symbols) {
             }
         }
         else if (block instanceof templates_1.DelegateTemplate) {
-            const handle = `${block.delegate}${utils_1.TRANSITION_FN_POSTFIX}`; // TODO: don't hardcode postfix
+            const handle = `${block.delegate}_transition`; // TODO: don't hardcode postfix
             const info = symbols.get(handle); // TODO: check for undefined
             if (utils_1.isFunctionInfoSymbol(info)) {
                 if (info.cycleLength > cycleLength) {

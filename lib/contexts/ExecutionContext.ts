@@ -12,6 +12,7 @@ import { RootContext } from "./RootContext";
 // ================================================================================================
 export interface Context {
     readonly domain             : Interval;
+    readonly traceWidth         : number;
     readonly inputs             : Set<string>;
     readonly locals             : Set<string>;
     readonly statements         : StoreOperation[];
@@ -56,6 +57,10 @@ export class ExecutionContext implements Context {
     // --------------------------------------------------------------------------------------------
     get base(): FunctionContext {
         return this.parent.base;
+    }
+
+    get traceWidth(): number {
+        return this.parent.traceWidth;
     }
 
     get symbols(): Map<string, SymbolInfo> {

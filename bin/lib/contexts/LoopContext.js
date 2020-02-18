@@ -72,24 +72,24 @@ class LoopContext extends ExecutionContext_1.ExecutionContext {
         this.blocks.push(this.base.buildLoadExpression(`load.local`, this.id));
     }
     addDelegateBlock(delegateName, inputs, domain) {
-        // TODO: validate domain
         const procedureName = this.procedureName;
         const funcName = `${delegateName}_${procedureName}`;
         const info = this.symbols.get(funcName);
         utils_1.validate(info !== undefined, errors.undefinedFuncReference(delegateName));
         utils_1.validate(info.type === 'func', errors.invalidFuncReference(delegateName));
         // TODO: validate rank
+        utils_1.validate(utils_1.isSubdomain(this.domain, domain), errors.invalidFuncDomain(delegateName, this.domain));
         // build function parameters
         const params = [];
         // add parameter for current state
         params.push(this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.thisTraceRow));
-        if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
+        if (domain[0] > 0 || domain[1] < this.traceWidth) {
             params[0] = this.base.buildSliceVectorExpression(params[0], domain[0], domain[1]);
         }
         // if we are in an evaluator, add next state as parameter as well
         if (procedureName === 'evaluation') {
             params.push(this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.nextTraceRow));
-            if (domain[0] > 0 || domain[1] < 10) { // TODO: get upper bound from somewhere
+            if (domain[0] > 0 || domain[1] < this.traceWidth) {
                 params[1] = this.base.buildSliceVectorExpression(params[1], domain[0], domain[1]);
             }
         }
@@ -120,6 +120,7 @@ const errors = {
     baseResultMismatch: () => `init block dimensions conflict with segment block dimensions`,
     loopResultMismatch: () => `init block dimensions conflict with inner loop dimensions`,
     invalidFuncReference: (f) => `symbol ${f} is not a function`,
-    undefinedFuncReference: (f) => `function ${f} has not been defined`,
+    invalidFuncDomain: (f, p) => `domain of function ${f} is outside of parent domain ${p}`,
+    undefinedFuncReference: (f) => `function ${f} has not been defined`
 };
 //# sourceMappingURL=LoopContext.js.map
