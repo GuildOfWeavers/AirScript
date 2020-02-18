@@ -42,6 +42,11 @@ function isMaskRegister(register) {
     return (register.source !== undefined);
 }
 exports.isMaskRegister = isMaskRegister;
+function isCyclicRegister(register) {
+    // TODO: move to AirAssembly
+    return (register.values !== undefined);
+}
+exports.isCyclicRegister = isCyclicRegister;
 // MATH
 // ================================================================================================
 function isPowerOf2(value) {

@@ -2,7 +2,7 @@
 // ================================================================================================
 import { Interval } from "@guildofweavers/air-script";
 import { TraceTemplate } from "./TraceTemplate";
-import { validate } from "../utils";
+import { validate, isPowerOf2 } from "../utils";
 
 // CLASS DEFINITION
 // ================================================================================================
@@ -24,14 +24,8 @@ export class LoopBaseTemplate extends TraceTemplate {
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    get isComplete(): boolean {
-        // TODO
-        return true;
-    }
-
     get cycleLength(): number {
-        // TODO: check if masks exist?
-        return this.masks[0].length;
+        return this._cycleLength;
     }
 
     // PUBLIC FUNCTIONS
@@ -78,6 +72,13 @@ export class LoopBaseTemplate extends TraceTemplate {
         // build and add the new segment to the list
         this.masks.push(mask);
     }
+
+    validate(): void {
+        validate(isPowerOf2(this.cycleLength), errors.cycleLengthNotPowerOf2(this.cycleLength));
+        for (let i = 1; i < this.cycleLength; i++) {
+            validate(this._stepsToIntervals.get(i) !== undefined, errors.intervalStepNotCovered(i));
+        }
+    }
 }
 
 // ERRORS
@@ -86,5 +87,7 @@ const errors = {
     inputNotInOuterLoop     : (i: any) => `input ${i} is missing from the outer loop`,
     intervalStartTooLow     : (s: any, e: any) => `invalid step interval [${s}..${e}]: start index must be greater than 0`,
     intervalStartAfterEnd   : (s: any, e: any) => `invalid step interval [${s}..${e}]: start index must be smaller than end index`,
-    intervalStepOverlap     : (s1: any, e1: any, i2: any[]) => `step interval [${s1}..${e1}] overlaps with interval [${i2[0]}..${i2[1]}]`
+    intervalStepOverlap     : (s1: any, e1: any, i2: any[]) => `step interval [${s1}..${e1}] overlaps with interval [${i2[0]}..${i2[1]}]`,
+    cycleLengthNotPowerOf2  : (s: any) => `total number of steps is ${s} but must be a power of 2`,
+    intervalStepNotCovered  : (i: any) => `step ${i} is not covered by any expression`
 };

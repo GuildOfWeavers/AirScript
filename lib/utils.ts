@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Dimensions, StaticRegister, MaskRegister } from "@guildofweavers/air-assembly";
+import { Dimensions, StaticRegister, MaskRegister, CyclicRegister } from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo, Interval, InputInfo } from "@guildofweavers/air-script";
 
 // CONSTANTS
@@ -46,6 +46,11 @@ export function isInputInfoSymbol(symbol: SymbolInfo): symbol is InputInfo {
 export function isMaskRegister(register: StaticRegister): register is MaskRegister {
     // TODO: move to AirAssembly
     return ((register as any).source !== undefined);
+}
+
+export function isCyclicRegister(register: StaticRegister): register is CyclicRegister {
+    // TODO: move to AirAssembly
+    return ((register as any).values !== undefined);
 }
 
 // MATH

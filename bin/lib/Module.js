@@ -42,8 +42,8 @@ class Module {
                 throw new Error('TODO: import component not found');
             let auxRegisterOffset = this.auxRegisters.length;
             component.staticRegisters.forEach(register => {
-                if (register.cycleLength) {
-                    this.auxRegisters.push({ values: register.values }); // TODO
+                if (utils_1.isCyclicRegister(register)) {
+                    this.auxRegisters.push({ values: register.values });
                 }
             });
             const offsets = {
@@ -52,7 +52,7 @@ class Module {
                 auxRegisters: auxRegisterOffset,
                 auxRegisterCount: this.auxRegisters.length
             };
-            const symbols = importer_1.importComponent(schema, this.schema, member, offsets);
+            const symbols = importer_1.importComponent(component, this.schema, offsets, member.alias);
             symbols.forEach(s => this.symbols.set(s.handle.substr(1), s));
         });
     }

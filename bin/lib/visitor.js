@@ -178,16 +178,16 @@ class AirVisitor extends BaseCstVisitor {
             if (ctx.traceLoop) {
                 const template = new templates_1.LoopTemplate(domain, parent);
                 this.visit(ctx.traceLoop, template);
-                parent.addBlock(template);
+                parent.addLoopBlock(template);
             }
             else if (ctx.traceSegments) {
                 const template = new templates_1.LoopBaseTemplate(domain);
                 ctx.traceSegments.forEach((segment) => template.addSegment(this.visit(segment)));
-                parent.addBlock(template);
+                parent.addLoopBaseBlock(template);
             }
             else {
                 const template = new DelegateTemplate_1.DelegateTemplate(domain, this.visit(ctx.delegateCall));
-                parent.addBlock(template);
+                parent.addDelegateBlock(template);
             }
         }
         else if (parent instanceof contexts_1.LoopContext) {

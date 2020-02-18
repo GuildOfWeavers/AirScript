@@ -15,13 +15,8 @@ class LoopBaseTemplate extends TraceTemplate_1.TraceTemplate {
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    get isComplete() {
-        // TODO
-        return true;
-    }
     get cycleLength() {
-        // TODO: check if masks exist?
-        return this.masks[0].length;
+        return this._cycleLength;
     }
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
@@ -61,6 +56,12 @@ class LoopBaseTemplate extends TraceTemplate_1.TraceTemplate {
         // build and add the new segment to the list
         this.masks.push(mask);
     }
+    validate() {
+        utils_1.validate(utils_1.isPowerOf2(this.cycleLength), errors.cycleLengthNotPowerOf2(this.cycleLength));
+        for (let i = 1; i < this.cycleLength; i++) {
+            utils_1.validate(this._stepsToIntervals.get(i) !== undefined, errors.intervalStepNotCovered(i));
+        }
+    }
 }
 exports.LoopBaseTemplate = LoopBaseTemplate;
 // ERRORS
@@ -69,6 +70,8 @@ const errors = {
     inputNotInOuterLoop: (i) => `input ${i} is missing from the outer loop`,
     intervalStartTooLow: (s, e) => `invalid step interval [${s}..${e}]: start index must be greater than 0`,
     intervalStartAfterEnd: (s, e) => `invalid step interval [${s}..${e}]: start index must be smaller than end index`,
-    intervalStepOverlap: (s1, e1, i2) => `step interval [${s1}..${e1}] overlaps with interval [${i2[0]}..${i2[1]}]`
+    intervalStepOverlap: (s1, e1, i2) => `step interval [${s1}..${e1}] overlaps with interval [${i2[0]}..${i2[1]}]`,
+    cycleLengthNotPowerOf2: (s) => `total number of steps is ${s} but must be a power of 2`,
+    intervalStepNotCovered: (i) => `step ${i} is not covered by any expression`
 };
 //# sourceMappingURL=LoopBaseTemplate.js.map

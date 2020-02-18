@@ -15,11 +15,4 @@ export class DelegateTemplate extends TraceTemplate {
         super(domain);
         this.delegate = delegate;
     }
-
-    // ACCESSORS
-    // --------------------------------------------------------------------------------------------
-    get isComplete(): boolean {
-        return true;
-    }
-
 }

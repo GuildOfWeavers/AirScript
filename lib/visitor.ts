@@ -213,16 +213,16 @@ class AirVisitor extends BaseCstVisitor {
             if (ctx.traceLoop) {
                 const template = new LoopTemplate(domain, parent);
                 this.visit(ctx.traceLoop, template);
-                parent.addBlock(template);
+                parent.addLoopBlock(template);
             }
             else if (ctx.traceSegments) {
                 const template = new LoopBaseTemplate(domain);
                 ctx.traceSegments.forEach((segment: any) => template.addSegment(this.visit(segment)));
-                parent.addBlock(template);
+                parent.addLoopBaseBlock(template);
             }
             else {
                 const template = new DelegateTemplate(domain, this.visit(ctx.delegateCall));
-                parent.addBlock(template);
+                parent.addDelegateBlock(template);
             }
         }
         else if (parent instanceof LoopContext) {

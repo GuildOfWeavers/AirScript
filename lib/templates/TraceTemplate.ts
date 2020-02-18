@@ -35,8 +35,6 @@ export abstract class TraceTemplate {
         return this.domain[1] - this.domain[0] + 1;
     }
 
-    abstract get isComplete(): boolean;
-
     // PUBLIC FUNCTIONS
     // --------------------------------------------------------------------------------------------
     isSubdomainOf(domain: Interval): boolean {

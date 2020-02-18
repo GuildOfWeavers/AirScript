@@ -10,11 +10,6 @@ class DelegateTemplate extends TraceTemplate_1.TraceTemplate {
         super(domain);
         this.delegate = delegate;
     }
-    // ACCESSORS
-    // --------------------------------------------------------------------------------------------
-    get isComplete() {
-        return true;
-    }
 }
 exports.DelegateTemplate = DelegateTemplate;
 //# sourceMappingURL=DelegateTemplate.js.map

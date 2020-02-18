@@ -45,28 +45,42 @@ export class LoopTemplate extends TraceTemplate {
         return Array.from(inputs);
     }
 
-    // PUBLIC FUNCTIONS
+    // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     setInputs(inputs: string[]): void {
         inputs.forEach(input => this.inputs.add(input));
     }
 
-    addBlock(block: TraceTemplate) {
+    addLoopBlock(block: LoopTemplate): void {
         if (this.isLeaf === undefined) {
-            this.isLeaf = (block instanceof LoopBaseTemplate || block instanceof DelegateTemplate);
+            this.isLeaf = false;
         }
-        else if (this.isLeaf === true) {
-            validate(!(block instanceof LoopTemplate), errors.blockTypeConflict('loop block'));
-            // TODO: validate cycle length
-        }
-        else {
-            validate(!(block instanceof LoopBaseTemplate), errors.blockTypeConflict('loop base'));
-            // TODO: validate inputs
-        }
+        validate(this.isLeaf === false, errors.cannotAddLoopToLeaf());
+        validate(block.isSubdomainOf(this.domain), errors.invalidLoopSubdomain(block.domain, this.domain));
+        // TODO: validate block
 
-        if (!block.isSubdomainOf(this.domain)) {
-            throw new Error('TODO: not subdomain')
+        this.blocks.push(block);
+        this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
+    }
+
+    addLoopBaseBlock(block: LoopBaseTemplate): void {
+        if (this.isLeaf === undefined) {
+            this.isLeaf = true;
         }
+        validate(this.isLeaf === true, errors.cannotAddBaseToNonLeaf());
+        validate(block.isSubdomainOf(this.domain), errors.invalidLoopSubdomain(block.domain, this.domain));
+        block.validate();
+
+        this.blocks.push(block);
+        this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
+    }
+
+    addDelegateBlock(block: DelegateTemplate): void {
+        if (this.isLeaf === undefined) {
+            this.isLeaf = true;
+        }
+        validate(this.isLeaf === true, errors.cannotAddDelegateToNonLeaf());
+        validate(block.isSubdomainOf(this.domain), errors.invalidDelegateSubdomain(block.domain, this.domain));
 
         this.blocks.push(block);
         this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
@@ -76,5 +90,10 @@ export class LoopTemplate extends TraceTemplate {
 // ERRORS
 // ================================================================================================
 const errors = {
-    blockTypeConflict       : (t: any) => `cannot add block of type ${t.name} to loop template`
+    cannotAddLoopToLeaf         : () => `cannot add loop block to a leaf block`,
+    cannotAddBaseToNonLeaf      : () => `cannot add loop base to a non-leaf block`,
+    cannotAddDelegateToNonLeaf  : () => `cannot add function call to a non-leaf block`,
+    invalidLoopSubdomain        : (i: any, o: any) => `inner loop domain ${i} must be a subset of outer domain ${o}`,
+    invalidBaseSubdomain        : (i: any, o: any) => `segment loop domain ${i} must be a subset of outer domain ${o}`,
+    invalidDelegateSubdomain    : (i: any, o: any) => `function call domain ${i} must be a subset of outer domain ${o}`
 };

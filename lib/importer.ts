@@ -45,11 +45,9 @@ export function importFunctions(from: AirSchema, to: AirSchema, constOffset: num
     return funcOffset
 }
 
-export function importComponent(from: AirSchema, to: AirSchema, member: ImportMember, offsets: ImportOffsets): SymbolInfo[] {
-    const component = from.components.get(member.member);
-    if (!component) throw new Error('TODO: import component not found');
-    const alias = member.alias || member.member;
-    
+export function importComponent(component: AirComponent, to: AirSchema, offsets: ImportOffsets, alias?: string): SymbolInfo[] {
+
+    const importName = alias || component.name;
     const functions: SymbolInfo[] = [];
     const importer = new ExpressionImporter(offsets.constants, offsets.functions);
 
@@ -71,7 +69,7 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     // TODO: add to functions?
 
     // import transition function
-    let funcInfo = buildFunctionInfo(component, 'transition', alias, offsets);
+    let funcInfo = buildFunctionInfo(component, 'transition', importName, offsets);
     ctx = to.createFunctionContext(traceDimensions, funcInfo.handle);
     ctx.addParam(traceDimensions, ProcedureParams.thisTraceRow);
     ctx.addParam(staticDimensions, ProcedureParams.staticRow);
@@ -85,7 +83,7 @@ export function importComponent(from: AirSchema, to: AirSchema, member: ImportMe
     functions.push(funcInfo);
 
     // import constraint evaluator
-    funcInfo = buildFunctionInfo(component, 'evaluation', alias, offsets);
+    funcInfo = buildFunctionInfo(component, 'evaluation', importName, offsets);
     ctx = to.createFunctionContext(constraintDimensions, funcInfo.handle);
     ctx.addParam(traceDimensions, ProcedureParams.thisTraceRow);
     ctx.addParam(traceDimensions, ProcedureParams.nextTraceRow);

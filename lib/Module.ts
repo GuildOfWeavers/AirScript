@@ -1,13 +1,11 @@
 // IMPORTS
 // ================================================================================================
-import {
-    compile, AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, CyclicRegister, PrngSequence
-} from "@guildofweavers/air-assembly";
+import { compile, AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, PrngSequence } from "@guildofweavers/air-assembly";
 import { SymbolInfo, InputInfo, StaticRegister } from '@guildofweavers/air-script'
 import * as path from 'path';
 import { Component } from "./Component";
 import { LoopTemplate } from "./templates";
-import { validate, validateSymbolName, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE } from "./utils";
+import { validate, validateSymbolName, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, isCyclicRegister } from "./utils";
 import { importConstants, importFunctions, ImportOffsets, importComponent } from "./importer";
 
 // INTERFACES
@@ -74,8 +72,8 @@ export class Module {
 
             let auxRegisterOffset = this.auxRegisters.length;
             component.staticRegisters.forEach(register => {
-                if ((register as CyclicRegister).cycleLength) {
-                    this.auxRegisters.push({ values: (register as CyclicRegister).values }); // TODO
+                if (isCyclicRegister(register)) {
+                    this.auxRegisters.push({ values: register.values });
                 }
             });
 
@@ -86,7 +84,7 @@ export class Module {
                 auxRegisterCount: this.auxRegisters.length
             };
 
-            const symbols = importComponent(schema, this.schema, member, offsets);
+            const symbols = importComponent(component, this.schema, offsets, member.alias);
             symbols.forEach(s => this.symbols.set(s.handle.substr(1), s));
         });
     }

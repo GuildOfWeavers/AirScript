@@ -31,11 +31,8 @@ function importFunctions(from, to, constOffset) {
     return funcOffset;
 }
 exports.importFunctions = importFunctions;
-function importComponent(from, to, member, offsets) {
-    const component = from.components.get(member.member);
-    if (!component)
-        throw new Error('TODO: import component not found');
-    const alias = member.alias || member.member;
+function importComponent(component, to, offsets, alias) {
+    const importName = alias || component.name;
     const functions = [];
     const importer = new ExpressionImporter(offsets.constants, offsets.functions);
     const traceDimensions = component.transitionFunction.result.dimensions;
@@ -54,7 +51,7 @@ function importComponent(from, to, member, offsets) {
     to.addFunction(ctx, statements, result);
     // TODO: add to functions?
     // import transition function
-    let funcInfo = buildFunctionInfo(component, 'transition', alias, offsets);
+    let funcInfo = buildFunctionInfo(component, 'transition', importName, offsets);
     ctx = to.createFunctionContext(traceDimensions, funcInfo.handle);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.thisTraceRow);
     ctx.addParam(staticDimensions, utils_1.ProcedureParams.staticRow);
@@ -67,7 +64,7 @@ function importComponent(from, to, member, offsets) {
     to.addFunction(ctx, statements, result);
     functions.push(funcInfo);
     // import constraint evaluator
-    funcInfo = buildFunctionInfo(component, 'evaluation', alias, offsets);
+    funcInfo = buildFunctionInfo(component, 'evaluation', importName, offsets);
     ctx = to.createFunctionContext(constraintDimensions, funcInfo.handle);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.thisTraceRow);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.nextTraceRow);

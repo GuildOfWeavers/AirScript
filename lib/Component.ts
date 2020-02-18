@@ -6,7 +6,7 @@ import { LoopTemplate, LoopBaseTemplate, DelegateTemplate } from "./templates";
 import { RootContext } from "./contexts";
 import { ProcedureParams, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, validate, isFunctionInfoSymbol, isInputInfoSymbol } from "./utils";
 
-// CLASS DEFINITION
+// INTERFACES
 // ================================================================================================
 export interface StaticRegisters {
     readonly inputs     : InputRegister[];

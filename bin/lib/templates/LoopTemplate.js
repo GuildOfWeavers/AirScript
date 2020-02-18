@@ -1,9 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const TraceTemplate_1 = require("./TraceTemplate");
-const LoopBaseTemplate_1 = require("./LoopBaseTemplate");
 const utils_1 = require("../utils");
-const DelegateTemplate_1 = require("./DelegateTemplate");
 // CLASS DEFINITION
 // ================================================================================================
 class LoopTemplate extends TraceTemplate_1.TraceTemplate {
@@ -32,26 +30,37 @@ class LoopTemplate extends TraceTemplate_1.TraceTemplate {
         }
         return Array.from(inputs);
     }
-    // PUBLIC FUNCTIONS
+    // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     setInputs(inputs) {
         inputs.forEach(input => this.inputs.add(input));
     }
-    addBlock(block) {
+    addLoopBlock(block) {
         if (this.isLeaf === undefined) {
-            this.isLeaf = (block instanceof LoopBaseTemplate_1.LoopBaseTemplate || block instanceof DelegateTemplate_1.DelegateTemplate);
+            this.isLeaf = false;
         }
-        else if (this.isLeaf === true) {
-            utils_1.validate(!(block instanceof LoopTemplate), errors.blockTypeConflict('loop block'));
-            // TODO: validate cycle length
+        utils_1.validate(this.isLeaf === false, errors.cannotAddLoopToLeaf());
+        utils_1.validate(block.isSubdomainOf(this.domain), errors.invalidLoopSubdomain(block.domain, this.domain));
+        // TODO: validate block
+        this.blocks.push(block);
+        this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
+    }
+    addLoopBaseBlock(block) {
+        if (this.isLeaf === undefined) {
+            this.isLeaf = true;
         }
-        else {
-            utils_1.validate(!(block instanceof LoopBaseTemplate_1.LoopBaseTemplate), errors.blockTypeConflict('loop base'));
-            // TODO: validate inputs
+        utils_1.validate(this.isLeaf === true, errors.cannotAddBaseToNonLeaf());
+        utils_1.validate(block.isSubdomainOf(this.domain), errors.invalidLoopSubdomain(block.domain, this.domain));
+        block.validate();
+        this.blocks.push(block);
+        this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
+    }
+    addDelegateBlock(block) {
+        if (this.isLeaf === undefined) {
+            this.isLeaf = true;
         }
-        if (!block.isSubdomainOf(this.domain)) {
-            throw new Error('TODO: not subdomain');
-        }
+        utils_1.validate(this.isLeaf === true, errors.cannotAddDelegateToNonLeaf());
+        utils_1.validate(block.isSubdomainOf(this.domain), errors.invalidDelegateSubdomain(block.domain, this.domain));
         this.blocks.push(block);
         this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
     }
@@ -60,6 +69,11 @@ exports.LoopTemplate = LoopTemplate;
 // ERRORS
 // ================================================================================================
 const errors = {
-    blockTypeConflict: (t) => `cannot add block of type ${t.name} to loop template`
+    cannotAddLoopToLeaf: () => `cannot add loop block to a leaf block`,
+    cannotAddBaseToNonLeaf: () => `cannot add loop base to a non-leaf block`,
+    cannotAddDelegateToNonLeaf: () => `cannot add function call to a non-leaf block`,
+    invalidLoopSubdomain: (i, o) => `inner loop domain ${i} must be a subset of outer domain ${o}`,
+    invalidBaseSubdomain: (i, o) => `segment loop domain ${i} must be a subset of outer domain ${o}`,
+    invalidDelegateSubdomain: (i, o) => `function call domain ${i} must be a subset of outer domain ${o}`
 };
 //# sourceMappingURL=LoopTemplate.js.map
