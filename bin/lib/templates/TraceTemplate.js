@@ -7,8 +7,7 @@ class TraceTemplate {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(domain) {
-        utils_1.validate(domain[1] - domain[0] !== 0, errors.zeroLengthDomain(domain));
-        utils_1.validate(domain[1] > domain[0], errors.domainEndBeforeStart(domain));
+        utils_1.validate(domain[1] >= domain[0], errors.domainEndBeforeStart(domain));
         this.domain = domain;
     }
     // ACCESSORS
@@ -29,7 +28,6 @@ exports.TraceTemplate = TraceTemplate;
 // ERRORS
 // ================================================================================================
 const errors = {
-    zeroLengthDomain: (v) => `invalid domain ${v}: domain cannot be a zero-length interval`,
-    domainEndBeforeStart: (v) => `invalid domain ${v}: domain end is before domain start`
+    domainEndBeforeStart: (v) => `invalid domain [${v}]: domain end is before domain start`
 };
 //# sourceMappingURL=TraceTemplate.js.map

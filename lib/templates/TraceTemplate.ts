@@ -24,8 +24,7 @@ export abstract class TraceTemplate {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(domain: Interval) {
-        validate(domain[1] - domain[0] !== 0, errors.zeroLengthDomain(domain));
-        validate(domain[1] > domain[0], errors.domainEndBeforeStart(domain));
+        validate(domain[1] >= domain[0], errors.domainEndBeforeStart(domain));
         this.domain = domain;
     }
 
@@ -49,6 +48,5 @@ export abstract class TraceTemplate {
 // ERRORS
 // ================================================================================================
 const errors = {
-    zeroLengthDomain        : (v: any) => `invalid domain ${v}: domain cannot be a zero-length interval`,
-    domainEndBeforeStart    : (v: any) => `invalid domain ${v}: domain end is before domain start`
+    domainEndBeforeStart    : (v: any) => `invalid domain [${v}]: domain end is before domain start`
 };

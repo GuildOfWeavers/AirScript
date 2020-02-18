@@ -24,9 +24,14 @@ export class LoopContext extends ExecutionContext {
     // --------------------------------------------------------------------------------------------
     get result(): Expression {
         validate(this.blocks.length > 0, errors.resultsNotYetSet());
-        const result = (this.blocks.length === 1)
+        let result = (this.blocks.length === 1)
             ? this.blocks[0]
-            : this.base.buildMakeVectorExpression(this.blocks)
+            : this.base.buildMakeVectorExpression(this.blocks);
+
+        if (result.isScalar) {
+            result = this.base.buildMakeVectorExpression([result]);
+        }
+
         return result;
     }
 
