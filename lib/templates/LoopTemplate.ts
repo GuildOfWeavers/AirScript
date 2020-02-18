@@ -85,6 +85,17 @@ export class LoopTemplate extends TraceTemplate {
         this.blocks.push(block);
         this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
     }
+
+    getDepth(inputRankMap: Map<string, number>): number {
+        let maxRank = 0;
+        for (let input of this.inputs) {
+            let inputRank = inputRankMap.get(input)!;
+            if (inputRank > maxRank) {
+                maxRank = inputRank;
+            }
+        }
+        return maxRank - this.rank;
+    }
 }
 
 // ERRORS

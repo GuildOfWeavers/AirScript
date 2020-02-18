@@ -38,6 +38,8 @@ export class Component {
     readonly traceWidth         : number;
     readonly constraintCount    : number;
 
+    private inputRankMap        : Map<string, number>;
+
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(schema: AirSchema, traceWidth: number, constraintCount: number, template: LoopTemplate, symbols: Map<string, SymbolInfo>, auxRegisters: StaticRegister[]) {
@@ -51,6 +53,7 @@ export class Component {
         this.auxRegisters = auxRegisters;
 
         this.cycleLength = 0;
+        this.inputRankMap = extractInputs(symbols);
         this.buildRegisterSpecs(template, [0]);
     }
 
@@ -97,10 +100,9 @@ export class Component {
         };
 
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
-        const inputs = extractInputs(this.symbols);
         const symbols = transformSymbols(this.symbols, this.traceWidth, this.auxRegisterOffset);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new RootContext(domain, context, symbols, inputs, staticRegisters);
+        return new RootContext(domain, context, symbols, this.inputRankMap, staticRegisters);
     }
 
     setTransitionFunction(context: RootContext, result: Expression): void {
@@ -143,6 +145,9 @@ export class Component {
     private buildRegisterSpecs(loop: LoopTemplate, path: number[], masterParent?: InputRegisterMaster): void {
         const inputOffset = this.inputRegisters.length;
         const masterPeer: InputRegisterMaster = { relation: 'peerof', index: inputOffset };
+
+        const loopDepth = loop.getDepth(this.inputRankMap);
+
         const cycleLength = getCycleLength(loop, this.symbols);
 
         if (cycleLength !== undefined && this.cycleLength < cycleLength) {

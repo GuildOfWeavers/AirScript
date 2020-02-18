@@ -18,6 +18,7 @@ class Component {
         this.segmentRegisters = [];
         this.auxRegisters = auxRegisters;
         this.cycleLength = 0;
+        this.inputRankMap = extractInputs(symbols);
         this.buildRegisterSpecs(template, [0]);
     }
     // ACCESSORS
@@ -56,10 +57,9 @@ class Component {
             aux: this.auxRegisters
         };
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
-        const inputs = extractInputs(this.symbols);
         const symbols = transformSymbols(this.symbols, this.traceWidth, this.auxRegisterOffset);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new contexts_1.RootContext(domain, context, symbols, inputs, staticRegisters);
+        return new contexts_1.RootContext(domain, context, symbols, this.inputRankMap, staticRegisters);
     }
     setTransitionFunction(context, result) {
         this.schema.addFunction(context.base, context.statements, result);
@@ -98,6 +98,7 @@ class Component {
     buildRegisterSpecs(loop, path, masterParent) {
         const inputOffset = this.inputRegisters.length;
         const masterPeer = { relation: 'peerof', index: inputOffset };
+        const loopDepth = loop.getDepth(this.inputRankMap);
         const cycleLength = getCycleLength(loop, this.symbols);
         if (cycleLength !== undefined && this.cycleLength < cycleLength) {
             this.cycleLength = cycleLength;

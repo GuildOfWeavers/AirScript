@@ -13,8 +13,6 @@ define MerkleBranch over prime field (2^32 - 3 * 2^25 + 1) {
     transition 6 registers {
         for each (leaf, node, indexBit) {
 
-            // initialize the execution trace to hash(leaf, node) in registers [0..2]
-            // and hash(node, leaf) in registers [3..5]
             init {
                 s1 <- [leaf, node, 0];
                 s2 <- [node, leaf, 0];
