@@ -37,6 +37,11 @@ function isInputInfoSymbol(symbol) {
 exports.isInputInfoSymbol = isInputInfoSymbol;
 // REGISTERS
 // ================================================================================================
+function isInputRegister(register) {
+    // TODO: move to AirAssembly
+    return (register.rank !== undefined);
+}
+exports.isInputRegister = isInputRegister;
 function isMaskRegister(register) {
     // TODO: move to AirAssembly
     return (register.source !== undefined);

@@ -60,11 +60,12 @@ class LoopContext extends ExecutionContext_1.ExecutionContext {
         const procedureName = this.procedureName;
         const funcName = `${delegateName}_${procedureName}`;
         const info = this.symbols.get(funcName);
-        utils_1.validate(info !== undefined, errors.undefinedFuncReference(delegateName));
-        utils_1.validate(info.type === 'func', errors.invalidFuncReference(delegateName));
-        utils_1.validate(utils_1.isSubdomain(this.domain, domain), errors.invalidFuncDomain(delegateName, this.domain));
+        utils_1.validate(info !== undefined, errors.undefinedFunctionRef(delegateName));
+        utils_1.validate(info.type === 'func', errors.invalidFunctionRef(delegateName));
+        utils_1.validate(utils_1.isSubdomain(this.domain, domain), errors.invalidFunctionDomain(delegateName, this.domain));
         const depth = this.getMaxInputRank() - this.rank;
-        utils_1.validate(depth === info.rank, errors.invalidFuncRank(funcName));
+        utils_1.validate(depth === info.rank, errors.invalidFunctionRank(funcName));
+        utils_1.validate(inputs.length === info.inputCount, errors.wrongFunctionParamCount(funcName, info.inputCount));
         // build function parameters
         const params = [];
         // add parameter for current state
@@ -130,9 +131,10 @@ const errors = {
     resultsNotYetSet: () => `loop results haven't been set yet`,
     baseResultMismatch: () => `init block dimensions conflict with segment block dimensions`,
     loopResultMismatch: () => `init block dimensions conflict with inner loop dimensions`,
-    undefinedFuncReference: (f) => `function ${f} has not been defined`,
-    invalidFuncReference: (f) => `symbol ${f} is not a function`,
-    invalidFuncDomain: (f, p) => `domain of function ${f} is outside of parent domain ${p}`,
-    invalidFuncRank: (f) => `function ${f} cannot be called from the specified context: rank mismatch`
+    undefinedFunctionRef: (f) => `function ${f} has not been defined`,
+    invalidFunctionRef: (f) => `symbol ${f} is not a function`,
+    invalidFunctionDomain: (f, p) => `domain of function ${f} is outside of parent domain ${p}`,
+    invalidFunctionRank: (f) => `function ${f} cannot be called from the specified context: rank mismatch`,
+    wrongFunctionParamCount: (f, c) => `invalid number of parameters for function ${f}, ${c} parameters expected`
 };
 //# sourceMappingURL=LoopContext.js.map

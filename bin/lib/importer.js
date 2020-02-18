@@ -159,8 +159,11 @@ function buildFunctionInfo(component, procedure, alias, offsets) {
     const dimensions = (procedure === 'evaluation')
         ? component.constraintEvaluator.result.dimensions
         : component.transitionFunction.result.dimensions;
-    let maskCount = 0;
+    let maskCount = 0, inputCount = 0;
     for (let register of component.staticRegisters) {
+        if (utils_1.isInputRegister(register)) {
+            inputCount++;
+        }
         if (utils_1.isMaskRegister(register)) {
             maskCount++;
         }
@@ -168,13 +171,14 @@ function buildFunctionInfo(component, procedure, alias, offsets) {
     return {
         type: 'func',
         handle: `$${alias}_${procedure}`,
+        rank: maskCount - 1,
         dimensions: dimensions,
         subset: false,
         auxOffset: offsets.auxRegisters,
         auxCount: offsets.auxRegisterCount,
         maskCount: maskCount,
-        cycleLength: component.cycleLength,
-        rank: maskCount - 1
+        inputCount: inputCount,
+        cycleLength: component.cycleLength
     };
 }
 //# sourceMappingURL=importer.js.map

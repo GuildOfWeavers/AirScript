@@ -82,11 +82,12 @@ export class LoopContext extends ExecutionContext {
         const procedureName = this.procedureName;
         const funcName = `${delegateName}_${procedureName}`
         const info = this.symbols.get(funcName) as FunctionInfo;
-        validate(info !== undefined, errors.undefinedFuncReference(delegateName));
-        validate(info.type === 'func', errors.invalidFuncReference(delegateName));
-        validate(isSubdomain(this.domain, domain), errors.invalidFuncDomain(delegateName, this.domain));
+        validate(info !== undefined, errors.undefinedFunctionRef(delegateName));
+        validate(info.type === 'func', errors.invalidFunctionRef(delegateName));
+        validate(isSubdomain(this.domain, domain), errors.invalidFunctionDomain(delegateName, this.domain));
         const depth = this.getMaxInputRank() - this.rank;
-        validate(depth === info.rank, errors.invalidFuncRank(funcName));
+        validate(depth === info.rank, errors.invalidFunctionRank(funcName));
+        validate(inputs.length === info.inputCount, errors.wrongFunctionParamCount(funcName, info.inputCount));
 
         // build function parameters
         const params: Expression[] = [];
@@ -162,8 +163,9 @@ const errors = {
     resultsNotYetSet        : () => `loop results haven't been set yet`,
     baseResultMismatch      : () => `init block dimensions conflict with segment block dimensions`,
     loopResultMismatch      : () => `init block dimensions conflict with inner loop dimensions`,
-    undefinedFuncReference  : (f: any) => `function ${f} has not been defined`,
-    invalidFuncReference    : (f: any) => `symbol ${f} is not a function`,
-    invalidFuncDomain       : (f: any, p: any) => `domain of function ${f} is outside of parent domain ${p}`,
-    invalidFuncRank         : (f: any) => `function ${f} cannot be called from the specified context: rank mismatch`
+    undefinedFunctionRef    : (f: any) => `function ${f} has not been defined`,
+    invalidFunctionRef      : (f: any) => `symbol ${f} is not a function`,
+    invalidFunctionDomain   : (f: any, p: any) => `domain of function ${f} is outside of parent domain ${p}`,
+    invalidFunctionRank     : (f: any) => `function ${f} cannot be called from the specified context: rank mismatch`,
+    wrongFunctionParamCount : (f: any, c: any) => `invalid number of parameters for function ${f}, ${c} parameters expected`
 };

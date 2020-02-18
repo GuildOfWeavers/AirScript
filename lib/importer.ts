@@ -7,7 +7,7 @@ import {
 } from "@guildofweavers/air-assembly";
 import { SymbolInfo, FunctionInfo } from '@guildofweavers/air-script';
 import { ImportMember } from "./Module";
-import { ProcedureParams, isMaskRegister } from "./utils";
+import { ProcedureParams, isMaskRegister, isInputRegister } from "./utils";
 
 // INTERFACES
 // ================================================================================================
@@ -194,8 +194,11 @@ function buildFunctionInfo(component: AirComponent, procedure: ProcedureName, al
         ? component.constraintEvaluator.result.dimensions
         : component.transitionFunction.result.dimensions;
     
-    let maskCount = 0;
+    let maskCount = 0, inputCount = 0;
     for (let register of component.staticRegisters) {
+        if (isInputRegister(register)) {
+            inputCount++;
+        }
         if (isMaskRegister(register)) {
             maskCount++;
         }
@@ -204,12 +207,13 @@ function buildFunctionInfo(component: AirComponent, procedure: ProcedureName, al
     return {
         type        : 'func',
         handle      : `$${alias}_${procedure}`,
+        rank        : maskCount - 1,
         dimensions  : dimensions,
         subset      : false,
         auxOffset   : offsets.auxRegisters,
         auxCount    : offsets.auxRegisterCount,
         maskCount   : maskCount,
-        cycleLength : component.cycleLength,
-        rank        : maskCount - 1
+        inputCount  : inputCount,
+        cycleLength : component.cycleLength
     };
 }

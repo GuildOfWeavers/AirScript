@@ -62,10 +62,11 @@ declare module '@guildofweavers/air-script' {
     
     export interface FunctionInfo extends SymbolInfo {
         readonly type       : 'func';
+        readonly rank       : number;
         readonly auxOffset  : number;
         readonly auxCount   : number;
         readonly maskCount  : number;
-        readonly rank       : number;
+        readonly inputCount : number;
         readonly cycleLength: number;
     }
     
