@@ -1,40 +1,9 @@
 import { compile } from '../index';
 import { instantiate, Matrix } from '@guildofweavers/air-assembly';
 
-const script = Buffer.from(`
-import { Poseidon as Hash } from './assembly/poseidon32.aa';
 
-define MerkleBranch over prime field (2^32 - 3 * 2^25 + 1) {
 
-    secret input leaf       : element[1];      // leaf of the merkle branch
-    secret input node       : element[1][1];   // nodes in the merkle branch
-    public input indexBit   : boolean[1][1];   // binary representation of leaf position
-
-    transition 6 registers {
-        for each (leaf, node, indexBit) {
-
-            init {
-                s1 <- [leaf, node, 0];
-                s2 <- [node, leaf, 0];
-                yield [...s1, ...s2];
-            }
-
-            for each (node, indexBit) {
-                h <- indexBit ? $r3 : $r0;
-                with $r[0..2] yield Hash(h, node);
-                with $r[3..5] yield Hash(node, h);
-            }
-        }
-    }
-
-    enforce 6 constraints {
-        for all steps {
-            enforce transition($r) = $n;
-        }
-    }
-}`);
-
-const schema = compile(script);
+const schema = compile('./scripts/merkle32.air');
 const air = instantiate(schema);
 console.log(air.toString());
 console.log(`degree: ${air.maxConstraintDegree}`);
