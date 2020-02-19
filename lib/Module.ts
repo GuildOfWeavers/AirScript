@@ -68,7 +68,7 @@ export class Module {
         members.forEach(member => {
 
             const component = schema.components.get(member.member);
-            if (!component) throw new Error('TODO: import component not found');
+            validate(component !== undefined, errors.componentNotFound(member.member, filePath));
 
             let auxRegisterOffset = this.auxRegisters.length;
             component.staticRegisters.forEach(register => {
@@ -198,6 +198,7 @@ function loadSchema(basedir: string, filePath: string): AirSchema {
 // ERRORS
 // ================================================================================================
 const errors = {
+    componentNotFound       : (c: any, p: any) => `component ${c} does not exit in the specified module at ${p}`,
     undeclaredInput         : (r: any) => `input '${r}' is used without being declared`,
     overusedInput           : (r: any) => `input '${r}' cannot resurface in inner loops`,
     invalidLoopInput        : (s: any) => `symbol '${s}' cannot be used in loop header`,

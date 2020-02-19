@@ -38,8 +38,7 @@ class Module {
         // extract members
         members.forEach(member => {
             const component = schema.components.get(member.member);
-            if (!component)
-                throw new Error('TODO: import component not found');
+            utils_1.validate(component !== undefined, errors.componentNotFound(member.member, filePath));
             let auxRegisterOffset = this.auxRegisters.length;
             component.staticRegisters.forEach(register => {
                 if (utils_1.isCyclicRegister(register)) {
@@ -150,6 +149,7 @@ function loadSchema(basedir, filePath) {
 // ERRORS
 // ================================================================================================
 const errors = {
+    componentNotFound: (c, p) => `component ${c} does not exit in the specified module at ${p}`,
     undeclaredInput: (r) => `input '${r}' is used without being declared`,
     overusedInput: (r) => `input '${r}' cannot resurface in inner loops`,
     invalidLoopInput: (s) => `symbol '${s}' cannot be used in loop header`,

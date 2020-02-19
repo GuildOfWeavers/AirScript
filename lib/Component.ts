@@ -28,7 +28,7 @@ export class Component {
     readonly schema             : AirSchema;
     readonly symbols            : Map<string, SymbolInfo>;
 
-    cycleLength        : number;    // TODO
+    readonly cycleLength        : number;
 
     readonly inputRegisters     : InputRegister[];
     readonly maskRegisters      : MaskRegister[];
@@ -52,9 +52,8 @@ export class Component {
         this.segmentRegisters = [];
         this.auxRegisters = auxRegisters;
 
-        this.cycleLength = 0;
         this.inputRankMap = extractInputs(symbols);
-        this.buildRegisterSpecs(template, [0]);
+        this.cycleLength = this.buildRegisterSpecs(template, [0]);
     }
 
     // ACCESSORS
@@ -142,32 +141,27 @@ export class Component {
         }
     }
 
-    private buildRegisterSpecs(loop: LoopTemplate, path: number[], masterParent?: InputRegisterMaster): void {
-        const inputOffset = this.inputRegisters.length;
-        const masterPeer: InputRegisterMaster = { relation: 'peerof', index: inputOffset };
-
+    private buildRegisterSpecs(loop: LoopTemplate, path: number[], masterParent?: InputRegisterMaster): number {
         const loopDepth = loop.getDepth(this.inputRankMap);
-
-        const cycleLength = getCycleLength(loop, this.symbols);
-
-        if (cycleLength !== undefined && this.cycleLength < cycleLength) {
-            this.cycleLength = cycleLength;
+        if (loopDepth === 0) {
+            return this.processLeafLoop(loop, path, masterParent);
         }
 
         // build input registers for this loop
+        const inputOffset = this.inputRegisters.length;
+        const masterPeer: InputRegisterMaster = { relation: 'peerof', index: inputOffset };
         let isAnchor = true;
-        for (let inputName of loop.ownInputs) {
-            const symbol = this.symbols.get(inputName) as InputInfo;
-            validate(symbol !== undefined, errors.undeclaredInput(inputName));
-            validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
-            validate(symbol.rank === loop.rank, errors.inputRankMismatch(inputName));
 
+        for (let inputName of loop.ownInputs) {
+            const symbol = this.symbols.get(inputName);
+            validate(symbol !== undefined, errors.undeclaredInput(inputName));
+            validate(isInputInfoSymbol(symbol), errors.invalidLoopInput(inputName));
+            validate(symbol.rank === loop.rank, errors.inputRankMismatch(inputName));
             for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
                 this.inputRegisters.push({
                     scope       : symbol.scope,
                     binary      : symbol.binary,
-                    master      : isAnchor || loop.isLeaf ? masterParent : masterPeer,
-                    steps       : cycleLength
+                    master      : isAnchor ? masterParent : masterPeer
                 });
                 isAnchor = false;
             }
@@ -179,21 +173,76 @@ export class Component {
             path    : path
         });
 
-        // recurse down for all child blocks
+        // process all inner loops
+        let cycleLength = 0;
         const master: InputRegisterMaster = { relation: 'childof', index: masterPeer.index };
         loop.blocks.forEach((block, i) => {
-            if (block instanceof LoopTemplate) {
-                this.buildRegisterSpecs(block, path.concat(i), master);
+            // TODO: add support for delegate calls in higher-level loops
+            validate(block instanceof LoopTemplate, errors.nonLeafDelegNotSupported());
+            const cl = this.buildRegisterSpecs(block, path.concat(i), master);
+            if (cl > cycleLength) {
+                cycleLength = cl;
             }
-            else if (block instanceof LoopBaseTemplate) {
+        });
+
+        return cycleLength;
+    }
+
+    private processLeafLoop(loop: LoopTemplate, path: number[], master?: InputRegisterMaster): number {
+
+        // process inner blocks of the loop and determine cycle length
+        let cycleLength: number | undefined;
+        loop.blocks.forEach((block, i) => {
+            if (block instanceof LoopBaseTemplate) {
+                if (cycleLength === undefined) {
+                    cycleLength = block.cycleLength;
+                }
+                validate(cycleLength === block.cycleLength, errors.cycleLengthMismatch());
                 block.masks.forEach((mask, j) => {
                     this.segmentRegisters.push({ mask, path: path.concat([j])});
                 });
             }
+            else if (block instanceof DelegateTemplate) {
+                // TODO: find a way to get delegate info without hard-coding name
+                const delegate = this.symbols.get(`${block.delegate}_transition`);
+                validate(delegate !== undefined, errors.undeclaredDelegate(block.delegate));
+                validate(isFunctionInfoSymbol(delegate), errors.invalidDelegate(block.delegate));
+                validate(delegate.rank === 0, errors.delegateRankMismatch(block.delegate));
+                if (cycleLength === undefined) {
+                    cycleLength = delegate.cycleLength;
+                }
+                validate(cycleLength === delegate.cycleLength, errors.cycleLengthMismatch());
+            }
             else {
-                // TODO: delegate
+                throw new Error(`invalid block detected within a leaf loop`);
             }
         });
+        validate(cycleLength !== undefined, 'cycle length could not be determined');
+
+        // process block inputs
+        const inputOffset = this.inputRegisters.length;
+        for (let inputName of loop.ownInputs) {
+            const symbol = this.symbols.get(inputName) as InputInfo;
+            validate(symbol !== undefined, errors.undeclaredInput(inputName));
+            validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
+            validate(symbol.rank === loop.rank, errors.inputRankMismatch(inputName));
+            for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
+                this.inputRegisters.push({
+                    scope       : symbol.scope,
+                    binary      : symbol.binary,
+                    master      : master,
+                    steps       : cycleLength
+                });
+            }
+        }
+
+        // add mask register for the loop
+        this.maskRegisters.push({
+            input   : inputOffset,
+            path    : path
+        });
+
+        return cycleLength;
     }
 }
 
@@ -247,34 +296,16 @@ function transformSymbols(symbols: Map<string, SymbolInfo>, traceWidth: number, 
     return result;
 }
 
-function getCycleLength(loop: LoopTemplate, symbols: Map<string, SymbolInfo>): number | undefined {
-    if (!loop.isLeaf) return undefined;
-
-    let cycleLength = 0;
-    for (let block of loop.blocks) {
-        if (block instanceof LoopBaseTemplate) {
-            if (block.cycleLength > cycleLength) {
-                cycleLength = block.cycleLength;
-            }
-        }
-        else if (block instanceof DelegateTemplate) {
-            const handle = `${block.delegate}_transition`;  // TODO: don't hardcode postfix
-            const info = symbols.get(handle)!;              // TODO: check for undefined
-            if (isFunctionInfoSymbol(info)) {
-                if (info.cycleLength > cycleLength) {
-                    cycleLength = info.cycleLength;
-                }
-            }
-        }
-    }
-    return cycleLength;
-}
-
 // ERRORS
 // ================================================================================================
 const errors = {
     undeclaredInput         : (r: any) => `input '${r}' is used without being declared`,
     invalidLoopInput        : (s: any) => `symbol '${s}' cannot be used in loop header`,
     inputRankMismatch       : (s: any) => `rank of input '${s}' does not match loop depth`,
-    blockTypeConflict       : (t: any) => `cannot add block of type ${t.name} to loop template`
+    blockTypeConflict       : (t: any) => `cannot add block of type ${t.name} to loop template`,
+    undeclaredDelegate      : (d: any) => `function '${d}' is used without being imported`,
+    invalidDelegate         : (s: any) => `symbol '${s}' is not a function`,
+    delegateRankMismatch    : (d: any) => `rank of function '${d}' does not match loop depth`,
+    nonLeafDelegNotSupported: () => `function calls in non-leaf input loops are not yet supported`,
+    cycleLengthMismatch     : () => `all domains within an input loop must have the same cycle length`
 };
