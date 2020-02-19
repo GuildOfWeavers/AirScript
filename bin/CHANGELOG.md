@@ -1,5 +1,10 @@
 # Release History
 
+### v0.7.0 - February 18, 2020
+* Implemented parallel input loops
+* Implemented component imports from AirAssembly files
+* Enabled function calls for inner-most loops
+
 ### v0.6.3 - January 26, 2020
 
 * Implemented pseudorandom cycles for static variables

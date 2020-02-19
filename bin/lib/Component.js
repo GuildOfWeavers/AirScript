@@ -126,6 +126,7 @@ class Component {
         let cycleLength = 0;
         const master = { relation: 'childof', index: masterPeer.index };
         loop.blocks.forEach((block, i) => {
+            // TODO: add support for delegate calls in higher-level loops
             utils_1.validate(block instanceof templates_1.LoopTemplate, errors.nonLeafDelegNotSupported());
             const cl = this.buildRegisterSpecs(block, path.concat(i), master);
             if (cl > cycleLength) {
