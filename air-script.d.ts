@@ -2,7 +2,7 @@ declare module '@guildofweavers/air-script' {
 
     // IMPORTS AND RE-EXPORTS
     // --------------------------------------------------------------------------------------------
-    import { AirSchema } from '@guildofweavers/air-assembly';
+    import { AirSchema, InputRegisterMaster, Dimensions, PrngSequence } from '@guildofweavers/air-assembly';
     export { AirSchema } from '@guildofweavers/air-assembly';
 
     // PUBLIC INTERFACES
@@ -25,4 +25,56 @@ declare module '@guildofweavers/air-script' {
      * @param componentName Optional component name to be assigned to the parsed module.
      */
     export function compile(source: Buffer, componentName?: string): AirSchema;
+
+    // INTERNAL INTERFACES
+    // --------------------------------------------------------------------------------------------
+    export type Interval = [number, number];
+
+    export interface InputRegister {
+        readonly scope      : string;
+        readonly binary     : boolean;
+        readonly master?    : InputRegisterMaster;
+        readonly steps?     : number;
+        readonly loopAnchor?: boolean;
+    }
+    
+    export interface MaskRegister {
+        readonly input  : number;
+        readonly path   : number[];
+    }
+    
+    export interface SegmentRegister {
+        readonly mask   : bigint[];
+        readonly path   : number[];
+    }
+
+    export interface StaticRegister {
+        readonly values : bigint[] | PrngSequence;
+    }
+
+    export interface SymbolInfo {
+        readonly type       : 'const' | 'input' | 'static' | 'param' | 'func';
+        readonly handle     : string;
+        readonly dimensions : Dimensions;
+        readonly subset     : boolean;
+        readonly offset?    : number;
+    }
+    
+    export interface FunctionInfo extends SymbolInfo {
+        readonly type       : 'func';
+        readonly rank       : number;
+        readonly auxOffset  : number;
+        readonly auxCount   : number;
+        readonly maskCount  : number;
+        readonly inputCount : number;
+        readonly cycleLength: number;
+    }
+    
+    export interface InputInfo extends SymbolInfo {
+        readonly type       : 'input';
+        readonly scope      : string;
+        readonly binary     : boolean;
+        readonly rank       : number;
+    }
+    
 }

@@ -86,13 +86,18 @@ exports.WhiteSpace = chevrotain_1.createToken({
 });
 exports.Comment = chevrotain_1.createToken({
     name: "Comment",
-    pattern: /\/\/.+/,
+    pattern: /\/\/.*/,
+    group: "comments"
+});
+const MultilineComment = chevrotain_1.createToken({
+    name: 'MultilineComment',
+    pattern: /\/\*(.|[\r\n])*?\*\//,
     group: "comments"
 });
 // ALL TOKENS
 // ================================================================================================
 exports.allTokens = [
-    exports.WhiteSpace, exports.Comment,
+    exports.WhiteSpace, exports.Comment, MultilineComment,
     exports.Define, exports.Over, exports.Prime, exports.Field, exports.Transition, exports.Registers, exports.Steps, exports.Yield, exports.Enforce, exports.Constraints,
     exports.For, exports.Each, exports.Do, exports.With, exports.Nothing, exports.When, exports.Else, exports.Cycle, exports.Const, exports.Input, exports.Public, exports.Secret, exports.Element, exports.Boolean,
     exports.Static, exports.Import, exports.From, exports.As, exports.All, exports.Init, exports.Prng,

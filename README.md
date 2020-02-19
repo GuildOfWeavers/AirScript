@@ -310,6 +310,48 @@ One thing to note: when defining inner loops, the set of inputs must always narr
 
 For example, if you have loops nested 3 levels deep, the top level loop may operate with inputs `(foo, bar, baz)`. The loop next level down must narrow this, for example, to `(bar, baz)`. And the inner-most loop must down it further to just `(baz)`. In this example, rank of `foo` would be `0`, rank of `bar` would be `1`, and rank of `baz` would be `2`.
 
+### Parallel input loops
+It is possible to have several input loops running in parallel. This is accomplished by defining register "subdomains" using `with` expressions like so:
+```
+for each (foo, bar, baz) {
+
+    with $r[0..1] {
+        init { ... }
+
+        for each (bar) {
+            init { ... }
+
+            for steps [1..31] { ... }
+            for steps [32..63] { ... }
+        }
+    }
+
+    with $r[2..3] {
+        init { ... }
+
+        for each (baz) {
+            init { ... }
+
+            for steps [1..31] { ... }
+            for steps [32..127] { ... }
+        }
+    }
+}
+```
+In the above example, we split our execution trace into two trace domains each consisting of 2 registers. This essentially creates two separate execution traces running in parallel: the first execution trace consists of registers `$r0` and `$r1`, while the second trace consists of registers `$r2` and `$r3`.
+
+We then define two separate loop structures for each of the traces. These structures don't need to be the same. In the example above, the loop operating over input `bar` has 64 steps per input, but the loop operating over input `baz` has 128 steps per input. This can be taken further and each of the defined domains can have different levels of nesting and can be further subdivided into smaller subdomains.
+
+**Note**: even though trace subdomains can have different looping structures, all subdomains must resolve to execution traces of the same length. So, for the above example, it is expected that there will be twice as many `bar` inputs as there will be `baz` inputs because `baz` inputs require twice as many steps. Here is how a potential set of inputs for this example might look like:
+
+```
+[
+    [1, 2],                         // values for foo
+    [[3, 4, 5, 6], [7, 8, 9, 10]],  // values for bar
+    [[11, 12], [13, 14]]            // values for baz
+]
+```
+
 ### Segment loops
 Segment loops can be used to specify different state transition logic for different segments (groups of steps) of a computation. Here is how you can define a segment loop:
 ```
@@ -334,6 +376,60 @@ A few things to keep in mind when defining intervals:
 * You also can't have "overlapping" intervals. This means that each step must map unambiguously to state transition logic (e.g. defining transition logic for intervals [1..5] and [5..7] is invalid because transition logic for step 5 is ambiguous).
 * One of the intervals must start with step `1`. This is because `init` clause of a parent input loop is executed at step `0`.
 * Length of the execution trace defined by all intervals must be a power of 2. For example, [1..63] is valid because this implies 64 steps (including step `0`), but [1..62] is not.
+
+## Component imports
+Component imports can be used to import computations defined in external [AirAssembly](https://github.com/GuildOfWeavers/AirAssembly) modules. This enables composing AirScripts from smaller modules and makes the task of defining complex scripts much easier. An `import` statement is used to import external components, and it has the following form:
+```
+import {<imported members>} from <file path>;
+```
+where:
+* `imported members` is a comma-separated list of components to be imported from an AirAssembly module. Each member can also be given an alias.
+* `file path` is the path (relative or absolute) to the AirAssembly file containing the components.
+
+For example:
+```
+import { Poseidon as Hash } from './stdlib256.aa';
+```
+This will import `Poseidon` component from an AirAssembly file `stdlib256.aa` located in the same directory as the importing AirScript. The imported component is given an alias `Hash` by which it can be referred to within the body of the script.
+
+**Note**: the fields of the imported components and the importing AirScript must be the same, otherwise an error will be thrown.
+
+### Invoking imported components
+Invoking imported components requires defining a [trace subdomain](#Parallel-input-loops) over which the components will operate and providing inputs for the component. This can be done by using a `with` statement like so:
+```
+with <subdomain> <yield | enforce> <component>(<inputs>);
+```
+where:
+* `subdomain` is the trace subdomain over which the component operates.
+* `component` is the name (or alias) of the imported component.
+* `yield` or `enforce` are the keywords which depend on the context. Within a transition function a `yield` keyword must be used, but within a constraint evaluator an `enforce` keyword must be used.
+* `inputs` is a comma-separated list of expressions which define inputs for each of the input registers required by the component.
+
+For example:
+```
+with $r[0..2] yield Hash(a, b);
+```
+In this example, we've defined our trace domain as the first 3 registers of the execution trace. We need 3 registers because the imported `Poseidon` hash function requires 3 trace registers to operate. Then we've provided two values (`a` and `b`) as inputs, because this implementation of `Poseidon` hash function expects 2 inputs. The function will hash these two inputs and put the result into register `$r0`.
+
+Here is a more sophisticated example of a transition function using imported `Poseidon` hash function (aliased as `Hash`) to define a computation for a Merkle branch verification:
+```
+transition 6 registers {
+    for each (leaf, node, indexBit) {
+
+        init {
+            s1 <- [leaf, node, 0];
+            s2 <- [node, leaf, 0];
+            yield [...s1, ...s2];
+        }
+
+        for each (node, indexBit) {
+            h <- indexBit ? $r3 : $r0;
+            with $r[0..2] yield Hash(h, node);
+            with $r[3..5] yield Hash(node, h);
+        }
+    }
+}
+```
 
 ## Arithmetic statements
 Bodies of loops are nothing more than a series of arithmetic statements (separated by semicolons) which evaluate to a number or to a vector of numbers. Here is an example:

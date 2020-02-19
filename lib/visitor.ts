@@ -1,15 +1,16 @@
 // IMPORTS
 // ================================================================================================
+import { Interval } from '@guildofweavers/air-script';
 import { AirSchema, Expression, PrngSequence } from '@guildofweavers/air-assembly';
 import { FiniteField } from '@guildofweavers/galois';
 import { tokenMatcher } from 'chevrotain';
 import { parser } from './parser';
 import { Plus, Star, Slash, Pound, Minus } from './lexer';
-import { Module } from './Module';
+import { Module, ImportMember, ModuleOptions } from './Module';
 import { Component } from './Component';
-import { ExecutionContext } from './ExecutionContext';
-import { ExecutionTemplate } from './ExecutionTemplate';
-import { ProcedureParams } from './utils';
+import { ExecutionContext, LoopContext } from './contexts';
+import { LoopTemplate, LoopBaseTemplate } from './templates';
+import { DelegateTemplate } from './templates/DelegateTemplate';
 
 // MODULE VARIABLES
 // ================================================================================================
@@ -24,7 +25,7 @@ class AirVisitor extends BaseCstVisitor {
 
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
-    script(ctx: any, componentName = 'default'): AirSchema {
+    script(ctx: any, options: ModuleOptions): AirSchema {
 
         validateScriptSections(ctx);
 
@@ -33,7 +34,7 @@ class AirVisitor extends BaseCstVisitor {
         const modulus: bigint = this.visit(ctx.fieldDeclaration);
         const traceRegisterCount = Number(ctx.traceRegisterCount[0].image);
         const constraintCount = Number(ctx.constraintCount[0].image);
-        const aModule = new Module(moduleName, modulus, traceRegisterCount, constraintCount);
+        const aModule = new Module(moduleName, options.basedir, modulus, traceRegisterCount, constraintCount);
 
         // parse imports
         if (ctx.imports) {
@@ -50,15 +51,14 @@ class AirVisitor extends BaseCstVisitor {
         ctx.inputRegisters.forEach((element: any) => this.visit(element, aModule));
 
         // determine transition function structure and use it to create a component object
-        const template: ExecutionTemplate = this.visit(ctx.transitionFunction, aModule);
-        const component = aModule.createComponent(template);
+        const component: Component = this.visit(ctx.transitionFunction, aModule);
 
         // parse transition function and constraint evaluator
         this.visit(ctx.transitionFunction, component);
         this.visit(ctx.transitionConstraints, component);
 
         // finalize the component and return the schema
-        aModule.setComponent(component, componentName);
+        aModule.setComponent(component, options.name);
         return aModule.schema;
     }
 
@@ -154,16 +154,16 @@ class AirVisitor extends BaseCstVisitor {
 
     // TRANSITION FUNCTION AND CONSTRAINTS
     // --------------------------------------------------------------------------------------------
-    transitionFunction(ctx: any, mOrC: Module | Component): ExecutionTemplate | void {
+    transitionFunction(ctx: any, mOrC: Module | Component): Component | void {
         if (mOrC instanceof Module) {
-            const template = new ExecutionTemplate(mOrC.field);
-            this.visit(ctx.inputLoop, template);
-            return template;
+            const rootTemplate = new LoopTemplate([0, mOrC.traceWidth - 1]);
+            this.visit(ctx.traceLoop, rootTemplate);
+            return mOrC.createComponent(rootTemplate);
         }
         else {
             const exc = mOrC.createExecutionContext('transition');
-            this.visit(ctx.inputLoop, exc);
-            mOrC.setTransitionFunction(exc);
+            const result = this.visit(ctx.traceLoop, exc);
+            mOrC.setTransitionFunction(exc, result);
         }
     }
 
@@ -175,75 +175,102 @@ class AirVisitor extends BaseCstVisitor {
             component.setConstraintEvaluator(exc, result);
         }
         else {
-            this.visit(ctx.inputLoop, exc);
-            component.setConstraintEvaluator(exc);
+            const result = this.visit(ctx.traceLoop, exc);
+            component.setConstraintEvaluator(exc, result);
         }
     }
 
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void {
-        if (tOrC instanceof ExecutionTemplate) {
-            // parse input names
-            tOrC.addLoop(ctx.inputs.map((input: any) => input.image));
-        
-            // parse body expression
-            if (ctx.inputLoop) {
-                this.visit(ctx.inputLoop, tOrC);
-            }
-            else {
-                ctx.segmentLoops.forEach((loop: any) => this.visit(loop, tOrC));
-            }
+    traceLoop(ctx: any, templateOrParent: LoopTemplate | ExecutionContext): void | Expression {
+
+        // parse inputs
+        const inputs: string[] = ctx.inputs.map((input: any) => input.image);
+
+        // parse loop body
+        if (templateOrParent instanceof LoopTemplate) {
+            templateOrParent.setInputs(inputs);
+            ctx.blocks.forEach((b: any) => this.visit(b, templateOrParent));
         }
         else {
-            tOrC.enterBlock();
+            // create a new context for the loop
+            const loopContext = new LoopContext(templateOrParent, inputs);
+
             // parse outer statements
             if (ctx.statements) {
-                ctx.statements.forEach((s: any) => this.visit(s, tOrC));
+                ctx.statements.forEach((s: any) => this.visit(s, loopContext));
             }
 
-            // parse initializer
-            this.visit(ctx.initExpression, tOrC);
+            ctx.blocks.forEach((b: any) => this.visit(b, loopContext));
+            return loopContext.result;
+        }
+    }
 
-            // parse body
-            if (ctx.inputLoop) {
-                this.visit(ctx.inputLoop, tOrC);
+    loopBlock(ctx: any, parent: LoopTemplate | LoopContext): void {
+        const domain: Interval = (ctx.domain ? this.visit(ctx.domain) : parent.domain);
+
+        if (parent instanceof LoopTemplate) {
+            if (ctx.traceLoop) {
+                const template = new LoopTemplate(domain, parent);
+                this.visit(ctx.traceLoop, template);
+                parent.addLoopBlock(template);
+            }
+            else if (ctx.traceSegments) {
+                const template = new LoopBaseTemplate(domain);
+                ctx.traceSegments.forEach((segment: any) => template.addSegment(this.visit(segment)));
+                parent.addLoopBaseBlock(template);
             }
             else {
-                ctx.segmentLoops.forEach((loop: any) => this.visit(loop, tOrC));
+                const template = new DelegateTemplate(domain, this.visit(ctx.delegateCall));
+                parent.addDelegateBlock(template);
             }
-            tOrC.exitBlock();
         }
-    }
-
-    inputLoopInit(ctx: any, exc: ExecutionContext): void {
-        exc.addInitializer(this.visit(ctx.expression, exc));
-    }
-
-    segmentLoop(ctx: any, tOrC: ExecutionTemplate | ExecutionContext): void {
-        if (tOrC instanceof ExecutionTemplate) {
-            tOrC.addSegment(ctx.ranges.map((range: any) => this.visit(range)));
+        else if (parent instanceof LoopContext) {
+            if (ctx.traceLoop) {
+                const blockContext = new ExecutionContext(parent, domain);
+                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
+                const loopResult: Expression = this.visit(ctx.traceLoop, blockContext);
+                parent.addLoopBlock(initResult, loopResult);
+            }
+            else if (ctx.traceSegments) {
+                const blockContext = new ExecutionContext(parent, domain);
+                const initResult: Expression = this.visit(ctx.initExpression, blockContext);
+                const segmentResults: Expression[] = ctx.traceSegments.map((loop: any) => this.visit(loop, blockContext));
+                parent.addBaseBlock(initResult, segmentResults);
+            }
+            else {
+                const { delegateName, inputs } = this.visit(ctx.delegateCall, parent);
+                parent.addDelegateBlock(delegateName, inputs, domain);
+            }
         }
         else {
-            tOrC.addSegment(this.visit(ctx.body, tOrC));
+            throw new Error(`invalid parent ${parent} for loop block context`);
         }
+    }
+
+    traceSegment(ctx: any, exc?: ExecutionContext): Expression | Interval[] {
+        if (exc) return this.visit(ctx.body, exc);
+        else return ctx.ranges.map((range: any) => this.visit(range));
+    }
+
+    traceDomain(ctx: any): Interval {
+        return this.visit(ctx.range);
     }
 
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx: any, exc: ExecutionContext): Expression {
-        exc.enterBlock();
+        const blockContext = new ExecutionContext(exc);
         if (ctx.statements) {
-            ctx.statements.forEach((stmt: any) => this.visit(stmt, exc));
+            ctx.statements.forEach((stmt: any) => this.visit(stmt, blockContext));
         }
 
-        let result: Expression = this.visit(ctx.expression, exc);
+        let result: Expression = this.visit(ctx.expression, blockContext);
         if (ctx.constraint) {
-            const constraint: Expression = this.visit(ctx.constraint, exc);
-            result = exc.buildBinaryOperation('sub', result, constraint);
+            const constraint: Expression = this.visit(ctx.constraint, blockContext);
+            result = blockContext.buildBinaryOperation('sub', result, constraint);
         }
 
-        exc.exitBlock();
         return result;
     }
 
@@ -271,18 +298,22 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
 
-    // TRANSITION CALL EXPRESSION
+    // FUNCTION CALLS
     // --------------------------------------------------------------------------------------------
     transitionCall(ctx: any, exc: ExecutionContext): Expression {
         const registers = ctx.registers[0].image;
         if (registers !== '$r') {
             throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
         }
-        const params = [
-            exc.base.buildLoadExpression('load.param', ProcedureParams.thisTraceRow),
-            exc.base.buildLoadExpression('load.param', ProcedureParams.staticRow)
-        ];
-        return exc.buildFunctionCall('transition', params);
+        return exc.buildTransitionCall();
+    }
+
+    delegateCall(ctx: any, exc?: ExecutionContext): string | { delegateName: string; inputs: Expression[]; } {
+        const delegateName: string = ctx.delegate[0].image;
+        if (!exc) return delegateName;
+
+        const inputs: Expression[] = ctx.parameters.map((p: any) => this.visit(p, exc));
+        return { delegateName, inputs }
     }
 
     // VECTORS AND MATRIXES
@@ -479,7 +510,7 @@ class AirVisitor extends BaseCstVisitor {
         return result;
     }
 
-    literalRangeExpression(ctx: any): [number, number] {
+    literalRangeExpression(ctx: any): Interval {
         let start = Number.parseInt(ctx.start[0].image, 10);
         let end = ctx.end ? Number.parseInt(ctx.end[0].image, 10) : start;
         return [start, end];
@@ -488,13 +519,13 @@ class AirVisitor extends BaseCstVisitor {
     // IMPORTS
     // --------------------------------------------------------------------------------------------
     importExpression(ctx: any, aModule: Module): void {
-        const members = ctx.members.map((member: any) => this.visit(member));
-        const path = ctx.path[0].image;
-        // TODO: implement
-        const imp = { members, path };
+        const members: ImportMember[] = ctx.members.map((member: any) => this.visit(member));
+        let path: string = ctx.path[0].image;
+        path = path.substring(1, path.length - 1);
+        aModule.addImport(path, members);
     }
 
-    importMember(ctx: any): { member: string, alias?: string } {
+    importMember(ctx: any): ImportMember {
         const member = ctx.member[0].image;
         const alias = ctx.alias ? ctx.alias[0].image : undefined;
         return { member, alias };

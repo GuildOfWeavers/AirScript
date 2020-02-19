@@ -100,14 +100,20 @@ export const WhiteSpace = createToken({
 
 export const Comment = createToken({
     name    : "Comment",
-    pattern : /\/\/.+/,
+    pattern : /\/\/.*/,
+    group   : "comments"
+});
+
+const MultilineComment = createToken({
+    name    : 'MultilineComment',
+    pattern : /\/\*(.|[\r\n])*?\*\//, 
     group   : "comments"
 });
 
 // ALL TOKENS
 // ================================================================================================
 export const allTokens = [
-    WhiteSpace, Comment,
+    WhiteSpace, Comment, MultilineComment,
     
     Define, Over, Prime, Field, Transition, Registers, Steps, Yield, Enforce, Constraints,
     For, Each, Do, With, Nothing, When, Else, Cycle, Const, Input, Public, Secret, Element, Boolean,

@@ -1,14 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-// IMPORTS
-// ================================================================================================
 const air_assembly_1 = require("@guildofweavers/air-assembly");
 const chevrotain_1 = require("chevrotain");
 const parser_1 = require("./parser");
 const lexer_1 = require("./lexer");
 const Module_1 = require("./Module");
-const ExecutionTemplate_1 = require("./ExecutionTemplate");
-const utils_1 = require("./utils");
+const contexts_1 = require("./contexts");
+const templates_1 = require("./templates");
+const DelegateTemplate_1 = require("./templates/DelegateTemplate");
 // MODULE VARIABLES
 // ================================================================================================
 const BaseCstVisitor = parser_1.parser.getBaseCstVisitorConstructor();
@@ -19,14 +18,14 @@ class AirVisitor extends BaseCstVisitor {
     }
     // ENTRY POINT
     // --------------------------------------------------------------------------------------------
-    script(ctx, componentName = 'default') {
+    script(ctx, options) {
         validateScriptSections(ctx);
         // build module
         const moduleName = ctx.starkName[0].image;
         const modulus = this.visit(ctx.fieldDeclaration);
         const traceRegisterCount = Number(ctx.traceRegisterCount[0].image);
         const constraintCount = Number(ctx.constraintCount[0].image);
-        const aModule = new Module_1.Module(moduleName, modulus, traceRegisterCount, constraintCount);
+        const aModule = new Module_1.Module(moduleName, options.basedir, modulus, traceRegisterCount, constraintCount);
         // parse imports
         if (ctx.imports) {
             ctx.imports.forEach((imp) => this.visit(imp, aModule));
@@ -40,13 +39,12 @@ class AirVisitor extends BaseCstVisitor {
         }
         ctx.inputRegisters.forEach((element) => this.visit(element, aModule));
         // determine transition function structure and use it to create a component object
-        const template = this.visit(ctx.transitionFunction, aModule);
-        const component = aModule.createComponent(template);
+        const component = this.visit(ctx.transitionFunction, aModule);
         // parse transition function and constraint evaluator
         this.visit(ctx.transitionFunction, component);
         this.visit(ctx.transitionConstraints, component);
         // finalize the component and return the schema
-        aModule.setComponent(component, componentName);
+        aModule.setComponent(component, options.name);
         return aModule.schema;
     }
     // FINITE FIELD
@@ -131,14 +129,14 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     transitionFunction(ctx, mOrC) {
         if (mOrC instanceof Module_1.Module) {
-            const template = new ExecutionTemplate_1.ExecutionTemplate(mOrC.field);
-            this.visit(ctx.inputLoop, template);
-            return template;
+            const rootTemplate = new templates_1.LoopTemplate([0, mOrC.traceWidth - 1]);
+            this.visit(ctx.traceLoop, rootTemplate);
+            return mOrC.createComponent(rootTemplate);
         }
         else {
             const exc = mOrC.createExecutionContext('transition');
-            this.visit(ctx.inputLoop, exc);
-            mOrC.setTransitionFunction(exc);
+            const result = this.visit(ctx.traceLoop, exc);
+            mOrC.setTransitionFunction(exc, result);
         }
     }
     transitionConstraints(ctx, component) {
@@ -149,66 +147,92 @@ class AirVisitor extends BaseCstVisitor {
             component.setConstraintEvaluator(exc, result);
         }
         else {
-            this.visit(ctx.inputLoop, exc);
-            component.setConstraintEvaluator(exc);
+            const result = this.visit(ctx.traceLoop, exc);
+            component.setConstraintEvaluator(exc, result);
         }
     }
     // LOOPS
     // --------------------------------------------------------------------------------------------
-    inputLoop(ctx, tOrC) {
-        if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
-            // parse input names
-            tOrC.addLoop(ctx.inputs.map((input) => input.image));
-            // parse body expression
-            if (ctx.inputLoop) {
-                this.visit(ctx.inputLoop, tOrC);
-            }
-            else {
-                ctx.segmentLoops.forEach((loop) => this.visit(loop, tOrC));
-            }
+    traceLoop(ctx, templateOrParent) {
+        // parse inputs
+        const inputs = ctx.inputs.map((input) => input.image);
+        // parse loop body
+        if (templateOrParent instanceof templates_1.LoopTemplate) {
+            templateOrParent.setInputs(inputs);
+            ctx.blocks.forEach((b) => this.visit(b, templateOrParent));
         }
         else {
-            tOrC.enterBlock();
+            // create a new context for the loop
+            const loopContext = new contexts_1.LoopContext(templateOrParent, inputs);
             // parse outer statements
             if (ctx.statements) {
-                ctx.statements.forEach((s) => this.visit(s, tOrC));
+                ctx.statements.forEach((s) => this.visit(s, loopContext));
             }
-            // parse initializer
-            this.visit(ctx.initExpression, tOrC);
-            // parse body
-            if (ctx.inputLoop) {
-                this.visit(ctx.inputLoop, tOrC);
+            ctx.blocks.forEach((b) => this.visit(b, loopContext));
+            return loopContext.result;
+        }
+    }
+    loopBlock(ctx, parent) {
+        const domain = (ctx.domain ? this.visit(ctx.domain) : parent.domain);
+        if (parent instanceof templates_1.LoopTemplate) {
+            if (ctx.traceLoop) {
+                const template = new templates_1.LoopTemplate(domain, parent);
+                this.visit(ctx.traceLoop, template);
+                parent.addLoopBlock(template);
+            }
+            else if (ctx.traceSegments) {
+                const template = new templates_1.LoopBaseTemplate(domain);
+                ctx.traceSegments.forEach((segment) => template.addSegment(this.visit(segment)));
+                parent.addLoopBaseBlock(template);
             }
             else {
-                ctx.segmentLoops.forEach((loop) => this.visit(loop, tOrC));
+                const template = new DelegateTemplate_1.DelegateTemplate(domain, this.visit(ctx.delegateCall));
+                parent.addDelegateBlock(template);
             }
-            tOrC.exitBlock();
         }
-    }
-    inputLoopInit(ctx, exc) {
-        exc.addInitializer(this.visit(ctx.expression, exc));
-    }
-    segmentLoop(ctx, tOrC) {
-        if (tOrC instanceof ExecutionTemplate_1.ExecutionTemplate) {
-            tOrC.addSegment(ctx.ranges.map((range) => this.visit(range)));
+        else if (parent instanceof contexts_1.LoopContext) {
+            if (ctx.traceLoop) {
+                const blockContext = new contexts_1.ExecutionContext(parent, domain);
+                const initResult = this.visit(ctx.initExpression, blockContext);
+                const loopResult = this.visit(ctx.traceLoop, blockContext);
+                parent.addLoopBlock(initResult, loopResult);
+            }
+            else if (ctx.traceSegments) {
+                const blockContext = new contexts_1.ExecutionContext(parent, domain);
+                const initResult = this.visit(ctx.initExpression, blockContext);
+                const segmentResults = ctx.traceSegments.map((loop) => this.visit(loop, blockContext));
+                parent.addBaseBlock(initResult, segmentResults);
+            }
+            else {
+                const { delegateName, inputs } = this.visit(ctx.delegateCall, parent);
+                parent.addDelegateBlock(delegateName, inputs, domain);
+            }
         }
         else {
-            tOrC.addSegment(this.visit(ctx.body, tOrC));
+            throw new Error(`invalid parent ${parent} for loop block context`);
         }
+    }
+    traceSegment(ctx, exc) {
+        if (exc)
+            return this.visit(ctx.body, exc);
+        else
+            return ctx.ranges.map((range) => this.visit(range));
+    }
+    traceDomain(ctx) {
+        return this.visit(ctx.range);
     }
     // STATEMENTS
     // --------------------------------------------------------------------------------------------
     statementBlock(ctx, exc) {
-        exc.enterBlock();
+        const blockContext = new contexts_1.ExecutionContext(exc);
         if (ctx.statements) {
-            ctx.statements.forEach((stmt) => this.visit(stmt, exc));
+            ctx.statements.forEach((stmt) => this.visit(stmt, blockContext));
         }
-        let result = this.visit(ctx.expression, exc);
+        let result = this.visit(ctx.expression, blockContext);
         if (ctx.constraint) {
-            const constraint = this.visit(ctx.constraint, exc);
-            result = exc.buildBinaryOperation('sub', result, constraint);
+            const constraint = this.visit(ctx.constraint, blockContext);
+            result = blockContext.buildBinaryOperation('sub', result, constraint);
         }
-        exc.exitBlock();
         return result;
     }
     statement(ctx, exc) {
@@ -231,18 +255,21 @@ class AirVisitor extends BaseCstVisitor {
         const result = exc.getSymbolReference(symbol);
         return result;
     }
-    // TRANSITION CALL EXPRESSION
+    // FUNCTION CALLS
     // --------------------------------------------------------------------------------------------
     transitionCall(ctx, exc) {
         const registers = ctx.registers[0].image;
         if (registers !== '$r') {
             throw new Error(`expected transition function to be invoked with $r parameter, but received ${registers} parameter`);
         }
-        const params = [
-            exc.base.buildLoadExpression('load.param', utils_1.ProcedureParams.thisTraceRow),
-            exc.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow)
-        ];
-        return exc.buildFunctionCall('transition', params);
+        return exc.buildTransitionCall();
+    }
+    delegateCall(ctx, exc) {
+        const delegateName = ctx.delegate[0].image;
+        if (!exc)
+            return delegateName;
+        const inputs = ctx.parameters.map((p) => this.visit(p, exc));
+        return { delegateName, inputs };
     }
     // VECTORS AND MATRIXES
     // --------------------------------------------------------------------------------------------
@@ -426,9 +453,9 @@ class AirVisitor extends BaseCstVisitor {
     // --------------------------------------------------------------------------------------------
     importExpression(ctx, aModule) {
         const members = ctx.members.map((member) => this.visit(member));
-        const path = ctx.path[0].image;
-        // TODO: implement
-        const imp = { members, path };
+        let path = ctx.path[0].image;
+        path = path.substring(1, path.length - 1);
+        aModule.addImport(path, members);
     }
     importMember(ctx) {
         const member = ctx.member[0].image;

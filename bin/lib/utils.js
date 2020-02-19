@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // CONSTANTS
 // ================================================================================================
 exports.BLOCK_ID_PREFIX = '$_b';
+exports.TRANSITION_FN_HANDLE = '$_transition';
+exports.EVALUATION_FN_HANDLE = '$_evaluation';
 var ProcedureParams;
 (function (ProcedureParams) {
     ProcedureParams["thisTraceRow"] = "$_r";
@@ -11,6 +13,45 @@ var ProcedureParams;
 })(ProcedureParams = exports.ProcedureParams || (exports.ProcedureParams = {}));
 const MAX_SYMBOL_LENGTH = 128;
 const SYMBOL_REGEXP = /[a-zA-Z]\w*/g;
+// DIMENSIONS
+// ================================================================================================
+function areSameDimensions(d1, d2) {
+    return (d1[0] === d2[0]) && (d1[1] === d2[1]);
+}
+exports.areSameDimensions = areSameDimensions;
+// DOMAINS
+// ================================================================================================
+function isSubdomain(parent, child) {
+    return (parent[0] <= child[0] && parent[1] >= child[1]);
+}
+exports.isSubdomain = isSubdomain;
+// SYMBOLS
+// ================================================================================================
+function isFunctionInfoSymbol(symbol) {
+    return (symbol.type === 'func');
+}
+exports.isFunctionInfoSymbol = isFunctionInfoSymbol;
+function isInputInfoSymbol(symbol) {
+    return (symbol.type === 'input');
+}
+exports.isInputInfoSymbol = isInputInfoSymbol;
+// REGISTERS
+// ================================================================================================
+function isInputRegister(register) {
+    // TODO: move to AirAssembly
+    return (register.rank !== undefined);
+}
+exports.isInputRegister = isInputRegister;
+function isMaskRegister(register) {
+    // TODO: move to AirAssembly
+    return (register.source !== undefined);
+}
+exports.isMaskRegister = isMaskRegister;
+function isCyclicRegister(register) {
+    // TODO: move to AirAssembly
+    return (register.values !== undefined);
+}
+exports.isCyclicRegister = isCyclicRegister;
 // MATH
 // ================================================================================================
 function isPowerOf2(value) {

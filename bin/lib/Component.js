@@ -1,105 +1,248 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const ExecutionContext_1 = require("./ExecutionContext");
+const templates_1 = require("./templates");
+const contexts_1 = require("./contexts");
 const utils_1 = require("./utils");
 // CLASS DEFINITION
 // ================================================================================================
 class Component {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(schema, procedures, symbols, functions) {
+    constructor(schema, traceWidth, constraintCount, template, symbols, auxRegisters) {
         this.schema = schema;
-        this.procedures = procedures;
+        this.traceWidth = traceWidth;
+        this.constraintCount = constraintCount;
         this.symbols = symbols;
-        this.functions = functions;
+        this.inputRegisters = [];
         this.maskRegisters = [];
-        procedures.inputRegisters.forEach((r, i) => {
-            if (r.loopAnchor) {
-                this.maskRegisters.push({ input: i });
-            }
-        });
+        this.segmentRegisters = [];
+        this.auxRegisters = auxRegisters;
+        this.inputRankMap = extractInputs(symbols);
+        this.cycleLength = this.buildRegisterSpecs(template, [0]);
     }
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
     get field() {
         return this.schema.field;
     }
-    get transitionFunctionHandle() {
-        return this.procedures.transition.handle;
+    get loopRegisterOffset() {
+        return this.inputRegisters.length;
     }
-    get constraintEvaluatorHandle() {
-        return this.procedures.evaluation.handle;
+    get segmentRegisterOffset() {
+        return this.inputRegisters.length
+            + this.maskRegisters.length
+            + this.segmentRegisters.length;
     }
-    get inputRegisters() {
-        return this.procedures.inputRegisters;
-    }
-    get segmentMasks() {
-        return this.procedures.segmentMasks;
-    }
-    get cycleLength() {
-        return this.procedures.segmentMasks[0].length;
+    get auxRegisterOffset() {
+        return this.inputRegisters.length
+            + this.maskRegisters.length
+            + this.segmentRegisters.length;
     }
     get staticRegisterCount() {
-        const param = this.procedures.transition.params.filter(p => p.name === utils_1.ProcedureParams.staticRow)[0];
-        return param.dimensions[0];
+        return this.inputRegisters.length
+            + this.maskRegisters.length
+            + this.segmentRegisters.length
+            + this.auxRegisters.length;
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     createExecutionContext(procedure) {
-        const specs = (procedure === 'transition')
-            ? this.procedures.transition
-            : this.procedures.evaluation;
+        const specs = this.getProcedureSpecs(procedure);
+        const domain = [0, this.traceWidth];
         const staticRegisters = {
-            inputs: this.inputRegisters.length,
-            loops: this.maskRegisters.length,
-            segments: this.segmentMasks.length,
-            statics: this.staticRegisterCount - this.procedures.staticRegisterOffset
+            inputs: this.inputRegisters,
+            loops: this.maskRegisters,
+            segments: this.segmentRegisters,
+            aux: this.auxRegisters
         };
         const context = this.schema.createFunctionContext(specs.result, specs.handle);
+        const symbols = transformSymbols(this.symbols, this.traceWidth, this.auxRegisterOffset);
         specs.params.forEach(p => context.addParam(p.dimensions, p.name));
-        return new ExecutionContext_1.ExecutionContext(context, this.symbols, this.functions, staticRegisters);
+        return new contexts_1.RootContext(domain, context, symbols, this.inputRankMap, staticRegisters);
     }
-    setTransitionFunction(context) {
-        const { statements, result } = this.buildFunction(context);
-        this.schema.addFunction(context.base, statements, result);
+    setTransitionFunction(context, result) {
+        this.schema.addFunction(context.base, context.statements, result);
     }
     setConstraintEvaluator(context, result) {
-        if (result) {
-            this.schema.addFunction(context.base, context.statements, result);
-        }
-        else {
-            const { statements, result } = this.buildFunction(context);
-            this.schema.addFunction(context.base, statements, result);
-        }
+        this.schema.addFunction(context.base, context.statements, result);
     }
     // PRIVATE METHODS
     // --------------------------------------------------------------------------------------------
-    buildFunction(context) {
-        let result;
-        let statements = context.statements;
-        context.initializers.forEach((expression, i) => {
-            if (expression.isScalar) {
-                expression = context.buildMakeVectorExpression([expression]);
+    getProcedureSpecs(procedure) {
+        if (procedure === 'transition') {
+            return {
+                handle: utils_1.TRANSITION_FN_HANDLE,
+                result: [this.traceWidth, 0],
+                params: [
+                    { name: utils_1.ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
+                    { name: utils_1.ProcedureParams.staticRow, dimensions: [this.staticRegisterCount, 0] }
+                ]
+            };
+        }
+        else if (procedure === 'evaluation') {
+            return {
+                handle: utils_1.EVALUATION_FN_HANDLE,
+                result: [this.constraintCount, 0],
+                params: [
+                    { name: utils_1.ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
+                    { name: utils_1.ProcedureParams.nextTraceRow, dimensions: [this.traceWidth, 0] },
+                    { name: utils_1.ProcedureParams.staticRow, dimensions: [this.staticRegisterCount, 0] }
+                ]
+            };
+        }
+        else {
+            throw new Error(`cannot build specs for '${procedure}' procedure`);
+        }
+    }
+    buildRegisterSpecs(loop, path, masterParent) {
+        const loopDepth = loop.getDepth(this.inputRankMap);
+        if (loopDepth === 0) {
+            return this.processLeafLoop(loop, path, masterParent);
+        }
+        // build input registers for this loop
+        const inputOffset = this.inputRegisters.length;
+        const masterPeer = { relation: 'peerof', index: inputOffset };
+        let isAnchor = true;
+        for (let inputName of loop.ownInputs) {
+            const symbol = this.symbols.get(inputName);
+            utils_1.validate(symbol !== undefined, errors.undeclaredInput(inputName));
+            utils_1.validate(utils_1.isInputInfoSymbol(symbol), errors.invalidLoopInput(inputName));
+            utils_1.validate(symbol.rank === loop.rank, errors.inputRankMismatch(inputName));
+            for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
+                this.inputRegisters.push({
+                    scope: symbol.scope,
+                    binary: symbol.binary,
+                    master: isAnchor ? masterParent : masterPeer
+                });
+                isAnchor = false;
             }
-            const resultHandle = `$_init_${i}`;
-            context.base.addLocal(expression.dimensions, resultHandle);
-            const resultControl = context.getLoopController(i);
-            expression = context.buildBinaryOperation('mul', expression, resultControl);
-            statements.push(context.base.buildStoreOperation(resultHandle, expression));
-            expression = context.base.buildLoadExpression(`load.local`, resultHandle);
-            result = result ? context.buildBinaryOperation('add', result, expression) : expression;
+        }
+        // add mask register for the loop
+        this.maskRegisters.push({
+            input: inputOffset,
+            path: path
         });
-        context.segments.forEach((expression, i) => {
-            const resultHandle = `$_seg_${i}`;
-            context.base.addLocal(expression.dimensions, resultHandle);
-            const resultControl = context.getSegmentController(i);
-            expression = context.buildBinaryOperation('mul', expression, resultControl);
-            statements.push(context.base.buildStoreOperation(resultHandle, expression));
-            expression = context.base.buildLoadExpression(`load.local`, resultHandle);
-            result = result ? context.buildBinaryOperation('add', result, expression) : expression;
+        // process all inner loops
+        let cycleLength = 0;
+        const master = { relation: 'childof', index: masterPeer.index };
+        loop.blocks.forEach((block, i) => {
+            utils_1.validate(block instanceof templates_1.LoopTemplate, errors.nonLeafDelegNotSupported());
+            const cl = this.buildRegisterSpecs(block, path.concat(i), master);
+            if (cl > cycleLength) {
+                cycleLength = cl;
+            }
         });
-        return { statements, result: result };
+        return cycleLength;
+    }
+    processLeafLoop(loop, path, master) {
+        // process inner blocks of the loop and determine cycle length
+        let cycleLength;
+        loop.blocks.forEach((block, i) => {
+            if (block instanceof templates_1.LoopBaseTemplate) {
+                if (cycleLength === undefined) {
+                    cycleLength = block.cycleLength;
+                }
+                utils_1.validate(cycleLength === block.cycleLength, errors.cycleLengthMismatch());
+                block.masks.forEach((mask, j) => {
+                    this.segmentRegisters.push({ mask, path: path.concat([j]) });
+                });
+            }
+            else if (block instanceof templates_1.DelegateTemplate) {
+                // TODO: find a way to get delegate info without hard-coding name
+                const delegate = this.symbols.get(`${block.delegate}_transition`);
+                utils_1.validate(delegate !== undefined, errors.undeclaredDelegate(block.delegate));
+                utils_1.validate(utils_1.isFunctionInfoSymbol(delegate), errors.invalidDelegate(block.delegate));
+                utils_1.validate(delegate.rank === 0, errors.delegateRankMismatch(block.delegate));
+                if (cycleLength === undefined) {
+                    cycleLength = delegate.cycleLength;
+                }
+                utils_1.validate(cycleLength === delegate.cycleLength, errors.cycleLengthMismatch());
+            }
+            else {
+                throw new Error(`invalid block detected within a leaf loop`);
+            }
+        });
+        utils_1.validate(cycleLength !== undefined, 'cycle length could not be determined');
+        // process block inputs
+        const inputOffset = this.inputRegisters.length;
+        for (let inputName of loop.ownInputs) {
+            const symbol = this.symbols.get(inputName);
+            utils_1.validate(symbol !== undefined, errors.undeclaredInput(inputName));
+            utils_1.validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
+            utils_1.validate(symbol.rank === loop.rank, errors.inputRankMismatch(inputName));
+            for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
+                this.inputRegisters.push({
+                    scope: symbol.scope,
+                    binary: symbol.binary,
+                    master: master,
+                    steps: cycleLength
+                });
+            }
+        }
+        // add mask register for the loop
+        this.maskRegisters.push({
+            input: inputOffset,
+            path: path
+        });
+        return cycleLength;
     }
 }
 exports.Component = Component;
+// HELPER FUNCTIONS
+// ================================================================================================
+function extractInputs(symbols) {
+    const inputs = new Map();
+    for (let [symbol, info] of symbols) {
+        if (utils_1.isInputInfoSymbol(info)) {
+            inputs.set(symbol, info.rank);
+        }
+    }
+    return inputs;
+}
+function transformSymbols(symbols, traceWidth, staticOffset) {
+    const result = new Map();
+    const type = 'param';
+    // transform custom symbols
+    for (let [symbol, info] of symbols) {
+        if (info.type === 'const' || info.type === 'func') {
+            result.set(symbol, info);
+        }
+        else if (info.type === 'input') {
+            result.set(symbol, { ...info, type, handle: utils_1.ProcedureParams.staticRow });
+        }
+        else if (info.type === 'static') {
+            let offset = info.offset + staticOffset;
+            result.set(symbol, { ...info, type, handle: utils_1.ProcedureParams.staticRow, offset });
+        }
+        else {
+            throw new Error(`cannot transform ${info.type} symbol to component form`);
+        }
+    }
+    // create symbols for trace rows
+    let dimensions = [traceWidth, 0];
+    let subset = false;
+    result.set('$r', { type, handle: utils_1.ProcedureParams.thisTraceRow, dimensions, subset });
+    result.set('$n', { type, handle: utils_1.ProcedureParams.nextTraceRow, dimensions, subset });
+    // create symbols for trace registers
+    dimensions = [0, 0];
+    subset = true;
+    for (let i = 0; i < traceWidth; i++) {
+        result.set(`$r${i}`, { type, handle: utils_1.ProcedureParams.thisTraceRow, offset: i, dimensions, subset });
+        result.set(`$n${i}`, { type, handle: utils_1.ProcedureParams.nextTraceRow, offset: i, dimensions, subset });
+    }
+    return result;
+}
+// ERRORS
+// ================================================================================================
+const errors = {
+    undeclaredInput: (r) => `input '${r}' is used without being declared`,
+    invalidLoopInput: (s) => `symbol '${s}' cannot be used in loop header`,
+    inputRankMismatch: (s) => `rank of input '${s}' does not match loop depth`,
+    blockTypeConflict: (t) => `cannot add block of type ${t.name} to loop template`,
+    undeclaredDelegate: (d) => `function '${d}' is used without being imported`,
+    invalidDelegate: (s) => `symbol '${s}' is not a function`,
+    delegateRankMismatch: (d) => `rank of function '${d}' does not match loop depth`,
+    nonLeafDelegNotSupported: () => `function calls in non-leaf input loops are not yet supported`,
+    cycleLengthMismatch: () => `all domains within an input loop must have the same cycle length`
+};
 //# sourceMappingURL=Component.js.map

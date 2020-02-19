@@ -140,13 +140,13 @@ class AirParser extends chevrotain_1.CstParser {
         // --------------------------------------------------------------------------------------------
         this.transitionFunction = this.RULE('transitionFunction', () => {
             this.CONSUME(lexer_1.LCurly);
-            this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: ['yield'] });
+            this.SUBRULE(this.traceLoop, { LABEL: 'traceLoop', ARGS: ['yield'] });
             this.CONSUME(lexer_1.RCurly);
         });
         this.transitionConstraints = this.RULE('transitionConstraints', () => {
             this.CONSUME(lexer_1.LCurly);
             this.OR([
-                { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: ['enforce'] }) },
+                { ALT: () => this.SUBRULE(this.traceLoop, { LABEL: 'traceLoop', ARGS: ['enforce'] }) },
                 { ALT: () => {
                         this.CONSUME(lexer_1.For);
                         this.CONSUME(lexer_1.All);
@@ -158,7 +158,7 @@ class AirParser extends chevrotain_1.CstParser {
         });
         // LOOPS
         // --------------------------------------------------------------------------------------------
-        this.inputLoop = this.RULE('inputLoop', (context) => {
+        this.traceLoop = this.RULE('traceLoop', (context) => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Each);
             this.CONSUME(lexer_1.LParen);
@@ -169,22 +169,62 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME(lexer_1.RParen);
             this.CONSUME(lexer_1.LCurly);
             this.MANY(() => this.SUBRULE(this.statement, { LABEL: 'statements' }));
-            this.SUBRULE(this.inputLoopInit, { LABEL: 'initExpression', ARGS: [context] });
-            this.OR([
-                { ALT: () => this.SUBRULE(this.inputLoop, { LABEL: 'inputLoop', ARGS: [context] }) },
-                { ALT: () => {
-                        this.AT_LEAST_ONE(() => {
-                            this.SUBRULE(this.segmentLoop, { LABEL: 'segmentLoops', ARGS: [context] });
-                        });
-                    } }
-            ]);
+            this.AT_LEAST_ONE(() => this.SUBRULE(this.loopBlock, { LABEL: 'blocks', ARGS: [context] }));
             this.CONSUME(lexer_1.RCurly);
         });
-        this.inputLoopInit = this.RULE('inputLoopInit', (context) => {
-            this.CONSUME(lexer_1.Init);
-            this.SUBRULE(this.statementBlock, { LABEL: 'expression', ARGS: [context] });
+        this.loopBlock = this.RULE('loopBlock', (context) => {
+            this.OR1([
+                { ALT: () => {
+                        this.SUBRULE(this.traceDomain, { LABEL: 'domain' });
+                        this.OR2([
+                            { ALT: () => {
+                                    this.CONSUME(lexer_1.LCurly);
+                                    this.CONSUME1(lexer_1.Init);
+                                    this.SUBRULE1(this.statementBlock, { LABEL: 'initExpression', ARGS: [context] });
+                                    this.OR3([
+                                        { ALT: () => {
+                                                this.SUBRULE1(this.traceLoop, { LABEL: 'traceLoop', ARGS: [context] });
+                                            } },
+                                        { ALT: () => this.AT_LEAST_ONE1(() => {
+                                                this.SUBRULE1(this.traceSegment, { LABEL: 'traceSegments', ARGS: [context] });
+                                            }) }
+                                    ]);
+                                    this.CONSUME(lexer_1.RCurly);
+                                } },
+                            { ALT: () => {
+                                    this.SUBRULE1(this.delegateCall, { LABEL: 'delegateCall', ARGS: [context] });
+                                } }
+                        ]);
+                    } },
+                { ALT: () => {
+                        this.OR4([
+                            { ALT: () => {
+                                    this.CONSUME2(lexer_1.Init);
+                                    this.SUBRULE2(this.statementBlock, { LABEL: 'initExpression', ARGS: [context] });
+                                    this.OR5([
+                                        { ALT: () => {
+                                                this.SUBRULE2(this.traceLoop, { LABEL: 'traceLoop', ARGS: [context] });
+                                            } },
+                                        { ALT: () => this.AT_LEAST_ONE2(() => {
+                                                this.SUBRULE2(this.traceSegment, { LABEL: 'traceSegments', ARGS: [context] });
+                                            }) }
+                                    ]);
+                                } },
+                            { ALT: () => {
+                                    this.SUBRULE2(this.delegateCall, { LABEL: 'delegateCall', ARGS: [context] });
+                                } }
+                        ]);
+                    } }
+            ]);
         });
-        this.segmentLoop = this.RULE('segmentLoop', (context) => {
+        this.traceDomain = this.RULE('traceDomain', () => {
+            this.CONSUME(lexer_1.With);
+            this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
+            this.CONSUME(lexer_1.LSquare);
+            this.SUBRULE(this.literalRangeExpression, { LABEL: 'range' });
+            this.CONSUME(lexer_1.RSquare);
+        });
+        this.traceSegment = this.RULE('traceSegment', (context) => {
             this.CONSUME(lexer_1.For);
             this.CONSUME(lexer_1.Steps);
             this.CONSUME(lexer_1.LSquare);
@@ -274,13 +314,27 @@ class AirParser extends chevrotain_1.CstParser {
                     } }
             ]);
         });
-        // TRANSITION CALL EXPRESSION
+        // FUNCTION CALLS
         // --------------------------------------------------------------------------------------------
         this.transitionCall = this.RULE('transitionCall', () => {
             this.CONSUME(lexer_1.Transition);
             this.CONSUME(lexer_1.LParen);
             this.CONSUME(lexer_1.RegisterBank, { LABEL: 'registers' });
             this.CONSUME(lexer_1.RParen);
+        });
+        this.delegateCall = this.RULE('delegateCall', (context) => {
+            this.OR([
+                { GATE: () => context === 'yield', ALT: () => this.CONSUME(lexer_1.Yield) },
+                { GATE: () => context === 'enforce', ALT: () => this.CONSUME(lexer_1.Enforce) }
+            ]);
+            this.CONSUME(lexer_1.Identifier, { LABEL: 'delegate' });
+            this.CONSUME(lexer_1.LParen);
+            this.AT_LEAST_ONE_SEP({
+                SEP: lexer_1.Comma,
+                DEF: () => this.SUBRULE(this.expression, { LABEL: 'parameters' })
+            });
+            this.CONSUME(lexer_1.RParen);
+            this.CONSUME(lexer_1.Semicolon);
         });
         // VECTORS AND MATRIXES
         // --------------------------------------------------------------------------------------------

@@ -1,35 +1,23 @@
 // IMPORTS
 // ================================================================================================
-import {
-    AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, InputRegisterMaster, PrngSequence
-} from "@guildofweavers/air-assembly";
-import { Component, ProcedureSpecs, InputRegister } from "./Component";
-import { ExecutionTemplate } from "./ExecutionTemplate";
-import { validate, validateSymbolName, isPowerOf2, ProcedureParams } from "./utils";
+import { compile, AirSchema, ProcedureContext, Expression, FiniteField, Dimensions, PrngSequence } from "@guildofweavers/air-assembly";
+import { SymbolInfo, InputInfo, StaticRegister } from '@guildofweavers/air-script'
+import * as path from 'path';
+import { Component } from "./Component";
+import { LoopTemplate } from "./templates";
+import { validate, validateSymbolName, TRANSITION_FN_HANDLE, EVALUATION_FN_HANDLE, isCyclicRegister } from "./utils";
+import { importConstants, importFunctions, ImportOffsets, importComponent } from "./importer";
 
 // INTERFACES
 // ================================================================================================
-export interface SymbolInfo {
-    readonly type       : 'const' | 'input' | 'static' | 'param';
-    readonly handle     : string;
-    readonly dimensions : Dimensions;
-    readonly subset     : boolean;
-    readonly offset?    : number;
-    readonly input?     : Input;
+export interface ModuleOptions {
+    readonly name   : string;
+    readonly basedir: string;
 }
 
-export interface FunctionInfo {
-    readonly handle : string;
-}
-
-interface Input {
-    readonly scope  : string;
-    readonly binary : boolean;
-    readonly rank   : number;
-}
-
-interface StaticRegister {
-    readonly values : bigint[] | PrngSequence;
+export interface ImportMember {
+    readonly member : string;
+    readonly alias? : string;
 }
 
 // CLASS DEFINITION
@@ -37,22 +25,24 @@ interface StaticRegister {
 export class Module {
 
     readonly name               : string;
+    readonly basedir            : string;
     readonly schema             : AirSchema;
     readonly traceWidth         : number;
     readonly constraintCount    : number;
-    readonly staticRegisters    : StaticRegister[];
+    readonly auxRegisters       : StaticRegister[];
 
     private readonly symbols    : Map<string, SymbolInfo>;
     private inputRegisterCount  : number;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(name: string, modulus: bigint, traceWidth: number, constraintCount: number) {
+    constructor(name: string, basedir: string, modulus: bigint, traceWidth: number, constraintCount: number) {
         this.name = name;
+        this.basedir = basedir;
         this.schema = new AirSchema('prime', modulus);
         this.traceWidth = traceWidth;
         this.constraintCount = constraintCount;
-        this.staticRegisters = [];
+        this.auxRegisters = [];
         this.symbols = new Map();
         this.inputRegisterCount = 0;
     }
@@ -65,6 +55,40 @@ export class Module {
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
+    addImport(filePath: string, members: ImportMember[]): void {
+
+        // try to load the AirAssembly module specified by the file path
+        const schema = loadSchema(this.basedir, filePath);
+        
+        // copy constants and functions
+        const constOffset = importConstants(schema, this.schema);
+        const funcOffset = importFunctions(schema, this.schema, constOffset);
+
+        // extract members
+        members.forEach(member => {
+
+            const component = schema.components.get(member.member);
+            validate(component !== undefined, errors.componentNotFound(member.member, filePath));
+
+            let auxRegisterOffset = this.auxRegisters.length;
+            component.staticRegisters.forEach(register => {
+                if (isCyclicRegister(register)) {
+                    this.auxRegisters.push({ values: register.values });
+                }
+            });
+
+            const offsets: ImportOffsets = {
+                constants       : constOffset,
+                functions       : funcOffset,
+                auxRegisters    : auxRegisterOffset,
+                auxRegisterCount: this.auxRegisters.length
+            };
+
+            const symbols = importComponent(component, this.schema, offsets, member.alias);
+            symbols.forEach(s => this.symbols.set(s.handle.substr(1), s));
+        });
+    }
+
     addConstant(name: string, value: bigint | bigint[] | bigint[][]): void {
         validateSymbolName(name);
         validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
@@ -81,32 +105,19 @@ export class Module {
         const offset = this.inputRegisterCount;
         this.inputRegisterCount = offset + width;
         const dimensions: Dimensions = width === 1 ? [0, 0] : [width, 0];
-        const input = { scope, binary, rank };
-        this.symbols.set(name, { type: 'input', handle: name, offset, dimensions, subset: true, input });
+        this.symbols.set(name, { type: 'input', handle: name, offset, dimensions, subset: true, scope, binary, rank } as InputInfo);
     }
 
     addStatic(name: string, values: (bigint[] | PrngSequence)[]): void {
         validate(!this.symbols.has(name), errors.dupSymbolDeclaration(name));
-        const index = this.staticRegisters.length;
-        values.forEach((v => this.staticRegisters.push({ values: v })));
+        const index = this.auxRegisters.length;
+        values.forEach((v => this.auxRegisters.push({ values: v })));
         const dimensions: Dimensions = values.length === 1 ? [0, 0] : [values.length, 0];
         this.symbols.set(name, { type: 'static', handle: name, offset: index, dimensions, subset: true });
     }
 
-    createComponent(template: ExecutionTemplate): Component {
-        // make sure the template is valid
-        validate(isPowerOf2(template.cycleLength), errors.cycleLengthNotPowerOf2(template.cycleLength));
-        for (let i = 1; i < template.cycleLength; i++) {
-            validate(template.getIntervalAt(i) !== undefined, errors.intervalStepNotCovered(i));
-        }
-
-        const procedureSpecs = this.buildProcedureSpecs(template);
-        const symbols = this.transformSymbols(procedureSpecs.staticRegisterOffset);
-
-        const functions = new Map<string, FunctionInfo>();
-        functions.set('transition', { handle: procedureSpecs.transition.handle });
-
-        return new Component(this.schema, procedureSpecs, symbols, functions);
+    createComponent(template: LoopTemplate): Component {
+        return new Component(this.schema, this.traceWidth, this.constraintCount, template, this.symbols, this.auxRegisters);
     }
 
     setComponent(component: Component, componentName: string): void {
@@ -116,30 +127,30 @@ export class Module {
         // add static registers to the component
         component.inputRegisters.forEach(r => c.addInputRegister(r.scope, r.binary, r.master, r.steps, -1));
         component.maskRegisters.forEach(r => c.addMaskRegister(r.input, false));
-        component.segmentMasks.forEach(m => {
+        component.segmentRegisters.forEach(r => {
             // rotate the mask by one position to the left, to align it with input position
-            m = m.slice();
-            m.push(m.shift()!);
-            c.addCyclicRegister(m);
+            const mask = r.mask.slice();
+            mask.push(mask.shift()!);
+            c.addCyclicRegister(mask);
         });
-        this.staticRegisters.forEach(r => c.addCyclicRegister(r.values));
+        this.auxRegisters.forEach(r => c.addCyclicRegister(r.values));
 
         // set trace initializer to return a result of applying transition function to a vector of all zeros
         const initContext = c.createProcedureContext('init');
         const initParams = this.buildProcedureParams(initContext);
-        const initCall = initContext.buildCallExpression(component.transitionFunctionHandle, initParams);
+        const initCall = initContext.buildCallExpression(TRANSITION_FN_HANDLE, initParams);
         c.setTraceInitializer(initContext, [], initCall);
 
         // set transition function procedure to call transition function
         const tfContext = c.createProcedureContext('transition');
         const tfParams = this.buildProcedureParams(tfContext);
-        const tfCall = tfContext.buildCallExpression(component.transitionFunctionHandle, tfParams);
+        const tfCall = tfContext.buildCallExpression(TRANSITION_FN_HANDLE, tfParams);
         c.setTransitionFunction(tfContext, [], tfCall);
 
         // set constraint evaluator procedure to call constraint evaluator function
         const evContext = c.createProcedureContext('evaluation');
         const evParams = this.buildProcedureParams(evContext);
-        const evCall = evContext.buildCallExpression(component.constraintEvaluatorHandle, evParams);
+        const evCall = evContext.buildCallExpression(EVALUATION_FN_HANDLE, evParams);
         c.setConstraintEvaluator(evContext, [], evCall);
 
         // add component to the schema
@@ -148,34 +159,6 @@ export class Module {
 
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
-    private buildProcedureSpecs(template: ExecutionTemplate): ProcedureSpecs {
-        const inputRegisters = this.buildInputRegisters(template);
-        const segmentMasks = template.segments.map(s => s.mask);
-        const staticRegisterOffset = inputRegisters.length + segmentMasks.length + template.loops.length;
-        const staticRegisterCount = staticRegisterOffset + this.staticRegisters.length;
-
-        return {
-            transition: {
-                handle  : `$${this.name}_transition`,
-                result  : [this.traceWidth, 0],
-                params  : [
-                    { name: ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
-                    { name: ProcedureParams.staticRow,    dimensions: [staticRegisterCount, 0] }
-                ]
-            },
-            evaluation: {
-                handle  : `$${this.name}_evaluation`,
-                result  : [this.constraintCount, 0],
-                params  : [
-                    { name: ProcedureParams.thisTraceRow, dimensions: [this.traceWidth, 0] },
-                    { name: ProcedureParams.nextTraceRow, dimensions: [this.traceWidth, 0] },
-                    { name: ProcedureParams.staticRow,    dimensions: [staticRegisterCount, 0] }
-                ]
-            },
-            inputRegisters, segmentMasks, staticRegisterOffset
-        };
-    }
-
     private buildProcedureParams(context: ProcedureContext): Expression[] {
         const params: Expression[] = [];
         
@@ -195,90 +178,27 @@ export class Module {
 
         return params;
     }
+}
 
-    private buildInputRegisters(template: ExecutionTemplate): InputRegister[] {
-        const registers: InputRegister[] = [];
-        const registerSet = new Set<string>();
-        const anchors: number[] = [];
-        
-        let masterParent : InputRegisterMaster | undefined = undefined;
-        template.loops.forEach((loop, i) => {
-            anchors.push(registers.length);
-            
-            let j = 0;
-            const masterPeer: InputRegisterMaster = { relation: 'peerof', index: registers.length };
-            loop.inputs.forEach(inputName => {
-                validate(!registerSet.has(inputName), errors.overusedInput(inputName));
-                const symbol = this.symbols.get(inputName)!;
-                validate(symbol !== undefined, errors.undeclaredInput(inputName));
-                validate(symbol.type === 'input', errors.invalidLoopInput(inputName));
-                validate(symbol.input!.rank === i, errors.inputRankMismatch(inputName));
-                
-                for (let k = 0; k < (symbol.dimensions[0] || 1); k++) {
-                    const isAnchor = (j === 0);
-                    const isLeaf = (i === template.loops.length - 1);
-    
-                    registers.push({
-                        scope       : symbol.input!.scope,
-                        binary      : symbol.input!.binary,
-                        master      : isAnchor || isLeaf ? masterParent : masterPeer,
-                        steps       : isLeaf ? template.cycleLength : undefined,
-                        loopAnchor  : isAnchor
-                    });
-                    j++;
-                }
-
-                registerSet.add(inputName);
-            });
-
-            masterParent = { relation: 'childof', index: anchors[anchors.length - 1] };
-        });
-
-        return registers;
+// HELPER FUNCTIONS
+// ================================================================================================
+function loadSchema(basedir: string, filePath: string): AirSchema {
+    if (!path.isAbsolute(filePath)) {
+        filePath = path.resolve(basedir, filePath);
     }
 
-    private transformSymbols(staticOffset: number): Map<string, SymbolInfo> {
-        const symbols = new Map<string, SymbolInfo>();
-        const type = 'param' as 'param';
-
-        // transform custom symbols
-        for (let [symbol, info] of this.symbols) {
-            if (info.type === 'const') {
-                symbols.set(symbol, info);
-            }
-            else if (info.type === 'input') {
-                symbols.set(symbol, { ...info, type, handle: ProcedureParams.staticRow });
-            }
-            else if (info.type === 'static') {
-                let offset = info.offset! + staticOffset;
-                symbols.set(symbol, { ...info, type, handle: ProcedureParams.staticRow, offset });
-            }
-            else {
-                throw new Error(`cannot transform ${info.type} symbol to component form`);
-            }
-        }
-
-        // create symbols for trace rows
-        let dimensions = [this.traceWidth, 0] as Dimensions;
-        let subset = false;
-        symbols.set('$r', { type, handle: ProcedureParams.thisTraceRow, dimensions, subset });
-        symbols.set('$n', { type, handle: ProcedureParams.nextTraceRow, dimensions, subset });
-
-        // create symbols for trace registers
-        dimensions = [0, 0];
-        subset = true;
-        for (let i = 0; i < this.traceWidth; i++) {
-            symbols.set(`$r${i}`, { type, handle: ProcedureParams.thisTraceRow, offset: i, dimensions, subset });
-            symbols.set(`$n${i}`, { type, handle: ProcedureParams.nextTraceRow, offset: i, dimensions, subset });
-        }
-
-        return symbols;
+    try {
+        return compile(filePath);
+    }
+    catch(error) {
+        throw new Error(`cannot not import from '${filePath}': ${error.message}`)
     }
 }
 
 // ERRORS
 // ================================================================================================
 const errors = {
+    componentNotFound       : (c: any, p: any) => `component ${c} does not exit in the specified module at ${p}`,
     undeclaredInput         : (r: any) => `input '${r}' is used without being declared`,
     overusedInput           : (r: any) => `input '${r}' cannot resurface in inner loops`,
     invalidLoopInput        : (s: any) => `symbol '${s}' cannot be used in loop header`,

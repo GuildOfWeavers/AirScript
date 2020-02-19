@@ -1,6 +1,14 @@
+// IMPORTS
+// ================================================================================================
+import { Dimensions, StaticRegister, InputRegister, MaskRegister, CyclicRegister } from "@guildofweavers/air-assembly";
+import { SymbolInfo, FunctionInfo, Interval, InputInfo } from "@guildofweavers/air-script";
+
 // CONSTANTS
 // ================================================================================================
 export const BLOCK_ID_PREFIX = '$_b';
+
+export const TRANSITION_FN_HANDLE = '$_transition';
+export const EVALUATION_FN_HANDLE = '$_evaluation';
 
 export enum ProcedureParams {
     thisTraceRow = '$_r',
@@ -10,6 +18,45 @@ export enum ProcedureParams {
 
 const MAX_SYMBOL_LENGTH = 128;
 const SYMBOL_REGEXP = /[a-zA-Z]\w*/g;
+
+// DIMENSIONS
+// ================================================================================================
+export function areSameDimensions(d1: Dimensions, d2: Dimensions): boolean {
+    return (d1[0] === d2[0]) && (d1[1] === d2[1]);
+}
+
+// DOMAINS
+// ================================================================================================
+export function isSubdomain(parent: Interval, child: Interval): boolean {
+    return (parent[0] <= child[0] && parent[1] >= child[1]);
+}
+
+// SYMBOLS
+// ================================================================================================
+export function isFunctionInfoSymbol(symbol: SymbolInfo): symbol is FunctionInfo {
+    return (symbol.type === 'func');
+}
+
+export function isInputInfoSymbol(symbol: SymbolInfo): symbol is InputInfo {
+    return (symbol.type === 'input');
+}
+
+// REGISTERS
+// ================================================================================================
+export function isInputRegister(register: StaticRegister): register is InputRegister {
+    // TODO: move to AirAssembly
+    return ((register as any).rank !== undefined);
+}
+
+export function isMaskRegister(register: StaticRegister): register is MaskRegister {
+    // TODO: move to AirAssembly
+    return ((register as any).source !== undefined);
+}
+
+export function isCyclicRegister(register: StaticRegister): register is CyclicRegister {
+    // TODO: move to AirAssembly
+    return ((register as any).values !== undefined);
+}
 
 // MATH
 // ================================================================================================
