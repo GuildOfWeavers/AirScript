@@ -10,6 +10,9 @@ This module is not intended for standalone use, but is rather a core component o
 $ npm install @guildofweavers/air-script --save
 ```
 
+### Tooling
+* A VS Code extension to enable syntax highlighting for AirScript is available [here](https://marketplace.visualstudio.com/items?itemName=marinthiercelin.airscript-syntax-highlighter).
+
 # AirScript syntax
 
 The example below defines a STARK for MiMC computation. This is similar to the computation described by Vitalik Buterin in his [blog post](https://vitalik.ca/general/2018/07/21/starks_part_3.html) about STARKs.
