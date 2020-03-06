@@ -1,0 +1,22 @@
+import { VerifySchnorrSignature } from '../assembly/lib224.aa';
+
+define MerkleBranch over prime field (2^224 - 2^96 + 1) {
+
+    public input G      : element[2];
+    public input sBits  : boolean[1][*];
+    public input P      : element[2];
+    secret input hBits  : boolean[1][*];
+    public input R      : element[2];
+
+    transition 14 registers {
+        for each (G, sBits, P, hBits, R) {
+            yield VerifySchnorrSignature(G[0], G[1], sBits, P[0], P[1], hBits, R[0], R[1]);
+        }
+    }
+
+    enforce 18 constraints {
+        for each (G, sBits, P, hBits, R) {
+            enforce VerifySchnorrSignature(G[0], G[1], sBits, P[0], P[1], hBits, R[0], R[1]);
+        }
+    }
+}

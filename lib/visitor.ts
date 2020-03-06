@@ -124,7 +124,14 @@ class AirVisitor extends BaseCstVisitor {
         const scope = ctx.scope[0].image;
         const inputName = ctx.name[0].image;
         const registerCount = Number(ctx.width[0].image);
-        const inputRank = ctx.rank ? Number(ctx.rank[0].image) : 0;
+
+        let inputRank = 0;
+        if (ctx.rank) {
+            inputRank = (ctx.rank[0].image !== '*')
+                ? Number(ctx.rank[0].image)
+                : -1;
+        }
+
         const binary = ctx.boolean ? true : false;
         aModule.addInput(inputName, registerCount, inputRank, scope, binary);
     }

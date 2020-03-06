@@ -268,12 +268,17 @@ export class Component {
             let masterPeer: InputRegisterMaster = { relation: 'peerof', index: inputOffset };
 
             for (let input of groupedInputs[i]) {
+                let steps = isBottom ? cycleLength : undefined
+                if (input.rank === -1) {
+                    steps = 1;
+                }
+
                 for (let k = 0; k < (input.dimensions[0] || 1); k++) {
                     this.inputRegisters.push({
                         scope       : input.scope,
                         binary      : input.binary,
                         master      : isAnchor || isBottom ? masterParent : masterPeer,
-                        steps       : isBottom ? cycleLength : undefined
+                        steps       : steps
                     });
                     isAnchor = false;
                 }
@@ -291,15 +296,26 @@ export class Component {
 
     private groupLinearInputs(inputNames: string[]): InputInfo[][] {
         const result: InputInfo[][] = [];
+        const bottomInputs: InputInfo[] = [];
+
         for (let inputName of inputNames) {
             const symbol = this.symbols.get(inputName);
             validate(symbol !== undefined, errors.undeclaredInput(inputName));
             validate(isInputInfoSymbol(symbol), errors.invalidLoopInput(inputName));
             let rank = symbol.rank;
+            if (rank === -1) {
+                bottomInputs.push(symbol);
+                continue;
+            }
+
             if (result[rank] === undefined) {
                 result[rank] = [];
             }
             result[rank].push(symbol);
+        }
+
+        if (bottomInputs.length > 0) {
+            result.push(bottomInputs);
         }
 
         return result;
@@ -309,12 +325,28 @@ export class Component {
 // HELPER FUNCTIONS
 // ================================================================================================
 function extractInputs(symbols: Map<string, SymbolInfo>): Map<string, number> {
+    const bottomInputs: string[] = [];
     const inputs = new Map<string, number>();
+    let maxRank = 0;
+
     for (let [symbol, info] of symbols) {
         if (isInputInfoSymbol(info)) {
-            inputs.set(symbol, info.rank);
+            if (info.rank === -1) {
+                bottomInputs.push(symbol);
+            }
+            else {
+                inputs.set(symbol, info.rank);
+                if (info.rank > maxRank) {
+                    maxRank = info.rank;
+                }
+            }
         }
     }
+
+    for (let input of bottomInputs) {
+        inputs.set(input, maxRank + 1);
+    }
+
     return inputs;
 }
 

@@ -97,7 +97,10 @@ class AirParser extends chevrotain_1.CstParser {
             this.CONSUME1(lexer_1.RSquare);
             this.OPTION(() => {
                 this.CONSUME2(lexer_1.LSquare);
-                this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'rank' });
+                this.OR3([
+                    { ALT: () => this.CONSUME2(lexer_1.IntegerLiteral, { LABEL: 'rank' }) },
+                    { ALT: () => this.CONSUME(lexer_1.Star, { LABEL: 'rank' }) }
+                ]);
                 this.CONSUME2(lexer_1.RSquare);
             });
             this.CONSUME(lexer_1.Semicolon);

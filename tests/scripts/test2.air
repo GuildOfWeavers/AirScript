@@ -1,0 +1,20 @@
+import { ComputeMerkleRoot } from '../assembly/lib224.aa';
+
+define MerkleBranch over prime field (2^224 - 2^96 + 1) {
+
+    secret input leaf       : element[1];      // leaf of the merkle branch
+    secret input nodes      : element[1][1];   // nodes in the merkle branch
+    public input indexBits  : boolean[1][1];   // binary representation of leaf position
+
+    transition 6 registers {
+        for each (leaf, nodes, indexBits) {
+            yield ComputeMerkleRoot(leaf, nodes, indexBits);
+        }
+    }
+
+    enforce 6 constraints {
+        for all steps {
+            enforce transition($r) = $n;
+        }
+    }
+}

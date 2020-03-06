@@ -91,7 +91,7 @@ export class LoopContext extends ExecutionContext {
         validate(info.type === 'func', errors.invalidFunctionRef(delegateName));
         validate(isSubdomain(this.domain, domain), errors.invalidFunctionDomain(delegateName, this.domain));
         const depth = this.getMaxInputRank() - this.rank;
-        validate(depth === info.rank, errors.invalidFunctionRank(funcName));
+        //validate(depth === info.rank, errors.invalidFunctionRank(funcName));
         validate(inputs.length === info.inputCount, errors.wrongFunctionParamCount(funcName, info.inputCount));
 
         // build function parameters

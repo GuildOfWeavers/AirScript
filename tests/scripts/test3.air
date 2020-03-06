@@ -1,0 +1,21 @@
+import { ComputeMerkleUpdate } from '../assembly/lib224.aa';
+
+define MerkleBranch over prime field (2^224 - 2^96 + 1) {
+
+    secret input oldLeaf    : element[1];       // old leaf of the merkle branch
+    secret input newLeaf    : element[1];       // new leaf of the merkle branch
+    secret input authPath   : element[1][1];    // merkle authentication path
+    public input indexBits  : boolean[1][1];    // binary representation of leaf position
+
+    transition 12 registers {
+        for each (oldLeaf, newLeaf, authPath, indexBits) {
+            yield ComputeMerkleUpdate(oldLeaf, newLeaf, authPath, indexBits);
+        }
+    }
+
+    enforce 12 constraints {
+        for all steps {
+            enforce transition($r) = $n;
+        }
+    }
+}

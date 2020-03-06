@@ -204,12 +204,16 @@ class Component {
             let inputOffset = this.inputRegisters.length;
             let masterPeer = { relation: 'peerof', index: inputOffset };
             for (let input of groupedInputs[i]) {
+                let steps = isBottom ? cycleLength : undefined;
+                if (input.rank === -1) {
+                    steps = 1;
+                }
                 for (let k = 0; k < (input.dimensions[0] || 1); k++) {
                     this.inputRegisters.push({
                         scope: input.scope,
                         binary: input.binary,
                         master: isAnchor || isBottom ? masterParent : masterPeer,
-                        steps: isBottom ? cycleLength : undefined
+                        steps: steps
                     });
                     isAnchor = false;
                 }
@@ -224,15 +228,23 @@ class Component {
     }
     groupLinearInputs(inputNames) {
         const result = [];
+        const bottomInputs = [];
         for (let inputName of inputNames) {
             const symbol = this.symbols.get(inputName);
             utils_1.validate(symbol !== undefined, errors.undeclaredInput(inputName));
             utils_1.validate(utils_1.isInputInfoSymbol(symbol), errors.invalidLoopInput(inputName));
             let rank = symbol.rank;
+            if (rank === -1) {
+                bottomInputs.push(symbol);
+                continue;
+            }
             if (result[rank] === undefined) {
                 result[rank] = [];
             }
             result[rank].push(symbol);
+        }
+        if (bottomInputs.length > 0) {
+            result.push(bottomInputs);
         }
         return result;
     }
@@ -241,11 +253,24 @@ exports.Component = Component;
 // HELPER FUNCTIONS
 // ================================================================================================
 function extractInputs(symbols) {
+    const bottomInputs = [];
     const inputs = new Map();
+    let maxRank = 0;
     for (let [symbol, info] of symbols) {
         if (utils_1.isInputInfoSymbol(info)) {
-            inputs.set(symbol, info.rank);
+            if (info.rank === -1) {
+                bottomInputs.push(symbol);
+            }
+            else {
+                inputs.set(symbol, info.rank);
+                if (info.rank > maxRank) {
+                    maxRank = info.rank;
+                }
+            }
         }
+    }
+    for (let input of bottomInputs) {
+        inputs.set(input, maxRank + 1);
     }
     return inputs;
 }

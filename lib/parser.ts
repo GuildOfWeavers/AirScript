@@ -6,7 +6,7 @@ import {
     Boolean, Transition, Registers, Enforce, Constraints, For, All, Steps, Each, Init, Yield, When, Else,
     Import, From, Identifier, IntegerLiteral, TraceRegister, RegisterBank, HexLiteral, StringLiteral,
     LParen, RParen, LCurly, RCurly, LSquare, RSquare, Slash, QMark, Comma, Colon, Semicolon,
-    ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals, As, With
+    ExpOp, MulOp, AddOp, AssignOp, Minus, Ellipsis, DoubleDot, Equals, As, With, Star
 } from './lexer';
 import { parserErrorMessageProvider } from "./errors";
 
@@ -110,7 +110,10 @@ class AirParser extends CstParser {
         this.CONSUME1(RSquare);
         this.OPTION(() => {
             this.CONSUME2(LSquare);
-            this.CONSUME2(IntegerLiteral,       { LABEL: 'rank'   });
+            this.OR3([
+                { ALT: () => this.CONSUME2(IntegerLiteral,  { LABEL: 'rank' }) },
+                { ALT: () => this.CONSUME(Star,             { LABEL: 'rank' }) }
+            ])
             this.CONSUME2(RSquare);
         });
         this.CONSUME(Semicolon);
