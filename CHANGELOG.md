@@ -1,5 +1,8 @@
 # Release History
 
+### v0.7.1 - March 6, 2020
+* Enabled function calls for high-rank components
+
 ### v0.7.0 - February 18, 2020
 * Implemented parallel input loops
 * Implemented component imports from AirAssembly files
