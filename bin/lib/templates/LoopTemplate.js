@@ -30,36 +30,39 @@ class LoopTemplate extends TraceTemplate_1.TraceTemplate {
         }
         return Array.from(inputs);
     }
+    get isLeaf() {
+        return (this._isLeaf === true);
+    }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     setInputs(inputs) {
         inputs.forEach(input => this.inputs.add(input));
     }
     addLoopBlock(block) {
-        if (this.isLeaf === undefined) {
-            this.isLeaf = false;
+        if (this._isLeaf === undefined) {
+            this._isLeaf = false;
         }
-        utils_1.validate(this.isLeaf === false, errors.cannotAddLoopToLeaf());
+        utils_1.validate(this._isLeaf === false, errors.cannotAddLoopToLeaf());
         utils_1.validate(block.isSubdomainOf(this.domain), errors.invalidLoopSubdomain(block.domain, this.domain));
         // TODO: validate block
         this.blocks.push(block);
         this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
     }
     addLoopBaseBlock(block) {
-        if (this.isLeaf === undefined) {
-            this.isLeaf = true;
+        if (this._isLeaf === undefined) {
+            this._isLeaf = true;
         }
-        utils_1.validate(this.isLeaf === true, errors.cannotAddBaseToNonLeaf());
+        utils_1.validate(this._isLeaf === true, errors.cannotAddBaseToNonLeaf());
         utils_1.validate(block.isSubdomainOf(this.domain), errors.invalidLoopSubdomain(block.domain, this.domain));
         block.validate();
         this.blocks.push(block);
         this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);
     }
     addDelegateBlock(block) {
-        if (this.isLeaf === undefined) {
-            this.isLeaf = true;
+        if (this._isLeaf === undefined) {
+            this._isLeaf = true;
         }
-        utils_1.validate(this.isLeaf === true, errors.cannotAddDelegateToNonLeaf());
+        utils_1.validate(this._isLeaf === true, errors.cannotAddDelegateToNonLeaf());
         utils_1.validate(block.isSubdomainOf(this.domain), errors.invalidDelegateSubdomain(block.domain, this.domain));
         this.blocks.push(block);
         this.registerMap.fill(block, block.domain[0], block.domain[1] + 1);

@@ -142,8 +142,7 @@ export class Component {
     }
 
     private buildRegisterSpecs(loop: LoopTemplate, path: number[], masterParent?: InputRegisterMaster): number {
-        const loopDepth = loop.getDepth(this.inputRankMap);
-        if (loopDepth === 0) {
+        if (loop.isLeaf) {
             return this.processLeafLoop(loop, path, masterParent);
         }
 
@@ -189,7 +188,7 @@ export class Component {
     }
 
     private processLeafLoop(loop: LoopTemplate, path: number[], master?: InputRegisterMaster): number {
-
+        
         // process inner blocks of the loop and determine cycle length
         let cycleLength: number | undefined;
         loop.blocks.forEach((block, i) => {
@@ -207,7 +206,7 @@ export class Component {
                 const delegate = this.symbols.get(`${block.delegate}_transition`);
                 validate(delegate !== undefined, errors.undeclaredDelegate(block.delegate));
                 validate(isFunctionInfoSymbol(delegate), errors.invalidDelegate(block.delegate));
-                validate(delegate.rank === 0, errors.delegateRankMismatch(block.delegate));
+                //validate(delegate.rank === 0, errors.delegateRankMismatch(block.delegate));
                 if (cycleLength === undefined) {
                     cycleLength = delegate.cycleLength;
                 }
@@ -219,6 +218,19 @@ export class Component {
         });
         validate(cycleLength !== undefined, 'cycle length could not be determined');
 
+
+        const loopDepth = loop.getDepth(this.inputRankMap);
+        if (loopDepth === 0) {
+            this.addLeafInputs(loop, path, cycleLength, master);
+        }
+        else {
+            this.addLinearInputs(loop, path, cycleLength, master);
+        }
+
+        return cycleLength;
+    }
+
+    private addLeafInputs(loop: LoopTemplate, path: number[], cycleLength: number, master?: InputRegisterMaster) {
         // process block inputs
         const inputOffset = this.inputRegisters.length;
         for (let inputName of loop.ownInputs) {
@@ -241,8 +253,56 @@ export class Component {
             input   : inputOffset,
             path    : path
         });
+    }
 
-        return cycleLength;
+    private addLinearInputs(loop: LoopTemplate, path: number[], cycleLength: number, master?: InputRegisterMaster) {
+        
+        const groupedInputs = this.groupLinearInputs(loop.ownInputs);
+        let masterParent = master;
+
+        for (let i = 0; i < groupedInputs.length; i++) {
+
+            let isBottom = (i === groupedInputs.length - 1);
+            let isAnchor = true;
+            let inputOffset = this.inputRegisters.length;
+            let masterPeer: InputRegisterMaster = { relation: 'peerof', index: inputOffset };
+
+            for (let input of groupedInputs[i]) {
+                for (let k = 0; k < (input.dimensions[0] || 1); k++) {
+                    this.inputRegisters.push({
+                        scope       : input.scope,
+                        binary      : input.binary,
+                        master      : isAnchor || isBottom ? masterParent : masterPeer,
+                        steps       : isBottom ? cycleLength : undefined
+                    });
+                    isAnchor = false;
+                }
+            }
+
+            this.maskRegisters.push({
+                input   : inputOffset,
+                path    : path
+            });
+
+            path = path.concat(0);
+            masterParent = { relation: 'childof', index: inputOffset };
+        }
+    }
+
+    private groupLinearInputs(inputNames: string[]): InputInfo[][] {
+        const result: InputInfo[][] = [];
+        for (let inputName of inputNames) {
+            const symbol = this.symbols.get(inputName);
+            validate(symbol !== undefined, errors.undeclaredInput(inputName));
+            validate(isInputInfoSymbol(symbol), errors.invalidLoopInput(inputName));
+            let rank = symbol.rank;
+            if (result[rank] === undefined) {
+                result[rank] = [];
+            }
+            result[rank].push(symbol);
+        }
+
+        return result;
     }
 }
 

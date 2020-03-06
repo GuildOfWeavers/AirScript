@@ -95,8 +95,7 @@ class Component {
         }
     }
     buildRegisterSpecs(loop, path, masterParent) {
-        const loopDepth = loop.getDepth(this.inputRankMap);
-        if (loopDepth === 0) {
+        if (loop.isLeaf) {
             return this.processLeafLoop(loop, path, masterParent);
         }
         // build input registers for this loop
@@ -153,7 +152,7 @@ class Component {
                 const delegate = this.symbols.get(`${block.delegate}_transition`);
                 utils_1.validate(delegate !== undefined, errors.undeclaredDelegate(block.delegate));
                 utils_1.validate(utils_1.isFunctionInfoSymbol(delegate), errors.invalidDelegate(block.delegate));
-                utils_1.validate(delegate.rank === 0, errors.delegateRankMismatch(block.delegate));
+                //validate(delegate.rank === 0, errors.delegateRankMismatch(block.delegate));
                 if (cycleLength === undefined) {
                     cycleLength = delegate.cycleLength;
                 }
@@ -164,6 +163,16 @@ class Component {
             }
         });
         utils_1.validate(cycleLength !== undefined, 'cycle length could not be determined');
+        const loopDepth = loop.getDepth(this.inputRankMap);
+        if (loopDepth === 0) {
+            this.addLeafInputs(loop, path, cycleLength, master);
+        }
+        else {
+            this.addLinearInputs(loop, path, cycleLength, master);
+        }
+        return cycleLength;
+    }
+    addLeafInputs(loop, path, cycleLength, master) {
         // process block inputs
         const inputOffset = this.inputRegisters.length;
         for (let inputName of loop.ownInputs) {
@@ -185,7 +194,47 @@ class Component {
             input: inputOffset,
             path: path
         });
-        return cycleLength;
+    }
+    addLinearInputs(loop, path, cycleLength, master) {
+        const groupedInputs = this.groupLinearInputs(loop.ownInputs);
+        let masterParent = master;
+        for (let i = 0; i < groupedInputs.length; i++) {
+            let isBottom = (i === groupedInputs.length - 1);
+            let isAnchor = true;
+            let inputOffset = this.inputRegisters.length;
+            let masterPeer = { relation: 'peerof', index: inputOffset };
+            for (let input of groupedInputs[i]) {
+                for (let k = 0; k < (input.dimensions[0] || 1); k++) {
+                    this.inputRegisters.push({
+                        scope: input.scope,
+                        binary: input.binary,
+                        master: isAnchor || isBottom ? masterParent : masterPeer,
+                        steps: isBottom ? cycleLength : undefined
+                    });
+                    isAnchor = false;
+                }
+            }
+            this.maskRegisters.push({
+                input: inputOffset,
+                path: path
+            });
+            path = path.concat(0);
+            masterParent = { relation: 'childof', index: inputOffset };
+        }
+    }
+    groupLinearInputs(inputNames) {
+        const result = [];
+        for (let inputName of inputNames) {
+            const symbol = this.symbols.get(inputName);
+            utils_1.validate(symbol !== undefined, errors.undeclaredInput(inputName));
+            utils_1.validate(utils_1.isInputInfoSymbol(symbol), errors.invalidLoopInput(inputName));
+            let rank = symbol.rank;
+            if (result[rank] === undefined) {
+                result[rank] = [];
+            }
+            result[rank].push(symbol);
+        }
+        return result;
     }
 }
 exports.Component = Component;

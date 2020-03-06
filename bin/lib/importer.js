@@ -38,29 +38,17 @@ function importComponent(component, to, offsets, alias) {
     const traceDimensions = component.transitionFunction.result.dimensions;
     const staticDimensions = [component.staticRegisters.length, 0];
     const constraintDimensions = component.constraintEvaluator.result.dimensions;
-    // import trace initializer
-    let ctx = to.createFunctionContext(traceDimensions, `$${alias}_init`);
-    component.traceInitializer.params.forEach(param => ctx.addParam(param.dimensions, param.handle));
-    ctx.addParam(staticDimensions, utils_1.ProcedureParams.staticRow);
-    component.traceInitializer.locals.forEach(local => ctx.addLocal(local.dimensions, local.handle));
-    let statements = component.traceInitializer.statements.map(s => {
-        const expression = importer.visit(s.expression, ctx);
-        return ctx.buildStoreOperation(s.handle || s.target, expression);
-    });
-    let result = importer.visit(component.traceInitializer.result, ctx);
-    to.addFunction(ctx, statements, result);
-    // TODO: add to functions?
     // import transition function
     let funcInfo = buildFunctionInfo(component, 'transition', importName, offsets);
-    ctx = to.createFunctionContext(traceDimensions, funcInfo.handle);
+    let ctx = to.createFunctionContext(traceDimensions, funcInfo.handle);
     ctx.addParam(traceDimensions, utils_1.ProcedureParams.thisTraceRow);
     ctx.addParam(staticDimensions, utils_1.ProcedureParams.staticRow);
     component.transitionFunction.locals.forEach(local => ctx.addLocal(local.dimensions, local.handle));
-    statements = component.transitionFunction.statements.map(s => {
+    let statements = component.transitionFunction.statements.map(s => {
         const expression = importer.visit(s.expression, ctx);
         return ctx.buildStoreOperation(s.handle || s.target, expression);
     });
-    result = importer.visit(component.transitionFunction.result, ctx);
+    let result = importer.visit(component.transitionFunction.result, ctx);
     to.addFunction(ctx, statements, result);
     functions.push(funcInfo);
     // import constraint evaluator

@@ -154,7 +154,6 @@ const errors = {
     overusedInput: (r) => `input '${r}' cannot resurface in inner loops`,
     invalidLoopInput: (s) => `symbol '${s}' cannot be used in loop header`,
     invalidInputWidth: (s) => `input '${s}' is invalid: input width must be greater than 0`,
-    inputRankMismatch: (s) => `rank of input '${s}' does not match loop depth`,
     dupSymbolDeclaration: (s) => `symbol '${s}' is declared multiple times`,
     cycleLengthNotPowerOf2: (s) => `total number of steps is ${s} but must be a power of 2`,
     intervalStepNotCovered: (i) => `step ${i} is not covered by any expression`

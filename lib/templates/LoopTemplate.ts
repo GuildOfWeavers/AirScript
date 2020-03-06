@@ -15,7 +15,7 @@ export class LoopTemplate extends TraceTemplate {
     readonly blocks : TraceTemplate[];
 
     private readonly registerMap: TraceTemplate[];
-    isLeaf? : boolean;
+    private _isLeaf? : boolean;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -45,6 +45,10 @@ export class LoopTemplate extends TraceTemplate {
         return Array.from(inputs);
     }
 
+    get isLeaf(): boolean {
+        return (this._isLeaf === true);
+    }
+
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     setInputs(inputs: string[]): void {
@@ -52,10 +56,10 @@ export class LoopTemplate extends TraceTemplate {
     }
 
     addLoopBlock(block: LoopTemplate): void {
-        if (this.isLeaf === undefined) {
-            this.isLeaf = false;
+        if (this._isLeaf === undefined) {
+            this._isLeaf = false;
         }
-        validate(this.isLeaf === false, errors.cannotAddLoopToLeaf());
+        validate(this._isLeaf === false, errors.cannotAddLoopToLeaf());
         validate(block.isSubdomainOf(this.domain), errors.invalidLoopSubdomain(block.domain, this.domain));
         // TODO: validate block
 
@@ -64,10 +68,10 @@ export class LoopTemplate extends TraceTemplate {
     }
 
     addLoopBaseBlock(block: LoopBaseTemplate): void {
-        if (this.isLeaf === undefined) {
-            this.isLeaf = true;
+        if (this._isLeaf === undefined) {
+            this._isLeaf = true;
         }
-        validate(this.isLeaf === true, errors.cannotAddBaseToNonLeaf());
+        validate(this._isLeaf === true, errors.cannotAddBaseToNonLeaf());
         validate(block.isSubdomainOf(this.domain), errors.invalidLoopSubdomain(block.domain, this.domain));
         block.validate();
 
@@ -76,10 +80,10 @@ export class LoopTemplate extends TraceTemplate {
     }
 
     addDelegateBlock(block: DelegateTemplate): void {
-        if (this.isLeaf === undefined) {
-            this.isLeaf = true;
+        if (this._isLeaf === undefined) {
+            this._isLeaf = true;
         }
-        validate(this.isLeaf === true, errors.cannotAddDelegateToNonLeaf());
+        validate(this._isLeaf === true, errors.cannotAddDelegateToNonLeaf());
         validate(block.isSubdomainOf(this.domain), errors.invalidDelegateSubdomain(block.domain, this.domain));
 
         this.blocks.push(block);

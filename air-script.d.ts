@@ -2,7 +2,7 @@ declare module '@guildofweavers/air-script' {
 
     // IMPORTS AND RE-EXPORTS
     // --------------------------------------------------------------------------------------------
-    import { AirSchema, InputRegisterMaster, Dimensions, PrngSequence } from '@guildofweavers/air-assembly';
+    import { AirSchema, InputRegisterMaster, Dimensions, ValueSequence } from '@guildofweavers/air-assembly';
     export { AirSchema } from '@guildofweavers/air-assembly';
 
     // PUBLIC INTERFACES
@@ -49,7 +49,7 @@ declare module '@guildofweavers/air-script' {
     }
 
     export interface StaticRegister {
-        readonly values : bigint[] | PrngSequence;
+        readonly values : bigint[] | ValueSequence;
     }
 
     export interface SymbolInfo {

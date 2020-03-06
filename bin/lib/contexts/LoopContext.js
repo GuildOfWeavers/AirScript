@@ -85,9 +85,7 @@ class LoopContext extends ExecutionContext_1.ExecutionContext {
         }
         // build parameter for static registers
         const statics = [];
-        const controller = this.getLoopController();
-        const inputsVector = this.base.buildMakeVectorExpression(inputs);
-        statics.push(this.base.buildBinaryOperation('mul', inputsVector, controller));
+        statics.push(this.base.buildMakeVectorExpression(inputs));
         const masks = this.base.buildLoadExpression('load.param', utils_1.ProcedureParams.staticRow);
         const maskOffset = this.loopOffset + this.getLoopControllerIndex(this.getCurrentBlockPath());
         statics.push(this.base.buildSliceVectorExpression(masks, maskOffset, maskOffset + info.maskCount - 1));
